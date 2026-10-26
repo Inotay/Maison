@@ -352,7 +352,7 @@ details.fold[open] > summary::before { content: "− "; }
 
 .lamp-wrap { position: relative; isolation: isolate; display: grid; justify-items: center; padding: 6px 0 4px; }
 .lamp-wrap::before {
-  content: ""; position: absolute; z-index: -1;
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
   left: 50%; top: 50%; width: 360px; height: 360px; transform: translate(-50%, -50%);
   background: radial-gradient(circle, color-mix(in srgb, var(--lampe) 42%, transparent) 0%, transparent 62%);
   opacity: 0; transition: opacity 1.4s ease;

@@ -697,6 +697,7 @@ const actions = {
 
   'chore-done': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
+    if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 60000) { toast('Déjà notée il y a un instant'); return; }
     const next = S.members.find(m => m.email !== S.me)?.email || S.me;
     meow();
     run(async () => {
@@ -788,23 +789,28 @@ const forms = {
   },
   task(f) {
     const w = chipVal('task-who', 'nous');
+    if (!f.title.value.trim()) { toast('Écris d\'abord la chose à faire'); return; }
     const row = { title: f.title.value.trim(), assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null };
     f.reset();
     run(() => api.insert('tasks', row));
   },
   note(f) {
+    if (!f.body.value.trim()) { toast('Le mot est vide'); return; }
     const row = { body: f.body.value.trim(), important: f.important.checked };
     f.reset();
     run(() => api.insert('board', row), 'Affiché sur le tableau');
   },
   chore(f) {
+    if (!f.title.value.trim()) { toast('Donne un nom à la corvée'); return; }
     const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), turn: chipVal('chore-first', S.me) };
     f.reset(); S.showChoreForm = false;
     run(() => api.insert('chores', row), 'Corvée ajoutée');
   },
   shop(f) {
-    const labels = f.label.value.split(',').map(s => s.trim()).filter(Boolean);
+    const have = new Set(S.shopping.filter(x => !x.checked).map(x => x.label.toLowerCase()));
+    const labels = [...new Set(f.label.value.split(',').map(s => s.trim()).filter(Boolean).map(s => s[0].toUpperCase() + s.slice(1)))].filter(l => !have.has(l.toLowerCase()));
     f.reset();
+    if (!labels.length) { toast('Déjà sur la liste'); return; }
     run(async () => { for (const label of labels) await api.insert('shopping', { label }); });
     setTimeout(() => document.getElementById('shop-label')?.focus(), 50);
   },
@@ -819,6 +825,7 @@ const forms = {
       if (!(p >= 0 && p <= 100)) { toast('Indique un pourcentage entre 0 et 100'); return; }
       payer_share = p / 100;
     }
+    if (!f.label.value.trim()) { toast('Indique pour quoi'); return; }
     const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()) };
     f.reset(); S.showExpenseForm = false;
     run(() => api.insert('expenses', row), 'Dépense enregistrée');
