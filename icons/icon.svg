@@ -1,10 +1,33 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#2A1C15"/><g transform="translate(0 20)">
-  <path d="M98 232 L70 72 L200 150 Z" fill="#1C120C"/><path d="M112 206 L96 112 L178 162 Z" fill="#3A2A20"/>
-  <path d="M414 232 L442 72 L312 150 Z" fill="#1C120C"/><path d="M400 206 L416 112 L334 162 Z" fill="#3A2A20"/>
-  <ellipse cx="256" cy="270" rx="196" ry="160" fill="#F3EBDF"/>
-  <ellipse cx="256" cy="270" rx="130" ry="118" fill="#1C120C"/>
-  <circle cx="193" cy="254" r="50" fill="#F3EBDF"/><circle cx="193" cy="254" r="37" fill="#9CC4E4"/><circle cx="193" cy="254" r="20" fill="#120C08"/><circle cx="205" cy="241" r="8" fill="#fff"/>
-  <circle cx="319" cy="254" r="50" fill="#F3EBDF"/><circle cx="319" cy="254" r="37" fill="#9CC4E4"/><circle cx="319" cy="254" r="20" fill="#120C08"/><circle cx="331" cy="241" r="8" fill="#fff"/>
-  <path d="M242 318 L270 318 L256 335 Z" fill="#E8907A"/>
-  <path d="M256 335 Q256 352 239 352 M256 335 Q256 352 273 352" fill="none" stroke="#F3EBDF" stroke-width="5" stroke-linecap="round"/>
-</g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-85 -95 170 170" ><rect x="-85" y="-95" width="170" height="170" fill="#2A1C15"/><defs>
+  <radialGradient id="mask" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#1C120C"/><stop offset=".7" stop-color="#1C120C"/><stop offset="1" stop-color="#1C120C" stop-opacity="0"/></radialGradient>
+  <radialGradient id="iris" cx="40%" cy="35%" r="65%"><stop offset="0" stop-color="#D9EBF8"/><stop offset=".5" stop-color="#9CC4E4"/><stop offset="1" stop-color="#4E7FAE"/></radialGradient>
+  <linearGradient id="point" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F3EBDF"/><stop offset="1" stop-color="#1C120C"/></linearGradient>
+</defs><g class="head">
+    <g class="ear" ><path d="M-62 -10 C-70 -34 -70 -58 -64 -78 C-48 -64 -32 -52 -18 -36 Z" fill="#1C120C"/><path d="M-54 -16 C-58 -34 -58 -50 -56 -64 C-46 -54 -36 -44 -28 -34 Z" fill="#3A2A20"/></g>
+    <g class="ear" ><path d="M62 -10 C70 -34 70 -58 64 -78 C48 -64 32 -52 18 -36 Z" fill="#1C120C"/><path d="M54 -16 C58 -34 58 -50 56 -64 C46 -54 36 -44 28 -34 Z" fill="#3A2A20"/></g>
+    <path d="M0 -56 C30 -56 54 -40 62 -16 C68 6 62 30 48 46 C36 58 18 64 0 64 C-18 64 -36 58 -48 46 C-62 30 -68 6 -62 -16 C-54 -40 -30 -56 0 -56 Z" fill="#F3EBDF"/>
+    <path d="M-48 46 C-52 52 -56 56 -60 62 M48 46 C52 52 56 56 60 62 M-26 62 C-28 68 -29 72 -29 76 M26 62 C28 68 29 72 29 76" stroke="#F3EBDF" stroke-width="4" stroke-linecap="round"/>
+    <ellipse cx="0" cy="12" rx="52" ry="46" fill="url(#mask)"/>
+    <path d="M0 -50 C10 -50 18 -42 20 -32 C12 -36 6 -37 0 -37 C-6 -37 -12 -36 -20 -32 C-18 -42 -10 -50 0 -50 Z" fill="#1C120C" opacity=".9"/>
+    
+    
+    <circle cx="-23" cy="4" r="17" fill="#F3EBDF"/>
+    <g style="transform:translate(0px,0px)">
+      <circle cx="-23" cy="4" r="12.5" fill="url(#iris)"/><circle cx="-23" cy="4.5" r="6.5" fill="#120C08"/>
+      <circle cx="-19" cy="-1" r="3" fill="#FFFFFF"/><circle cx="-27" cy="8" r="1.5" fill="#FFFFFF" opacity=".7"/>
+    </g>
+    
+    <g ><circle cx="-23" cy="4" r="18" fill="#1C120C"/></g>
+    
+    <circle cx="23" cy="4" r="17" fill="#F3EBDF"/>
+    <g style="transform:translate(0px,0px)">
+      <circle cx="23" cy="4" r="12.5" fill="url(#iris)"/><circle cx="23" cy="4.5" r="6.5" fill="#120C08"/>
+      <circle cx="27" cy="-1" r="3" fill="#FFFFFF"/><circle cx="19" cy="8" r="1.5" fill="#FFFFFF" opacity=".7"/>
+    </g>
+    
+    <g ><circle cx="23" cy="4" r="18" fill="#1C120C"/></g>
+    
+    <path d="M-6 25 L6 25 L0 31 Z" fill="#D98A7A"/><path d="M-6 25 Q0 21 6 25" fill="none" stroke="#D98A7A" stroke-width="2" stroke-linecap="round"/>
+    <path d="M0 31 Q0 37 -6 37 M0 31 Q0 37 6 37 M-11 37 Q0 46 11 37" fill="none" stroke="#F3EBDF" stroke-width="2" stroke-linecap="round"/>
+    <g stroke="#F3EBDF" stroke-width="1.4" stroke-linecap="round" opacity=".85" fill="none"><path d="M-18 28 C-34 24 -48 24 -64 26 M-18 34 C-34 34 -48 38 -64 44 M-16 40 C-32 44 -44 50 -56 58 M18 28 C34 24 48 24 64 26 M18 34 C34 34 48 38 64 44 M16 40 C32 44 44 50 56 58"/></g>
+  </g></svg>

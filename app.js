@@ -1,6 +1,8 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
+import { AZAMI } from './azami.js';
+
 const CFG = window.MAISON_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseKey);
 const $app = document.getElementById('app');
@@ -24,6 +26,7 @@ const S = {
   recovery: false,     // arrivée par un lien « mot de passe oublié »
   showChoreForm: false,
   showExpenseForm: false,
+  meowing: false,
 };
 
 let api = null;
@@ -89,6 +92,8 @@ fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = '
 let audioCtx = null;
 function meow(force) {
   if (!force && Math.random() > 0.18) return;
+  S.meowing = true; render();
+  setTimeout(() => { S.meowing = false; render(); }, 750);
   try {
     if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -309,18 +314,6 @@ const ICONS = {
   nuit: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
 };
 
-const FACE = `<svg class="face" viewBox="0 0 300 250" aria-hidden="true">
-  <g class="ear"><path d="M58 120 L40 20 L120 70 Z" fill="#1C120C"/><path d="M66 104 L56 46 L104 76 Z" fill="#3A2A20"/></g>
-  <g class="ear r"><path d="M242 120 L260 20 L180 70 Z" fill="#1C120C"/><path d="M234 104 L244 46 L196 76 Z" fill="#3A2A20"/></g>
-  <ellipse cx="150" cy="150" rx="118" ry="96" fill="#F3EBDF"/>
-  <ellipse cx="150" cy="150" rx="78" ry="70" fill="#1C120C"/>
-  <g><circle cx="112" cy="140" r="30" fill="#F3EBDF"/><g class="iris"><circle cx="112" cy="140" r="22" fill="#9CC4E4"/><circle cx="112" cy="140" r="12" fill="#120C08"/><circle cx="119" cy="132" r="5" fill="#fff"/></g><rect class="lid" x="80" y="108" width="64" height="64" rx="32" fill="#1C120C"/></g>
-  <g><circle cx="188" cy="140" r="30" fill="#F3EBDF"/><g class="iris"><circle cx="188" cy="140" r="22" fill="#9CC4E4"/><circle cx="188" cy="140" r="12" fill="#120C08"/><circle cx="195" cy="132" r="5" fill="#fff"/></g><rect class="lid" x="156" y="108" width="64" height="64" rx="32" fill="#1C120C"/></g>
-  <path d="M142 178 L158 178 L150 188 Z" fill="#E8907A"/>
-  <path d="M150 188 Q150 198 140 198 M150 188 Q150 198 160 198" fill="none" stroke="#F3EBDF" stroke-width="3" stroke-linecap="round"/>
-  <g stroke="#F3EBDF" stroke-width="2" stroke-linecap="round" opacity=".8"><path d="M96 184 L50 176 M98 192 L52 196 M204 184 L250 176 M202 192 L248 196"/></g>
-</svg>`;
-
 function nav() {
   const openShop = S.shopping.filter(s => !s.checked).length;
   const unread = S.care.filter(c => c.recipient === S.me && !c.read_at).length;
@@ -428,7 +421,7 @@ function viewMaison() {
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
 
   return `<header class="hd centered">
-    <button class="face-btn" data-action="meow" aria-label="Azami">${FACE}</button>
+    <button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.maison()}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
@@ -495,7 +488,7 @@ function viewMenage() {
   const max = Math.max(1, ...counts.map(c => c[1]));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
-  return `<header class="hd"><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.menage()}</button></header>
     ${chores.length ? `<div>${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
@@ -531,7 +524,7 @@ function viewCourses() {
   const cart = S.shopping.filter(s => s.checked);
   const item = s => `<li class="item"><button class="tick" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     <div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div></li>`;
-  return `<header class="hd"><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.courses()}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter (sépare par des virgules)" autocomplete="off" enterkeyhint="done" required></div>
@@ -586,7 +579,7 @@ function viewArgent() {
       }).join('')}</ul>`;
   }).join('');
 
-  return `<header class="hd"><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.argent()}</button></header>
     <p class="balance">${sentence}</p>
     ${Math.abs(net) >= 0.01 ? `<button class="link" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>` : ''}
 
@@ -610,7 +603,7 @@ function viewArgent() {
 // Nuit : care et libido
 
 function viewNuit() {
-  return `<header class="hd"><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.nuit()}</button></header>
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="nuit-tab" data-tab="care" aria-pressed="${S.nuitTab === 'care'}">Care</button>
       <button data-action="nuit-tab" data-tab="libido" aria-pressed="${S.nuitTab === 'libido'}">Libido</button>
