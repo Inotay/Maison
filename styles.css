@@ -232,31 +232,32 @@ details.fold[open] > summary::before { content: "− "; }
 .glance .g-num { font-weight: 800; font-size: 18px; flex: none; }
 .glance .late { color: var(--bleu); font-weight: 700; }
 
-/* Azami : une pose par page, animée doucement ------------------------- */
+/* Azami : une pose par page, kawaii Bauhaus, animée doucement ------------ */
 
-.azami { display: block; width: 190px; height: 171px; margin: 4px auto 0; }
-.azami-btn { all: unset; cursor: pointer; display: block; width: 190px; margin: 0 auto; }
-.azami-btn:focus-visible { outline: 2px solid var(--bleu); outline-offset: 4px; border-radius: 20px; }
-.azami .blink { animation: blink 6s ease-in-out infinite; }
-.azami .eye + .eye .blink { animation-delay: .05s; }
-@keyframes blink { 0%, 90%, 100% { transform: scaleY(0); } 93% { transform: scaleY(1); } }
-.azami .ear { animation: twitch 7s ease-in-out infinite; }
-.azami .ear + .ear { animation-delay: 3.5s; }
-@keyframes twitch { 0%, 82%, 100% { transform: rotate(var(--r, 0deg)); } 86% { transform: rotate(calc(var(--r, 0deg) - 8deg)); } 90% { transform: rotate(calc(var(--r, 0deg) + 3deg)); } }
-.azami .coin { animation: flip 4s ease-in-out infinite; }
-@keyframes flip { 0%, 70%, 100% { transform: scaleX(1); } 85% { transform: scaleX(-1); } }
-.azami .zz { animation: float 3s ease-in-out infinite; opacity: 0; }
-.azami .z2 { animation-delay: 1.2s; }
-@keyframes float { 0% { transform: translateY(6px); opacity: 0; } 30%, 60% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
-.azami .fish { animation: wiggle 2.4s ease-in-out infinite; }
-@keyframes wiggle { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-8deg); } }
-.azami .broom { animation: sweep 3s ease-in-out infinite; }
-@keyframes sweep { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-6deg); } }
+.azami { display: block; width: 210px; height: 225px; margin: 0 auto; }
+.azami-btn { all: unset; cursor: pointer; display: block; width: 210px; margin: 0 auto; }
+.azami-btn:focus-visible { outline: 2px solid var(--bleu); outline-offset: 4px; border-radius: 24px; }
+.azami .queue { transform-origin: 520px 576px; animation: remue 3.2s ease-in-out infinite; }
+.azami .queue.vite { animation-duration: .6s; }
+@keyframes remue { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(8deg); } }
+.azami .paupiere { animation: clignement 5.4s ease-in-out infinite; }
+@keyframes clignement { 0%, 40%, 44%, 100% { transform: scaleY(0); } 42% { transform: scaleY(1); } }
+.azami .tete-mobile { transform-origin: 405px 490px; animation: inclination 4.6s ease-in-out infinite; }
+@keyframes inclination { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.azami .balai { animation: balaie 2.6s ease-in-out infinite; }
+@keyframes balaie { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-7deg); } }
+.azami .poisson { animation: fretille 1.8s ease-in-out infinite; }
+@keyframes fretille { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-10deg); } }
+.azami .piece { animation: retourne 4s ease-in-out infinite; }
+@keyframes retourne { 0%, 70%, 100% { transform: scaleX(1); } 85% { transform: scaleX(-1); } }
+.azami .zz { animation: monte 3s ease-in-out infinite; opacity: 0; }
+.azami .z2 { animation-delay: 1.3s; }
+@keyframes monte { 0% { transform: translateY(20px); opacity: 0; } 30%, 60% { opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
 .hd.centered { text-align: center; }
 .hd.centered .hd-kicker { margin-top: 6px; }
-.hd.row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px; }
-.hd.row .azami { width: 132px; height: 119px; margin: 0; }
-.hd.row .azami-btn { width: 132px; margin: 0; }
+.hd.row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; }
+.hd.row .azami { width: 140px; height: 150px; margin: 0; }
+.hd.row .azami-btn { width: 140px; margin: 0; }
 
 /* Tableau ---------------------------------------------------------------- */
 
