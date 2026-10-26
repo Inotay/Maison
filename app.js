@@ -82,6 +82,30 @@ function authError(e) {
   return "Ça n'a pas marché. Vérifie ta connexion et réessaie.";
 }
 
+// Azami miaule de temps en temps. Un vrai enregistrement dans sounds/azami.m4a
+// remplace la version synthétique.
+let meowFile = null;
+fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = 'sounds/azami.m4a'; }).catch(() => {});
+let audioCtx = null;
+function meow(force) {
+  if (!force && Math.random() > 0.18) return;
+  try {
+    if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    const c = audioCtx, t = c.currentTime;
+    const osc = c.createOscillator(), osc2 = c.createOscillator();
+    const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain();
+    osc.type = 'sawtooth'; osc2.type = 'triangle';
+    osc.frequency.setValueAtTime(520, t); osc.frequency.linearRampToValueAtTime(760, t + .18); osc.frequency.exponentialRampToValueAtTime(430, t + .62);
+    osc2.frequency.setValueAtTime(521, t); osc2.frequency.linearRampToValueAtTime(764, t + .18); osc2.frequency.exponentialRampToValueAtTime(433, t + .62);
+    f1.type = 'bandpass'; f1.Q.value = 5; f1.frequency.setValueAtTime(900, t); f1.frequency.linearRampToValueAtTime(1900, t + .2); f1.frequency.linearRampToValueAtTime(1100, t + .6);
+    f2.type = 'lowpass'; f2.frequency.value = 3200;
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .06); g.gain.setValueAtTime(.16, t + .4); g.gain.exponentialRampToValueAtTime(.001, t + .7);
+    osc.connect(f1); osc2.connect(f1); f1.connect(f2); f2.connect(g); g.connect(c.destination);
+    osc.start(t); osc2.start(t); osc.stop(t + .72); osc2.stop(t + .72);
+  } catch {}
+}
+
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -285,6 +309,18 @@ const ICONS = {
   nuit: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
 };
 
+const FACE = `<svg class="face" viewBox="0 0 300 250" aria-hidden="true">
+  <g class="ear"><path d="M58 120 L40 20 L120 70 Z" fill="#1C120C"/><path d="M66 104 L56 46 L104 76 Z" fill="#3A2A20"/></g>
+  <g class="ear r"><path d="M242 120 L260 20 L180 70 Z" fill="#1C120C"/><path d="M234 104 L244 46 L196 76 Z" fill="#3A2A20"/></g>
+  <ellipse cx="150" cy="150" rx="118" ry="96" fill="#F3EBDF"/>
+  <ellipse cx="150" cy="150" rx="78" ry="70" fill="#1C120C"/>
+  <g><circle cx="112" cy="140" r="30" fill="#F3EBDF"/><g class="iris"><circle cx="112" cy="140" r="22" fill="#9CC4E4"/><circle cx="112" cy="140" r="12" fill="#120C08"/><circle cx="119" cy="132" r="5" fill="#fff"/></g><rect class="lid" x="80" y="108" width="64" height="64" rx="32" fill="#1C120C"/></g>
+  <g><circle cx="188" cy="140" r="30" fill="#F3EBDF"/><g class="iris"><circle cx="188" cy="140" r="22" fill="#9CC4E4"/><circle cx="188" cy="140" r="12" fill="#120C08"/><circle cx="195" cy="132" r="5" fill="#fff"/></g><rect class="lid" x="156" y="108" width="64" height="64" rx="32" fill="#1C120C"/></g>
+  <path d="M142 178 L158 178 L150 188 Z" fill="#E8907A"/>
+  <path d="M150 188 Q150 198 140 198 M150 188 Q150 198 160 198" fill="none" stroke="#F3EBDF" stroke-width="3" stroke-linecap="round"/>
+  <g stroke="#F3EBDF" stroke-width="2" stroke-linecap="round" opacity=".8"><path d="M96 184 L50 176 M98 192 L52 196 M204 184 L250 176 M202 192 L248 196"/></g>
+</svg>`;
+
 function nav() {
   const openShop = S.shopping.filter(s => !s.checked).length;
   const unread = S.care.filter(c => c.recipient === S.me && !c.read_at).length;
@@ -391,7 +427,9 @@ function viewMaison() {
   else lines.push(['Vous êtes quittes', '0.00', 'argent', false]);
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
 
-  return `<header class="hd"><p class="hd-kicker">${esc(date)}</p><h1>${hello} ${esc(firstName())}</h1></header>
+  return `<header class="hd centered">
+    <button class="face-btn" data-action="meow" aria-label="Azami">${FACE}</button>
+    <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
     <div class="seg" role="group" aria-label="Affichage">
@@ -413,7 +451,7 @@ function viewTasks() {
     const late = t.due_on && !t.done && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) < 0;
     return `<li class="item ${t.done ? 'done' : ''}">
       <button class="tick" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      <div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--rouge)"' : ''}>${esc(meta.join(', '))}</div></div>
+      <div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
       <button class="more" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${S.open === t.id ? `<div class="item-actions">${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
@@ -651,6 +689,7 @@ const actions = {
 
   'task-toggle': el => {
     const t = S.tasks.find(x => x.id === el.dataset.id);
+    if (!t.done) meow();
     run(() => api.update('tasks', { id: t.id }, { done: !t.done, done_at: t.done ? null : new Date().toISOString() }));
   },
   'task-assign': el => {
@@ -666,6 +705,7 @@ const actions = {
   'chore-done': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
     const next = S.members.find(m => m.email !== S.me)?.email || S.me;
+    meow();
     run(async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title });
@@ -680,7 +720,7 @@ const actions = {
   'chore-delete': el => { if (confirm('Supprimer cette corvée ?')) { S.open = null; run(() => api.remove('chores', { id: el.dataset.id }), 'Corvée supprimée'); } },
   'chore-form': el => { S.showChoreForm = el.dataset.show === '1'; render(); if (S.showChoreForm) document.getElementById('chore-title')?.focus(); },
 
-  'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked })); },
+  'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); if (!s.checked) meow(); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked })); },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
   'exp-form': el => { S.showExpenseForm = el.dataset.show === '1'; render(); if (S.showExpenseForm) document.getElementById('exp-amount')?.focus(); },
@@ -715,6 +755,7 @@ const actions = {
     run(() => api.upsert('libido', { email: S.me, is_on: !on, until, updated_at: new Date().toISOString() }));
   },
 
+  meow: () => meow(true),
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
