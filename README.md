@@ -27,11 +27,18 @@ Dans **Project Settings > API Keys**, copier l'URL du projet et la clé publisha
 ### 4. Installer sur l'iPhone
 Ouvrir `https://inotay.github.io/Maison/` dans Safari, bouton Partager, puis **Sur l'écran d'accueil**.
 
+### 5. Verrouiller les inscriptions
+Une fois vos deux comptes créés, coller `supabase/02_durcissement.sql` dans SQL Editor et lancer Run : seules les adresses de `members` peuvent désormais créer un compte. Par sécurité, désactiver aussi « Allow new users to sign up » dans Authentication > Providers > Email.
+
 ## Vie privée
 - Care : un mot n'est visible que par la personne qui l'écrit et celle qui le reçoit.
-- Libido : chacun ne peut lire que sa propre ligne. La base répond seulement « match » ou « pas de match », et uniquement à quelqu'un dont le switch est allumé. Le switch s'éteint seul à l'heure choisie et aucun historique n'est conservé.
+- Care : l'auteur voit quand son mot a été ouvert.
+- Libido : chacun ne peut lire que sa propre ligne. Limite assumée : allumer son switch, c'est aussi poser la question, puisqu'on apprend alors si l'autre a allumé. La base répond seulement « match » ou « pas de match », et uniquement à quelqu'un dont le switch est allumé. Le switch s'éteint seul à l'heure choisie et aucun historique n'est conservé.
 
 ## Fichiers
 - `index.html`, `styles.css`, `app.js` : l'app
+- `azami.js` : Azami, une pose par page
 - `config.js` : connexion à Supabase
-- `supabase/schema.sql` : tables et règles d'accès
+- `icons/`, `manifest.webmanifest` : installation sur l'écran d'accueil
+- `sounds/` : un enregistrement `azami.m4a` remplace le miaulement synthétique
+- `supabase/schema.sql` : tables et règles d'accès ; `supabase/02_durcissement.sql` : à appliquer ensuite

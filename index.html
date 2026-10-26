@@ -8,7 +8,8 @@
 <meta name="theme-color" content="#2A1C15">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src https://*.supabase.co wss://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'">
 <meta name="apple-mobile-web-app-title" content="Maison">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
@@ -19,7 +20,7 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<div id="app"></div>
+<main id="app"></main>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="config.js"></script>
 <script type="module" src="app.js"></script>

@@ -27,6 +27,7 @@ const S = {
   showChoreForm: false,
   showExpenseForm: false,
   meowing: false,
+  offline: false,
 };
 
 let api = null;
@@ -44,7 +45,8 @@ const nameOf = email => S.members.find(m => m.email === email)?.name || (email ?
 const other = () => S.members.find(m => m.email !== S.me)?.email;
 const firstName = () => nameOf(S.me);
 
-const chf = n => new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+const cents = n => Math.round(Number(n) * 100 + Number.EPSILON);
+const chf = n => new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents(n) / 100);
 
 function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
 function dayDiff(a, b) { return Math.round((startOfDay(a) - startOfDay(b)) / DAY); }
@@ -55,9 +57,10 @@ function relDay(dateStr) {
   if (d === 0) return "aujourd'hui";
   if (d === 1) return 'demain';
   if (d === -1) return 'hier';
-  if (d < 0) return `il y a ${pl(-d, 'jour', 'jours')}`;
-  if (d < 7) return new Date(dateStr + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'long' });
-  return new Date(dateStr + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' });
+  if (d < 0 && d >= -7) return `il y a ${pl(-d, 'jour', 'jours')}`;
+  if (d > 0 && d < 7) return new Date(dateStr + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'long' });
+  const far = Math.abs(d) > 300;
+  return new Date(dateStr + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'short', year: far ? 'numeric' : undefined });
 }
 
 function ago(iso) {
@@ -92,12 +95,12 @@ fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = '
 let audioCtx = null;
 function meow(force) {
   if (!force && Math.random() > 0.18) return;
-  S.meowing = true; render();
-  setTimeout(() => { S.meowing = false; render(); }, 750);
+  if (!typing()) { S.meowing = true; render(); setTimeout(() => { S.meowing = false; if (!typing()) render(); }, 750); }
   try {
     if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const c = audioCtx, t = c.currentTime;
+    const c = audioCtx; if (c.state !== 'running') c.resume();
+    const t = c.currentTime;
     const osc = c.createOscillator(), osc2 = c.createOscillator();
     const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain();
     osc.type = 'sawtooth'; osc2.type = 'triangle';
@@ -147,6 +150,8 @@ function remoteApi(client) {
     async list(t, o = {}) {
       let q = client.from(t).select('*');
       if (o.gte) q = q.gte(o.gte[0], o.gte[1]);
+      if (o.order) q = q.order(o.order[0], { ascending: o.order[1] });
+      if (o.limit) q = q.limit(o.limit);
       return ok(await q) || [];
     },
     async insert(t, row) { return ok(await client.from(t).insert(row).select().single()); },
@@ -161,7 +166,7 @@ function demoApi() {
   const KEY = 'maison-demo-v1';
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch {}
-  if (!db) db = demoSeed();
+  db = db ? { ...demoSeed(), ...db } : demoSeed();
   const save = () => safeSet(KEY, JSON.stringify(db));
   const owners = { tasks: 'created_by', chores: 'created_by', chore_log: 'done_by', expenses: 'created_by', shopping: 'added_by', board: 'author', care_messages: 'author', libido: 'email' };
   const visible = (t, r) => t === 'care_messages' ? (r.author === S.me || r.recipient === S.me) : t === 'libido' ? r.email === S.me : true;
@@ -244,23 +249,45 @@ async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
   const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
-    api.list('expenses'), api.list('shopping'), api.list('board'), api.list('care_messages'), api.list('libido'),
+    api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'), api.list('libido'),
   ]);
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care });
   S.libido = lib.find(r => r.email === S.me) || null;
   S.match = !!(await api.rpc('libido_match'));
 }
 
+const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
+let loadSeq = 0;
+let refreshPending = false;
+
+// Rafraîchit depuis la base. Pendant une saisie, on attend que le champ soit quitté
+// (un re-rendu fermerait le clavier sur iPhone).
 async function refresh() {
-  try { await loadAll(); render(); } catch (e) { console.error(e); toast('Connexion impossible pour le moment.'); }
+  if (typing()) { refreshPending = true; return; }
+  const seq = ++loadSeq;
+  try {
+    await loadAll();
+    if (seq !== loadSeq) return;
+    S.offline = false; render();
+  } catch (e) {
+    console.error(e);
+    if (!$app.children.length || S.offline) { S.offline = true; render(); }
+    else toast('Connexion impossible pour le moment.');
+  }
 }
+document.addEventListener('focusout', () => { if (refreshPending) { refreshPending = false; setTimeout(refresh, 150); } });
 
 let refreshTimer = null;
 function scheduleRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 400); }
 
-async function run(fn, okMsg) {
-  try { await fn(); if (okMsg) toast(okMsg); await loadAll(); render(); }
+// Une action à la fois par élément : un double tap n'enregistre pas deux fois.
+const pending = new Set();
+async function run(fn, okMsg, key = 'global') {
+  if (pending.has(key)) return;
+  pending.add(key);
+  try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); }
   catch (e) { console.error(e); toast("Ça n'a pas marché. Vérifie la connexion et réessaie."); }
+  finally { pending.delete(key); }
 }
 
 // Libido ---------------------------------------------------------------------
@@ -285,10 +312,11 @@ function balances() {
   for (const e of S.expenses) {
     const o = S.members.find(m => m.email !== e.paid_by)?.email;
     if (!o) continue;
-    const owed = Number(e.amount) * (1 - Number(e.payer_share));
+    const owed = Math.round(cents(e.amount) * (1 - Number(e.payer_share)));
     net[e.paid_by] += owed;
     net[o] -= owed;
   }
+  for (const k in net) net[k] = net[k] / 100;
   return net;
 }
 
@@ -320,9 +348,10 @@ function nav() {
   const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['argent', 'Argent'], ['nuit', 'Nuit']];
   return `<nav class="nav" aria-label="Sections"><ul>${items.map(([k, l]) => {
     let mark = '';
-    if (k === 'courses' && openShop) mark = `<span class="badge">${openShop}</span>`;
-    if (k === 'nuit' && (unread || S.match)) mark = `<span class="dot" aria-label="Nouveau"></span>`;
-    return `<li><button data-action="go" data-view="${k}" ${S.view === k ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>${l}${mark}</button></li>`;
+    if (k === 'courses' && openShop) mark = `<span class="badge" aria-hidden="true">${openShop}</span>`;
+    if (k === 'nuit' && unread) mark = `<span class="dot" role="img" aria-label="Nouveau mot"></span>`;
+    const label = k === 'courses' && openShop ? `aria-label="Courses, ${pl(openShop, 'article', 'articles')}"` : '';
+    return `<li><button data-action="go" data-view="${k}" ${label} ${S.view === k ? 'aria-current="page"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>${l}${mark}</button></li>`;
   }).join('')}</ul></nav>`;
 }
 
@@ -331,8 +360,16 @@ function demoBar() {
   return `<div class="demo"><span>Démo : données sur cet appareil</span><button class="link" data-action="demo-swap">Voir comme ${esc(nameOf(other()))}</button></div>`;
 }
 
+function viewOffline() {
+  return `<section class="login"><h1>Maison</h1>
+    <p>Impossible de joindre la maison pour le moment. Vérifie la connexion, puis réessaie.</p>
+    <button class="btn" data-action="retry">Réessayer</button>
+    <button class="link" data-action="logout">Se déconnecter</button></section>`;
+}
+
 function render() {
   if (!S.ready) { $app.innerHTML = ''; return; }
+  if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); return; }
   if (S.recovery) S.login.step = 'newpass';
   if (!S.me || S.recovery) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); return; }
   if (!S.members.some(m => m.email === S.me)) { $app.innerHTML = viewNotMember(); return; }
@@ -341,9 +378,10 @@ function render() {
   const kept = {};
   $app.querySelectorAll('[data-keep]').forEach(el => { kept[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
   const focusId = document.activeElement?.id;
+  const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
 
   document.body.dataset.time = S.view === 'nuit' ? 'nuit' : 'jour';
-  document.querySelector('meta[name="theme-color"]').content = S.view === 'nuit' ? '#1B1C1E' : '#DCDBD6';
+  document.querySelector('meta[name="theme-color"]').content = S.view === 'nuit' ? '#1C120C' : '#2A1C15';
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
@@ -353,7 +391,11 @@ function render() {
     if (!el) continue;
     if (el.type === 'checkbox') el.checked = v; else el.value = v;
   }
-  if (focusId) document.getElementById(focusId)?.focus({ preventScroll: true });
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    el?.focus({ preventScroll: true });
+    if (el && sel && typeof el.setSelectionRange === 'function') { try { el.setSelectionRange(sel[0], sel[1]); } catch {} }
+  }
 }
 
 // Connexion
@@ -372,7 +414,8 @@ function viewLogin() {
         <label class="sr" for="pass">Nouveau mot de passe</label>
         <input class="field" id="pass" name="pass" type="password" autocomplete="new-password" minlength="8" placeholder="Nouveau mot de passe" required>
         <button class="btn" type="submit">Enregistrer</button>
-      </form></section>`;
+      </form>
+      <button class="link" data-action="cancel-recovery">Annuler</button></section>`;
   }
   const signup = step === 'signup';
   return `<section class="login">
@@ -421,7 +464,7 @@ function viewMaison() {
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
 
   return `<header class="hd centered">
-    <button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.maison()}</button>
+    <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.maison()}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
@@ -488,7 +531,7 @@ function viewMenage() {
   const max = Math.max(1, ...counts.map(c => c[1]));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
-  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.menage()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.menage()}</button></header>
     ${chores.length ? `<div>${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
@@ -524,7 +567,7 @@ function viewCourses() {
   const cart = S.shopping.filter(s => s.checked);
   const item = s => `<li class="item"><button class="tick" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     <div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div></li>`;
-  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.courses()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.courses()}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter (sépare par des virgules)" autocomplete="off" enterkeyhint="done" required></div>
@@ -566,7 +609,7 @@ function viewArgent() {
         if (e.is_settlement) {
           const to = S.members.find(m => m.email !== e.paid_by)?.email;
           return `<li class="item settle" style="grid-template-columns:1fr auto">
-            <div class="item-main money-row"><span class="item-title">${esc(e.paid_by === S.me ? 'Tu as remboursé' : `${nameOf(e.paid_by)} a remboursé`)} ${esc(to === S.me ? 'toi' : nameOf(to))}</span><span class="amount">${chf(e.amount)}</span></div>
+            <div class="item-main money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
             <button class="more" aria-label="Options" data-action="more" data-id="${e.id}">⋯</button>
             ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
         }
@@ -579,7 +622,7 @@ function viewArgent() {
       }).join('')}</ul>`;
   }).join('');
 
-  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.argent()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.argent()}</button></header>
     <p class="balance">${sentence}</p>
     ${Math.abs(net) >= 0.01 ? `<button class="link" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>` : ''}
 
@@ -603,7 +646,7 @@ function viewArgent() {
 // Nuit : care et libido
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Azami">${S.meowing ? AZAMI.meow() : AZAMI.nuit()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.nuit()}</button></header>
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="nuit-tab" data-tab="care" aria-pressed="${S.nuitTab === 'care'}">Care</button>
       <button data-action="nuit-tab" data-tab="libido" aria-pressed="${S.nuitTab === 'libido'}">Libido</button>
@@ -670,7 +713,7 @@ function viewLibido() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
-  go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   glance: el => {
     const to = el.dataset.to;
     if (to === 'faire') { S.maisonTab = 'faire'; render(); document.getElementById('task-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
@@ -680,10 +723,13 @@ const actions = {
   'nuit-tab': el => { S.nuitTab = el.dataset.tab; render(); },
   more: el => { S.open = S.open === el.dataset.id ? null : el.dataset.id; render(); },
 
+  retry: () => refresh(),
+  'cancel-recovery': () => { S.recovery = false; S.login.step = 'login'; refresh(); },
   'task-toggle': el => {
     const t = S.tasks.find(x => x.id === el.dataset.id);
+    if (!t) return refresh();
     if (!t.done) meow();
-    run(() => api.update('tasks', { id: t.id }, { done: !t.done, done_at: t.done ? null : new Date().toISOString() }));
+    run(() => api.update('tasks', { id: t.id }, { done: !t.done, done_at: t.done ? null : new Date().toISOString() }), null, t.id);
   },
   'task-assign': el => {
     const w = el.dataset.who;
@@ -692,21 +738,24 @@ const actions = {
   },
   'task-delete': el => { S.open = null; run(() => api.remove('tasks', { id: el.dataset.id }), 'Supprimé'); },
 
-  'note-pin': el => { const n = S.board.find(x => x.id === el.dataset.id); run(() => api.update('board', { id: n.id }, { pinned: !n.pinned })); },
+  'note-pin': el => { const n = S.board.find(x => x.id === el.dataset.id); if (!n) return refresh(); run(() => api.update('board', { id: n.id }, { pinned: !n.pinned })); },
   'note-delete': el => { if (confirm('Retirer ce mot du tableau ?')) run(() => api.remove('board', { id: el.dataset.id }), 'Retiré du tableau'); },
 
   'chore-done': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
+    if (!c) return refresh();
     if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 60000) { toast('Déjà notée il y a un instant'); return; }
+    // Le tour passe à l'autre que moi : si je fais la corvée de l'autre, il ou elle garde la suivante.
     const next = S.members.find(m => m.email !== S.me)?.email || S.me;
     meow();
     run(async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title });
-    }, `Merci ! Prochain tour : ${nameOf(next)}`);
+    }, `Merci ! Prochain tour : ${nameOf(next)}`, c.id);
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
+    if (!c) return refresh();
     const next = S.members.find(m => m.email !== c.turn)?.email;
     S.open = null;
     run(() => api.update('chores', { id: c.id }, { turn: next }), `C'est au tour de ${nameOf(next)}`);
@@ -714,7 +763,7 @@ const actions = {
   'chore-delete': el => { if (confirm('Supprimer cette corvée ?')) { S.open = null; run(() => api.remove('chores', { id: el.dataset.id }), 'Corvée supprimée'); } },
   'chore-form': el => { S.showChoreForm = el.dataset.show === '1'; render(); if (S.showChoreForm) document.getElementById('chore-title')?.focus(); },
 
-  'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); if (!s.checked) meow(); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked })); },
+  'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return refresh(); if (!s.checked) meow(); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked }), null, s.id); },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
   'exp-form': el => { S.showExpenseForm = el.dataset.show === '1'; render(); if (S.showExpenseForm) document.getElementById('exp-amount')?.focus(); },
@@ -724,15 +773,17 @@ const actions = {
     const o = other();
     const payer = net < 0 ? S.me : o;
     const amt = Math.round(Math.abs(net) * 100) / 100;
+    if (pending.has('settle')) return;
     if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde reviendra à zéro.`)) return;
-    run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), 'Vous êtes quittes');
+    run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), 'Vous êtes quittes', 'settle');
   },
 
   'letter-open': el => {
     const id = el.dataset.id;
     S.openLetter = id;
+    render();
     const c = S.care.find(x => x.id === id);
-    if (c && !c.read_at) run(() => api.rpc('care_mark_read', { msg: id })); else render();
+    if (c && !c.read_at) { c.read_at = new Date().toISOString(); api.rpc('care_mark_read', { msg: id }).catch(console.error); }
   },
   'letter-close': () => { S.openLetter = null; render(); },
   'care-help': () => {
@@ -756,13 +807,17 @@ const actions = {
     if (!email) { toast("Écris d'abord ton adresse e-mail"); document.getElementById('email')?.focus(); return; }
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
     if (error) { toast(authError(error)); return; }
-    S.login = { step: 'sent', email, note: `Un lien pour changer ton mot de passe vient d'être envoyé à ${email}. Ouvre-le sur ce téléphone.` };
+    S.login = { step: 'sent', email, note: `Un lien pour changer ton mot de passe vient d'être envoyé à ${email}. Il s'ouvrira dans Safari ; choisis le nouveau mot de passe, puis reviens te connecter ici.` };
     render();
   },
-  logout: async () => { if (sb) await sb.auth.signOut(); S.me = null; S.login = { step: 'login', email: '' }; render(); },
+  logout: async () => {
+    if (sb) await sb.auth.signOut();
+    Object.assign(S, { me: null, members: [], tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], libido: null, match: false, chips: {}, open: null, openLetter: null, offline: false, recovery: false, login: { step: 'login', email: '' } });
+    render();
+  },
 
   'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l'app comme ${nameOf(S.me)}`); },
-  'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; localStorage.removeItem('maison-demo-v1'); api = demoApi(); await refresh(); },
+  'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = demoApi(); await refresh(); },
 };
 
 const forms = {
@@ -777,7 +832,7 @@ const forms = {
     const { data, error } = await sb.auth.signUp({ email, password: f.pass.value, options: { emailRedirectTo: appUrl() } });
     if (error) { toast(authError(error)); console.error(error); return; }
     if (data.session) return; // confirmation désactivée : déjà connecté
-    S.login = { step: 'sent', email, note: `Presque fini : clique sur le lien envoyé à ${email} pour confirmer ton adresse, puis reviens ici te connecter.` };
+    S.login = { step: 'sent', email, note: `Presque fini : clique sur le lien envoyé à ${email} pour confirmer ton adresse, puis reviens ici te connecter. Si tu avais déjà un compte, utilise plutôt « Se connecter ».` };
     render();
   },
   async newpass(f) {
@@ -873,7 +928,7 @@ async function boot() {
     await refresh();
     return;
   }
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   api = remoteApi(sb);
 
@@ -882,17 +937,24 @@ async function boot() {
   S.ready = true;
   if (S.me) await refresh(); else render();
 
+  let channel = null;
+  const listen = () => {
+    if (channel) return;
+    channel = sb.channel('maison')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => { if (S.me) scheduleRefresh(); })
+      .subscribe(status => { if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('realtime', status); });
+  };
+  const unlisten = () => { if (channel) { sb.removeChannel(channel); channel = null; } };
+  if (S.me) listen();
+
   sb.auth.onAuthStateChange((evt, sess) => {
     if (evt === 'PASSWORD_RECOVERY') { S.recovery = true; S.me = sess?.user?.email?.toLowerCase() || S.me; render(); return; }
     const email = sess?.user?.email?.toLowerCase() || null;
+    if (evt === 'SIGNED_OUT') unlisten();
     if (email === S.me) return;
     S.me = email;
-    if (S.me) refresh(); else render();
+    if (S.me) { listen(); refresh(); } else render();
   });
-
-  sb.channel('maison')
-    .on('postgres_changes', { event: '*', schema: 'public' }, () => { if (S.me) scheduleRefresh(); })
-    .subscribe();
 }
 
-boot().catch(e => { console.error(e); $app.innerHTML = '<section class="login"><h1>Maison</h1><p>Impossible de démarrer. Vérifie ta connexion puis recharge la page.</p></section>'; });
+boot().catch(e => { console.error(e); $app.innerHTML = '<section class="login"><h1>Maison</h1><p>Impossible de démarrer. Vérifie ta connexion puis recharge la page.</p><button class="btn" onclick="location.reload()">Recharger</button></section>'; });
