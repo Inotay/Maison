@@ -2,6 +2,6 @@
 // Ces deux valeurs sont faites pour être publiques : la base est protégée
 // par les règles d'accès définies dans supabase/schema.sql.
 window.MAISON_CONFIG = {
-  supabaseUrl: '',  // ex. https://abcdefgh.supabase.co
-  supabaseKey: ''   // clé « publishable » (sb_publishable_…) ou « anon »
+  supabaseUrl: 'https://gnmpivrngageogbqanwj.supabase.co',
+  supabaseKey: 'sb_publishable__OpQKj_yUSstSGnF_LzIvg_zyv02nv7'
 };
