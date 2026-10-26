@@ -20,7 +20,8 @@ const S = {
   open: null,          // élément dont les actions sont dépliées
   openLetter: null,
   chips: {},           // sélections des groupes de puces
-  login: { step: 'email', email: '' },
+  login: { step: 'login', email: '' },
+  recovery: false,     // arrivée par un lien « mot de passe oublié »
   showChoreForm: false,
   showExpenseForm: false,
 };
@@ -67,6 +68,18 @@ function ago(iso) {
   if (dd === 1) return 'hier';
   if (dd < 7) return `il y a ${dd} jours`;
   return new Date(iso).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' });
+}
+
+const appUrl = () => location.origin + location.pathname;
+
+function authError(e) {
+  const m = (e?.message || '').toLowerCase();
+  if (m.includes('invalid login')) return 'Adresse ou mot de passe incorrect.';
+  if (m.includes('not confirmed')) return "Confirme d'abord ton adresse avec le lien reçu par e-mail.";
+  if (m.includes('already registered') || m.includes('already been registered')) return 'Ce compte existe déjà. Connecte-toi.';
+  if (m.includes('password') && (m.includes('at least') || m.includes('short') || m.includes('weak'))) return 'Mot de passe trop court ou trop simple.';
+  if (m.includes('rate') || m.includes('security purposes')) return "Trop d'essais. Attends une minute et réessaie.";
+  return "Ça n'a pas marché. Vérifie ta connexion et réessaie.";
 }
 
 function toast(msg) {
@@ -291,7 +304,8 @@ function demoBar() {
 
 function render() {
   if (!S.ready) { $app.innerHTML = ''; return; }
-  if (!S.me) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); return; }
+  if (S.recovery) S.login.step = 'newpass';
+  if (!S.me || S.recovery) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); return; }
   if (!S.members.some(m => m.email === S.me)) { $app.innerHTML = viewNotMember(); return; }
 
   // garder ce qui est en cours de saisie
@@ -316,26 +330,36 @@ function render() {
 // Connexion
 
 function viewLogin() {
-  if (S.login.step === 'code') {
-    return `<section class="login">
-      <h1>Maison</h1>
-      <p>Un code à 6 chiffres vient d'être envoyé à ${esc(S.login.email)}. Il est valable une heure.</p>
-      <form data-form="code">
-        <label class="sr" for="code">Code reçu par e-mail</label>
-        <input class="field code-input" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" required>
-        <button class="btn" type="submit">Entrer</button>
-      </form>
-      <button class="link" data-action="login-back">Changer d'adresse</button>
-    </section>`;
+  const step = S.login.step;
+  if (step === 'sent') {
+    return `<section class="login"><h1>Maison</h1>
+      <p>${esc(S.login.note)}</p>
+      <button class="btn ghost" data-action="login-mode" data-mode="login">Retour à la connexion</button></section>`;
   }
+  if (step === 'newpass') {
+    return `<section class="login"><h1>Maison</h1>
+      <p>Choisis un nouveau mot de passe, au moins 8 caractères.</p>
+      <form data-form="newpass">
+        <label class="sr" for="pass">Nouveau mot de passe</label>
+        <input class="field" id="pass" name="pass" type="password" autocomplete="new-password" minlength="8" placeholder="Nouveau mot de passe" required>
+        <button class="btn" type="submit">Enregistrer</button>
+      </form></section>`;
+  }
+  const signup = step === 'signup';
   return `<section class="login">
     <h1>Maison</h1>
-    <p>Entre ton adresse e-mail. Tu recevras un code pour te connecter, sans mot de passe.</p>
-    <form data-form="email">
+    <p>${signup ? 'Première fois ici : choisis ton mot de passe. Tu recevras un e-mail pour confirmer ton adresse.' : 'Connecte-toi avec ton adresse e-mail et ton mot de passe.'}</p>
+    <form data-form="${signup ? 'signup' : 'login'}">
       <label class="sr" for="email">Adresse e-mail</label>
       <input class="field" id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="ton@adresse.ch" required value="${esc(S.login.email)}">
-      <button class="btn" type="submit">Recevoir le code</button>
+      <label class="sr" for="pass">Mot de passe</label>
+      <input class="field" id="pass" name="pass" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" ${signup ? 'minlength="8"' : ''} placeholder="${signup ? 'Mot de passe, 8 caractères minimum' : 'Mot de passe'}" required>
+      <button class="btn" type="submit">${signup ? 'Créer mon compte' : 'Se connecter'}</button>
     </form>
+    ${signup
+      ? '<button class="link" data-action="login-mode" data-mode="login">J\'ai déjà un compte</button>'
+      : `<button class="link" data-action="login-mode" data-mode="signup">Première fois ? Créer mon compte</button>
+         <button class="link" data-action="forgot">Mot de passe oublié</button>`}
   </section>`;
 }
 
@@ -691,26 +715,42 @@ const actions = {
     run(() => api.upsert('libido', { email: S.me, is_on: !on, until, updated_at: new Date().toISOString() }));
   },
 
-  'login-back': () => { S.login.step = 'email'; render(); },
-  logout: async () => { if (sb) await sb.auth.signOut(); S.me = null; S.login = { step: 'email', email: '' }; render(); },
+  'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
+  forgot: async () => {
+    const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
+    if (!email) { toast("Écris d'abord ton adresse e-mail"); document.getElementById('email')?.focus(); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
+    if (error) { toast(authError(error)); return; }
+    S.login = { step: 'sent', email, note: `Un lien pour changer ton mot de passe vient d'être envoyé à ${email}. Ouvre-le sur ce téléphone.` };
+    render();
+  },
+  logout: async () => { if (sb) await sb.auth.signOut(); S.me = null; S.login = { step: 'login', email: '' }; render(); },
 
   'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l'app comme ${nameOf(S.me)}`); },
   'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; localStorage.removeItem('maison-demo-v1'); api = demoApi(); await refresh(); },
 };
 
 const forms = {
-  async email(f) {
+  async login(f) {
     const email = f.email.value.trim().toLowerCase();
-    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
-    if (error) { toast("L'envoi du code a échoué. Réessaie dans une minute."); console.error(error); return; }
-    S.login = { step: 'code', email };
-    render();
-    document.getElementById('code')?.focus();
+    S.login.email = email;
+    const { error } = await sb.auth.signInWithPassword({ email, password: f.pass.value });
+    if (error) { toast(authError(error)); console.error(error); }
   },
-  async code(f) {
-    const token = f.code.value.replace(/\s/g, '');
-    const { error } = await sb.auth.verifyOtp({ email: S.login.email, token, type: 'email' });
-    if (error) { toast('Code incorrect ou expiré.'); console.error(error); }
+  async signup(f) {
+    const email = f.email.value.trim().toLowerCase();
+    const { data, error } = await sb.auth.signUp({ email, password: f.pass.value, options: { emailRedirectTo: appUrl() } });
+    if (error) { toast(authError(error)); console.error(error); return; }
+    if (data.session) return; // confirmation désactivée : déjà connecté
+    S.login = { step: 'sent', email, note: `Presque fini : clique sur le lien envoyé à ${email} pour confirmer ton adresse, puis reviens ici te connecter.` };
+    render();
+  },
+  async newpass(f) {
+    const { error } = await sb.auth.updateUser({ password: f.pass.value });
+    if (error) { toast(authError(error)); return; }
+    S.recovery = false;
+    toast('Mot de passe changé');
+    refresh();
   },
   task(f) {
     const w = chipVal('task-who', 'nous');
@@ -801,7 +841,8 @@ async function boot() {
   S.ready = true;
   if (S.me) await refresh(); else render();
 
-  sb.auth.onAuthStateChange((_evt, sess) => {
+  sb.auth.onAuthStateChange((evt, sess) => {
+    if (evt === 'PASSWORD_RECOVERY') { S.recovery = true; S.me = sess?.user?.email?.toLowerCase() || S.me; render(); return; }
     const email = sess?.user?.email?.toLowerCase() || null;
     if (email === S.me) return;
     S.me = email;

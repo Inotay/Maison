@@ -16,16 +16,10 @@ L'app est une page web statique (publiée par GitHub Pages) qui s'installe sur l
      ('adresse2@exemple.ch', 'Prénom 2');
    ```
 
-### 2. Recevoir un code plutôt qu'un lien
-Sur iPhone, un lien de connexion s'ouvre dans Safari et non dans l'app installée. On se connecte donc avec un code.
+### 2. Régler l'adresse de l'app
+Dans **Authentication > URL Configuration**, mettre `https://inotay.github.io/Maison/` dans **Site URL**. C'est là que mènent les liens de confirmation et de changement de mot de passe.
 
-Dans **Authentication > Emails > Magic Link**, remplacer le contenu du modèle par :
-```html
-<h2>Ton code pour Maison</h2>
-<p style="font-size:28px;letter-spacing:6px"><b>{{ .Token }}</b></p>
-```
-
-Dans **Authentication > URL Configuration**, mettre l'adresse de l'app dans **Site URL** : `https://inotay.github.io/Maison/`.
+On se connecte avec e-mail et mot de passe. La première fois, « Créer mon compte » envoie un e-mail de confirmation ; ensuite la connexion se fait directement, y compris dans l'app installée sur l'iPhone.
 
 ### 3. Relier l'app
 Dans **Project Settings > API Keys**, copier l'URL du projet et la clé publishable (ou anon), puis les coller dans `config.js`. Ces deux valeurs sont faites pour être publiques : chaque table est protégée par des règles qui ne laissent passer que les adresses de `members`.
