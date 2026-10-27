@@ -13,7 +13,30 @@ function greeting(h = new Date().getHours()) {
   if (h < 18) return ['Bonne après-midi', 'accueil_bonne_apres_midi'];
   return ['Bonsoir', 'accueil_bonsoir'];
 }
-const azami = (scene, alt) => `<img class="azami" src="azami/azami_${scene}_anime.svg" alt="${alt}" width="512" height="568" decoding="async">`;
+// Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
+// à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
+const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_nuit', 'menage', 'courses', 'argent', 'nuit_care', 'nuit_libido'];
+const azamiImgs = {};
+function azamiImg(scene) {
+  if (!azamiImgs[scene]) {
+    const img = new Image(512, 568);
+    img.className = 'azami'; img.decoding = 'sync'; img.src = `azami/azami_${scene}_anime.svg`;
+    azamiImgs[scene] = img;
+  }
+  return azamiImgs[scene];
+}
+const azami = (scene, alt) => `<span class="azami-slot" data-scene="${scene}" data-alt="${esc(alt)}"></span>`;
+function placeAzami() {
+  document.querySelectorAll('.azami-slot').forEach(slot => {
+    const img = azamiImg(slot.dataset.scene); img.alt = slot.dataset.alt;
+    slot.replaceWith(img);
+  });
+}
+function preloadAzami() {
+  const now = greeting(new Date().getHours()).scene;
+  azamiImg(now);
+  setTimeout(() => SCENES.forEach(azamiImg), 1500);
+}
 
 const CFG = window.MAISON_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseKey);
@@ -106,12 +129,47 @@ function authError(e) {
 let meowFile = null;
 fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = 'sounds/azami.m4a'; }).catch(() => {});
 let audioCtx = null;
+const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state !== 'running') audioCtx.resume(); return audioCtx; };
+
+// Petits sons de récompense, dans l'esprit Duolingo : notes claires et courtes, style marimba.
+// Un fichier sounds/<nom>.m4a (tick, done, big, coin, heart) remplace la version synthétique.
+const sfxFile = {};
+['tick', 'done', 'big', 'coin', 'heart'].forEach(k => fetch(`sounds/${k}.m4a`, { method: 'HEAD' }).then(r => { if (r.ok) sfxFile[k] = `sounds/${k}.m4a`; }).catch(() => {}));
+function note(c, freq, at, dur, vol, type = 'triangle') {
+  const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
+  o.type = type; o2.type = 'sine';
+  o.frequency.value = freq; o2.frequency.value = freq * 2.01; // partiel brillant, un peu désaccordé
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + .008); g.gain.exponentialRampToValueAtTime(.0008, at + dur);
+  o.connect(g); o2.connect(g); g.connect(c.destination);
+  o2.detune.value = -4;
+  const g2 = c.createGain(); g2.gain.value = .35; o2.disconnect(); o2.connect(g2); g2.connect(g);
+  o.start(at); o2.start(at); o.stop(at + dur + .05); o2.stop(at + dur + .05);
+}
+function shimmer(c, at, dur, vol) {
+  const len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const src = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain();
+  src.buffer = buf; f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(c.destination); src.start(at);
+}
+function sfx(kind) {
+  try {
+    if (sfxFile[kind]) { const a = new Audio(sfxFile[kind]); a.volume = .7; a.play().catch(() => {}); return; }
+    const c = ctxAudio(), t = c.currentTime + .01;
+    const N = { C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, C6: 1046.5, D6: 1174.66, E6: 1318.5, G6: 1567.98, C7: 2093 };
+    if (kind === 'tick') { note(c, N.G5, t, .12, .12, 'sine'); }
+    else if (kind === 'done') { note(c, N.G5, t, .28, .22); note(c, N.C6, t + .11, .4, .22); shimmer(c, t + .11, .25, .05); }
+    else if (kind === 'big') { [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => note(c, f, t + i * .085, .35, .2)); note(c, N.E6, t + .34, .7, .2); note(c, N.G6, t + .42, .8, .14); shimmer(c, t + .34, .5, .07); }
+    else if (kind === 'coin') { note(c, N.D6, t, .18, .16, 'square'); note(c, N.A5 * 2, t + .07, .5, .14, 'sine'); shimmer(c, t, .12, .03); }
+    else if (kind === 'heart') { note(c, N.C5, t, .9, .12, 'sine'); note(c, N.E5, t + .03, .9, .11, 'sine'); note(c, N.G5, t + .06, 1, .1, 'sine'); note(c, N.C6, t + .25, .9, .08, 'sine'); }
+  } catch {}
+}
+
 function meow(force) {
   if (!force && Math.random() > 0.18) return;
   try {
     if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
-    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-    const c = audioCtx; if (c.state !== 'running') c.resume();
+    const c = ctxAudio();
     const t = c.currentTime;
     const osc = c.createOscillator(), osc2 = c.createOscillator();
     const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain();
@@ -294,7 +352,7 @@ function notifyNew() {
     if (fresh.length) show('Un mot dans ta boîte', `${nameOf(fresh[0].author)} t'a écrit.`, 'care');
     if (S.match && !seen.match) show('Nuit', 'Vous en avez envie tous les deux.', 'match');
   }
-  if (seen.primed && S.match && !seen.match && !document.hidden) { burst('hearts', null, 22); toast(praise('match')); }
+  if (seen.primed && S.match && !seen.match && !document.hidden) { sfx('heart'); burst('hearts', null, 22); toast(praise('match')); }
   mine.forEach(c => seen.care.add(c.id));
   seen.match = S.match;
   seen.primed = true;
@@ -514,6 +572,7 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
+  placeAzami();
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
   if (S.popId) { const id = S.popId; S.popId = null; pop((document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore')); }
@@ -987,6 +1046,7 @@ const actions = {
     meow();
     burst(isAzami(t) ? 'paws' : 'sparkle', el);
     const last = !S.tasks.some(x => !x.done && x.id !== t.id);
+    sfx(last ? 'big' : 'done');
     S.popId = t.id;
     run(() => api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }), praise(last ? 'all' : 'task'), t.id)
       .then(ok => { if (ok) { azamiJump(); if (last) burst('confetti', null, 36); } });
@@ -1023,6 +1083,7 @@ const actions = {
     // Le tour passe à l'autre que moi : si je fais la corvée de l'autre, il ou elle garde la suivante.
     const next = S.members.find(m => m.email !== S.me)?.email || S.me;
     meow();
+    sfx('big');
     burst(isAzami(c) ? 'paws' : 'confetti', el, isAzami(c) ? 8 : 22);
     S.popId = c.id;
     run(async () => {
@@ -1046,6 +1107,7 @@ const actions = {
     meow();
     burst(isAzami(s) ? 'paws' : 'sparkle', el, isAzami(s) ? 5 : 8);
     const last = !S.shopping.some(x => !x.checked && x.id !== s.id);
+    sfx(last ? 'big' : 'tick');
     S.popId = s.id;
     run(() => api.update('shopping', { id: s.id }, { checked: true }), last ? praise('basket') : null, s.id)
       .then(ok => { if (ok && last) { burst('confetti', null, 30); azamiJump(); } });
@@ -1061,6 +1123,7 @@ const actions = {
     const amt = Math.round(Math.abs(net) * 100) / 100;
     if (pending.has('settle')) return;
     if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde revient à zéro. Rien n'est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.`)) return;
+    sfx('coin');
     burst('coins', document.querySelector('[data-action="settle"]'), 16);
     run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), praise('settle'), 'settle')
       .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); } });
@@ -1136,6 +1199,7 @@ const forms = {
     const title = f.title.value.trim();
     const row = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, icon: iconFor(title, 'task', S.hints) };
     f.reset();
+    sfx('tick');
     burst('sparkle', f.querySelector('button[type="submit"]'), 6);
     run(() => api.insert('tasks', row));
   },
@@ -1173,6 +1237,7 @@ const forms = {
     if (!f.label.value.trim()) { toast('Indique pour quoi'); return; }
     const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()), icon: iconFor(f.label.value, 'expense', S.hints) };
     f.reset();
+    sfx('coin');
     burst('coins', f.querySelector('button[type="submit"]'), 7);
     run(() => api.insert('expenses', row), praise('expense')).then(ok => { if (ok) pop(document.querySelector('.bal-card')); });
     setTimeout(() => document.getElementById('exp-amount')?.focus(), 50);
@@ -1220,6 +1285,7 @@ const forms = {
     if (!body) return;
     const row = { recipient: other(), kind: chipVal('care-kind', 'merci'), body, wants_talk: f.talk.checked };
     f.reset();
+    sfx('heart');
     burst('hearts', f.querySelector('button[type="submit"]'), 10);
     run(() => api.insert('care_messages', row), `${praise('care')} ${nameOf(other())} le trouvera dans sa boîte.`);
   },
