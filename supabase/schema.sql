@@ -55,6 +55,23 @@ create table if not exists public.chore_log (
   done_at  timestamptz not null default now()
 );
 
+-- Réussites : journal permanent de tout ce qui a été fait (jamais modifié, jamais effacé par l'app).
+create table if not exists public.wins (
+  id      uuid primary key default gen_random_uuid(),
+  kind    text not null,            -- task, chore, shop, settle
+  title   text,
+  done_by text not null default public.me(),
+  done_at timestamptz not null default now(),
+  weight  int not null default 1,
+  icon    text
+);
+alter table public.wins enable row level security;
+drop policy if exists wins_read on public.wins;
+create policy wins_read on public.wins for select to authenticated using (public.is_member());
+drop policy if exists wins_insert on public.wins;
+create policy wins_insert on public.wins for insert to authenticated with check (public.is_member());
+create index if not exists wins_done_at on public.wins (done_at desc);
+
 -- Dépenses ----------------------------------------------------------------
 -- payer_share = part de la dépense qui revient à la personne qui a payé.
 -- 0.5 = moitié-moitié, 0 = avance pour l'autre (ou remboursement).

@@ -49,7 +49,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [],
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   libido: null, match: false,
   view: safeGet('maison-view') || 'maison',
   maisonTab: 'faire',
@@ -298,6 +298,16 @@ function demoSeed() {
       ...[1, 5, 9, 12, 17, 20].map(d => ({ id: uid(), title: '', done_by: Y, done_at: iso(d) })),
       ...[3, 8, 10, 15, 22].map(d => ({ id: uid(), title: '', done_by: M, done_at: iso(d) })),
     ],
+    wins: [
+      { id: uid(), kind: 'chore', title: 'Aspirateur', done_by: Y, done_at: iso(1), weight: 2 },
+      { id: uid(), kind: 'task', title: 'Rendre le colis', done_by: M, done_at: iso(1), weight: 1 },
+      { id: uid(), kind: 'shop', title: 'Courses du samedi', done_by: Y, done_at: iso(2), weight: 1 },
+      { id: uid(), kind: 'chore', title: 'Litière d\'Azami', done_by: M, done_at: iso(2), weight: 1 },
+      { id: uid(), kind: 'chore', title: 'Salle de bain', done_by: Y, done_at: iso(3), weight: 3 },
+      { id: uid(), kind: 'task', title: 'Appeler la gérance', done_by: Y, done_at: iso(5), weight: 1 },
+      { id: uid(), kind: 'chore', title: 'Sortir les poubelles', done_by: M, done_at: iso(8), weight: 1 },
+      { id: uid(), kind: 'settle', title: 'Comptes à zéro', done_by: M, done_at: iso(12), weight: 1 },
+    ],
     expenses: [
       { id: uid(), label: 'Courses Migros', amount: 84.3, paid_by: Y, payer_share: 0.5, category: 'courses', spent_on: isoDate(now - DAY), is_settlement: false, created_by: Y, created_at: iso(1) },
       { id: uid(), label: 'Lampe en washi', amount: 120, paid_by: M, payer_share: 0.5, category: 'maison', spent_on: isoDate(now - 4 * DAY), is_settlement: false, created_by: M, created_at: iso(4) },
@@ -395,16 +405,17 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib, hints] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib, hints, wins] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'), api.list('libido'),
-    api.list('icon_hints').catch(() => []),
+    api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
   ]);
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, hints: hintsFrom(hints) });
+  wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, hints: hintsFrom(hints) });
   S.libido = lib.find(r => r.email === S.me) || null;
   S.match = !!(await api.rpc('libido_match'));
   notifyNew();
-  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores, choreLog, expenses, shopping, board }));
+  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores, choreLog, expenses, shopping, board, wins }));
 }
 
 // Sans réseau : on affiche le dernier instantané (lecture seule, sans Care ni Libido).
@@ -412,7 +423,7 @@ function loadSnapshot() {
   try {
     const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
     if (!snap || snap.me !== S.me) return false;
-    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, care: [], libido: null, match: false, snapshotAt: snap.at });
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: snap.wins || [], care: [], libido: null, match: false, snapshotAt: snap.at });
     return true;
   } catch { return false; }
 }
@@ -452,6 +463,21 @@ async function run(fn, okMsg, key = 'global') {
   try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); return true; }
   catch (e) { console.error(e); toast("Ça n'a pas marché. Vérifie la connexion et réessaie."); return false; }
   finally { pending.delete(key); }
+}
+
+// Journal des réussites : chaque chose faite y reste pour toujours.
+function win(kind, title, weight = 1, icon = null) {
+  return api.insert('wins', { kind, title: title || null, done_by: S.me, done_at: new Date().toISOString(), weight, icon }).catch(e => console.warn('win', e));
+}
+const WEEK = 7 * DAY;
+function winsSince(ms) { const t = Date.now() - ms; return S.wins.filter(w => new Date(w.done_at).getTime() >= t); }
+// Jours d'affilée (vous deux ensemble) avec au moins une chose faite, aujourd'hui compris ou hier.
+function streak() {
+  const days = new Set(S.wins.map(w => isoDate(new Date(w.done_at))));
+  let n = 0; const d = new Date();
+  if (!days.has(isoDate(d))) d.setDate(d.getDate() - 1);
+  while (days.has(isoDate(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
 }
 
 // Récompenses : quelle particule pour quel geste.
@@ -516,13 +542,13 @@ function expenseEffect(e) {
 // Ménage ---------------------------------------------------------------------
 
 function choreStatus(c) {
-  if (!c.last_done_at) return { d: 0, label: 'jamais faite', due: true, late: false };
+  if (!c.last_done_at) return { d: 0, label: 'pas encore faite', due: true, late: false };
   const due = new Date(c.last_done_at); due.setDate(due.getDate() + c.every_days);
   const d = dayDiff(due, new Date());
   if (d > 1) return { d, label: `dans ${d} jours`, due: false, late: false };
   if (d === 1) return { d, label: 'demain', due: false, late: false };
   if (d === 0) return { d, label: "aujourd'hui", due: true, late: false };
-  return { d, label: `en retard de ${pl(-d, 'jour', 'jours')}`, due: true, late: true };
+  return { d, label: -d === 1 ? 'attend depuis hier' : `attend depuis ${pl(-d, 'jour', 'jours')}`, due: true, late: true };
 }
 
 // Rendu ----------------------------------------------------------------------
@@ -655,6 +681,28 @@ function recentEvents() {
   return ev.filter(e => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6);
 }
 
+const KIND_LABEL = { task: 'chose faite', chore: 'corvée', shop: 'courses', settle: 'comptes' };
+function winsCard() {
+  const week = winsSince(WEEK), total = S.wins.length, st = streak();
+  if (!total) return '';
+  const mine = week.filter(w => w.done_by === S.me).length, theirs = week.length - mine;
+  const o = other();
+  const recent = S.wins.slice(0, 8);
+  const line = w => `<li><span class="w-icon">${iconHtml(w.icon || ({ chore: '🧹', shop: '🛒', settle: '💰', task: '📌' })[w.kind])}</span><span class="w-text">${esc(w.title || KIND_LABEL[w.kind] || 'réussite')}</span><span class="w-who">${esc(w.done_by === S.me ? 'toi' : nameOf(w.done_by))}</span><span class="w-when">${esc(ago(w.done_at))}</span></li>`;
+  return `<section class="wins" aria-label="Réussites">
+    <div class="wins-top">
+      <div><p class="bal-kicker">Réussites</p>
+        <p class="wins-big"><b>${week.length}</b> cette semaine</p>
+        <p class="wins-sub">${week.length ? `Toi ${mine} · ${esc(nameOf(o))} ${theirs}` : 'La semaine commence.'}</p></div>
+      <div class="wins-side">
+        ${st >= 2 ? `<div class="wins-streak"><b>${st}</b><span>jours<br>de suite</span></div>` : ''}
+        <div class="wins-total"><b>${total}</b><span>depuis<br>le début</span></div>
+      </div>
+    </div>
+    <details class="fold" data-fold="wins"><summary>Les dernières</summary><ul class="wins-list">${recent.map(line).join('')}</ul></details>
+  </section>`;
+}
+
 function viewMaison() {
   const [hello, scene] = greeting();
   const date = new Date().toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -679,6 +727,7 @@ function viewMaison() {
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
+    ${winsCard()}
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire${S.tasks.filter(t => !t.done).length ? ` · ${S.tasks.filter(t => !t.done).length}` : ''}</button>
       <button data-action="maison-tab" data-tab="tableau" aria-pressed="${S.maisonTab === 'tableau'}">Tableau</button>
@@ -691,15 +740,18 @@ function viewMaison() {
 
 function viewTasks() {
   const open = S.tasks.filter(t => !t.done).sort((a, b) => (a.due_on || '9999') .localeCompare(b.due_on || '9999') || a.created_at.localeCompare(b.created_at));
-  const done = S.tasks.filter(t => t.done).sort((a, b) => (b.done_at || '').localeCompare(a.done_at || '')).slice(0, 15);
+  const allDone = S.tasks.filter(t => t.done).sort((a, b) => (b.done_at || '').localeCompare(a.done_at || ''));
+  const fresh = allDone.filter(t => t.done_at && Date.now() - new Date(t.done_at).getTime() < DAY);
+  const done = allDone.filter(t => !fresh.includes(t)).slice(0, 15);
   const who = [['me', 'Moi'], ['other', nameOf(other())], ['nous', 'Nous deux']];
   const item = t => {
     const meta = [];
-    meta.push(t.assignee ? (t.assignee === S.me ? 'Pour toi' : `Pour ${nameOf(t.assignee)}`) : 'Pour vous deux');
+    if (t.done && t.done_at) meta.push(`Fait ${ago(t.done_at)}`);
+    else meta.push(t.assignee ? (t.assignee === S.me ? 'Pour toi' : `Pour ${nameOf(t.assignee)}`) : 'Pour vous deux');
     if (t.due_on && !t.done) meta.push(relDay(t.due_on) + (t.due_time ? ` à ${String(t.due_time).slice(0, 5)}` : ''));
     const late = t.due_on && !t.done && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) < 0;
     if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
-    return `<li class="item ${t.done ? 'done' : ''}">
+    return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
       <div class="item-main"><div class="item-title">${iconBtn('tasks', t)} ${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
@@ -709,6 +761,7 @@ function viewTasks() {
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
     ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : '<p class="empty">Plus rien à faire. Profitez-en.</p>'}
+    ${fresh.length ? `<h2 class="list-head done-head">Fait aujourd'hui <span class="count">${fresh.length}</span></h2><ul class="list">${fresh.map(item).join('')}</ul>` : ''}
     <form class="form add" data-form="task">
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
       <input class="field" id="task-title" data-keep name="title" placeholder="Ajouter une chose à faire" autocomplete="off" required>
@@ -1058,7 +1111,7 @@ const actions = {
     const last = !S.tasks.some(x => !x.done && x.id !== t.id);
     sfx(last ? 'big' : 'done');
     S.popId = t.id;
-    run(() => api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }), praise(last ? 'all' : 'task'), t.id)
+    run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, praise(last ? 'all' : 'task'), t.id)
       .then(ok => { if (ok) { azamiJump(); if (last) burst('confetti', null, 36); } });
   },
   'task-assign': el => {
@@ -1099,6 +1152,7 @@ const actions = {
     run(async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
+      await win('chore', c.title, c.weight || 2, c.icon);
     }, `${praise('chore')} Prochain tour : ${nameOf(next)}`, c.id).then(ok => { if (ok) azamiJump(); });
   },
   'chore-swap': el => {
@@ -1119,7 +1173,7 @@ const actions = {
     const last = !S.shopping.some(x => !x.checked && x.id !== s.id);
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
-    run(() => api.update('shopping', { id: s.id }, { checked: true }), last ? praise('basket') : null, s.id)
+    run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, last ? praise('basket') : null, s.id)
       .then(ok => { if (ok && last) { burst('confetti', null, 30); azamiJump(); } });
   },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
@@ -1135,7 +1189,7 @@ const actions = {
     if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde revient à zéro. Rien n'est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.`)) return;
     sfx('coin');
     burst('coins', document.querySelector('[data-action="settle"]'), 16);
-    run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), praise('settle'), 'settle')
+    run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, praise('settle'), 'settle')
       .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); } });
   },
 

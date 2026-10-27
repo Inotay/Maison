@@ -36,6 +36,7 @@ Dans Nuit, « Me prévenir quand un mot arrive » demande la permission. Sans se
 ## Au quotidien
 - Tout se modifie après coup : bouton ⋯ puis « Modifier » sur une tâche (titre, pour qui, date, heure), une corvée, une dépense, un article ou un mot du tableau.
 - Chaque chose reçoit une petite icône choisie d'après ce qu'on a écrit. Un tap sur l'icône permet d'en choisir une autre ; l'app s'en souvient pour les deux.
+- Réussites : chaque chose faite (tâche, corvée, panier complet, comptes à zéro) est inscrite pour toujours dans la table `wins` ; l'accueil montre la semaine, la série de jours et le total depuis le début. Une tâche faite reste affichée dans sa liste pendant 24 h.
 - Argent : la carte Solde dit qui doit quoi, ce que chacun a payé et sa part depuis le dernier remboursement ; chaque dépense indique son effet sur le solde.
 
 ## Hors-ligne

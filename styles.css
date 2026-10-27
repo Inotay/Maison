@@ -216,6 +216,12 @@ body[data-time="nuit"] .btn { --edge: var(--creme-2); }
 .item-meta { font-size: 13px; color: var(--muted); margin-top: 2px; }
 .item.done { opacity: .6; }
 .item.done .item-title { text-decoration: line-through; color: var(--muted); }
+.item.done.fresh { opacity: 1; border-color: color-mix(in srgb, var(--jaune) 55%, var(--line)); }
+.item.done.fresh .item-title { text-decoration: none; color: var(--text); }
+.item.done.fresh .tick { background: var(--jaune); border-color: var(--jaune); box-shadow: 0 3px 0 #B8882A; }
+.item.done.fresh .item-meta { color: var(--jaune); font-weight: 800; }
+.item-title, .c-title { display: flex; align-items: center; gap: 8px; }
+.item-title .icon-btn, .c-title .icon-btn { flex: none; margin: 0; vertical-align: 0; }
 .item-actions {
   grid-column: 1 / -1;
   display: flex; gap: 8px; flex-wrap: wrap;
@@ -252,6 +258,30 @@ details.fold > summary {
 details.fold > summary::-webkit-details-marker { display: none; }
 details.fold > summary::before { content: "+ "; }
 details.fold[open] > summary::before { content: "− "; }
+
+/* Réussites -------------------------------------------------------------- */
+
+.wins { margin: 12px 0 6px; padding: 14px 16px 10px; background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); box-shadow: 0 3px 0 var(--line); }
+.wins-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.wins-big { margin: 0; font-size: 20px; font-weight: 800; line-height: 1.1; }
+.wins-big b { font-size: 30px; font-weight: 900; color: var(--jaune); }
+.wins-sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+.wins-side { display: flex; gap: 8px; flex: none; }
+.wins-streak, .wins-total { display: grid; justify-items: center; gap: 0; padding: 6px 10px; border-radius: 12px; border: 2px solid var(--line); text-align: center; min-width: 58px; }
+.wins-streak { border-color: var(--jaune); }
+.wins-streak b, .wins-total b { font-size: 20px; font-weight: 900; line-height: 1.1; }
+.wins-streak b { color: var(--jaune); }
+.wins-streak span, .wins-total span { font-size: 10px; line-height: 1.1; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.wins .fold > summary { padding: 10px 0 4px; }
+.wins-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.wins-list li { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; font-size: 14px; }
+.wins-list .w-icon .ticon { width: 26px; height: 26px; border-radius: 7px; }
+.wins-list .w-icon .ticon.emoji { font-size: 14px; line-height: 22px; }
+.wins-list .w-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wins-list .w-who { color: var(--muted); font-size: 13px; }
+.wins-list .w-when { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.list-head.done-head { color: var(--jaune); }
+.list-head.done-head .count { background: var(--jaune); }
 
 /* Maison : coup d'œil --------------------------------------------------- */
 
