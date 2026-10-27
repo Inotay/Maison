@@ -858,7 +858,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v36</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v37</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1192,10 +1192,14 @@ const SHOP_OF_THEME = {
   bricolage: 'maison', reparation: 'maison', lampe: 'maison', electricite: 'maison', cables: 'maison', piles: 'maison', peinture: 'maison', mesures: 'maison',
   meubles: 'maison', deco: 'maison', tapis: 'maison', rideaux: 'maison', etagere: 'maison', futon: 'maison', rangement: 'maison', plantes: 'maison', jardin: 'maison', fleurs: 'maison', bougie: 'maison', textile: 'maison', lit: 'maison', serviettes: 'maison',
   pharmacie: 'pharma', premierssoins: 'pharma', malade: 'pharma', beaute: 'pharma', rasage: 'pharma', dents: 'pharma', regles: 'pharma', intime: 'pharma',
+  // ce qu'on trouve à plusieurs endroits
+  menage: 'super,maison', plumeau: 'super,maison', aspirateur: 'super,maison', poubelle: 'super,maison', lessive: 'super,maison', vaisselle: 'super,maison', papiertoilette: 'super,maison', hygiene: 'super,pharma', cuisine: 'super,maison', machinecafe: 'super,maison', frigo: 'super,maison',
+  litiere: 'azami,super', croquettes: 'azami,super', patee: 'azami,super', friandises: 'azami,super',
   croquettes: 'azami', patee: 'azami', friandises: 'azami', litiere: 'azami', griffoir: 'azami', arbreachat: 'azami', jouetschat: 'azami', antipuces: 'azami', brossechat: 'azami', herbeachat: 'azami', fontaine: 'azami', gamelle: 'azami', caissetransport: 'azami', collierchat: 'azami', antipoils: 'azami', animalerie: 'azami', chat: 'azami',
 };
 function guessShop(label) { const r = classify(label, S.hints); return (r && SHOP_OF_THEME[r.id]) || 'super'; }
-const shopOf = s => SHOPS.some(x => x[0] === s.shop) ? s.shop : guessShop(s.label);
+// Un article peut être dans plusieurs rayons (« super,maison ») : il apparaît dans chaque groupe.
+const shopsOf = s => { const v = String(s.shop || '').split(',').filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
 
 function viewCourses() {
   const todo = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -1205,14 +1209,14 @@ function viewCourses() {
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
-      <div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopOf(s) === k}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
+      <div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopsOf(s).includes(k)}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
   return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter (sépare par des virgules)" autocomplete="off" enterkeyhint="done" required></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
-    <div class="shop">${todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopOf(s) === k); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>'}
+    <div class="shop">${todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>'}
     ${cart.length ? `<h2>Dans le panier</h2><ul class="list">${cart.map(item).join('')}</ul>
       <div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
 }
@@ -1405,7 +1409,14 @@ const actions = {
     run(() => api.update('tasks', { id: el.dataset.id }, { assignee: w === 'me' ? S.me : w === 'other' ? other() : null }));
   },
   'task-delete': el => { S.open = null; run(() => api.remove('tasks', { id: el.dataset.id }), 'Supprimé'); },
-  'shop-where': el => { S.open = null; run(() => api.update('shopping', { id: el.dataset.id }, { shop: el.dataset.shop }), `Rangé dans ${SHOPS.find(x => x[0] === el.dataset.shop)?.[1] || ''}`); },
+  'shop-where': el => {
+    const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return;
+    const cur = shopsOf(s); const k = el.dataset.shop;
+    const next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+    if (!next.length) { toast('Garde au moins un endroit'); return; }
+    s.shop = next.join(','); haptic(1);
+    run(() => api.update('shopping', { id: s.id }, { shop: s.shop }));
+  },
   'shop-delete': el => { S.open = null; run(() => api.remove('shopping', { id: el.dataset.id }), 'Retiré de la liste'); },
   edit: el => { S.edit = { type: el.dataset.type, id: el.dataset.id }; S.open = null; S.pick = null; S.chips = {}; render(); document.querySelector('.edit input, .edit textarea')?.focus(); },
   'edit-cancel': () => { S.edit = null; render(); },
