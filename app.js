@@ -65,7 +65,7 @@ const S = {
   agendaHouse: safeGet('maison-agenda-house') !== '0',
   shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
   achats: [],                                       // historique des articles achetés (pour les pré-listes, plus tard)
-  dechetsOpen: safeGet('maison-dechets-open') !== '0',
+  folds: (() => { try { return JSON.parse(safeGet('maison-folds') || '{}'); } catch { return {}; } })(),
   maisonTab: 'faire',
   agenda: { configured: null, events: [], calendar: '', loading: false, error: null, at: null },
   open: null,          // élément dont les actions sont dépliées
@@ -795,7 +795,7 @@ function render() {
   armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
-  $app.querySelector('details[data-fold="dechets"]')?.addEventListener('toggle', e => { S.dechetsOpen = e.target.open; safeSet('maison-dechets-open', e.target.open ? '1' : '0'); });
+  $app.querySelectorAll('details.dech-card[data-fold]').forEach(d => d.addEventListener('toggle', e => { S.folds[d.dataset.fold] = e.target.open; safeSet('maison-folds', JSON.stringify(S.folds)); }));
   if (S.popId) { const id = S.popId; S.popId = null; const row = (document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore'); pop(row); wiggle(row); }
   const wb = document.querySelector('.wins-big b');
   if (wb) { const to = Number(wb.textContent); if (S.weekShown != null && S.weekShown !== to) { wb.textContent = S.weekShown; countUp(wb, to); wiggle(wb.closest('.wins')); } S.weekShown = to; }
@@ -937,7 +937,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v50</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v51</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1205,9 +1205,10 @@ function dechetMeta(c, now = new Date()) {
 const hhmm = ms => new Date(ms).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
 // Carte d'une corvée en étapes.
-function seqCard(c) {
-  const q = seqOf(c); if (!q) return '';
-  if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
+// Ligne d'une corvée en étapes (dans une carte groupée) : titre, une ligne d'état, pastilles des étapes, bouton de l'étape.
+function seqRow(c) {
+  const q = seqOf(c);
+  if (S.edit?.id === c.id) return `<li class="dech-row editing">${editChore(c)}</li>`;
   const s = seqState(c);
   let meta, btn;
   if (s.phase === 'start') {
@@ -1224,11 +1225,29 @@ function seqCard(c) {
   }
   const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
   const actions = S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>` : '';
-  const title = q.personal ? `${q.label}${c.turn === S.me ? '' : ` de ${nameOf(c.turn)}`}` : c.title;
-  return `<div class="chore seq-card">${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(title)}</div><div class="c-meta">${esc(meta)}</div><div class="lv-dots">${dots}</div></div>
+  const title = q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
+  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline">${dots}</span>${esc(meta)}</div></div>
     <div class="item-trail">${btn}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
-    ${iconPicker('chores', c)}${actions}</div>`;
+    ${iconPicker('chores', c)}${actions}</li>`;
 }
+// Ligne d'une corvée ordinaire placée dans une carte groupée (la vaisselle à la main).
+function plainRow(c) {
+  if (S.edit?.id === c.id) return `<li class="dech-row editing">${editChore(c)}</li>`;
+  const st = choreStatus(c);
+  const who = !c.turn ? 'Qui veut' : c.fixed ? (c.turn === S.me ? 'Toujours toi' : `Toujours ${nameOf(c.turn)}`) : (c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`);
+  const title = /^vaisselle$/i.test(c.title.trim()) ? 'À la main' : c.title;
+  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline"><span class="dot ${st.due ? 'dot-non' : 'dot-ok'}"></span></span>${esc(who)}, ${esc(st.label)}</div></div>
+    <div class="item-trail">${choreBtn(c)}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
+    ${iconPicker('chores', c)}
+    ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}</li>`;
+}
+// Carte groupée : un en-tête repliable (icône, titre, résumé, pastilles) et ses lignes, même anatomie que Déchets.
+function groupCard({ id, icon, title, summary, dots, rows }) {
+  return `<details class="chore dech-card" data-fold="${id}" ${S.folds?.[id] === false ? '' : 'open'}><summary><img class="ticon" src="icons/themes/${icon}.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(summary)}</div></div><div class="item-trail dots">${dots}</div></summary>
+    <ul class="dech-list">${rows.join('')}</ul></details>`;
+}
+const dueDot = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'timer' ? 'dot-route' : (s.phase === 'next' || s.st.due) ? 'dot-non' : 'dot-ok'; } return choreStatus(c).due ? 'dot-non' : 'dot-ok'; };
+const isDue = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'next' || (s.phase === 'start' && s.st.due); } return choreStatus(c).due; };
 function dechetsCard(waste) {
   const now = new Date();
   const dots = waste.map(c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c, now); return `<span class="dot ${st.due ? 'dot-non' : 'dot-ok'} ${d.possible ? '' : 'off'}" title="${esc(c.title)}"></span>`; }).join('');
@@ -1238,9 +1257,22 @@ function dechetsCard(waste) {
       <div class="item-trail">${choreBtn(c, now)}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
       ${iconPicker('chores', c)}
       ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button></div>` : ''}</li>`;
-  }).join('');
-  return `<details class="chore dech-card" data-fold="dechets" ${S.dechetsOpen === false ? '' : 'open'}><summary><img class="ticon" src="icons/themes/dechets.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Déchets</div><div class="item-meta">${esc(dechetsResume(waste, now))}</div></div><div class="item-trail dots">${dots}</div></summary>
-    <ul class="dech-list">${rows}</ul></details>`;
+  });
+  return groupCard({ id: 'dechets', icon: 'dechets', title: 'Déchets', summary: dechetsResume(waste, now), dots, rows });
+}
+function vaisselleCard() {
+  const main = S.chores.filter(c => !c.sorte && /vaisselle/i.test(c.title));
+  const lv = S.chores.filter(c => c.sorte === 'lavevaisselle');
+  const all = [...main, ...lv]; if (!all.length) return '';
+  const n = all.filter(isDue).length;
+  const summary = n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre';
+  return groupCard({ id: 'vaisselle', icon: 'vaisselle', title: 'Vaisselle', summary, dots: all.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: [...main.map(plainRow), ...lv.map(seqRow)] });
+}
+function lessiveCard() {
+  const mine = S.chores.filter(c => c.sorte === 'lessive' && c.turn === S.me); if (!mine.length) return '';
+  const c = mine[0]; const s = seqState(c);
+  const summary = s.phase === 'timer' ? `${seqOf(c).steps[s.i].doing}, prêt dans ${s.left} min` : s.phase === 'next' ? 'Une étape à faire' : s.st.due ? 'À lancer' : cap(s.st.label);
+  return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary, dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: mine.map(seqRow) });
 }
 
 function pratiqueCard() {
@@ -1262,14 +1294,11 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
-  // Séquences : le lave-vaisselle (commun) puis ma lessive ; celle de l'autre reste dans son app.
-  const seqs = S.chores.filter(c => seqOf(c) && (!seqOf(c).personal || c.turn === S.me));
+  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title)).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
-    ${dechetsCard(waste)}
-    ${seqs.map(seqCard).join('')}
+    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
