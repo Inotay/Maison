@@ -1,6 +1,8 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
+import { iconFor, ICONS as THEME_ICONS, norm } from './themes.js';
+
 // Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
 function greeting(h = new Date().getHours()) {
   if (h >= 22 || h < 5) return ['Bonne nuit', 'accueil_nuit'];
@@ -35,6 +37,9 @@ const S = {
   recovery: false,     // arrivée par un lien « mot de passe oublié »
   showChoreForm: false,
   offline: false,
+  edit: null,          // { type, id } : élément en cours de modification
+  pick: null,          // { type, id } : choix d'icône ouvert
+  hints: {},           // corrections d'icônes apprises (partagées)
 };
 
 let api = null;
@@ -192,8 +197,9 @@ function demoApi() {
     },
     async update(t, m, patch) { (db[t] || []).forEach(r => { if (matches(r, m)) Object.assign(r, patch); }); save(); },
     async upsert(t, row) {
-      const r = { ...row, email: row.email || S.me };
-      db[t] = (db[t] || []).filter(x => x.email !== r.email); db[t].push(r); save();
+      const key = t === 'icon_hints' ? 'word' : t === 'push_subscriptions' ? 'endpoint' : 'email';
+      const r = key === 'email' ? { ...row, email: row.email || S.me } : { ...row };
+      db[t] = (db[t] || []).filter(x => x[key] !== r[key]); db[t].push(r); save();
     },
     async remove(t, m) { db[t] = (db[t] || []).filter(r => !matches(r, m)); save(); },
     async rpc(n, a) {
@@ -248,6 +254,7 @@ function demoSeed() {
       { id: uid(), author: M, recipient: Y, kind: 'merci', body: "Merci d'avoir tout rangé dimanche pendant que je travaillais. Ça m'a fait du bien de rentrer dans un appart calme.", wants_talk: false, read_at: null, created_at: iso(0.3) },
     ],
     libido: [{ email: M, is_on: true, until: new Date(now + 6 * 3600000).toISOString(), updated_at: iso(0) }],
+    icon_hints: [],
   };
 }
 
@@ -295,15 +302,37 @@ function show(title, body, tag) {
   if (swReg) swReg.showNotification(title, opts).catch(() => {}); else try { new Notification(title, opts); } catch {}
 }
 
+// Icônes par thème -----------------------------------------------------------
+
+const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore' };
+const labelOf = (type, row) => type === 'tasks' || type === 'chores' ? row.title : row.label;
+const iconOf = (type, row) => row.icon || iconFor(labelOf(type, row), ctxOf[type], S.hints);
+function iconBtn(type, row) {
+  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconOf(type, row)}</button>`;
+}
+function iconPicker(type, row) {
+  if (S.pick?.id !== row.id) return '';
+  return `<div class="picker" role="group" aria-label="Choisir une icône">${THEME_ICONS.map(t => `<button data-action="pick-set" data-type="${type}" data-id="${row.id}" data-icon="${t.icon}" aria-label="${t.id}" ${iconOf(type, row) === t.icon ? 'class="on"' : ''}>${t.icon}</button>`).join('')}</div>`;
+}
+function hintsFrom(rows) {
+  const h = {};
+  for (const r of rows) {
+    h[r.word] = r.icon;
+    for (const tok of r.word.split(' ')) if (tok.length >= 4) h['~' + tok] = r.icon;
+  }
+  return h;
+}
+
 // Chargement -----------------------------------------------------------------
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib, hints] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'), api.list('libido'),
+    api.list('icon_hints').catch(() => []),
   ]);
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, hints: hintsFrom(hints) });
   S.libido = lib.find(r => r.email === S.me) || null;
   S.match = !!(await api.rpc('libido_match'));
   notifyNew();
@@ -385,6 +414,30 @@ function balances() {
   }
   for (const k in net) net[k] = net[k] / 100;
   return net;
+}
+
+// Ce que chacun a payé et ce que chacun devait, depuis le dernier remboursement.
+function balanceDetail() {
+  const lastSettle = S.expenses.filter(e => e.is_settlement).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] || null;
+  const since = S.expenses.filter(e => !e.is_settlement && (!lastSettle || e.created_at > lastSettle.created_at));
+  const by = Object.fromEntries(S.members.map(m => [m.email, { paid: 0, part: 0 }]));
+  for (const e of since) {
+    const o = S.members.find(m => m.email !== e.paid_by)?.email;
+    if (!by[e.paid_by] || !o) continue;
+    const total = cents(e.amount);
+    const owed = Math.round(total * (1 - Number(e.payer_share)));
+    by[e.paid_by].paid += total;
+    by[e.paid_by].part += total - owed;
+    by[o].part += owed;
+  }
+  for (const k in by) { by[k].paid /= 100; by[k].part /= 100; }
+  return { by, since, lastSettle, total: since.reduce((s, e) => s + Number(e.amount), 0) };
+}
+
+// Effet d'une dépense sur le solde, vu par moi : combien l'autre me doit (positif) ou ce que je lui dois.
+function expenseEffect(e) {
+  const owed = Math.round(cents(e.amount) * (1 - Number(e.payer_share))) / 100;
+  return e.paid_by === S.me ? owed : -owed;
 }
 
 // Ménage ---------------------------------------------------------------------
@@ -568,13 +621,15 @@ function viewTasks() {
   const item = t => {
     const meta = [];
     meta.push(t.assignee ? (t.assignee === S.me ? 'Pour toi' : `Pour ${nameOf(t.assignee)}`) : 'Pour vous deux');
-    if (t.due_on && !t.done) meta.push(relDay(t.due_on));
+    if (t.due_on && !t.done) meta.push(relDay(t.due_on) + (t.due_time ? ` à ${String(t.due_time).slice(0, 5)}` : ''));
     const late = t.due_on && !t.done && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) < 0;
+    if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
     return `<li class="item ${t.done ? 'done' : ''}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      <div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
+      <div class="item-main"><div class="item-title">${iconBtn('tasks', t)} ${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
-      ${S.open === t.id ? `<div class="item-actions">${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
+      ${iconPicker('tasks', t)}
+      ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
   };
   return `<form class="form" data-form="task">
@@ -591,6 +646,63 @@ function viewTasks() {
     ${done.length ? `<details class="fold" data-fold="done"><summary>Faites récemment (${done.length})</summary><ul class="list">${done.map(item).join('')}</ul></details>` : ''}`;
 }
 
+// Formulaires de modification, affichés à la place de l'élément.
+
+function editTask(t) {
+  const who = [['me', 'Moi'], ['other', nameOf(other())], ['nous', 'Nous deux']].filter(w => w[0] !== 'other' || other());
+  const cur = t.assignee === S.me ? 'me' : t.assignee ? 'other' : 'nous';
+  return `<form class="form edit" data-form="edit-task" data-id="${t.id}">
+    <label class="sr" for="et-title">Titre</label><input class="field" id="et-title" name="title" value="${esc(t.title)}" required>
+    ${chipGroup('edit-who', who, cur, 'Pour qui')}
+    <div class="row" style="margin-top:10px">
+      <div class="grow"><label class="chip-label" for="et-due" style="display:block;margin:0">Date</label><input class="field" id="et-due" name="due" type="date" value="${esc(t.due_on || '')}"></div>
+      <div style="width:110px;flex:none"><label class="chip-label" for="et-time" style="display:block;margin:0">Heure</label><input class="field" id="et-time" name="time" type="time" value="${esc(t.due_time ? String(t.due_time).slice(0, 5) : '')}"></div>
+    </div>
+    <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
+  </form>`;
+}
+function editShop(s) {
+  return `<form class="form edit row" data-form="edit-shop" data-id="${s.id}">
+    <div class="grow"><label class="sr" for="es-label">Article</label><input class="field" id="es-label" name="label" value="${esc(s.label)}" required></div>
+    <button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">OK</button>
+  </form>`;
+}
+function editChore(c) {
+  const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
+  return `<form class="form edit" data-form="edit-chore" data-id="${c.id}">
+    <label class="sr" for="ec-title">Nom</label><input class="field" id="ec-title" name="title" value="${esc(c.title)}" required>
+    ${chipGroup('edit-freq', FREQS.map(([n, l]) => [String(n), l]), String(c.every_days), 'Fréquence')}
+    ${chipGroup('edit-weight', WEIGHTS, String(c.weight || 2), 'Effort')}
+    ${chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour')}
+    <div class="row" style="margin-top:10px"><div class="grow"><label class="chip-label" for="ec-last" style="display:block;margin:0">Dernière fois faite le</label><input class="field" id="ec-last" name="last" type="date" value="${esc(c.last_done_at ? isoDate(new Date(c.last_done_at)) : '')}"></div></div>
+    <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
+  </form>`;
+}
+function editExpense(e) {
+  const share = Number(e.payer_share);
+  const split = share === 0.5 ? 'half' : share === 0 ? 'other' : 'custom';
+  const cur = chipVal('edit-split', split);
+  return `<form class="form edit" data-form="edit-expense" data-id="${e.id}">
+    <div class="row">
+      <div style="width:118px;flex:none"><label class="sr" for="ee-amount">Montant</label><input class="field amount-input" id="ee-amount" name="amount" inputmode="decimal" value="${esc(chf(e.amount))}" required></div>
+      <div class="grow"><label class="sr" for="ee-label">Pour quoi</label><input class="field" id="ee-label" name="label" value="${esc(e.label)}" required></div>
+    </div>
+    ${chipGroup('edit-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), e.paid_by, 'Payé par')}
+    ${chipGroup('edit-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], split, 'Partage')}
+    ${cur === 'custom' ? `<div class="row" style="margin-top:8px"><div class="grow"><label class="chip-label" for="ee-pct" style="display:block;margin:0">Part de celui ou celle qui paie, en %</label><input class="field" id="ee-pct" name="pct" inputmode="numeric" value="${Math.round(share * 100)}"></div></div>` : ''}
+    ${chipGroup('edit-cat', CATS, e.category, 'Catégorie')}
+    <div class="row" style="margin-top:10px"><div class="grow"><label class="chip-label" for="ee-date" style="display:block;margin:0">Date</label><input class="field" id="ee-date" name="date" type="date" value="${esc(e.spent_on)}"></div></div>
+    <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
+  </form>`;
+}
+function editNote(n) {
+  return `<form class="form edit" data-form="edit-note" data-id="${n.id}">
+    <label class="sr" for="en-body">Mot</label><textarea class="area" id="en-body" name="body" required>${esc(n.body)}</textarea>
+    <label class="check"><input type="checkbox" id="en-important" name="important" ${n.important ? 'checked' : ''}> Important</label>
+    <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
+  </form>`;
+}
+
 function viewBoard() {
   const notes = [...S.board].sort((a, b) => (b.pinned - a.pinned) || b.created_at.localeCompare(a.created_at));
   return `<form class="form" data-form="note">
@@ -599,11 +711,11 @@ function viewBoard() {
       <label class="check"><input type="checkbox" id="note-important" data-keep name="important"> Important</label>
       <div class="form-actions"><button class="btn" type="submit">Afficher</button></div>
     </form>
-    <div class="notes">${notes.length ? notes.map(n => `
+    <div class="notes">${notes.length ? notes.map(n => S.edit?.id === n.id ? `<article class="note">${editNote(n)}</article>` : `
       <article class="note ${n.important ? 'important' : ''} ${n.pinned ? 'pinned' : ''}">
         <p>${esc(n.body)}</p>
         <div class="note-foot"><span>${esc(n.author === S.me ? 'Toi' : nameOf(n.author))}, ${esc(ago(n.created_at))}${n.pinned ? ', épinglé' : ''}</span>
-          <span class="acts"><button class="link" data-action="note-pin" data-id="${n.id}">${n.pinned ? 'Détacher' : 'Épingler'}</button><button class="link" data-action="note-delete" data-id="${n.id}">Retirer</button></span></div>
+          <span class="acts"><button class="link" data-action="edit" data-type="board" data-id="${n.id}">Modifier</button><button class="link" data-action="note-pin" data-id="${n.id}">${n.pinned ? 'Détacher' : 'Épingler'}</button><button class="link" data-action="note-delete" data-id="${n.id}">Retirer</button></span></div>
       </article>`).join('') : '<p class="empty">Le tableau est vide. Laisse un mot pour la maison.</p>'}</div>`;
 }
 
@@ -620,15 +732,17 @@ function viewMenage() {
     ${chores.length ? `<div>${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
+      if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
       return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}">
-        <div><div class="c-title">${esc(c.title)}</div>
+        <div><div class="c-title">${iconBtn('chores', c)} ${esc(c.title)}</div>
           <div class="c-meta">${mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`}, <span class="c-when">${esc(st.label)}</span></div>
           <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
         <div style="display:flex;align-items:center;gap:4px">
           <button class="btn ${st.due ? '' : 'ghost'} small" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>
           <button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
         </div>
-        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button><button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
+        ${iconPicker('chores', c)}
+        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button><button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button><button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
     }).join('')}</div>` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
 
@@ -652,8 +766,11 @@ function viewMenage() {
 function viewCourses() {
   const todo = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const cart = S.shopping.filter(s => s.checked);
-  const item = s => `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
-    <div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div></li>`;
+  const item = s => S.edit?.id === s.id ? `<li class="item editing" style="grid-template-columns:1fr">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
+    <div class="item-main"><div class="item-title">${iconBtn('shopping', s)} ${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
+    <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
+    ${iconPicker('shopping', s)}
+    ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>` : ''}</li>`;
   return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
@@ -673,12 +790,36 @@ function optionsSummary() {
   return `${catLabel(chipVal('exp-cat', 'courses'))}, ${payer}, ${split}`;
 }
 
-function viewArgent() {
+function balanceCard() {
   const net = balances()[S.me] || 0;
   const o = other();
-  const sentence = Math.abs(net) < 0.01
+  const d = balanceDetail();
+  const me = d.by[S.me] || { paid: 0, part: 0 }, them = d.by[o] || { paid: 0, part: 0 };
+  const quits = Math.abs(net) < 0.01;
+  const sentence = quits
     ? 'Vous êtes quittes.'
-    : net > 0 ? `${esc(nameOf(o))} te doit <span class="amt">${chf(net)} francs.</span>` : `Tu dois <span class="amt">${chf(-net)} francs</span> à ${esc(nameOf(o))}.`;
+    : net > 0 ? `${esc(nameOf(o))} te doit <span class="amt">${chf(net)}</span>` : `Tu dois <span class="amt">${chf(-net)}</span> à ${esc(nameOf(o))}`;
+  const max = Math.max(me.paid, them.paid, me.part, them.part, 0.01);
+  const row = (label, v) => `<div class="bal-row"><span>${esc(label)}</span>
+      <div class="bal-bars"><div class="bal-bar paid" style="width:${Math.round(v.paid / max * 100)}%"></div><div class="bal-bar part" style="width:${Math.round(v.part / max * 100)}%"></div></div>
+      <b>${chf(v.paid)}</b><i>${chf(v.part)}</i></div>`;
+  const sinceLabel = d.lastSettle ? `depuis le remboursement du ${esc(new Date(d.lastSettle.created_at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' }))}` : 'depuis le début';
+  return `<section class="bal-card" aria-label="Solde">
+    <p class="bal-kicker">Solde</p>
+    <p class="balance">${sentence}</p>
+    ${d.since.length ? `<p class="bal-sub">${pl(d.since.length, 'dépense', 'dépenses')} ${sinceLabel}, ${chf(d.total)} en tout.</p>
+    <div class="bal-rows">
+      <div class="bal-head"><span></span><span></span><b>a payé</b><i>sa part</i></div>
+      ${row('Toi', me)}${row(nameOf(o), them)}
+    </div>
+    <p class="bal-explain">${quits ? 'Chacun a payé exactement sa part.' : net > 0 ? `Tu as payé ${chf(me.paid - me.part)} de plus que ta part.` : `${esc(nameOf(o))} a payé ${chf(them.paid - them.part)} de plus que sa part.`}</p>` : `<p class="bal-sub">Aucune dépense ${sinceLabel}.</p>`}
+    ${quits ? '' : `<button class="btn small bal-btn" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>`}
+  </section>`;
+}
+
+function viewArgent() {
+  const o = other();
+  const lastSettle = balanceDetail().lastSettle;
 
   const sorted = [...S.expenses].sort((a, b) => b.spent_on.localeCompare(a.spent_on) || b.created_at.localeCompare(a.created_at));
   const months = new Map();
@@ -695,29 +836,35 @@ function viewArgent() {
     const byCat = {};
     real.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + Number(e.amount); });
     const label = new Date(k + '-15').toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
+    const paidMe = real.filter(e => e.paid_by === S.me).reduce((s, e) => s + Number(e.amount), 0);
     return `<div class="month-head"><span>${esc(label[0].toUpperCase() + label.slice(1))}</span><b>${chf(total)}</b></div>
-      <div class="cats">${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<span>${esc(catLabel(c))} ${chf(v)}</span>`).join('')}</div>
+      <div class="cats"><span class="who">Toi ${chf(paidMe)} · ${esc(nameOf(o))} ${chf(total - paidMe)}</span>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<span>${esc(catLabel(c))} ${chf(v)}</span>`).join('')}</div>
       <ul class="list">${list.map(e => {
         const payer = e.paid_by === S.me ? 'toi' : nameOf(e.paid_by);
         if (e.is_settlement) {
           const to = S.members.find(m => m.email !== e.paid_by)?.email;
           return `<li class="item settle" style="grid-template-columns:1fr auto">
-            <div class="item-main money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
+            <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
+            <div class="item-meta">Solde remis à zéro, ${esc(relDay(e.spent_on))}</div></div>
             <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
             ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
         }
         const split = Number(e.payer_share) === 0.5 ? 'moitié-moitié' : Number(e.payer_share) === 0 ? `avancé pour ${e.paid_by === S.me ? nameOf(o) : 'toi'}` : `${Math.round(Number(e.payer_share) * 100)} % pour ${payer}`;
+        const eff = expenseEffect(e);
+        const settled = lastSettle && e.created_at <= lastSettle.created_at;
+        const effect = Math.abs(eff) < 0.005 ? '' : settled ? `<span class="effect done">réglé</span>` : eff > 0 ? `<span class="effect pos">${esc(nameOf(o))} te doit ${chf(eff)}</span>` : `<span class="effect neg">Tu lui dois ${chf(-eff)}</span>`;
+        if (S.edit?.id === e.id) return `<li class="item editing" style="grid-template-columns:1fr">${editExpense(e)}</li>`;
         return `<li class="item" style="grid-template-columns:1fr auto">
-          <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
-          <div class="item-meta">Payé par ${esc(payer)}, ${esc(split)}, ${esc(catLabel(e.category).toLowerCase())}, ${esc(relDay(e.spent_on))}</div></div>
+          <div class="item-main"><div class="money-row"><span class="item-title">${iconBtn('expenses', e)} ${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
+          <div class="item-meta money-row"><span>Payé par ${esc(payer)}, ${esc(split)}, ${esc(relDay(e.spent_on))}</span>${effect}</div></div>
           <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
-          ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
+          ${iconPicker('expenses', e)}
+          ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="expenses" data-id="${e.id}">Modifier</button><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
       }).join('')}</ul>`;
   }).join('');
 
   return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('argent', 'Azami fait sauter une pièce')}</button></header>
-    <p class="balance">${sentence}</p>
-    ${Math.abs(net) >= 0.01 ? `<button class="link" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>` : ''}
+    ${balanceCard()}
 
     <form class="form" data-form="expense">
       <div class="row">
@@ -818,7 +965,7 @@ const actions = {
   },
   'maison-tab': el => { S.maisonTab = el.dataset.tab; render(); },
   'nuit-tab': el => { S.nuitTab = el.dataset.tab; render(); },
-  more: el => { S.open = S.open === el.dataset.id ? null : el.dataset.id; render(); },
+  more: el => { S.open = S.open === el.dataset.id ? null : el.dataset.id; S.pick = null; render(); },
 
   retry: () => refresh(),
   notif: () => enableNotifications(),
@@ -835,6 +982,21 @@ const actions = {
     run(() => api.update('tasks', { id: el.dataset.id }, { assignee: w === 'me' ? S.me : w === 'other' ? other() : null }));
   },
   'task-delete': el => { S.open = null; run(() => api.remove('tasks', { id: el.dataset.id }), 'Supprimé'); },
+  'shop-delete': el => { S.open = null; run(() => api.remove('shopping', { id: el.dataset.id }), 'Retiré de la liste'); },
+  edit: el => { S.edit = { type: el.dataset.type, id: el.dataset.id }; S.open = null; S.pick = null; S.chips = {}; render(); document.querySelector('.edit input, .edit textarea')?.focus(); },
+  'edit-cancel': () => { S.edit = null; render(); },
+  pick: el => { S.pick = S.pick?.id === el.dataset.id ? null : { type: el.dataset.type, id: el.dataset.id }; S.open = null; render(); },
+  'pick-set': el => {
+    const { type, id, icon } = el.dataset;
+    const row = S[{ tasks: 'tasks', shopping: 'shopping', expenses: 'expenses', chores: 'chores' }[type]].find(x => x.id === id);
+    S.pick = null;
+    if (!row) return refresh();
+    const word = norm(labelOf(type, row));
+    run(async () => {
+      await api.update(type, { id }, { icon });
+      if (word) await api.upsert('icon_hints', { word, icon, updated_by: S.me, updated_at: new Date().toISOString() });
+    }, 'Icône mémorisée pour la prochaine fois');
+  },
 
   'note-pin': el => { const n = S.board.find(x => x.id === el.dataset.id); if (!n) return refresh(); run(() => api.update('board', { id: n.id }, { pinned: !n.pinned })); },
   'note-delete': el => { if (confirm('Retirer ce mot du tableau ?')) run(() => api.remove('board', { id: el.dataset.id }), 'Retiré du tableau'); },
@@ -942,7 +1104,8 @@ const forms = {
   task(f) {
     const w = chipVal('task-who', 'nous');
     if (!f.title.value.trim()) { toast('Écris d\'abord la chose à faire'); return; }
-    const row = { title: f.title.value.trim(), assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null };
+    const title = f.title.value.trim();
+    const row = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, icon: iconFor(title, 'task', S.hints) };
     f.reset();
     run(() => api.insert('tasks', row));
   },
@@ -954,7 +1117,7 @@ const forms = {
   },
   chore(f) {
     if (!f.title.value.trim()) { toast('Donne un nom à la corvée'); return; }
-    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), weight: Number(chipVal('chore-weight', '2')), turn: chipVal('chore-first', S.me) };
+    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), weight: Number(chipVal('chore-weight', '2')), turn: chipVal('chore-first', S.me), icon: iconFor(f.title.value, 'chore', S.hints) };
     f.reset(); S.showChoreForm = false;
     run(() => api.insert('chores', row), 'Corvée ajoutée');
   },
@@ -963,7 +1126,7 @@ const forms = {
     const labels = [...new Set(f.label.value.split(',').map(s => s.trim()).filter(Boolean).map(s => s[0].toUpperCase() + s.slice(1)))].filter(l => !have.has(l.toLowerCase()));
     f.reset();
     if (!labels.length) { toast('Déjà sur la liste'); return; }
-    run(async () => { for (const label of labels) await api.insert('shopping', { label }); });
+    run(async () => { for (const label of labels) await api.insert('shopping', { label, icon: iconFor(label, 'shopping', S.hints) }); });
     setTimeout(() => document.getElementById('shop-label')?.focus(), 50);
   },
   expense(f) {
@@ -978,10 +1141,48 @@ const forms = {
       payer_share = p / 100;
     }
     if (!f.label.value.trim()) { toast('Indique pour quoi'); return; }
-    const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()) };
+    const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()), icon: iconFor(f.label.value, 'expense', S.hints) };
     f.reset();
     run(() => api.insert('expenses', row), 'Dépense enregistrée');
     setTimeout(() => document.getElementById('exp-amount')?.focus(), 50);
+  },
+  'edit-task'(f) {
+    const title = f.title.value.trim(); if (!title) return toast('Le titre est vide');
+    const w = chipVal('edit-who', 'nous');
+    const old = S.tasks.find(t => t.id === f.dataset.id);
+    const patch = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, due_time: f.time.value || null };
+    if (old && old.title !== title && !S.hints[norm(title)]) patch.icon = iconFor(title, 'task', S.hints);
+    S.edit = null;
+    run(() => api.update('tasks', { id: f.dataset.id }, patch), 'Modifié');
+  },
+  'edit-shop'(f) {
+    const label = f.label.value.trim(); if (!label) return toast('L\'article est vide');
+    const patch = { label, icon: iconFor(label, 'shopping', S.hints) };
+    S.edit = null;
+    run(() => api.update('shopping', { id: f.dataset.id }, patch), 'Modifié');
+  },
+  'edit-chore'(f) {
+    const title = f.title.value.trim(); if (!title) return toast('Le nom est vide');
+    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), turn: chipVal('edit-turn', S.me), icon: iconFor(title, 'chore', S.hints) };
+    if (f.last.value) patch.last_done_at = new Date(f.last.value + 'T12:00').toISOString();
+    S.edit = null;
+    run(() => api.update('chores', { id: f.dataset.id }, patch), 'Modifié');
+  },
+  'edit-expense'(f) {
+    const amount = Number(String(f.amount.value).replace(/[’'\s]/g, '').replace(',', '.'));
+    if (!(amount > 0)) return toast('Indique un montant, par exemple 24.50');
+    const label = f.label.value.trim(); if (!label) return toast('Indique pour quoi');
+    const split = chipVal('edit-split', 'half');
+    let payer_share = split === 'other' ? 0 : 0.5;
+    if (split === 'custom') { const p = Number(f.pct?.value); if (!(p >= 0 && p <= 100)) return toast('Pourcentage entre 0 et 100'); payer_share = p / 100; }
+    const patch = { amount: Math.round(amount * 100) / 100, label, paid_by: chipVal('edit-payer', S.me), payer_share, category: chipVal('edit-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()), icon: iconFor(label, 'expense', S.hints) };
+    S.edit = null;
+    run(() => api.update('expenses', { id: f.dataset.id }, patch), 'Modifié');
+  },
+  'edit-note'(f) {
+    const body = f.body.value.trim(); if (!body) return toast('Le mot est vide');
+    S.edit = null;
+    run(() => api.update('board', { id: f.dataset.id }, { body, important: f.important.checked }), 'Modifié');
   },
   care(f) {
     const body = f.body.value.trim();
@@ -998,7 +1199,7 @@ document.addEventListener('click', e => {
     const g = c.closest('[data-group]');
     S.chips[g.dataset.group] = c.dataset.chip;
     g.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', b === c));
-    if (g.dataset.group === 'exp-split') render(); // affiche ou cache le champ %
+    if (g.dataset.group === 'exp-split' || g.dataset.group === 'edit-split') render(); // affiche ou cache le champ %
     else if (g.dataset.group.startsWith('exp-')) { const sum = document.querySelector('[data-fold="exp-options"] > summary'); if (sum) sum.textContent = optionsSummary(); }
     return;
   }

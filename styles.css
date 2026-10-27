@@ -249,6 +249,27 @@ details.fold[open] > summary::before { content: "− "; }
 .hd.row .azami { width: 150px; height: 166px; margin: 0; }
 .hd.row .azami-btn { width: 150px; margin: 0; }
 
+/* Icônes de thème et édition ------------------------------------------- */
+
+.icon-btn {
+  border: 0; background: var(--surface); border-radius: 8px;
+  width: 30px; height: 30px; font-size: 17px; line-height: 30px; padding: 0;
+  vertical-align: -7px; margin-right: 2px; text-align: center;
+}
+.icon-btn[aria-expanded="true"] { outline: 2px solid var(--bleu); }
+.picker {
+  grid-column: 1 / -1;
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+  padding: 8px; margin-top: 4px; background: var(--surface); border-radius: 12px;
+}
+.picker button { border: 0; background: none; font-size: 22px; height: 40px; border-radius: 8px; }
+.picker button.on { background: var(--bleu); }
+.item.editing, .chore.editing { display: block; padding: 10px 0 14px; }
+.form.edit { margin: 0; }
+.form.edit .field { font-size: 16px; }
+.note .form.edit { margin: 0; }
+.shop .item { grid-template-columns: auto 1fr auto; }
+
 /* Récemment -------------------------------------------------------------- */
 
 .recent { list-style: none; margin: 0 0 6px; padding: 0; font-size: 14px; }
@@ -303,7 +324,29 @@ details.fold[open] > summary::before { content: "− "; }
   line-height: 1.08;
   letter-spacing: -0.01em;
 }
-.balance .amt { white-space: nowrap; }
+.balance .amt { white-space: nowrap; color: var(--bleu); }
+.bal-card {
+  background: var(--surface); border-radius: 18px; padding: 16px 16px 14px; margin: 4px 0 18px;
+}
+.bal-card .balance { margin: 0; font-size: clamp(24px, 7vw, 30px); }
+.bal-kicker { margin: 0 0 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.bal-sub { margin: 8px 0 0; font-size: 14px; color: var(--muted); }
+.bal-rows { margin-top: 12px; display: grid; gap: 8px; }
+.bal-head, .bal-row { display: grid; grid-template-columns: 64px 1fr 68px 60px; gap: 8px; align-items: center; font-size: 14px; }
+.bal-head { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.bal-head b, .bal-head i, .bal-row b, .bal-row i { text-align: right; font-style: normal; white-space: nowrap; }
+.bal-row b { font-weight: 700; }
+.bal-row i { color: var(--muted); }
+.bal-bars { display: grid; gap: 3px; }
+.bal-bar { height: 7px; border-radius: 999px; background: var(--bleu); min-width: 3px; }
+.bal-bar.part { background: var(--fauve); opacity: .55; }
+.bal-explain { margin: 10px 0 0; font-size: 14px; }
+.bal-btn { margin-top: 12px; }
+.item-meta .effect { white-space: nowrap; font-weight: 600; }
+.item-meta .effect.pos { color: var(--bleu); }
+.item-meta .effect.neg { color: var(--text); }
+.item-meta .effect.done { color: var(--muted); font-weight: 400; font-style: italic; }
+.cats .who { color: var(--text); }
 .money-row { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
 .money-row .amount { font-weight: 650; white-space: nowrap; }
 .settle .item-title { color: var(--muted); font-style: italic; }
@@ -318,7 +361,6 @@ details.fold[open] > summary::before { content: "− "; }
 
 /* Courses ---------------------------------------------------------------- */
 
-.shop .item { grid-template-columns: auto 1fr; }
 .shop .item-title { font-size: 17px; }
 
 /* Nuit : care ----------------------------------------------------------- */

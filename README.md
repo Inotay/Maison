@@ -33,6 +33,11 @@ Une fois vos deux comptes créés, coller `supabase/02_durcissement.sql` dans SQ
 ### 6. Notifications
 Dans Nuit, « Me prévenir quand un mot arrive » demande la permission. Sans serveur de push, l'app prévient quand elle est ouverte en arrière-plan (un mot care reçu, un match). Pour recevoir des notifications app fermée, il faudra un petit serveur de push : sa clé publique VAPID va dans `config.js`, la table `push_subscriptions` est déjà prête.
 
+## Au quotidien
+- Tout se modifie après coup : bouton ⋯ puis « Modifier » sur une tâche (titre, pour qui, date, heure), une corvée, une dépense, un article ou un mot du tableau.
+- Chaque chose reçoit une petite icône choisie d'après ce qu'on a écrit. Un tap sur l'icône permet d'en choisir une autre ; l'app s'en souvient pour les deux.
+- Argent : la carte Solde dit qui doit quoi, ce que chacun a payé et sa part depuis le dernier remboursement ; chaque dépense indique son effet sur le solde.
+
 ## Hors-ligne
 L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (sans Care ni Libido). Les polices et la librairie Supabase sont embarquées dans le dépôt : aucune ressource externe.
 
@@ -43,6 +48,7 @@ L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (s
 
 ## Fichiers
 - `index.html`, `styles.css`, `app.js` : l'app
+- `themes.js` : reconnaissance de thème (mots-clés pondérés, probabilités) qui choisit l'icône d'une tâche, d'un article, d'une dépense ou d'une corvée ; les corrections faites à la main sont partagées via la table `icon_hints`
 - `azami/` : pack d'animations V2 d'Azami (11 scènes SVG en boucle, six accueils selon l'heure) ; `azami/statiques/` : les versions éditables
 - `sw.js` : hors-ligne et notifications
 - `vendor/` : librairie Supabase 2.49.4 figée ; `fonts/` : polices (licence OFL)
