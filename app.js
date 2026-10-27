@@ -103,7 +103,7 @@ const S = {
   me: null,            // e-mail de la personne connectée
   members: [],
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
-  view: safeGet('maison-view') || 'maison',
+  view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
   shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
@@ -984,7 +984,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v64</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v65</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1505,7 +1505,7 @@ function timersBar() {
 }
 function timerRing(t) {
   haptic('heavy'); sfx('big'); setTimeout(() => sfx('big'), 1200); setTimeout(() => sfx('big'), 2400);
-  if ('Notification' in window && Notification.permission === 'granted') show('Minuteur fini', t.label, 'timer-' + t.id);
+  if ('Notification' in window && Notification.permission === 'granted') show('Minuteur fini', t.label, 'timer-' + (t.sid || t.id));
   toast(`Minuteur fini : ${t.label}`);
 }
 setInterval(() => {
@@ -1729,13 +1729,16 @@ const actions = {
 
   'timer-start': el => {
     const sec = Number(el.dataset.sec);
-    S.timers.push({ id: Date.now().toString(36), label: el.dataset.label, end: Date.now() + sec * 1000 }); saveTimers();
+    const t = { id: Date.now().toString(36), label: el.dataset.label, end: Date.now() + sec * 1000 };
+    S.timers.push(t); saveTimers();
     haptic(1); sfx('tick');
+    // Copie sur le serveur : il envoie la notification même si l'app est fermée.
+    if (!DEMO) api.insert('kitchen_timers', { label: t.label, ends_at: new Date(t.end).toISOString() }).then(r => { if (r?.id) { t.sid = r.id; saveTimers(); } }).catch(e => console.warn('minuteur serveur', e));
     if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
     render();
   },
-  'timer-add': el => { const t = S.timers.find(x => x.id === el.dataset.id); if (t) { t.end += 60000; saveTimers(); render(); } },
-  'timer-stop': el => { S.timers = S.timers.filter(x => x.id !== el.dataset.id); saveTimers(); haptic(1); render(); },
+  'timer-add': el => { const t = S.timers.find(x => x.id === el.dataset.id); if (!t) return; t.end += 60000; saveTimers(); if (t.sid) api.update('kitchen_timers', { id: t.sid }, { ends_at: new Date(t.end).toISOString() }).catch(() => {}); render(); },
+  'timer-stop': el => { const t = S.timers.find(x => x.id === el.dataset.id); if (t?.sid && !t.fired) api.remove('kitchen_timers', { id: t.sid }).catch(() => {}); S.timers = S.timers.filter(x => x.id !== el.dataset.id); saveTimers(); haptic(1); render(); },
 
   'r-open': el => { S.recette = el.dataset.id; render(); window.scrollTo(0, 0); },
   'r-back': () => { S.recette = null; render(); },

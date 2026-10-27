@@ -103,7 +103,7 @@ async function run(db: ReturnType<typeof admin>) {
 
 // Minuteurs des corvées en étapes (lave-vaisselle, lessive) : quand le temps est écoulé et que
 // personne n'a encore été prévenu pour ce lancement, une notification part (à la personne pour une
-// corvée personnelle, aux deux sinon). Appelé toutes les 10 minutes.
+// corvée personnelle, aux deux sinon). Appelé chaque minute par le planificateur.
 const SEQ: Record<string, { label: string; steps: { key: string; minutes?: number; meta?: string; btn: string }[] }> = {
   lavevaisselle: { label: "Lave-vaisselle", steps: [{ key: "cycle", minutes: 60, btn: "Lancer" }, { key: "sortir", btn: "Sortie", meta: "Fini : sortir la vaisselle" }] },
   lessive: { label: "Lessive", steps: [{ key: "lavage", minutes: 60, btn: "Lancer" }, { key: "sechage", minutes: 80, btn: "Au séchage", meta: "Lavage fini : mettre au séchage" }, { key: "ranger", btn: "Rangée", meta: "Sec : plier et ranger" }] },
@@ -122,10 +122,22 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     const ready = new Date(c.started_at).getTime() + min * 60000;
     return now >= ready && !(c.notified_at && new Date(c.notified_at).getTime() >= new Date(c.started_at).getTime());
   });
-  if (!due.length) return { sent: 0, items: 0 };
+  // Minuteurs de cuisine lancés depuis une recette : une notification à la personne qui l'a lancé.
+  const nowIso = new Date(now).toISOString();
+  const { data: kt } = await db.from("kitchen_timers").select("id, owner, label, ends_at").is("notified_at", null).lte("ends_at", nowIso);
+  await db.from("kitchen_timers").delete().lt("ends_at", new Date(now - DAY).toISOString());
+  if (!due.length && !(kt ?? []).length) return { sent: 0, items: 0 };
   const keys = await vapid(db);
   webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
   let sent = 0; const dead: string[] = [];
+  for (const t of kt ?? []) {
+    const payload = JSON.stringify({ title: "Minuteur fini", body: t.label || "C'est prêt", tag: `timer-${t.id}`, url: "./?v=recettes" });
+    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === t.owner)) {
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 900, urgency: "high" }); sent++; }
+      catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+    }
+    await db.from("kitchen_timers").update({ notified_at: nowIso }).eq("id", t.id);
+  }
   for (const c of due) {
     const q = SEQ[c.sorte]; const nx = q.steps[Math.min((Number(c.step) || 0) + 1, q.steps.length - 1)];
     const payload = JSON.stringify({ title: `${q.label} : prêt`, body: nx.meta || nx.btn, tag: `maison-seq-${c.id}`, url: "./?v=menage" });
@@ -136,7 +148,7 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
   }
   if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
-  return { sent, items: due.length };
+  return { sent, items: due.length + (kt ?? []).length };
 }
 
 Deno.serve(async (req) => {

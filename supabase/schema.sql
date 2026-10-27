@@ -244,3 +244,16 @@ end $$;
 -- insert into public.members (email, name) values
 --   ('ton.adresse@exemple.ch', 'Prénom 1'),
 --   ('son.adresse@exemple.ch', 'Prénom 2');
+
+-- Minuteurs de cuisine (recettes) : copie côté serveur pour que la notification parte même app fermée.
+create table if not exists public.kitchen_timers (
+  id uuid primary key default gen_random_uuid(),
+  owner text not null default public.me(),
+  label text not null default '',
+  ends_at timestamptz not null,
+  notified_at timestamptz,
+  created_at timestamptz not null default now()
+);
+alter table public.kitchen_timers enable row level security;
+-- create policy kitchen_timers_own on public.kitchen_timers for all to authenticated
+--   using (public.is_member() and owner = public.me()) with check (public.is_member() and owner = public.me());
