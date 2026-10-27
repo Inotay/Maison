@@ -830,7 +830,7 @@ function viewArgent() {
   }
   const share = chipVal('exp-split', 'half');
 
-  const monthHtml = [...months.entries()].slice(0, 6).map(([k, list]) => {
+  const monthBlock = ([k, list]) => {
     const real = list.filter(e => !e.is_settlement);
     const total = real.reduce((s, e) => s + Number(e.amount), 0);
     const byCat = {};
@@ -847,7 +847,7 @@ function viewArgent() {
             <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
             <div class="item-meta">Solde remis à zéro, ${esc(relDay(e.spent_on))}</div></div>
             <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
-            ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
+            ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="settle-undo" data-id="${e.id}">Annuler ce remboursement</button></div>` : ''}</li>`;
         }
         const split = Number(e.payer_share) === 0.5 ? 'moitié-moitié' : Number(e.payer_share) === 0 ? `avancé pour ${e.paid_by === S.me ? nameOf(o) : 'toi'}` : `${Math.round(Number(e.payer_share) * 100)} % pour ${payer}`;
         const eff = expenseEffect(e);
@@ -861,7 +861,10 @@ function viewArgent() {
           ${iconPicker('expenses', e)}
           ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="expenses" data-id="${e.id}">Modifier</button><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
       }).join('')}</ul>`;
-  }).join('');
+  };
+  const entries = [...months.entries()];
+  const monthHtml = entries.slice(0, 6).map(monthBlock).join('') + (entries.length > 6
+    ? `<details class="fold" data-fold="old-months"><summary>Mois précédents (${entries.length - 6})</summary>${entries.slice(6).map(monthBlock).join('')}</details>` : '');
 
   return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('argent', 'Azami fait sauter une pièce')}</button></header>
     ${balanceCard()}
@@ -1026,6 +1029,7 @@ const actions = {
   'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return refresh(); if (!s.checked) meow(); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked }), null, s.id); },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
+  'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
   'exp-delete': el => { if (confirm('Supprimer cette dépense ?')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Dépense supprimée'); } },
   settle: () => {
     const net = balances()[S.me] || 0;
@@ -1033,8 +1037,8 @@ const actions = {
     const payer = net < 0 ? S.me : o;
     const amt = Math.round(Math.abs(net) * 100) / 100;
     if (pending.has('settle')) return;
-    if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde reviendra à zéro.`)) return;
-    run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), 'Vous êtes quittes', 'settle');
+    if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde revient à zéro. Rien n'est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.`)) return;
+    run(() => api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }), 'Vous êtes quittes. Rien n\'est effacé.', 'settle');
   },
 
   'letter-open': el => {
