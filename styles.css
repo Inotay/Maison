@@ -663,7 +663,16 @@ body::before {
 .item.ev.ongoing { border-color: var(--accent); }
 .item.house { border-style: dashed; }
 /* Déchets */
-.hint-inline { font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .8; margin-left: 6px; }
+/* Repliée : une seule ligne, comme une carte ; ouverte : le détail des quatre sortes. */
+.dechets-fold { margin: 0 0 var(--s3); }
+.dechets-fold > summary { display: flex; align-items: center; gap: var(--s3); list-style: none; padding: var(--s3) var(--s4); background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); box-shadow: 0 3px 0 var(--shadow); cursor: pointer; }
+.dechets-fold > summary::-webkit-details-marker { display: none; }
+.dechets-fold > summary::before, .dechets-fold[open] > summary::before { content: none; }
+.dechets-fold .d-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dechets-fold .d-title { font-weight: 800; }
+.dechets-fold .d-sub { font-size: 13px; font-weight: 700; color: var(--muted); }
+.dechets-fold .d-dots { display: flex; gap: 4px; flex: none; }
+.dechets-fold .dechets { margin-top: var(--s3); }
 .dechets .item-meta { display: flex; align-items: center; gap: 6px; }
 [class^="dot-"] { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(0,0,0,.15); }
 .dot-ok { background: #58C06A; } .dot-route { background: #F2C14E; } .dot-non { background: var(--rouge); }

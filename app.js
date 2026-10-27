@@ -846,7 +846,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v26</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v27</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1077,15 +1077,16 @@ function viewBoard() {
 // Déchets : ce qu'on peut descendre maintenant, d'après le calendrier de la gérance.
 function dechetsCard() {
   const now = new Date();
-  const rows = SORTES.map(s => {
-    const e = etat(s, now);
+  const states = SORTES.map(s => [s, etat(s, now)]);
+  const dots = states.map(([s, e]) => `<span class="dot-${e.state}" title="${esc(s.label)}"></span>`).join('');
+  const rows = states.map(([s, e]) => {
     const icon = s.icon ? `<img class="ticon" src="icons/themes/${s.icon}.webp" alt="" width="34" height="34" loading="lazy">` : `<span class="ticon emoji">${s.emoji}</span>`;
-    const suite = e.state === 'ok' ? `jusqu'à ${e.until}` : e.state === 'route' ? `jusqu'à ${e.until}` : `à nouveau ${e.until}`;
+    const suite = e.state === 'non' ? `à nouveau ${e.until}` : `jusqu'à ${e.until}`;
     return `<li class="item dech ${e.state}">${icon}<div class="item-main"><div class="item-title">${esc(s.label)}</div><div class="item-meta"><span class="dot-${e.state}"></span>${esc(ETAT_TEXTE[e.state])}, ${esc(suite)}</div></div></li>`;
   }).join('');
-  return `<h2 class="list-head first">Déchets <span class="hint-inline">ce qu'on peut descendre</span></h2>
+  return `<details class="fold dechets-fold" data-fold="dechets"><summary><img class="ticon" src="icons/themes/poubelle.webp" alt="" width="34" height="34"><span class="d-main"><span class="d-title">Déchets</span><span class="d-sub">${esc(dechetsResume(now))}</span></span><span class="d-dots">${dots}</span></summary>
     <ul class="list dechets">${rows}</ul>
-    <p class="hint">Vert : le container est près des garages. Jaune : il est déjà au bout du chemin, sur la route de Genève, y amener les sacs l'après-midi avant le ramassage. Rouge : jour de ramassage, on garde chez soi.</p>`;
+    <p class="hint">Vert : le container est près des garages. Jaune : il est déjà au bout du chemin, sur la route de Genève, y amener les sacs l'après-midi avant le ramassage. Rouge : jour de ramassage, on garde chez soi.</p></details>`;
 }
 
 function pratiqueCard() {
@@ -1110,7 +1111,6 @@ function viewMenage() {
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
     ${dechetsCard()}
-    <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
