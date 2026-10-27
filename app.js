@@ -856,7 +856,7 @@ function viewMaison() {
   if (Math.abs(net) >= 0.01) lines.push([net > 0 ? `${nameOf(other())} te doit` : `Tu dois à ${nameOf(other())}`, `${chf(Math.abs(net))}`, 'argent', false]);
   else lines.push(['Vous êtes quittes', '0.00', 'argent', false]);
   const waste = S.chores.filter(c => c.sorte);
-  lines.push(['Déchets', dechetsResume(waste), 'menage', waste.some(c => choreStatus(c).due && descente(SORTES.find(x => x.id === c.sorte), c).possible)]);
+  lines.push(['Déchets', dechetsResume(waste, new Date(), true), 'menage', waste.some(c => choreStatus(c).due && descente(SORTES.find(x => x.id === c.sorte), c).possible)]);
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
   const ne = S.agenda.configured ? nextEvent() : null;
   if (ne) lines.push([`${relDay(evDay(ne))} · ${ne.title}`, ne.allDay ? 'journée' : evTime(ne.start), 'agenda', false]);
@@ -881,7 +881,7 @@ function viewMaison() {
     <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v44</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v45</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

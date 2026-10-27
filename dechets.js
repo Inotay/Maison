@@ -57,12 +57,13 @@ export function descente(s, row, now = new Date()) {
 }
 
 // Résumé d'une ligne pour la tuile d'accueil et l'en-tête de la carte.
-export function resume(waste, now = new Date()) {
+export function resume(waste, now = new Date(), court = false) {
   const st = waste.map(c => descente(SORTES.find(s => s.id === c.sorte), c, now));
   const a = st.filter(x => x.due && x.possible).length;
   const b = st.filter(x => x.due && !x.possible).length;
   if (!a && !b) return 'Tout est descendu';
   if (a && !b) return a === 1 ? '1 à descendre' : `${a} à descendre`;
+  if (court) return `${a + b} à descendre`;
   if (!a) return b === 1 ? '1 à descendre, jour de ramassage' : `${b} à descendre, jour de ramassage`;
   return `${a + b} à descendre`;
 }
