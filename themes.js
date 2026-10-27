@@ -43,7 +43,8 @@ export const THEMES = [
   { id: 'biscuits', icon: '🍪', kw: 'biscuit:3 biscuits:3 cookies:3 cookie:3 petit beurre:3 sables:3 sablés:3 speculoos:3 bricelets:3 gaufrettes:3 kambly:3 oreo:3 digestive:3 spitzbuben:3' },
   { id: 'bonbons', icon: '🍬', kw: 'bonbon:3 bonbons:3 sucre:3 sucres:3 sucre glace:3 cassonade:3 caramel:3 caramels:3 reglisse:3 réglisse:3 chewing gum:3 haribo:3 sucette:3 sucettes:3 sucre vanille:3 vanille:2 ricola:3' },
   { id: 'glace', icon: '🍦', kw: 'glace:3 glaces:3 sorbet:3 sorbets:3 cornet:3 cornets:3 esquimau:3 magnum:3 ben and jerry:3 gelato:3 glacier:3 creme glacee:3 crème glacée:3' },
-  { id: 'miel', icon: '🍯', kw: 'miel:3 confiture:3 confitures:3 gelee:3 gelée:3 sirop d erable:3 sirop d érable:3 marmelade:3 compote:3 compotes:3' },
+  { id: 'miel', icon: '🍯', kw: 'miel:3 miel de:3 sirop d erable:3 sirop d érable:3 sirop d agave:3 pot de miel:3' },
+  { id: 'confiture', icon: '🍓', kw: 'confiture:3 confitures:3 gelee:3 gelée:3 marmelade:3 compote:3 compotes:3 pate a tartiner:1 confiture de:3' },
   { id: 'cafe', icon: '☕', kw: 'cafe:3 café:3 capsules:3 nespresso:3 expresso:3 espresso:3 moulu:2 grains de cafe:3 grains:1 filtre a cafe:3 cafetiere:3 cafetière:3 bialetti:3 moka:3 latte:3 cappuccino:3 chicoree:3 chicorée:3 decaf:3 déca:3' },
   { id: 'the', icon: '🍵', kw: 'the:3 thé:3 the vert:3 thé vert:3 the noir:3 infusion:3 infusions:3 tisane:3 tisanes:3 camomille:3 verveine:3 rooibos:3 earl grey:3 matcha:3 sachets de the:3 theiere:3 théière:3 hojicha:3 sencha:3 genmaicha:3 chai:3' },
   { id: 'eau', icon: '💧', kw: 'eau:3 eau gazeuse:3 eau minerale:3 eau minérale:3 eau plate:3 henniez:3 valser:3 evian:3 san pellegrino:3 bouteilles d eau:3 carafe:3 brita:3 filtre a eau:3 gourde:2 sodastream:3' },
@@ -89,14 +90,26 @@ export const THEMES = [
   { id: 'lunettes', icon: '👓', kw: 'lunettes:3 opticien:3 optique:3 verres:1 monture:3 lentilles:3 lentilles de contact:3 solution lentilles:3 lunettes de soleil:3 vue:2 controle de la vue:3 fielmann:3 visilab:3 etui a lunettes:3' },
   { id: 'sommeil', icon: '😴', kw: 'dormir:3 sommeil:3 sieste:3 nuit blanche:3 insomnie:3 se coucher:3 coucher:2 reveil:2 réveil:2 bouchons d oreilles:3 masque de nuit:3 melatonine:3 mélatonine:3 fatigue:1 se reposer:3 repos:3' },
   // AZAMI ---------------------------------------------------------------------------
-  { id: 'chat', icon: '🐱', kw: 'azami:4 chat:3 chatte:3 chats:3 minou:3 miaule:2 miaou:3 ronron:2 ronronne:2 calin azami:3 câlin azami:3 jouer avec azami:3 sieste azami:3 poils:2 poils de chat:3 rouleau anti poils:3 rouleau a poils:3 brosse anti poils:3 coussin chat:3 panier chat:3 chatiere:3 chatière:3 collier chat:3 medaille:3 médaille:3 puce electronique:3 puce électronique:3 photo azami:3 photos azami:3' },
-  { id: 'croquettes', icon: '🥣', kw: 'croquettes:4 croquette:4 sac de croquettes:4 nourriture chat:3 bouffe chat:3 bouffe azami:3 manger azami:3 nourrir azami:3 nourrir le chat:3 ration:2 distributeur:2 distributeur de croquettes:3 royal canin:3 purina:3 hills:2 orijen:3 acana:3 gamelle:3 gamelles:3 gamelle azami:3' },
-  { id: 'patee', icon: '🥫', kw: 'patee:4 pâtée:4 pate pour chat:4 pâté pour chat:4 sachets:2 sachets fraicheur:3 sachets fraîcheur:3 boites pour chat:3 boîtes pour chat:3 gourmet:2 sheba:3 felix:2 whiskas:3 almo nature:3 friandises:3 friandises chat:4 dreamies:3 catisfactions:3 churu:3 stick chat:3 recompense azami:3 récompense azami:3' },
-  { id: 'litiere', icon: '🪣', kw: 'litiere:4 litière:4 bac a litiere:4 bac à litière:4 changer la litiere:4 changer la litière:4 nettoyer la litiere:4 nettoyer la litière:4 pelle litiere:3 pelle à litière:3 pelle:1 sac litiere:3 sac de litiere:3 sac de litière:3 litiere agglomerante:3 litière agglomérante:3 litiere vegetale:3 litière végétale:3 litiere silice:3 catsan:3 odeur litiere:3 odeur litière:3 tapis litiere:3 tapis litière:3 maison de toilette:3 cat litter:3' },
-  { id: 'jouetschat', icon: '🧶', kw: 'griffoir:4 arbre a chat:4 arbre à chat:4 jouet chat:4 jouets chat:4 jouet azami:4 jouets azami:4 plumeau:4 canne a peche:3 canne à pêche:3 souris en jouet:3 souris:2 balle chat:3 laser:3 pointeur laser:3 herbe a chat:4 herbe à chat:4 cataire:4 catnip:4 valeriane:3 valériane:3 matatabi:4 tunnel chat:3 tunnel:2 hamac chat:3 cachette:2 carton pour azami:3 carton azami:3 fontaine a eau:3 fontaine à eau:3 fontaine chat:3 filtre fontaine:3 kicker:3 kickeroo:3 jouer avec le chat:3 occuper azami:3' },
-  { id: 'soinschat', icon: '🧴', kw: 'vermifuge:4 antipuces:4 anti puces:4 puces:3 tiques:3 pipette:4 pipettes:4 frontline:4 advantage:2 bravecto:4 brosse chat:4 brosser azami:4 brosser le chat:4 brossage:3 couper les griffes:4 griffes:3 coupe griffes:4 bain chat:3 laver le chat:3 shampoing chat:3 boules de poils:4 boule de poils:4 malt:3 pate au malt:3 pâte au malt:3 vomi:3 vomit:3 a vomi:3 poids azami:3 peser azami:3 balance chat:3 regime azami:3 régime azami:3 dents azami:3 dentifrice chat:3 yeux azami:3 oreilles azami:3 nettoyer les oreilles:3 medicament azami:4 médicament azami:4 comprime azami:3 comprimé azami:3 traitement azami:3 sterilisation:3 stérilisation:3 chaleurs:3 mue:3' },
-  { id: 'veto', icon: '🐾', kw: 'veterinaire:4 vétérinaire:4 veto:4 véto:4 vaccin chat:4 vaccin azami:4 rappel vaccin:3 rappel de vaccin:3 vaccin:2 clinique veterinaire:4 clinique vétérinaire:4 cabinet veterinaire:4 rdv veto:4 rdv véto:4 controle azami:3 contrôle azami:3 bilan azami:3 carnet de sante:3 carnet de santé:3 carnet de vaccination:3 passeport animal:3 passeport chat:3 assurance chat:3 assurance animaux:3 animal:3 animaux:3 animalerie:3 qualipet:3 maxi zoo:3 fressnapf:3 zooplus:3 refuge:3 spa:1' },
-  { id: 'gardechat', icon: '🏠', kw: 'garder azami:4 garder le chat:4 garder la chatte:4 cat sitter:4 catsitter:4 cat sitting:4 pet sitter:4 petsitter:4 pet sitting:4 pension chat:4 pension pour chat:4 chat sitter:4 nourrir azami pendant:3 qui garde azami:4 azami pendant les vacances:4 azami pendant:3 garde azami:4 passer voir azami:4 visite azami:3 cles pour azami:3 clés pour azami:3 chatterie:3 hotel pour chat:3 hôtel pour chat:3 famille d accueil:2 pawshake:3 petbacker:3 caisse de transport:4 cage de transport:4 sac de transport:4 transporter azami:3 transport azami:3 trajet azami:3 azami en voiture:3 azami en train:3 demenager avec azami:3 déménager avec azami:3' },
+  { id: 'chat', icon: '🐱', kw: 'azami:4 chat:3 chatte:3 chats:3 minou:3 miaule:2 miaou:3 ronron:2 ronronne:2 calin azami:4 câlin azami:4 calin:2 câlin:2 calins:2 câlins:2 jouer avec azami:3 sieste azami:3 photo azami:3 photos azami:3 chatiere:3 chatière:3 coussin chat:3 panier chat:3 lit chat:3 azami dort:3' },
+  { id: 'croquettes', icon: '🥣', kw: 'croquettes:4 croquette:4 sac de croquettes:4 nourriture chat:3 nourriture azami:3 bouffe chat:3 bouffe azami:3 manger azami:3 nourrir azami:4 nourrir le chat:4 nourrir la chatte:4 donner a manger a azami:4 donner à manger à azami:4 ration:2 distributeur de croquettes:3 royal canin:3 purina:3 orijen:3 acana:3 hills:2' },
+  { id: 'gamelle', icon: '🍽️', kw: 'gamelle:4 gamelles:4 gamelle azami:4 laver la gamelle:4 laver les gamelles:4 nettoyer la gamelle:4 bol azami:3 bols azami:3 eau azami:3 changer l eau d azami:4 eau du chat:3 eau de la chatte:3 remplir la gamelle:4' },
+  { id: 'patee', icon: '🥫', kw: 'patee:4 pâtée:4 pate pour chat:4 pâté pour chat:4 sachets fraicheur:3 sachets fraîcheur:3 sachet azami:3 sachets azami:3 boites pour chat:3 boîtes pour chat:3 boite azami:3 boîte azami:3 gourmet:2 sheba:3 felix:2 whiskas:3 almo nature:3 humide:2' },
+  { id: 'friandises', icon: '🍬', kw: 'friandises:3 friandise:3 friandises chat:4 friandises azami:4 dreamies:4 catisfactions:4 churu:4 stick chat:3 sticks chat:3 recompense azami:4 récompense azami:4 gaterie azami:3 gâterie azami:3 snack azami:3' },
+  { id: 'griffoir', icon: '🪵', kw: 'griffoir:4 griffoirs:4 griffe:1 griffoir carton:4 planche a griffer:4 planche à griffer:4 poteau a griffer:4 poteau à griffer:4 tapis a griffer:4 tapis à griffer:4 remplacer le griffoir:4' },
+  { id: 'arbreachat', icon: '🌳', kw: 'arbre a chat:4 arbre à chat:4 arbres a chat:4 tour a chat:4 tour à chat:4 perchoir:3 hamac chat:3 hamac azami:3 etagere chat:3 étagère chat:3 niche chat:3 cabane chat:3 cachette azami:3' },
+  { id: 'jouetschat', icon: '🧶', kw: 'jouet chat:4 jouets chat:4 jouet azami:4 jouets azami:4 jouet pour azami:4 jouets pour azami:4 souris en jouet:3 souris:2 balle chat:3 balle azami:3 balles:1 laser:3 pointeur laser:3 tunnel chat:3 tunnel:2 kicker:3 kickeroo:3 jouer avec le chat:3 occuper azami:3 jouer:1 jeu azami:3 peluche azami:3' },
+  { id: 'plumeau', icon: '🪶', kw: 'plumeau:4 plumeaux:4 canne a peche:4 canne à pêche:4 canne azami:3 plume azami:3 plumes:2 baguette plumeau:4 jouer au plumeau:4' },
+  { id: 'brossechat', icon: '🪮', kw: 'brosse chat:4 brosse azami:4 brosser azami:4 brosser le chat:4 brosser la chatte:4 brossage:3 brossage azami:4 peigne chat:3 peigne azami:3 furminator:4 couper les griffes:4 griffes azami:4 coupe griffes:4 bain chat:3 laver le chat:3 shampoing chat:3 toilettage azami:3 toiletter:3 nettoyer les oreilles:3 oreilles azami:3 yeux azami:3 dents azami:3 dentifrice chat:3 boules de poils:3 boule de poils:3 malt:3 pate au malt:3 pâte au malt:3 mue:3' },
+  { id: 'antipuces', icon: '💧', kw: 'vermifuge:4 vermifuger:4 antipuces:4 anti puces:4 puces:3 puce:2 tiques:3 tique:3 pipette:4 pipettes:4 pipette azami:4 frontline:4 advantage:2 advocate:3 bravecto:4 broadline:4 traitement puces:4 traitement antiparasitaire:4 antiparasitaire:4 vermifuge azami:4 comprime vermifuge:4 comprimé vermifuge:4 milbemax:4' },
+  { id: 'veto', icon: '🐾', kw: 'veterinaire:4 vétérinaire:4 veto:4 véto:4 clinique veterinaire:4 clinique vétérinaire:4 cabinet veterinaire:4 cabinet vétérinaire:4 rdv veto:4 rdv véto:4 rendez vous veto:4 rendez vous véto:4 controle azami:3 contrôle azami:3 bilan azami:3 azami malade:4 azami vomit:3 azami boite:3 azami boîte:3 azami ne mange pas:4 medicament azami:4 médicament azami:4 comprime azami:3 comprimé azami:3 traitement azami:3 sterilisation:3 stérilisation:3 chaleurs:3 facture veto:4 facture véto:4 animal:3 animaux:3 animalerie:3 qualipet:3 maxi zoo:3 fressnapf:3 zooplus:3 refuge:3' },
+  { id: 'vaccinchat', icon: '💉', kw: 'vaccin chat:4 vaccin azami:4 vaccins azami:4 rappel vaccin:4 rappel de vaccin:4 vaccin:2 vaccination azami:4 vaccination chat:4 rappel azami:3 carnet de sante:3 carnet de santé:3 carnet de vaccination:4 passeport animal:3 passeport chat:3 passeport azami:3 puce electronique:3 puce électronique:3 typhus:3 coryza:3 leucose:3 rage:2' },
+  { id: 'caissetransport', icon: '🧳', kw: 'caisse de transport:4 cage de transport:4 sac de transport:4 caisse azami:4 cage azami:4 sac azami:3 transporter azami:4 transport azami:4 trajet azami:3 azami en voiture:4 azami en train:4 azami en avion:4 demenager avec azami:3 déménager avec azami:3 emmener azami:4 amener azami:4 sortir la caisse:3' },
+  { id: 'fontaine', icon: '⛲', kw: 'fontaine a eau:4 fontaine à eau:4 fontaine chat:4 fontaine azami:4 fontaine:3 filtre fontaine:4 filtres fontaine:4 nettoyer la fontaine:4 remplir la fontaine:4 detartrer la fontaine:4 détartrer la fontaine:4 pompe fontaine:4' },
+  { id: 'herbeachat', icon: '🌱', kw: 'herbe a chat:4 herbe à chat:4 herbe azami:4 cataire:4 catnip:4 valeriane:3 valériane:3 matatabi:4 herbe a chat fraiche:4 graines herbe a chat:4 planter herbe a chat:4 replanter l herbe:3' },
+  { id: 'gardechat', icon: '🏠', kw: 'garder azami:4 garder le chat:4 garder la chatte:4 garde azami:4 garde d azami:4 cat sitter:4 catsitter:4 cat sitting:4 pet sitter:4 petsitter:4 pet sitting:4 chat sitter:4 pension chat:4 pension pour chat:4 pension azami:4 qui garde azami:4 azami pendant les vacances:4 azami pendant:3 nourrir azami pendant:3 passer voir azami:4 visite azami:3 cles pour azami:3 clés pour azami:3 chatterie:3 hotel pour chat:3 hôtel pour chat:3 famille d accueil:2 pawshake:3 petbacker:3 planning azami:3' },
+  { id: 'antipoils', icon: '🧹', kw: 'poils:3 poils de chat:4 poils azami:4 poils d azami:4 rouleau anti poils:4 rouleau a poils:4 rouleau à poils:4 rouleau adhesif:3 rouleau adhésif:3 brosse anti poils:4 enlever les poils:4 retirer les poils:4 poils sur le canape:4 poils sur le canapé:4 poils sur le lit:4 aspirer les poils:3 recharge rouleau:3' },
+  { id: 'collierchat', icon: '🎀', kw: 'collier chat:4 collier azami:4 collier:3 medaille:4 médaille:4 medaille azami:4 médaille azami:4 grelot:3 clochette:3 harnais:3 harnais azami:4 laisse chat:3 laisse azami:3 airtag azami:4 gps chat:3 tracker chat:3 collier gps:3 tractive:3 bandana azami:3 noeud azami:3 nœud azami:3' },
+  { id: 'pesee', icon: '⚖️', kw: 'peser azami:4 pesee azami:4 pesée azami:4 poids azami:4 poids d azami:4 poids du chat:4 pesee:3 pesée:3 peser le chat:4 balance chat:3 balance azami:3 regime azami:4 régime azami:4 azami grossit:4 azami maigrit:4 azami a grossi:4 azami a maigri:4 surveiller le poids:3 courbe de poids:3 kg azami:3' },
   { id: 'chien', icon: '🐶', kw: 'chien:3 chiens:3 chiot:3 croquettes chien:3 laisse:3 promener le chien:3 balade chien:3 dog sitter:3 toilettage:3 muselière:3 muselière:3 niche:3 os a macher:3' },
   { id: 'plantes', icon: '🪴', kw: 'plante:3 plantes:3 arroser:3 arrosage:3 arroser les plantes:3 terreau:3 engrais:3 rempoter:3 rempotage:3 bouture:3 boutures:3 pot:1 pots:1 cache pot:3 monstera:3 ficus:3 cactus:3 succulente:3 succulentes:3 orchidee:3 orchidée:3 pothos:3 calathea:3 pilea:3 bonsai:3 bonsaï:3 plante grasse:3 brumisateur:3 arrosoir:3 billes d argile:3 tuteur:3 plante verte:3' },
   { id: 'fleurs', icon: '💐', kw: 'fleur:3 fleurs:3 bouquet:3 fleuriste:3 roses:2 tulipes:3 pivoines:3 eucalyptus:3 fleurs sechees:3 fleurs séchées:3 vase:2 lys:3 orchidee:1 jonquilles:3 narcisses:3 dahlias:3 ikebana:3' },
@@ -229,13 +242,35 @@ const INDEX = THEMES.map(t => {
   return { id: t.id, icon: t.icon, phrases, words: [...byStem.values()] };
 });
 
-export const ICONS = THEMES.map(t => ({ id: t.id, icon: t.icon }));
+// Illustrations (icons/themes/<id>.webp). Les thèmes sans image gardent leur emoji.
+export const IMG = new Set(['croquettes','patee','friandises','griffoir','arbreachat','jouetschat','plumeau','brossechat','antipuces','veto','vaccinchat','caissetransport','fontaine','gamelle','herbeachat','gardechat','chat','antipoils','collierchat','pesee',
+  'fromage','charcuterie','volaille','fruitsdemer','tomate','oignon','champignon','patate','salade','herbes','agrumes','avocat','legumineuses','cereales','huile','noix','sucre','biscuits','bonbons','glace',
+  'confiture','viennoiserie','petitdej','sushi','nouilles','curry','mexicain','burger','pizza','sandwich','soupe','miel','eau','biere','bulles','spiritueux','apero','restaurant','bar','repas','vege',
+  'dents','rasage','regles','beaute','coiffeur','spa','pharmacie','premierssoins','malade','psy','lunettes','yoga','sport','piscine','escalade','foot','danse','vetements','chaussures','bijoux',
+  'grandmenage','repassage','cuisine','plomberie','chauffage','electricite','piles','air','fleurs','jardin','textile','demenagement','voisins','donner','admin','identite','courrier','imprimer','signature','salaire',
+  'train','bus','velo','voiture','essence','parking','avion','montagne','lac','cinema','theatre','concert','art','photo','livres','papeterie','jeux','jeuxsociete','audio','studio',
+  'famille','amis','bebe','anniversaire','fete','noel','mariage','sac','travail','etudes','ordinateur','tv','rappel','urgent','liste','reflexion','meteo','ecologie','internet_sites','vote']);
+// Thèmes sans planche encore : on emprunte l'image d'un voisin.
+const BORROW = { juridique: 'vote', chien: 'veto', nettoyage_general: 'grandmenage' };
+export const imgOf = id => IMG.has(id) ? id : BORROW[id] || null;
+export const ICONS = THEMES.map(t => ({ id: t.id, icon: t.icon, img: imgOf(t.id) }));
+// Valeur stockée pour un thème : « t:id » si une image existe, sinon son emoji.
+export const valueOf = t => (imgOf(t.id) ? 't:' + t.id : t.icon);
+const BY_ID = Object.fromEntries(THEMES.map(t => [t.id, t]));
+const BY_EMOJI = {}; for (const t of THEMES) if (!BY_EMOJI[t.icon]) BY_EMOJI[t.icon] = t;
+// Pour afficher une valeur stockée (emoji ou « t:id ») : image ou emoji.
+export function iconView(v) {
+  if (!v) return { emoji: '' };
+  if (v.startsWith('t:')) { const t = BY_ID[v.slice(2)]; return t ? { img: imgOf(t.id), emoji: t.icon, id: t.id } : { emoji: '📌' }; }
+  const t = BY_EMOJI[v];
+  return t && imgOf(t.id) ? { img: imgOf(t.id), emoji: v, id: t.id } : { emoji: v };
+}
 
 // Scores bruts par thème, puis probabilité du meilleur (softmax tempéré).
 export function classify(text, hints = {}) {
   const n = norm(text);
   if (!n) return null;
-  if (hints[n]) return { id: 'hint', icon: hints[n], p: 1, scores: [] };
+  if (hints[n]) return { id: 'hint', icon: hints[n], value: hints[n], p: 1, scores: [] };
   const tokens = n.split(' ');
   const stems = tokens.map(stem);
   const scores = INDEX.map(t => {
@@ -256,14 +291,15 @@ export function classify(text, hints = {}) {
   // apprentissage par mots : un mot corrigé pousse son icône (vote partagé entre vous deux)
   for (const tok of tokens) {
     const h = hints['~' + tok];
-    if (h) { const t = scores.find(x => x.icon === h); if (t) t.s += 4; else scores.push({ id: 'hint', icon: h, s: 4 }); }
+    if (h) { const t = scores.find(x => x.icon === h || (h.startsWith('t:') && x.id === h.slice(2))); if (t) t.s += 4; else scores.push({ id: 'hint', icon: h, s: 4 }); }
   }
   const best = scores.reduce((a, b) => (b.s > a.s ? b : a), { s: 0 });
   if (best.s < 2) return null;
   const temp = 1.2;
   const sum = scores.reduce((a, x) => a + Math.exp(x.s / temp), 0);
   const p = Math.exp(best.s / temp) / sum;
-  return { id: best.id, icon: best.icon, p, scores: scores.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3) };
+  const bt = BY_ID[best.id];
+  return { id: best.id, icon: best.icon, value: bt ? valueOf(bt) : best.icon, p, scores: scores.filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, 3) };
 }
 
 // Icône par défaut selon le contexte quand rien ne ressort.
@@ -271,5 +307,5 @@ export const FALLBACK = { shopping: '🛒', task: '📌', expense: '💳', chore
 
 export function iconFor(text, ctx, hints) {
   const r = classify(text, hints);
-  return r ? r.icon : FALLBACK[ctx] || '📌';
+  return r ? r.value : FALLBACK[ctx] || '📌';
 }

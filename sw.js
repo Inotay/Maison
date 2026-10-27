@@ -1,14 +1,17 @@
 // Maison : service worker. L'app s'ouvre sans réseau (lecture) et reçoit des notifications.
-const VERSION = 'maison-v8';
+const VERSION = 'maison-v9';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './themes.js', './fx.js', './config.js', './manifest.webmanifest', './vendor/supabase-js-2.49.4.js',
   './azami/azami_accueil_bonjour_anime.svg', './azami/azami_accueil_bonne_matinee_anime.svg', './azami/azami_accueil_bon_midi_anime.svg', './azami/azami_accueil_bonne_apres_midi_anime.svg', './azami/azami_accueil_bonsoir_anime.svg', './azami/azami_accueil_nuit_anime.svg', './azami/azami_menage_anime.svg', './azami/azami_courses_anime.svg', './azami/azami_argent_anime.svg', './azami/azami_nuit_care_anime.svg', './azami/azami_nuit_libido_anime.svg',
   './icons/icon-192.png', './icons/icon-512.png',
+  './fonts/nunito-latin-600-normal.woff2', './fonts/nunito-latin-700-normal.woff2', './fonts/nunito-latin-800-normal.woff2', './fonts/nunito-latin-900-normal.woff2',
   './fonts/hanken-grotesk-latin-400-normal.woff2', './fonts/hanken-grotesk-latin-500-normal.woff2',
   './fonts/hanken-grotesk-latin-700-normal.woff2', './fonts/hanken-grotesk-latin-800-normal.woff2',
   './fonts/shippori-mincho-latin-400-normal.woff2', './fonts/shippori-mincho-latin-600-normal.woff2'];
 
+const THEME_ICONS = ['admin', 'agrumes', 'air', 'amis', 'anniversaire', 'antipoils', 'antipuces', 'apero', 'arbreachat', 'art', 'audio', 'avion', 'avocat', 'bar', 'beaute', 'bebe', 'biere', 'bijoux', 'biscuits', 'bonbons', 'brossechat', 'bulles', 'burger', 'bus', 'caissetransport', 'cereales', 'champignon', 'charcuterie', 'chat', 'chauffage', 'chaussures', 'cinema', 'coiffeur', 'collierchat', 'concert', 'confiture', 'courrier', 'croquettes', 'cuisine', 'curry', 'danse', 'demenagement', 'dents', 'donner', 'eau', 'ecologie', 'electricite', 'escalade', 'essence', 'etudes', 'famille', 'fete', 'fleurs', 'fontaine', 'foot', 'friandises', 'fromage', 'fruitsdemer', 'gamelle', 'gardechat', 'glace', 'grandmenage', 'griffoir', 'herbeachat', 'herbes', 'huile', 'identite', 'imprimer', 'internet_sites', 'jardin', 'jeux', 'jeuxsociete', 'jouetschat', 'lac', 'legumineuses', 'liste', 'livres', 'lunettes', 'malade', 'mariage', 'meteo', 'mexicain', 'miel', 'montagne', 'noel', 'noix', 'nouilles', 'oignon', 'ordinateur', 'papeterie', 'parking', 'patate', 'patee', 'pesee', 'petitdej', 'pharmacie', 'photo', 'piles', 'piscine', 'pizza', 'plomberie', 'plumeau', 'premierssoins', 'psy', 'rappel', 'rasage', 'reflexion', 'regles', 'repas', 'repassage', 'restaurant', 'sac', 'salade', 'salaire', 'sandwich', 'signature', 'soupe', 'spa', 'spiritueux', 'sport', 'studio', 'sucre', 'sushi', 'textile', 'theatre', 'tomate', 'train', 'travail', 'tv', 'urgent', 'vaccinchat', 'vege', 'velo', 'vetements', 'veto', 'viennoiserie', 'voisins', 'voiture', 'volaille', 'vote', 'yoga'].map(id => `./icons/themes/${id}.webp`);
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL).then(() => c.addAll(THEME_ICONS).catch(() => {}))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {

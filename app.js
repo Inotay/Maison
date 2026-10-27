@@ -1,7 +1,7 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
-import { iconFor, ICONS as THEME_ICONS, norm } from './themes.js';
+import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf } from './themes.js';
 import { burst, azamiJump, pop, praise } from './fx.js';
 
 // Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
@@ -367,12 +367,20 @@ function show(title, body, tag) {
 const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore' };
 const labelOf = (type, row) => type === 'tasks' || type === 'chores' ? row.title : row.label;
 const iconOf = (type, row) => row.icon || iconFor(labelOf(type, row), ctxOf[type], S.hints);
+// Une valeur d'icône (emoji ou « t:id ») devient une illustration ou un emoji.
+function iconHtml(v, cls = '') {
+  const w = iconView(v);
+  return w.img ? `<img class="ticon ${cls}" src="icons/themes/${w.img}.webp" alt="" width="34" height="34" loading="lazy">` : `<span class="ticon emoji ${cls}">${esc(w.emoji)}</span>`;
+}
 function iconBtn(type, row) {
-  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconOf(type, row)}</button>`;
+  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconHtml(iconOf(type, row))}</button>`;
 }
 function iconPicker(type, row) {
   if (S.pick?.id !== row.id) return '';
-  return `<div class="picker" role="group" aria-label="Choisir une icône">${THEME_ICONS.map(t => `<button data-action="pick-set" data-type="${type}" data-id="${row.id}" data-icon="${t.icon}" aria-label="${t.id}" ${iconOf(type, row) === t.icon ? 'class="on"' : ''}>${t.icon}</button>`).join('')}</div>`;
+  const cur = iconView(iconOf(type, row));
+  const withImg = THEME_ICONS.filter(t => t.img), noImg = THEME_ICONS.filter(t => !t.img);
+  const btn = t => { const v = t.img ? 't:' + t.id : t.icon; const on = cur.id ? cur.id === t.id : cur.emoji === t.icon; return `<button data-action="pick-set" data-type="${type}" data-id="${row.id}" data-icon="${esc(v)}" aria-label="${t.id}" ${on ? 'class="on"' : ''}>${iconHtml(v)}</button>`; };
+  return `<div class="picker" role="group" aria-label="Choisir une icône">${withImg.map(btn).join('')}${noImg.map(btn).join('')}</div>`;
 }
 function hintsFrom(rows) {
   const h = {};
@@ -448,7 +456,8 @@ async function run(fn, okMsg, key = 'global') {
 
 // Récompenses : quelle particule pour quel geste.
 const AZAMI_ICONS = new Set(['🐱', '🐾', '🧶', '🪣', '🥣', '🥫']);
-const isAzami = row => AZAMI_ICONS.has(row.icon) || /azami|\bchat(te)?\b|croquette|liti[eè]re|p[aâ]t[eé]e|v[eé]to/i.test(row.title || row.label || '');
+const AZAMI_IDS = /^t:(chat|croquettes|gamelle|patee|friandises|griffoir|arbreachat|jouetschat|plumeau|brossechat|antipuces|veto|vaccinchat|caissetransport|fontaine|herbeachat|gardechat|antipoils|collierchat|pesee|litiere)$/;
+const isAzami = row => AZAMI_ICONS.has(row.icon) || AZAMI_IDS.test(row.icon || '') || /azami|\bchat(te)?\b|croquette|liti[eè]re|p[aâ]t[eé]e|v[eé]to/i.test(row.title || row.label || '');
 
 // Libido ---------------------------------------------------------------------
 
@@ -670,13 +679,13 @@ function viewMaison() {
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
-    ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
-      `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
     <div class="seg" role="group" aria-label="Affichage">
-      <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire</button>
+      <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire${S.tasks.filter(t => !t.done).length ? ` · ${S.tasks.filter(t => !t.done).length}` : ''}</button>
       <button data-action="maison-tab" data-tab="tableau" aria-pressed="${S.maisonTab === 'tableau'}">Tableau</button>
     </div>
     ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
+    ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
+      `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
     <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}</div>`;
 }
 
@@ -698,7 +707,9 @@ function viewTasks() {
       ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
   };
-  return `<form class="form" data-form="task">
+  return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
+    ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : '<p class="empty">Plus rien à faire. Profitez-en.</p>'}
+    <form class="form add" data-form="task">
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
       <input class="field" id="task-title" data-keep name="title" placeholder="Ajouter une chose à faire" autocomplete="off" required>
       ${chipGroup('task-who', who, 'nous', 'Pour qui')}
@@ -708,7 +719,6 @@ function viewTasks() {
         <button class="btn" type="submit">Ajouter</button>
       </div>
     </form>
-    ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : '<p class="empty">Plus rien à faire. Profitez-en.</p>'}
     ${done.length ? `<details class="fold" data-fold="done"><summary>Faites récemment (${done.length})</summary><ul class="list">${done.map(item).join('')}</ul></details>` : ''}`;
 }
 
@@ -795,7 +805,7 @@ function viewMenage() {
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
-    ${chores.length ? `<div>${chores.map(c => {
+    ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
       if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
@@ -1029,7 +1039,7 @@ const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   glance: el => {
     const to = el.dataset.to;
-    if (to === 'faire') { S.maisonTab = 'faire'; render(); document.getElementById('task-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    if (to === 'faire') { S.maisonTab = 'faire'; render(); document.querySelector('.list-head')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     actions.go({ dataset: { view: to } });
   },
   'maison-tab': el => { S.maisonTab = el.dataset.tab; render(); },
