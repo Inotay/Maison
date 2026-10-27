@@ -567,6 +567,7 @@ body[data-time="nuit"] .item-meta .effect.pos { color: var(--jaune); }
 .theme-row { margin-top: var(--s6); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .theme-row .seg { margin: 0; width: 180px; }
 .theme-row .seg button { padding: 6px 0; font-size: 14px; }
+.foot-essai { text-align: center; margin: var(--s4) 0 0; font-size: 14px; }
 .foot { margin-top: var(--s4); display: flex; justify-content: center; align-items: center; gap: 14px; }
 .foot .version { font-size: 12px; color: var(--muted); opacity: .7; }
 
