@@ -208,13 +208,13 @@ function rain(n = 70) {
 }
 
 // Grande célébration : flash, Azami qui saute au milieu, mot en gros, pluie de confettis.
-export function celebrate({ title, sub = '', level = 'big' } = {}) {
+export function celebrate({ title, sub = '', level = 'big', badge = null } = {}) {
   if (reduced()) return;
   const old = document.getElementById('cele'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
   const az = document.querySelector('img.azami');
-  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card">${az ? `<img class="cele-azami" src="${az.src}" alt="">` : ''}<p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair">${az ? `<img class="cele-azami" src="${az.src}" alt="">` : ''}${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   burst('confetti', null, level === 'big' ? 40 : 24);

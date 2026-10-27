@@ -48,6 +48,7 @@ L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (s
 
 ## Fichiers
 - `index.html`, `styles.css`, `app.js` : l'app
+- `people.js` et `icons/people/<prénom>/` : illustrations personnalisées (Mariana pour l'instant, 20 actions). Elles remplacent l'icône de thème seulement quand l'élément est à cette personne (tâche assignée, corvée dont c'est le tour, dépense qu'elle a payée, réussite qu'elle a faite), que l'action a une variante, et que l'icône n'a pas été choisie à la main. Le sélecteur d'icône les propose aussi.
 - `themes.js` : reconnaissance de thème (mots-clés pondérés, probabilités) qui choisit l'icône d'une tâche, d'un article, d'une dépense ou d'une corvée ; les corrections faites à la main sont partagées via la table `icon_hints`
 - `azami/` : pack d'animations V2 d'Azami (10 scènes SVG en boucle, six accueils selon l'heure) ; `azami/statiques/` : les versions éditables
 - `sw.js` : hors-ligne et notifications

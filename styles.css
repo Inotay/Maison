@@ -368,6 +368,9 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
 .ticon { display: block; width: 40px; height: 40px; border-radius: var(--r-in); object-fit: cover; }
 .ticon.emoji { font-size: 20px; line-height: 36px; background: var(--surface-2); border: 2px solid var(--line); }
 .picker .ticon { width: 40px; height: 40px; margin: 0 auto; }
+.picker-head { grid-column: 1 / -1; margin: var(--s2) var(--s1) 0; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.picker-head:first-child { margin-top: 0; }
+.ticon.person { object-fit: cover; }
 .icon-btn[aria-expanded="true"] { outline: 2px solid var(--ink); }
 .picker {
   flex-basis: 100%;
@@ -610,6 +613,10 @@ body:has(textarea:focus) .nav { display: none; }
 @keyframes cele-flash { 0% { opacity: 0; transform: scale(.6); } 30% { opacity: 1; } 100% { opacity: 0; transform: scale(1.4); } }
 .cele-card { position: relative; display: grid; justify-items: center; gap: 4px; transform: scale(.5); opacity: 0; animation: cele-in .7s cubic-bezier(.34, 1.56, .64, 1) forwards; }
 @keyframes cele-in { to { transform: scale(1); opacity: 1; } }
+.cele-pair { display: flex; align-items: flex-end; justify-content: center; gap: 4px; }
+.cele-badge { width: 132px; height: 132px; border-radius: 30px; border: 4px solid #fff; box-shadow: 0 6px 0 #C8951E, 0 14px 24px rgba(0,0,0,.25); margin-bottom: 18px; animation: cele-badge .8s cubic-bezier(.34, 1.56, .64, 1) .25s both; }
+@keyframes cele-badge { from { transform: scale(.2) rotate(-20deg); opacity: 0; } to { transform: scale(1) rotate(-4deg); opacity: 1; } }
+.cele-pair .cele-azami { width: 170px; height: 189px; }
 .cele-azami { width: 200px; height: 222px; animation: cele-jump 1.1s cubic-bezier(.34, 1.56, .64, 1) .1s both; transform-origin: 50% 100%; filter: drop-shadow(0 12px 18px rgba(0,0,0,.25)); }
 @keyframes cele-jump { 0% { transform: translateY(0) scale(1, 1) rotate(0); } 15% { transform: translateY(8px) scale(1.12, .88); } 45% { transform: translateY(-48px) scale(.94, 1.08) rotate(-6deg); } 70% { transform: translateY(0) scale(1.06, .94) rotate(4deg); } 85% { transform: translateY(-10px) rotate(-2deg); } 100% { transform: translateY(0) scale(1, 1) rotate(0); } }
 .cele-title { margin: 6px 0 0; font-size: clamp(30px, 9vw, 40px); font-weight: 900; color: #fff; text-shadow: 0 3px 0 #C8951E, 0 6px 18px rgba(0,0,0,.3); letter-spacing: -.01em; text-align: center; padding: 0 20px; }

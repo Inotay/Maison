@@ -1,7 +1,8 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
-import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf } from './themes.js';
+import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK } from './themes.js';
+import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp } from './fx.js';
 
 // Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
@@ -380,23 +381,54 @@ function show(title, body, tag) {
 
 // Icônes par thème -----------------------------------------------------------
 
-const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore' };
-const labelOf = (type, row) => type === 'tasks' || type === 'chores' ? row.title : row.label;
+const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore', wins: 'task' };
+const labelOf = (type, row) => type === 'tasks' || type === 'chores' || type === 'wins' ? row.title : row.label;
 const iconOf = (type, row) => row.icon || iconFor(labelOf(type, row), ctxOf[type], S.hints);
-// Une valeur d'icône (emoji ou « t:id ») devient une illustration ou un emoji.
+
+// Variantes personnalisées ---------------------------------------------------
+// Qui « porte » l'élément : la personne assignée, à qui c'est le tour, qui a payé, qui l'a fait.
+const ownerOf = (type, row) => ({ tasks: row.assignee, chores: row.turn, expenses: row.is_settlement ? null : row.paid_by, wins: row.done_by })[type] || null;
+const personOf = email => { const m = S.members.find(x => x.email === email); return m ? personKey(m.name) : null; };
+// L'icône stockée est-elle celle que l'app a choisie seule (et non un choix à la main) ?
+function autoTheme(label, stored, ctx) {
+  const r = classify(label, S.hints);
+  if (r && r.id === 'hint') return null;          // appris d'un choix manuel : on le respecte
+  if (!r) return null;
+  if (!stored) return r.id;
+  const v = iconView(stored);
+  return (stored === r.value || stored === r.icon || v.id === r.id) ? r.id : null;
+}
+// Ce qu'on affiche : un choix manuel tel quel ; sinon la variante de la personne si elle existe ; sinon l'icône de thème.
+function displayIcon(type, row, owner = ownerOf(type, row)) {
+  const base = iconOf(type, row);
+  if (isVariant(row.icon)) return row.icon;
+  const theme = autoTheme(labelOf(type, row) || '', row.icon, ctxOf[type]);
+  const action = actionFor(theme);
+  if (type === 'expenses' && !EXPENSE_ACTIONS.has(action)) return base;
+  return variantFor(personOf(owner), action) || base;
+}
+const variantBadge = (type, row, who) => { const v = displayIcon(type, row, who); return isVariant(v) ? variantSrc(v) : null; };
+
+// Une valeur d'icône (emoji, « t:id » ou « p:personne:action ») devient une illustration ou un emoji.
 function iconHtml(v, cls = '') {
+  if (isVariant(v)) { const src = variantSrc(v); if (src) return `<img class="ticon person ${cls}" src="${src}" alt="" width="34" height="34" loading="lazy">`; }
   const w = iconView(v);
   return w.img ? `<img class="ticon ${cls}" src="icons/themes/${w.img}.webp" alt="" width="34" height="34" loading="lazy">` : `<span class="ticon emoji ${cls}">${esc(w.emoji)}</span>`;
 }
 function iconBtn(type, row) {
-  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconHtml(iconOf(type, row))}</button>`;
+  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconHtml(displayIcon(type, row))}</button>`;
 }
 function iconPicker(type, row) {
   if (S.pick?.id !== row.id) return '';
-  const cur = iconView(iconOf(type, row));
+  const shown = displayIcon(type, row);
+  const cur = isVariant(shown) ? {} : iconView(shown);
   const withImg = THEME_ICONS.filter(t => t.img), noImg = THEME_ICONS.filter(t => !t.img);
   const btn = t => { const v = t.img ? 't:' + t.id : t.icon; const on = cur.id ? cur.id === t.id : cur.emoji === t.icon; return `<button data-action="pick-set" data-type="${type}" data-id="${row.id}" data-icon="${esc(v)}" aria-label="${t.id}" ${on ? 'class="on"' : ''}>${iconHtml(v)}</button>`; };
-  return `<div class="picker" role="group" aria-label="Choisir une icône">${withImg.map(btn).join('')}${noImg.map(btn).join('')}</div>`;
+  const people = Object.entries(PACKS).map(([person, actions]) => {
+    const name = S.members.find(m => personKey(m.name) === person)?.name || person;
+    return `<p class="picker-head">${esc(name)}</p>${actions.map(a => { const v = `p:${person}:${a}`; return `<button data-action="pick-set" data-type="${type}" data-id="${row.id}" data-icon="${v}" aria-label="${esc(name)} : ${esc(ACTION_LABEL[a] || a)}" ${shown === v ? 'class="on"' : ''}>${iconHtml(v)}</button>`; }).join('')}`;
+  }).join('');
+  return `<div class="picker" role="group" aria-label="Choisir une icône">${people}<p class="picker-head">Thèmes</p>${withImg.map(btn).join('')}${noImg.map(btn).join('')}</div>`;
 }
 function hintsFrom(rows) {
   const h = {};
@@ -687,7 +719,7 @@ function winsCard() {
   const mine = week.filter(w => w.done_by === S.me).length, theirs = week.length - mine;
   const o = other();
   const recent = S.wins.slice(0, 8);
-  const line = w => `<li><span class="w-icon">${iconHtml(w.icon || ({ chore: '🧹', shop: '🛒', settle: '💰', task: '📌' })[w.kind])}</span><span class="w-text">${esc(w.title || KIND_LABEL[w.kind] || 'réussite')}</span><span class="w-who">${esc(w.done_by === S.me ? 'toi' : nameOf(w.done_by))}</span><span class="w-when">${esc(ago(w.done_at))}</span></li>`;
+  const line = w => `<li><span class="w-icon">${iconHtml(w.kind === 'settle' ? '💰' : w.kind === 'shop' ? (variantFor(personOf(w.done_by), 'courses') || 't:courses') : w.title ? displayIcon('wins', w) : (w.icon || '📌'))}</span><span class="w-text">${esc(w.title || KIND_LABEL[w.kind] || 'réussite')}</span><span class="w-who">${esc(w.done_by === S.me ? 'toi' : nameOf(w.done_by))}</span><span class="w-when">${esc(ago(w.done_at))}</span></li>`;
   return `<section class="wins" aria-label="Réussites">
     <div class="wins-top">
       <div><p class="bal-kicker">Réussites</p>
@@ -734,7 +766,7 @@ function viewMaison() {
     ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v15</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v16</span></div>`;
 }
 
 function viewTasks() {
@@ -1087,7 +1119,7 @@ const actions = {
     sfx(last ? 'big' : 'done');
     S.popId = t.id;
     run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, last ? null : praise('task'), t.id)
-      .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all') }); if (first) streakCheer(last ? 2300 : 400); });
+      .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all'), badge: variantBadge('tasks', t, S.me) }); if (first) streakCheer(last ? 2300 : 400); });
   },
   'task-assign': el => {
     const w = el.dataset.who;
@@ -1107,8 +1139,8 @@ const actions = {
     const word = norm(labelOf(type, row));
     run(async () => {
       await api.update(type, { id }, { icon });
-      if (word) await api.upsert('icon_hints', { word, icon, updated_by: S.me, updated_at: new Date().toISOString() });
-    }, 'Icône mémorisée pour la prochaine fois');
+      if (word && !isVariant(icon)) await api.upsert('icon_hints', { word, icon, updated_by: S.me, updated_at: new Date().toISOString() });
+    }, isVariant(icon) ? 'Illustration choisie' : 'Icône mémorisée pour la prochaine fois');
   },
 
   'note-pin': el => { const n = S.board.find(x => x.id === el.dataset.id); if (!n) return refresh(); run(() => api.update('board', { id: n.id }, { pinned: !n.pinned })); },
@@ -1131,7 +1163,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochain tour : ${nameOf(next)}`, level: 'small' }); if (first) streakCheer(1800); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me) }); if (first) streakCheer(1800); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
@@ -1153,7 +1185,7 @@ const actions = {
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
     run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
-      .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket') }); if (first) streakCheer(2300); } });
+      .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || '') }); if (first) streakCheer(2300); } });
   },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
@@ -1169,7 +1201,7 @@ const actions = {
     sfx('coin'); haptic('heavy');
     burst('coins', document.querySelector('[data-action="settle"]'), 22);
     run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, null, 'settle')
-      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); celebrate({ title: 'Comptes à zéro', sub: praise('settle') }); } });
+      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); celebrate({ title: 'Comptes à zéro', sub: praise('settle'), badge: variantSrc(variantFor(personOf(S.me), 'budget') || '') }); } });
   },
 
   'letter-open': el => {
