@@ -340,6 +340,7 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
   box-shadow: 0 3px 0 var(--shadow);
 }
 .glance .g-num { font-weight: 900; font-size: 28px; line-height: 1; color: var(--num); overflow-wrap: anywhere; }
+.glance .g-num.small { font-size: 20px; line-height: 1.1; }
 .glance .late { grid-column: 1 / -1; min-height: 0; flex-direction: row; justify-content: space-between; align-items: center; border-color: var(--rouge); color: var(--text); }
 .glance .late .g-num { font-size: 20px; }
 .glance .late .g-num { color: var(--rouge); }
@@ -365,7 +366,7 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
   width: 40px; height: 40px; padding: 0; overflow: hidden; flex: none;
   display: grid; place-items: center;
 }
-.ticon { display: block; width: 40px; height: 40px; border-radius: var(--r-in); object-fit: cover; }
+.ticon { display: block; width: 40px; height: 40px; border-radius: var(--r-in); object-fit: contain; }
 .ticon.emoji { font-size: 20px; line-height: 36px; background: var(--surface-2); border: 2px solid var(--line); }
 .picker .ticon { width: 40px; height: 40px; margin: 0 auto; }
 .picker-head { grid-column: 1 / -1; margin: var(--s2) var(--s1) 0; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -378,7 +379,9 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
   padding: 8px; margin-top: 4px; background: var(--surface-2); border: 2px solid var(--line); border-radius: 12px;
 }
 .picker { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); max-height: 300px; overflow-y: auto; }
-.picker button { border: 2px solid transparent; background: none; padding: 0; height: 46px; border-radius: 12px; display: grid; place-items: center; }
+/* Dans la grille de choix, chaque illustration pose sur une tuile crème (pack V3). */
+.picker button { border: 2px solid transparent; background: #FFF3D4; padding: 0; height: 46px; border-radius: 12px; display: grid; place-items: center; }
+.picker button .ticon { width: 36px; height: 36px; }
 .picker button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 25%, transparent); }
 .item.editing, .chore.editing { display: block; padding: var(--s3) var(--s4) var(--s4); }
 .form.edit { margin: 0; }
