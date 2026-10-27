@@ -788,3 +788,7 @@ h2 .muted { color: var(--muted); font-weight: 800; text-transform: none; letter-
 @keyframes tring { from { transform: scale(1); } to { transform: scale(1.03); } }
 @media (prefers-reduced-motion: reduce) { .timer.ring { animation: none; } }
 .rsteps .tbtns .btn { height: 32px; font-size: 13px; }
+
+.item-meta.pour { color: var(--text); opacity: .8; }
+.menu .item-main { cursor: pointer; }
+.menu .btn.small { flex: none; }

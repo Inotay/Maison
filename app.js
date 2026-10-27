@@ -102,7 +102,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [],
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
@@ -542,19 +542,20 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
+    api.list('meal_plans').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)) });
   await ensureDechets();
   notifyNew();
-  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins }));
+  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans }));
 }
 
 // Les quatre sortes de déchets existent toujours comme corvées (sans tour, liées au calendrier de ramassage).
@@ -599,7 +600,7 @@ function loadSnapshot() {
   try {
     const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
     if (!snap || snap.me !== S.me) return false;
-    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: (snap.wins || []).filter(w => w.kind !== 'achat'), care: [], snapshotAt: snap.at });
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, plans: snap.plans || [], wins: (snap.wins || []).filter(w => w.kind !== 'achat'), care: [], snapshotAt: snap.at });
     return true;
   } catch { return false; }
 }
@@ -984,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v65</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v66</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1421,7 +1422,7 @@ function viewCourses() {
   const cart = S.shopping.filter(s => s.checked);
   const modeLabel = mode ? SHOPS.find(x => x[0] === mode)[1] : '';
   const item = s => S.edit?.id === s.id ? `<li class="item editing">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
-    ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(shopLabel(s.label))}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
+    ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(shopLabel(s.label))}</div>${shopMeta(s)}</div>
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
@@ -1527,6 +1528,37 @@ function shopQty(x, n) {
 }
 // Articles déjà ajoutés depuis une recette avec une quantité inutile : on la cache à l'affichage.
 const shopLabel = l => String(l).replace(/\s*\((?:[\d.,]+\s*(?:c\. à [sc]\.|pincée)|1|0\.\d+)\)\s*$/, '').replace(/\s*\((\d+(?:[.,]\d+)?)\)\s*$/, (_, v) => { const k = Math.ceil(parseFloat(v.replace(',', '.'))); return k > 1 ? ` (×${k})` : ''; });
+// Additionne deux quantités de même unité : « Jambon (×2) » + « (×4) » → « Jambon (×6) ».
+function addQty(label, extra) {
+  const re = /\s*\((×)?([\d.,]+)\s*(g|kg|ml|l)?\)\s*$/;
+  const a = String(label).match(re), b = String(extra).match(re);
+  if (!b) return null;
+  const unit = m => (m[1] ? 'x' : m[3] || 'x');
+  if (!a) return null;
+  if (unit(a) !== unit(b)) return null;
+  const v = parseFloat(a[2].replace(',', '.')) + parseFloat(b[2].replace(',', '.'));
+  const base = String(label).replace(re, '');
+  return unit(a) === 'x' ? `${base} (×${Math.ceil(v)})` : `${base} (${Math.round(v * 10) / 10} ${a[3]})`;
+}
+
+// D'où vient un article : recette(s) prévue(s) et/ou qui l'a ajouté.
+const pourList = s => String(s.pour || '').split('|').map(x => x.trim()).filter(Boolean);
+function shopMeta(s) {
+  const bits = [];
+  const p = pourList(s); if (p.length) bits.push(`Pour : ${p.join(', ')}`);
+  if (s.added_by !== S.me) bits.push(`Ajouté par ${nameOf(s.added_by)}`);
+  return bits.length ? `<div class="item-meta${p.length ? ' pour' : ''}">${esc(bits.join(' · '))}</div>` : '';
+}
+// Au menu : recettes dont on a mis les ingrédients sur la liste, jusqu'à ce qu'on les cuisine.
+function menuCard() {
+  if (!S.plans?.length) return '';
+  const todoFor = t => S.shopping.filter(x => !x.checked && pourList(x).includes(t)).length;
+  return `<h2 class="first">Au menu</h2><ul class="list menu">${S.plans.map(p => { const n = todoFor(p.title); const r = RID(p.recipe);
+    return `<li class="item"><div class="item-main" data-action="r-open" data-id="${esc(p.recipe)}" role="button" tabindex="0"><div class="item-title">${esc(p.title)}</div><div class="item-meta">Pour ${p.persons} · ${n ? `${pl(n, 'article', 'articles')} à acheter` : 'Tout est là'}${p.created_by && p.created_by !== S.me ? ` · prévu par ${esc(nameOf(p.created_by))}` : ''}</div></div>
+      ${r ? `<button class="btn small" data-action="plan-cook" data-id="${p.id}">Cuisiner</button>` : ''}<button class="more" aria-label="Options" aria-expanded="${S.open === p.id}" data-action="more" data-id="${p.id}">⋯</button>
+      ${S.open === p.id ? `<div class="item-actions"><button class="btn ghost small" data-action="plan-remove" data-id="${p.id}">Retirer du menu</button>${n ? `<button class="btn ghost small" data-action="plan-remove" data-id="${p.id}" data-shop="1">Retirer avec ses ${pl(n, 'article', 'articles')}</button>` : ''}</div>` : ''}</li>`; }).join('')}</ul>`;
+}
+
 // Recettes --------------------------------------------------------------------
 const RID = id => RECETTES.find(r => r.id === id);
 const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') && 'végé'].filter(Boolean).join(' · ');
@@ -1541,6 +1573,7 @@ function viewRecettes() {
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
+    ${S.rq || S.rtime || S.rcuisine || S.rtype ? '' : menuCard()}
     <div class="rfilters">
       <div class="rf"><span class="chip-label">Temps</span><div class="chips rchips">${temps.map(([k, l]) => chip('rtime', k, l, S.rtime === k)).join('')}</div></div>
       <div class="rf"><span class="chip-label">Cuisine</span><div class="chips rchips">${[['', 'Toutes'], ...Object.entries(CUISINES)].map(([k, l]) => chip('rcuisine', k, l, S.rcuisine === k)).join('')}</div></div>
@@ -1727,6 +1760,20 @@ function viewCare() {
 
 const actions = {
 
+  'plan-cook': el => { const p = S.plans.find(x => x.id === el.dataset.id); if (!p) return; S.persons = p.persons; S.cook = { id: p.recipe, step: 0, full: false, plan: p.id }; S.open = null; render(); window.scrollTo(0, 0); },
+  'plan-remove': el => {
+    const p = S.plans.find(x => x.id === el.dataset.id); if (!p) return; S.open = null;
+    const withShop = el.dataset.shop === '1';
+    run(async () => {
+      await api.remove('meal_plans', { id: p.id });
+      for (const x of S.shopping.filter(x => !x.checked && pourList(x).includes(p.title))) {
+        const rest = pourList(x).filter(t => t !== p.title);
+        if (withShop && !rest.length) await api.remove('shopping', { id: x.id });
+        else await api.update('shopping', { id: x.id }, { pour: rest.join('|') || null });
+      }
+    }, withShop ? 'Retiré du menu et de la liste' : 'Retiré du menu');
+  },
+
   'timer-start': el => {
     const sec = Number(el.dataset.sec);
     const t = { id: Date.now().toString(36), label: el.dataset.label, end: Date.now() + sec * 1000 };
@@ -1750,17 +1797,36 @@ const actions = {
   'r-cook-steps': () => { S.cook.full = false; render(); },
   'r-next': () => { S.cook.step++; haptic(1); render(); window.scrollTo(0, 0); },
   'r-prev': () => { S.cook.step = Math.max(0, S.cook.step - 1); render(); },
-  'r-done': () => { const r = RID(S.cook.id); S.cook = null; S.recette = null; render(); azamiJump(); win('cuisine', r.titre, 1, 'cuisine'); celebrate({ title: 'Bon appétit !', sub: r.titre, level: 'small', reaction: 'fete_reussites' }); },
+  'r-done': () => { const r = RID(S.cook.id); const plan = S.plans.find(p => p.id === S.cook.plan) || S.plans.find(p => p.recipe === r.id); S.cook = null; S.recette = null;
+    if (plan) { S.plans = S.plans.filter(p => p !== plan); api.remove('meal_plans', { id: plan.id }).catch(e => console.warn('menu', e)); }
+    render(); azamiJump(); win('cuisine', r.titre, 1, 'cuisine'); celebrate({ title: 'Bon appétit !', sub: r.titre, level: 'small', reaction: 'fete_reussites' }); },
   'r-panier': el => openPanier(el.dataset.id),
   'r-panier-ok': () => {
     const r = RID(S.panier.id), n = S.persons || 2;
-    const inList = new Set(S.shopping.filter(s => !s.checked).map(s => norm(s.label.replace(/\s*\(.*\)$/, ''))));
-    const todo = r.ing.filter((x, j) => !S.panier.have.has(j) && !inList.has(norm(x.n)));
+    const open = S.shopping.filter(s => !s.checked);
+    const key = l => norm(String(l).replace(/\s*\(.*\)$/, ''));
+    const have = [...S.panier.have];
     closeTicket();
-    if (!todo.length) { toast('Tu as déjà tout'); return; }
-    run(async () => { for (const x of todo) { const label = `${x.n[0].toUpperCase()}${x.n.slice(1)}${shopQty(x, n)}`; await api.insert('shopping', { label, icon: iconFor(x.n, 'shopping', S.hints), shop: guessShop(x.n) }); } }, null)
-      .then(ok => { if (ok) { toast(`${pl(todo.length, 'article ajouté', 'articles ajoutés')} à la liste`); react('courses_completees', document.querySelector('.hd .azami')); } });
+    run(async () => {
+      const plan = await api.insert('meal_plans', { recipe: r.id, title: r.titre, persons: n, created_by: S.me });
+      if (plan) S.plans.push(plan);
+      let added = 0;
+      for (const [j, x] of r.ing.entries()) {
+        if (have.includes(j)) continue;
+        const dup = open.find(s => key(s.label) === norm(x.n));
+        if (dup) {
+          const p = pourList(dup); if (p.includes(r.titre)) continue;
+          const patch = { pour: [...p, r.titre].join('|') };
+          const sum = addQty(dup.label, shopQty(x, n)); if (sum) patch.label = sum;
+          await api.update('shopping', { id: dup.id }, patch); Object.assign(dup, patch); continue;
+        }
+        const label = `${x.n[0].toUpperCase()}${x.n.slice(1)}${shopQty(x, n)}`;
+        await api.insert('shopping', { label, icon: iconFor(x.n, 'shopping', S.hints), shop: guessShop(x.n), pour: r.titre }); added++;
+      }
+      S.panierAdded = added;
+    }, null).then(ok => { if (!ok) return; const a = S.panierAdded; toast(a ? `Au menu. ${pl(a, 'article ajouté', 'articles ajoutés')} à la liste` : 'Au menu. Tu as déjà tout'); react('courses_completees', document.querySelector('.hd .azami')); });
   },
+
   go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
