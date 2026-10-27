@@ -70,6 +70,14 @@ let api = null;
 let sb = null;
 
 function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+// Thème choisi sur cet appareil : « ciel » (bleu) ou « brun » (la première version). Chacun le sien.
+const THEME_COLORS = { ciel: '#53A5C7', brun: '#2A1C15' };
+let THEME = THEME_COLORS[safeGet('maison-theme')] ? safeGet('maison-theme') : 'ciel';
+function applyTheme() {
+  document.documentElement.dataset.theme = THEME;
+  document.querySelector('meta[name="theme-color"]').content = THEME_COLORS[THEME];
+}
+applyTheme();
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
 
 // Outils ---------------------------------------------------------------------
@@ -694,7 +702,7 @@ function render() {
   const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
 
   document.body.dataset.time = 'jour';
-  document.querySelector('meta[name="theme-color"]').content = '#53A5C7';
+  applyTheme();
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
@@ -832,7 +840,10 @@ function viewMaison() {
     ${S.maisonTab === 'faire' ? viewTasks() : S.maisonTab === 'agenda' ? viewAgenda() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v20</span></div>`;
+    <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
+      <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
+      <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v21</span></div>`;
 }
 
 function viewAgenda() {
@@ -1237,6 +1248,7 @@ function viewCare() {
 
 const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  theme: el => { THEME = el.dataset.theme; safeSet('maison-theme', THEME); haptic(1); sfx('tick'); render(); },
   glance: el => {
     const to = el.dataset.to;
     if (to === 'faire') { S.maisonTab = 'faire'; render(); document.querySelector('.list-head')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }

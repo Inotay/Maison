@@ -49,6 +49,7 @@
   --toast-text: #F3EBDF;
   --toast-edge: #0D1820;
   --lampe: #F0B65A;
+  --gold-text: #8A6512;  /* « fait », aujourd'hui : doré lisible sur clair */
 
   --sans: "Nunito", "Hanken Grotesk", system-ui, -apple-system, sans-serif;
   --mincho: "Shippori Mincho", "Hiragino Mincho ProN", Georgia, serif;
@@ -60,29 +61,32 @@
   color-scheme: light;
 }
 
-/* Ancien mode nuit (plus utilisé : Care est en ciel comme le reste). */
-body[data-time="nuit-inactif"] {
-  --bg: #17293A;
-  --surface: #213A4F;
-  --surface-2: #1B3144;
-  --text: #F3EBDF;
-  --muted: #A6B9C9;
-  --line: #2F4D66;
-  --shadow: #0F1E2C;
-  --accent: var(--creme);
-  --accent-edge: var(--creme-2);
+/* Thème « Brun » : la première version, seal point d'Azami. Choisi par personne dans les réglages. */
+html[data-theme="brun"] {
+  --bg: var(--seal);
+  --surface: var(--seal-2);
+  --surface-2: #2F221A;
+  --text: var(--creme);
+  --muted: var(--fauve);
+  --line: var(--seal-3);
+  --shadow: #15100C;
+  --accent: var(--bleu);
+  --accent-edge: var(--bleu-2);
   --accent-text: #1C120C;
   --num: var(--jaune);
   --ink: var(--creme);
   --ink-edge: var(--creme-2);
-  --btn-bg: var(--creme);
+  --btn-bg: var(--bleu);
   --btn-text: #1C120C;
   --toast-bg: var(--creme);
   --toast-text: var(--seal);
   --toast-edge: var(--creme-2);
   --rouge: #E8907A;
+  --gold-text: var(--jaune);
   color-scheme: dark;
 }
+html[data-theme="brun"] .picker { background: var(--seal); }
+html[data-theme="brun"] .ticon:not(.emoji):not(.person) { background: #FFF3D4; padding: 3px; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -263,7 +267,7 @@ label.chip-label { display: block; }
 .item.done.fresh { opacity: 1; border-color: color-mix(in srgb, var(--jaune) 55%, var(--line)); }
 .item.done.fresh .item-title { text-decoration: none; color: var(--text); }
 .item.done.fresh .tick { background: var(--jaune); border-color: var(--jaune); box-shadow: 0 3px 0 #B8882A; }
-.item.done.fresh .item-meta { color: #8A6512; font-weight: 800; }
+.item.done.fresh .item-meta { color: var(--gold-text); font-weight: 800; }
 body[data-time="nuit"] .item.done.fresh .item-meta { color: var(--jaune); }
 
 .item-actions {
@@ -324,7 +328,7 @@ details.fold[open] > summary::before { content: "− "; }
 .wins-list .w-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wins-list .w-who { color: var(--muted); font-size: 13px; }
 .wins-list .w-when { color: var(--muted); font-size: 12px; white-space: nowrap; }
-.list-head.done-head { color: #8A6512; }
+.list-head.done-head { color: var(--gold-text); }
 body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
 .list-head.done-head .count { background: var(--jaune); }
 
@@ -473,7 +477,7 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
 .month-head b { font-weight: 900; font-size: 16px; color: var(--text); letter-spacing: 0; }
 .cats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); padding: 0 0 10px; }
 .amount-input { font-size: 22px; font-weight: 900; padding: 0 12px; }
-.item-meta .effect.pos { color: #8A6512; }
+.item-meta .effect.pos { color: var(--gold-text); }
 body[data-time="nuit"] .item-meta .effect.pos { color: var(--jaune); }
 
 /* Courses ---------------------------------------------------------------- */
@@ -558,7 +562,10 @@ body[data-time="nuit"] .item-meta .effect.pos { color: var(--jaune); }
   padding: 6px 10px; margin: 0 0 16px;
 }
 
-.foot { margin-top: 40px; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.theme-row { margin-top: var(--s6); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.theme-row .seg { margin: 0; width: 180px; }
+.theme-row .seg button { padding: 6px 0; font-size: 14px; }
+.foot { margin-top: var(--s4); display: flex; justify-content: center; align-items: center; gap: 14px; }
 .foot .version { font-size: 12px; color: var(--muted); opacity: .7; }
 
 #toast {
@@ -653,6 +660,6 @@ body::before {
 .ag-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
 .ag-head .link { padding: 0; }
 .day-head { margin: var(--s5) 0 var(--s2); color: var(--text); font-size: 13px; }
-.day-head.today { color: #8A6512; }
+.day-head.today { color: var(--gold-text); }
 .item.ev.ongoing { border-color: var(--accent); }
 .form.add + .day-head, .btn + .day-head { margin-top: var(--s4); }
