@@ -15,7 +15,7 @@ function greeting(h = new Date().getHours()) {
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
 // à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
-const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_nuit', 'menage', 'courses', 'argent', 'nuit_care', 'nuit_libido'];
+const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_nuit', 'menage', 'courses', 'argent', 'nuit_care'];
 const azamiImgs = {};
 function azamiImg(scene) {
   if (!azamiImgs[scene]) {
@@ -50,10 +50,8 @@ const S = {
   me: null,            // e-mail de la personne connectée
   members: [],
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
-  libido: null, match: false,
   view: safeGet('maison-view') || 'maison',
   maisonTab: 'faire',
-  nuitTab: 'care',
   open: null,          // élément dont les actions sont dépliées
   openLetter: null,
   chips: {},           // sélections des groupes de puces
@@ -240,10 +238,9 @@ function demoApi() {
   try { db = JSON.parse(localStorage.getItem(KEY)); } catch {}
   db = db ? { ...demoSeed(), ...db } : demoSeed();
   const save = () => safeSet(KEY, JSON.stringify(db));
-  const owners = { tasks: 'created_by', chores: 'created_by', chore_log: 'done_by', expenses: 'created_by', shopping: 'added_by', board: 'author', care_messages: 'author', libido: 'email' };
-  const visible = (t, r) => t === 'care_messages' ? (r.author === S.me || r.recipient === S.me) : t === 'libido' ? r.email === S.me : true;
+  const owners = { tasks: 'created_by', chores: 'created_by', chore_log: 'done_by', expenses: 'created_by', shopping: 'added_by', board: 'author', care_messages: 'author' };
+  const visible = (t, r) => t === 'care_messages' ? (r.author === S.me || r.recipient === S.me) : true;
   const matches = (r, m) => Object.entries(m).every(([k, v]) => r[k] === v);
-  const live = r => r && r.is_on && (!r.until || new Date(r.until) > new Date());
   return {
     async list(t, o = {}) {
       return (db[t] || []).filter(r => visible(t, r)).filter(r => !o.gte || r[o.gte[0]] >= o.gte[1]).map(r => ({ ...r }));
@@ -262,11 +259,6 @@ function demoApi() {
     },
     async remove(t, m) { db[t] = (db[t] || []).filter(r => !matches(r, m)); save(); },
     async rpc(n, a) {
-      if (n === 'libido_match') {
-        const mine = db.libido.find(r => r.email === S.me);
-        const theirs = db.libido.find(r => r.email !== S.me);
-        return live(mine) && live(theirs);
-      }
       if (n === 'care_mark_read') {
         const m = db.care_messages.find(r => r.id === a.msg && r.recipient === S.me);
         if (m && !m.read_at) { m.read_at = new Date().toISOString(); save(); }
@@ -322,7 +314,6 @@ function demoSeed() {
     care_messages: [
       { id: uid(), author: M, recipient: Y, kind: 'merci', body: "Merci d'avoir tout rangé dimanche pendant que je travaillais. Ça m'a fait du bien de rentrer dans un appart calme.", wants_talk: false, read_at: null, created_at: iso(0.3) },
     ],
-    libido: [{ email: M, is_on: true, until: new Date(now + 6 * 3600000).toISOString(), updated_at: iso(0) }],
     icon_hints: [],
   };
 }
@@ -332,7 +323,7 @@ function demoSeed() {
 // Avec une clé VAPID dans config.js, elle enregistre aussi l'abonnement pour un futur serveur.
 
 let swReg = null;
-let seen = { care: new Set(), match: false, primed: false };
+let seen = { care: new Set(), primed: false };
 
 async function enableNotifications() {
   if (!('Notification' in window)) { toast('Pas de notifications sur cet appareil. Installe l\'app sur l\'écran d\'accueil.'); return; }
@@ -360,11 +351,8 @@ function notifyNew() {
   if (seen.primed && notifOn() && document.hidden) {
     const fresh = mine.filter(c => !seen.care.has(c.id));
     if (fresh.length) show('Un mot dans ta boîte', `${nameOf(fresh[0].author)} t'a écrit.`, 'care');
-    if (S.match && !seen.match) show('Nuit', 'Vous en avez envie tous les deux.', 'match');
   }
-  if (seen.primed && S.match && !seen.match && !document.hidden) { sfx('heart'); burst('hearts', null, 22); toast(praise('match')); }
   mine.forEach(c => seen.care.add(c.id));
-  seen.match = S.match;
   seen.primed = true;
 }
 function show(title, body, tag) {
@@ -405,25 +393,23 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, lib, hints, wins] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
-    api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'), api.list('libido'),
+    api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, hints: hintsFrom(hints) });
-  S.libido = lib.find(r => r.email === S.me) || null;
-  S.match = !!(await api.rpc('libido_match'));
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores, choreLog, expenses, shopping, board, wins }));
 }
 
-// Sans réseau : on affiche le dernier instantané (lecture seule, sans Care ni Libido).
+// Sans réseau : on affiche le dernier instantané (lecture seule, sans Care).
 function loadSnapshot() {
   try {
     const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
     if (!snap || snap.me !== S.me) return false;
-    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: snap.wins || [], care: [], libido: null, match: false, snapshotAt: snap.at });
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: snap.wins || [], care: [], snapshotAt: snap.at });
     return true;
   } catch { return false; }
 }
@@ -484,21 +470,6 @@ function streak() {
 const AZAMI_ICONS = new Set(['🐱', '🐾', '🧶', '🪣', '🥣', '🥫']);
 const AZAMI_IDS = /^t:(chat|croquettes|gamelle|patee|friandises|griffoir|arbreachat|jouetschat|plumeau|brossechat|antipuces|veto|vaccinchat|caissetransport|fontaine|herbeachat|gardechat|antipoils|collierchat|pesee|litiere)$/;
 const isAzami = row => AZAMI_ICONS.has(row.icon) || AZAMI_IDS.test(row.icon || '') || /azami|\bchat(te)?\b|croquette|liti[eè]re|p[aâ]t[eé]e|v[eé]to/i.test(row.title || row.label || '');
-
-// Libido ---------------------------------------------------------------------
-
-function libidoLive() {
-  const r = S.libido;
-  return !!(r && r.is_on && (!r.until || new Date(r.until) > new Date()));
-}
-function untilFor(choice) {
-  const now = new Date();
-  if (choice === '1h') return new Date(now.getTime() + 3600000);
-  if (choice === '24h') return new Date(now.getTime() + DAY);
-  const t = new Date(now); t.setHours(4, 0, 0, 0);
-  if (t <= now) t.setDate(t.getDate() + 1);
-  return t; // « ce soir » : jusqu'à 4 h du matin
-}
 
 // Argent ---------------------------------------------------------------------
 
@@ -603,7 +574,7 @@ function render() {
   const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
 
   document.body.dataset.time = S.view === 'nuit' ? 'nuit' : 'jour';
-  document.querySelector('meta[name="theme-color"]').content = S.view === 'nuit' ? '#1C120C' : '#2A1C15';
+  document.querySelector('meta[name="theme-color"]').content = S.view === 'nuit' ? '#17293A' : '#53A5C7';
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
@@ -753,7 +724,7 @@ function viewTasks() {
     if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
     return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      <div class="item-main"><div class="item-title">${iconBtn('tasks', t)} ${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
+      ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${iconPicker('tasks', t)}
       ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
@@ -863,10 +834,10 @@ function viewMenage() {
       const mine = c.turn === S.me;
       if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
       return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}">
-        <div><div class="c-title">${iconBtn('chores', c)} ${esc(c.title)}</div>
+        ${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(c.title)}</div>
           <div class="c-meta">${mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`}, <span class="c-when">${esc(st.label)}</span></div>
           <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
-        <div style="display:flex;align-items:center;gap:4px">
+        <div class="item-trail">
           <button class="btn ${st.due ? '' : 'ghost'} small" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>
           <button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
         </div>
@@ -895,8 +866,8 @@ function viewMenage() {
 function viewCourses() {
   const todo = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const cart = S.shopping.filter(s => s.checked);
-  const item = s => S.edit?.id === s.id ? `<li class="item editing" style="grid-template-columns:1fr">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
-    <div class="item-main"><div class="item-title">${iconBtn('shopping', s)} ${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
+  const item = s => S.edit?.id === s.id ? `<li class="item editing">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
+    ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>` : ''}</li>`;
@@ -972,7 +943,7 @@ function viewArgent() {
         const payer = e.paid_by === S.me ? 'toi' : nameOf(e.paid_by);
         if (e.is_settlement) {
           const to = S.members.find(m => m.email !== e.paid_by)?.email;
-          return `<li class="item settle" style="grid-template-columns:1fr auto">
+          return `<li class="item settle">
             <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
             <div class="item-meta">Solde remis à zéro, ${esc(relDay(e.spent_on))}</div></div>
             <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
@@ -982,9 +953,9 @@ function viewArgent() {
         const eff = expenseEffect(e);
         const settled = lastSettle && e.created_at <= lastSettle.created_at;
         const effect = Math.abs(eff) < 0.005 ? '' : settled ? `<span class="effect done">réglé</span>` : eff > 0 ? `<span class="effect pos">${esc(nameOf(o))} te doit ${chf(eff)}</span>` : `<span class="effect neg">Tu lui dois ${chf(-eff)}</span>`;
-        if (S.edit?.id === e.id) return `<li class="item editing" style="grid-template-columns:1fr">${editExpense(e)}</li>`;
-        return `<li class="item" style="grid-template-columns:1fr auto">
-          <div class="item-main"><div class="money-row"><span class="item-title">${iconBtn('expenses', e)} ${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
+        if (S.edit?.id === e.id) return `<li class="item editing">${editExpense(e)}</li>`;
+        return `<li class="item">
+          ${iconBtn('expenses', e)}<div class="item-main"><div class="money-row"><span class="item-title">${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
           <div class="item-meta money-row"><span>Payé par ${esc(payer)}, ${esc(split)}, ${esc(relDay(e.spent_on))}</span>${effect}</div></div>
           <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
           ${iconPicker('expenses', e)}
@@ -1018,16 +989,11 @@ function viewArgent() {
     ${monthHtml || '<p class="empty">Aucune dépense pour l\'instant.</p>'}`;
 }
 
-// Nuit : care et libido
+// Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.nuitTab === 'libido' ? azami('nuit_libido', 'Azami touche le switch') : azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
-    <div class="seg" role="group" aria-label="Affichage">
-      <button data-action="nuit-tab" data-tab="care" aria-pressed="${S.nuitTab === 'care'}">Care</button>
-      <button data-action="nuit-tab" data-tab="libido" aria-pressed="${S.nuitTab === 'libido'}">Libido</button>
-    </div>
-    ${S.nuitTab === 'care' ? viewCare() : viewLibido()}
-    ${notifOn() ? '' : `<div class="foot"><button class="btn ghost small" data-action="notif">Me prévenir quand un mot arrive</button></div>`}`;
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
+    ${viewCare()}`;
 }
 
 function viewCare() {
@@ -1061,30 +1027,11 @@ function viewCare() {
     </form>
 
     ${sent.length ? `<details class="fold" data-fold="sent"><summary>Tes mots envoyés (${sent.length})</summary><ul class="list sent">${sent.map(c => `
-      <li class="item" style="grid-template-columns:1fr auto"><div class="item-main"><div class="item-title">${esc(c.body.length > 90 ? c.body.slice(0, 90) + '…' : c.body)}</div>
+      <li class="item"><div class="item-main"><div class="item-title">${esc(c.body.length > 90 ? c.body.slice(0, 90) + '…' : c.body)}</div>
       <div class="item-meta">${esc(ago(c.created_at))}, ${c.read_at ? 'lu' : 'pas encore lu'}</div></div>
       <button class="link" data-action="care-delete" data-id="${c.id}">Retirer</button></li>`).join('')}</ul></details>` : ''}`;
 }
 
-function viewLibido() {
-  const on = libidoLive();
-  const o = nameOf(other());
-  const until = on && S.libido.until ? new Date(S.libido.until) : null;
-  const untilTxt = until ? (dayDiff(until, new Date()) === 0 ? `jusqu'à ${until.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}` : `jusqu'à demain ${until.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}`) : '';
-
-  let state, sub;
-  if (S.match) { state = 'Vous en avez envie tous les deux.'; sub = `Ton switch reste allumé ${untilTxt}.`; }
-  else if (on) { state = 'Ton envie est posée.'; sub = `Allumé ${untilTxt}. Rien n'est révélé à ${o} tant que son switch reste éteint.`; }
-  else { state = 'Ton switch est éteint.'; sub = 'Personne ne voit rien.'; }
-
-  const lampState = S.match ? 'match' : on ? 'mine' : '';
-  return `<div class="lamp-wrap ${lampState}"><div class="lamp ${lampState}" role="img" aria-label="${S.match ? 'Lampe allumée : match' : on ? 'Lampe en veille' : 'Lampe éteinte'}"></div></div>
-    <p class="lib-state" aria-live="polite">${state}</p>
-    <p class="lib-sub">${esc(sub)}</p>
-    ${on ? '' : chipGroup('lib-dur', [['1h', 'Une heure'], ['soir', 'Ce soir'], ['24h', '24 heures']], 'soir', 'Garder allumé')}
-    <div style="margin-top:16px"><button class="switch" role="switch" aria-checked="${on}" data-action="libido-toggle"><span>J'ai envie</span><span class="knob" aria-hidden="true"></span></button></div>
-    <p class="lib-note">${esc(o)} ne voit jamais ton switch. L'app signale seulement le moment où vous êtes deux à l'avoir allumé, puis il s'éteint tout seul. Aucun historique n'est gardé.</p>`;
-}
 
 // Actions --------------------------------------------------------------------
 
@@ -1096,7 +1043,6 @@ const actions = {
     actions.go({ dataset: { view: to } });
   },
   'maison-tab': el => { S.maisonTab = el.dataset.tab; render(); },
-  'nuit-tab': el => { S.nuitTab = el.dataset.tab; render(); },
   more: el => { S.open = S.open === el.dataset.id ? null : el.dataset.id; S.pick = null; render(); },
 
   retry: () => refresh(),
@@ -1209,11 +1155,6 @@ const actions = {
   },
   'care-delete': el => { if (confirm('Retirer ce mot de sa boîte ?')) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
-  'libido-toggle': () => {
-    const on = libidoLive();
-    const until = on ? null : untilFor(chipVal('lib-dur', 'soir')).toISOString();
-    run(() => api.upsert('libido', { email: S.me, is_on: !on, until, updated_at: new Date().toISOString() }));
-  },
 
   meow: () => meow(true),
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
@@ -1227,7 +1168,7 @@ const actions = {
   },
   logout: async () => {
     if (sb) await sb.auth.signOut();
-    Object.assign(S, { me: null, members: [], tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], libido: null, match: false, chips: {}, open: null, openLetter: null, offline: false, recovery: false, login: { step: 'login', email: '' } });
+    Object.assign(S, { me: null, members: [], tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], chips: {}, open: null, openLetter: null, offline: false, recovery: false, login: { step: 'login', email: '' } });
     render();
   },
 

@@ -5,7 +5,7 @@ const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
-const C = { bleu: '#9CC4E4', creme: '#F3EBDF', lampe: '#F0B65A', rouge: '#E8907A', fauve: '#B8A48F' };
+const C = { bleu: '#1E2F3F', creme: '#FFFFFF', lampe: '#F2C14E', rouge: '#E8907A', fauve: '#B8A48F' };
 
 let layer = null;
 function fxLayer() {
@@ -33,7 +33,7 @@ function spawn(x, y, html, style, keyframes, ms, easing = 'cubic-bezier(.2,.7,.2
 function sparkle(x, y, n = 10) {
   for (let i = 0; i < n; i++) {
     const ang = rnd(0, Math.PI * 2), d = rnd(28, 70), s = rnd(10, 18);
-    spawn(x, y, '✦', { color: i % 3 ? C.creme : C.bleu, fontSize: s + 'px' }, [
+    spawn(x, y, '✦', { color: i % 3 ? C.lampe : C.creme, fontSize: s + 'px' }, [
       { transform: 'translate(-50%,-50%) scale(0) rotate(0deg)', opacity: 1 },
       { transform: `translate(calc(-50% + ${Math.cos(ang) * d * .6}px), calc(-50% + ${Math.sin(ang) * d * .6}px)) scale(1.2) rotate(40deg)`, opacity: 1, offset: .4 },
       { transform: `translate(calc(-50% + ${Math.cos(ang) * d}px), calc(-50% + ${Math.sin(ang) * d}px)) scale(0) rotate(90deg)`, opacity: 0 },
