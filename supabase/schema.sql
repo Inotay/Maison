@@ -41,6 +41,7 @@ create table if not exists public.chores (
   title        text not null,
   every_days   int  not null default 7 check (every_days > 0),
   turn         text references public.members(email) on update cascade,
+  fixed        boolean not null default false,   -- toujours la même personne, pas de tournus
   last_done_at timestamptz,
   last_done_by text,
   created_by   text not null default public.me(),

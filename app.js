@@ -846,7 +846,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v29</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v30</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1026,7 +1026,8 @@ function editChore(c) {
     <label class="sr" for="ec-title">Nom</label><input class="field" id="ec-title" name="title" value="${esc(c.title)}" required>
     ${chipGroup('edit-freq', FREQS.map(([n, l]) => [String(n), l]), String(c.every_days), 'Fréquence')}
     ${chipGroup('edit-weight', WEIGHTS, String(c.weight || 2), 'Effort')}
-    ${chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour')}
+    ${chipGroup('edit-who', [['tour', 'À tour de rôle'], ...who.map(([e, l]) => [e, `Toujours ${l === 'Moi' ? 'moi' : l}`])], c.fixed ? c.turn : 'tour', 'Qui')}
+    ${chipVal('edit-who', c.fixed ? c.turn : 'tour') === 'tour' ? chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour') : ''}
     <div class="row mt"><div class="grow"><label class="chip-label" for="ec-last">Dernière fois faite le</label><input class="field" id="ec-last" name="last" type="date" value="${esc(c.last_done_at ? isoDate(new Date(c.last_done_at)) : '')}"></div></div>
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
@@ -1119,14 +1120,14 @@ function viewMenage() {
       if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
       return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}">
         ${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(c.title)}</div>
-          <div class="c-meta">${mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`}, <span class="c-when">${esc(st.label)}</span></div>
+          <div class="c-meta">${c.fixed ? (mine ? 'Toujours toi' : `Toujours ${esc(nameOf(c.turn))}`) : (mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`)}, <span class="c-when">${esc(st.label)}</span></div>
           <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
         <div class="item-trail">
           <button class="btn ${st.due ? '' : 'ghost'} small" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>
           <button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
         </div>
         ${iconPicker('chores', c)}
-        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button><button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button><button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
+        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.fixed ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
     }).join('')}</div>` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
 
@@ -1136,7 +1137,8 @@ function viewMenage() {
       <input class="field" id="chore-title" data-keep name="title" placeholder="Arroser les plantes" autocomplete="off" required>
       ${chipGroup('chore-freq', FREQS.map(([n, l]) => [String(n), l]), '7', 'Fréquence')}
       ${chipGroup('chore-weight', WEIGHTS, '2', 'Effort')}
-      ${chipGroup('chore-first', who, S.me, 'Qui commence')}
+      ${chipGroup('chore-who', [['tour', 'À tour de rôle'], ...who.map(([e, l]) => [e, `Toujours ${l === 'Moi' ? 'moi' : l}`])], 'tour', 'Qui')}
+      ${chipVal('chore-who', 'tour') === 'tour' ? chipGroup('chore-first', who, S.me, 'Qui commence') : ''}
       <div class="form-actions"><button type="button" class="btn ghost" data-action="chore-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter</button></div>
     </form>` : `<button class="btn ghost wide" data-action="chore-form" data-show="1">+ Ajouter une corvée</button>`}
 
@@ -1388,7 +1390,7 @@ const actions = {
     if (!c) return refresh();
     if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 60000) { toast('Déjà notée il y a un instant'); return; }
     // Le tour passe à l'autre que moi : si je fais la corvée de l'autre, il ou elle garde la suivante.
-    const next = S.members.find(m => m.email !== S.me)?.email || S.me;
+    const next = c.fixed ? c.turn : (S.members.find(m => m.email !== S.me)?.email || S.me);
     meow();
     const first = !todayHasWin();
     haptic('heavy'); el.classList.add('did'); el.textContent = '✓';
@@ -1400,7 +1402,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me) }); if (first) streakCheer(1800); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me) }); if (first) streakCheer(1800); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
@@ -1518,7 +1520,8 @@ const forms = {
   },
   chore(f) {
     if (!f.title.value.trim()) { toast('Donne un nom à la corvée'); return; }
-    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), weight: Number(chipVal('chore-weight', '2')), turn: chipVal('chore-first', S.me), icon: iconFor(f.title.value, 'chore', S.hints) };
+    const w = chipVal('chore-who', 'tour');
+    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), weight: Number(chipVal('chore-weight', '2')), fixed: w !== 'tour', turn: w !== 'tour' ? w : chipVal('chore-first', S.me), icon: iconFor(f.title.value, 'chore', S.hints) };
     f.reset(); S.showChoreForm = false;
     run(() => api.insert('chores', row), 'Corvée ajoutée');
   },
@@ -1566,7 +1569,9 @@ const forms = {
   },
   'edit-chore'(f) {
     const title = f.title.value.trim(); if (!title) return toast('Le nom est vide');
-    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), turn: chipVal('edit-turn', S.me), icon: iconFor(title, 'chore', S.hints) };
+    const c0 = S.chores.find(x => x.id === f.dataset.id) || {};
+    const w = chipVal('edit-who', c0.fixed ? c0.turn : 'tour');
+    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: w !== 'tour' ? w : chipVal('edit-turn', c0.turn || S.me), icon: iconFor(title, 'chore', S.hints) };
     if (f.last.value) patch.last_done_at = new Date(f.last.value + 'T12:00').toISOString();
     S.edit = null;
     run(() => api.update('chores', { id: f.dataset.id }, patch), 'Modifié');
@@ -1621,7 +1626,7 @@ document.addEventListener('click', e => {
     const g = c.closest('[data-group]');
     S.chips[g.dataset.group] = c.dataset.chip;
     g.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', b === c));
-    if (g.dataset.group === 'exp-split' || g.dataset.group === 'edit-split') render(); // affiche ou cache le champ %
+    if (['exp-split', 'edit-split', 'chore-who', 'edit-who'].includes(g.dataset.group)) render(); // affiche ou cache un champ qui dépend du choix
     else if (g.dataset.group.startsWith('exp-')) { const sum = document.querySelector('[data-fold="exp-options"] > summary'); if (sum) sum.textContent = optionsSummary(); }
     return;
   }
