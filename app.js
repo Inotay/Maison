@@ -789,7 +789,6 @@ const KIND_LABEL = { task: 'chose faite', chore: 'corvée', shop: 'courses', set
 function winsCard() {
   const week = winsSince(WEEK), total = S.wins.length, st = streak();
   if (!total) return '';
-  const mine = week.filter(w => w.done_by === S.me).length, theirs = week.length - mine;
   const o = other();
   const recent = S.wins.slice(0, 8);
   const line = w => `<li><span class="w-icon">${iconHtml(w.kind === 'settle' ? '💰' : w.kind === 'shop' ? (variantFor(personOf(w.done_by), 'courses') || 't:courses') : w.title ? displayIcon('wins', w) : (w.icon || '📌'))}</span><span class="w-text">${esc(w.title || KIND_LABEL[w.kind] || 'réussite')}</span><span class="w-who">${esc(w.done_by === S.me ? 'toi' : nameOf(w.done_by))}</span><span class="w-when">${esc(ago(w.done_at))}</span></li>`;
@@ -797,7 +796,7 @@ function winsCard() {
     <div class="wins-top">
       <div><p class="bal-kicker">Réussites</p>
         <p class="wins-big"><b>${week.length}</b> cette semaine</p>
-        <p class="wins-sub">${week.length ? `Toi ${mine} · ${esc(nameOf(o))} ${theirs}` : 'La semaine commence.'}</p></div>
+        <p class="wins-sub">${week.length ? 'À vous deux.' : 'La semaine commence.'}</p></div>
       <div class="wins-side">
         ${st >= 2 ? `<div class="wins-streak"><b>${st}</b><span>jours<br>de suite</span></div>` : ''}
         <div class="wins-total"><b>${total}</b><span>depuis<br>le début</span></div>
@@ -846,7 +845,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v30</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v31</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1100,15 +1099,11 @@ function pratiqueCard() {
       <h3>Urgences</h3><p class="urgences">${P.urgences.map(([l, n]) => `<span><b>${esc(l)}</b> ${tel(n)}</span>`).join('')}</p>
       <h3>Comment lire cette page</h3>
       <p><b>Déchets</b> : vert, le container est près des garages, on peut descendre. Jaune, il est déjà au bout du chemin sur la route de Genève, y amener les sacs l'après-midi avant le ramassage. Rouge, jour de ramassage, on garde chez soi. Poubelles et papier sont ramassés mardi et vendredi, verre et compost le lundi.</p>
-      <p><b>Effort</b> : une corvée légère compte 1, normale 2, lourde 3. Le total compte les corvées faites par chacun sur les 30 derniers jours.</p>
     </div></details>`;
 }
 
 function viewMenage() {
   const chores = [...S.chores].sort((a, b) => choreStatus(a).d - choreStatus(b).d);
-  const since = Date.now() - 30 * DAY;
-  const counts = S.members.map(m => [m, S.choreLog.filter(l => l.done_by === m.email && new Date(l.done_at).getTime() >= since).reduce((n, l) => n + (Number(l.weight) || 2), 0)]);
-  const max = Math.max(1, ...counts.map(c => c[1]));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
@@ -1142,8 +1137,6 @@ function viewMenage() {
       <div class="form-actions"><button type="button" class="btn ghost" data-action="chore-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter</button></div>
     </form>` : `<button class="btn ghost wide" data-action="chore-form" data-show="1">+ Ajouter une corvée</button>`}
 
-    <h2>Effort, ces 30 derniers jours</h2>
-    <div class="fair">${counts.map(([m, n]) => `<div class="fair-row"><span>${esc(m.email === S.me ? 'Toi' : m.name)}</span><div class="fair-bar"><span style="width:${(n / max) * 100}%"></span></div><b>${n}</b></div>`).join('')}</div>
     ${pratiqueCard()}`;
 }
 
