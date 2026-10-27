@@ -734,7 +734,7 @@ function viewMaison() {
     ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}</div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v13</span></div>`;
 }
 
 function viewTasks() {
@@ -1364,7 +1364,13 @@ async function boot() {
     await refresh();
     return;
   }
-  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(e => console.warn('sw', e));
+  if ('serviceWorker' in navigator) {
+    // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
+    let had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing()) location.reload(); had = true; });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); }).catch(e => console.warn('sw', e));
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
+  }
   const { createClient } = await import('./vendor/supabase-js-2.49.4.js');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   api = remoteApi(sb);

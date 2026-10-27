@@ -1,5 +1,5 @@
 // Maison : service worker. L'app s'ouvre sans réseau (lecture) et reçoit des notifications.
-const VERSION = 'maison-v12';
+const VERSION = 'maison-v13';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './themes.js', './fx.js', './config.js', './manifest.webmanifest', './vendor/supabase-js-2.49.4.js',
   './azami/azami_accueil_bonjour_anime.svg', './azami/azami_accueil_bonne_matinee_anime.svg', './azami/azami_accueil_bon_midi_anime.svg', './azami/azami_accueil_bonne_apres_midi_anime.svg', './azami/azami_accueil_bonsoir_anime.svg', './azami/azami_accueil_nuit_anime.svg', './azami/azami_menage_anime.svg', './azami/azami_courses_anime.svg', './azami/azami_argent_anime.svg', './azami/azami_nuit_care_anime.svg',
   './icons/icon-192.png', './icons/icon-512.png',
@@ -25,8 +25,10 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.hostname.endsWith('supabase.co')) return;
   if (url.origin !== location.origin) return;
+  // Toujours revalider auprès du serveur (GitHub Pages garde sinon une copie 10 minutes) :
+  // la nouvelle version arrive dès qu'elle est publiée.
   e.respondWith(
-    fetch(e.request).then(res => {
+    fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); }
       return res;
     }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(hit => hit || (e.request.mode === 'navigate' ? caches.match('./index.html') : Response.error())))
