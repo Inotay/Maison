@@ -599,8 +599,8 @@ function render() {
   const folds = new Set([...$app.querySelectorAll('details[data-fold][open]')].map(d => d.dataset.fold));
   const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
 
-  document.body.dataset.time = S.view === 'nuit' ? 'nuit' : 'jour';
-  document.querySelector('meta[name="theme-color"]').content = S.view === 'nuit' ? '#17293A' : '#53A5C7';
+  document.body.dataset.time = 'jour';
+  document.querySelector('meta[name="theme-color"]').content = '#53A5C7';
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
@@ -734,7 +734,7 @@ function viewMaison() {
     ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v13</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v14</span></div>`;
 }
 
 function viewTasks() {
@@ -752,7 +752,7 @@ function viewTasks() {
     if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
     return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
+      ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${late ? 'late' : ''}">${esc(meta.join(', '))}</div></div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${iconPicker('tasks', t)}
       ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
@@ -765,8 +765,8 @@ function viewTasks() {
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
       <input class="field" id="task-title" data-keep name="title" placeholder="Ajouter une chose à faire" autocomplete="off" required>
       ${chipGroup('task-who', who, 'nous', 'Pour qui')}
-      <div class="row" style="margin-top:12px">
-        <div class="grow"><label class="chip-label" for="task-due" style="display:block;margin:0">Pour quand (facultatif)</label>
+      <div class="row mt">
+        <div class="grow"><label class="chip-label" for="task-due">Pour quand (facultatif)</label>
         <input class="field" id="task-due" data-keep name="due" type="date"></div>
         <button class="btn" type="submit">Ajouter</button>
       </div>
@@ -782,9 +782,9 @@ function editTask(t) {
   return `<form class="form edit" data-form="edit-task" data-id="${t.id}">
     <label class="sr" for="et-title">Titre</label><input class="field" id="et-title" name="title" value="${esc(t.title)}" required>
     ${chipGroup('edit-who', who, cur, 'Pour qui')}
-    <div class="row" style="margin-top:10px">
-      <div class="grow"><label class="chip-label" for="et-due" style="display:block;margin:0">Date</label><input class="field" id="et-due" name="due" type="date" value="${esc(t.due_on || '')}"></div>
-      <div style="width:110px;flex:none"><label class="chip-label" for="et-time" style="display:block;margin:0">Heure</label><input class="field" id="et-time" name="time" type="time" value="${esc(t.due_time ? String(t.due_time).slice(0, 5) : '')}"></div>
+    <div class="row mt">
+      <div class="grow"><label class="chip-label" for="et-due">Date</label><input class="field" id="et-due" name="due" type="date" value="${esc(t.due_on || '')}"></div>
+      <div class="w-110"><label class="chip-label" for="et-time">Heure</label><input class="field" id="et-time" name="time" type="time" value="${esc(t.due_time ? String(t.due_time).slice(0, 5) : '')}"></div>
     </div>
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
@@ -802,7 +802,7 @@ function editChore(c) {
     ${chipGroup('edit-freq', FREQS.map(([n, l]) => [String(n), l]), String(c.every_days), 'Fréquence')}
     ${chipGroup('edit-weight', WEIGHTS, String(c.weight || 2), 'Effort')}
     ${chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour')}
-    <div class="row" style="margin-top:10px"><div class="grow"><label class="chip-label" for="ec-last" style="display:block;margin:0">Dernière fois faite le</label><input class="field" id="ec-last" name="last" type="date" value="${esc(c.last_done_at ? isoDate(new Date(c.last_done_at)) : '')}"></div></div>
+    <div class="row mt"><div class="grow"><label class="chip-label" for="ec-last">Dernière fois faite le</label><input class="field" id="ec-last" name="last" type="date" value="${esc(c.last_done_at ? isoDate(new Date(c.last_done_at)) : '')}"></div></div>
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
 }
@@ -812,14 +812,14 @@ function editExpense(e) {
   const cur = chipVal('edit-split', split);
   return `<form class="form edit" data-form="edit-expense" data-id="${e.id}">
     <div class="row">
-      <div style="width:118px;flex:none"><label class="sr" for="ee-amount">Montant</label><input class="field amount-input" id="ee-amount" name="amount" inputmode="decimal" value="${esc(chf(e.amount))}" required></div>
+      <div class="w-118"><label class="sr" for="ee-amount">Montant</label><input class="field amount-input" id="ee-amount" name="amount" inputmode="decimal" value="${esc(chf(e.amount))}" required></div>
       <div class="grow"><label class="sr" for="ee-label">Pour quoi</label><input class="field" id="ee-label" name="label" value="${esc(e.label)}" required></div>
     </div>
     ${chipGroup('edit-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), e.paid_by, 'Payé par')}
     ${chipGroup('edit-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], split, 'Partage')}
-    ${cur === 'custom' ? `<div class="row" style="margin-top:8px"><div class="grow"><label class="chip-label" for="ee-pct" style="display:block;margin:0">Part de celui ou celle qui paie, en %</label><input class="field" id="ee-pct" name="pct" inputmode="numeric" value="${Math.round(share * 100)}"></div></div>` : ''}
+    ${cur === 'custom' ? `<div class="row mt"><div class="grow"><label class="chip-label" for="ee-pct">Part de celui ou celle qui paie, en %</label><input class="field" id="ee-pct" name="pct" inputmode="numeric" value="${Math.round(share * 100)}"></div></div>` : ''}
     ${chipGroup('edit-cat', CATS, e.category, 'Catégorie')}
-    <div class="row" style="margin-top:10px"><div class="grow"><label class="chip-label" for="ee-date" style="display:block;margin:0">Date</label><input class="field" id="ee-date" name="date" type="date" value="${esc(e.spent_on)}"></div></div>
+    <div class="row mt"><div class="grow"><label class="chip-label" for="ee-date">Date</label><input class="field" id="ee-date" name="date" type="date" value="${esc(e.spent_on)}"></div></div>
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
 }
@@ -885,7 +885,7 @@ function viewMenage() {
     </form>` : `<div class="form-actions"><button class="btn ghost" data-action="chore-form" data-show="1">Ajouter une corvée</button></div>`}
 
     <h2>Ces 30 derniers jours, en effort</h2>
-    <p class="chip-label" style="margin:0 0 8px">Une corvée légère compte 1, normale 2, lourde 3.</p>
+    <p class="chip-label mb">Une corvée légère compte 1, normale 2, lourde 3.</p>
     <div class="fair">${counts.map(([m, n]) => `<div class="fair-row"><span>${esc(m.email === S.me ? 'Toi' : m.name)}</span><div class="fair-bar"><span style="width:${(n / max) * 100}%"></span></div><b>${n}</b></div>`).join('')}</div>`;
 }
 
@@ -999,7 +999,7 @@ function viewArgent() {
 
     <form class="form" data-form="expense">
       <div class="row">
-        <div style="width: 118px; flex: none"><label class="sr" for="exp-amount">Montant en francs</label>
+        <div class="w-118"><label class="sr" for="exp-amount">Montant en francs</label>
           <input class="field amount-input" id="exp-amount" data-keep name="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" required></div>
         <div class="grow"><label class="sr" for="exp-label">Pour quoi</label>
           <input class="field" id="exp-label" data-keep name="label" placeholder="Pour quoi" autocomplete="off" required enterkeyhint="done"></div>
@@ -1008,9 +1008,9 @@ function viewArgent() {
       <details class="fold" data-fold="exp-options"><summary>${esc(optionsSummary())}</summary>
       ${chipGroup('exp-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), S.me, 'Payé par')}
       ${chipGroup('exp-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], 'half', 'Partage')}
-      ${share === 'custom' ? `<div class="row" style="margin-top:8px"><div class="grow"><label class="chip-label" for="exp-pct" style="display:block;margin:0">Part de celui ou celle qui paie, en %</label><input class="field" id="exp-pct" data-keep name="pct" inputmode="numeric" placeholder="60"></div></div>` : ''}
+      ${share === 'custom' ? `<div class="row mt"><div class="grow"><label class="chip-label" for="exp-pct">Part de celui ou celle qui paie, en %</label><input class="field" id="exp-pct" data-keep name="pct" inputmode="numeric" placeholder="60"></div></div>` : ''}
       ${chipGroup('exp-cat', CATS, 'courses', 'Catégorie')}
-      <div class="row" style="margin-top:12px"><div class="grow"><label class="chip-label" for="exp-date" style="display:block;margin:0">Date</label>
+      <div class="row mt"><div class="grow"><label class="chip-label" for="exp-date">Date</label>
         <input class="field" id="exp-date" data-keep name="date" type="date" value="${isoDate(new Date())}"></div></div>
       </details>
     </form>
@@ -1033,14 +1033,14 @@ function viewCare() {
 
   const letter = c => {
     const opened = S.openLetter === c.id;
-    const head = `<span class="l-from">${esc(careKind(c.kind) || 'Un mot')} de ${esc(nameOf(c.author))}</span><span class="l-meta">${esc(ago(c.created_at))}${c.read_at ? '' : ', pas encore ouvert'}</span>`;
+    const head = `<img class="l-icon" src="icons/themes/care_${esc(['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(c.kind) ? c.kind : 'merci')}.webp" alt="" width="40" height="40"><span class="l-from">${esc(careKind(c.kind) || 'Un mot')} de ${esc(nameOf(c.author))}</span><span class="l-meta">${esc(ago(c.created_at))}${c.read_at ? '' : ', pas encore ouvert'}</span>`;
     if (!opened) return `<button class="letter ${c.read_at ? '' : 'sealed'}" data-action="letter-open" data-id="${c.id}" aria-expanded="false">${head}</button>`;
     return `<div class="letter" aria-live="polite">${head}<div class="letter-body">${esc(c.body)}</div>
       ${c.wants_talk ? `<div class="talk">${esc(nameOf(c.author))} aimerait qu'on en parle.</div>` : ''}
       <div><button class="link" data-action="letter-close">Refermer</button></div></div>`;
   };
 
-  return `<h2 style="margin-top:4px">Ta boîte aux lettres</h2>
+  return `<h2 class="first">Ta boîte aux lettres</h2>
     ${unread.length ? `<div class="letters">${unread.map(letter).join('')}</div>` : '<p class="empty">Aucun mot en attente.</p>'}
     ${read.length ? `<details class="fold" data-fold="read" ${read.some(c => c.id === S.openLetter) ? 'open' : ''}><summary>Mots déjà lus (${read.length})</summary><div class="letters">${read.map(letter).join('')}</div></details>` : ''}
 
@@ -1048,7 +1048,7 @@ function viewCare() {
     <form class="form" data-form="care">
       ${chipGroup('care-kind', CARE_KINDS, 'merci')}
       <label class="sr" for="care-body">Ton mot</label>
-      <textarea class="area" id="care-body" data-keep name="body" style="margin-top:12px" placeholder="Ce que tu n'oses pas dire en face…" required></textarea>
+      <textarea class="area mt" id="care-body" data-keep name="body" placeholder="Ce que tu n'oses pas dire en face…" required></textarea>
       <button type="button" class="link" data-action="care-help">Aide pour formuler</button>
       <label class="check"><input type="checkbox" id="care-talk" data-keep name="talk"> J'aimerais qu'on en parle</label>
       <div class="form-actions"><button class="btn" type="submit">Déposer dans sa boîte</button></div>
