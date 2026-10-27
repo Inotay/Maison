@@ -30,14 +30,22 @@ Ouvrir `https://inotay.github.io/Maison/` dans Safari, bouton Partager, puis **S
 ### 5. Verrouiller les inscriptions
 Une fois vos deux comptes créés, coller `supabase/02_durcissement.sql` dans SQL Editor et lancer Run : seules les adresses de `members` peuvent désormais créer un compte. Par sécurité, désactiver aussi « Allow new users to sign up » dans Authentication > Providers > Email.
 
+### 6. Notifications
+Dans Nuit, « Me prévenir quand un mot arrive » demande la permission. Sans serveur de push, l'app prévient quand elle est ouverte en arrière-plan (un mot care reçu, un match). Pour recevoir des notifications app fermée, il faudra un petit serveur de push : sa clé publique VAPID va dans `config.js`, la table `push_subscriptions` est déjà prête.
+
+## Hors-ligne
+L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (sans Care ni Libido). Les polices et la librairie Supabase sont embarquées dans le dépôt : aucune ressource externe.
+
 ## Vie privée
 - Care : un mot n'est visible que par la personne qui l'écrit et celle qui le reçoit.
-- Care : l'auteur voit quand son mot a été ouvert.
+- Care : l'auteur voit seulement si son mot a été lu, pas quand.
 - Libido : chacun ne peut lire que sa propre ligne. Limite assumée : allumer son switch, c'est aussi poser la question, puisqu'on apprend alors si l'autre a allumé. La base répond seulement « match » ou « pas de match », et uniquement à quelqu'un dont le switch est allumé. Le switch s'éteint seul à l'heure choisie et aucun historique n'est conservé.
 
 ## Fichiers
 - `index.html`, `styles.css`, `app.js` : l'app
 - `azami.js` : Azami, une pose par page
+- `sw.js` : hors-ligne et notifications
+- `vendor/` : librairie Supabase 2.49.4 figée ; `fonts/` : polices (licence OFL)
 - `config.js` : connexion à Supabase
 - `icons/`, `manifest.webmanifest` : installation sur l'écran d'accueil
 - `sounds/` : un enregistrement `azami.m4a` remplace le miaulement synthétique

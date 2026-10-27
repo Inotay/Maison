@@ -3,5 +3,6 @@
 // par les règles d'accès définies dans supabase/schema.sql.
 window.MAISON_CONFIG = {
   supabaseUrl: 'https://gnmpivrngageogbqanwj.supabase.co',
-  supabaseKey: 'sb_publishable__OpQKj_yUSstSGnF_LzIvg_zyv02nv7'
+  supabaseKey: 'sb_publishable__OpQKj_yUSstSGnF_LzIvg_zyv02nv7',
+  vapidPublicKey: ''   // clé publique VAPID d'un futur serveur de notifications ; vide = alertes locales seulement
 };

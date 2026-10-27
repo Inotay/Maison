@@ -1,3 +1,11 @@
+/* Polices hébergées ici (licence SIL Open Font License), aucune requête vers Google. */
+@font-face { font-family: 'Hanken Grotesk'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/hanken-grotesk-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Hanken Grotesk'; font-style: normal; font-weight: 500; font-display: swap; src: url('fonts/hanken-grotesk-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Hanken Grotesk'; font-style: normal; font-weight: 700; font-display: swap; src: url('fonts/hanken-grotesk-latin-700-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Hanken Grotesk'; font-style: normal; font-weight: 800; font-display: swap; src: url('fonts/hanken-grotesk-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Shippori Mincho'; font-style: normal; font-weight: 400; font-display: swap; src: url('fonts/shippori-mincho-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Shippori Mincho'; font-style: normal; font-weight: 600; font-display: swap; src: url('fonts/shippori-mincho-latin-600-normal.woff2') format('woff2'); }
+
 /* Maison : seal point. Brun d'Azami, crème de son poitrail, bleu de ses yeux. */
 
 :root {

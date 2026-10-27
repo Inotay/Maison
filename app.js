@@ -25,7 +25,6 @@ const S = {
   login: { step: 'login', email: '' },
   recovery: false,     // arrivée par un lien « mot de passe oublié »
   showChoreForm: false,
-  showExpenseForm: false,
   meowing: false,
   offline: false,
 };
@@ -122,6 +121,8 @@ function toast(msg) {
   toast.t = setTimeout(() => t.classList.remove('on'), 2600);
 }
 
+const WEIGHTS = [['1', 'Légère'], ['2', 'Normale'], ['3', 'Lourde']];
+const weightLabel = w => ({ 1: 'légère', 3: 'lourde' })[Number(w)] || '';
 const FREQS = [[1, 'Chaque jour'], [2, 'Tous les 2 jours'], [3, 'Tous les 3 jours'], [7, 'Chaque semaine'], [14, 'Toutes les 2 semaines'], [30, 'Chaque mois']];
 const freqLabel = n => (FREQS.find(f => f[0] === n)?.[1] || `Tous les ${n} jours`).toLowerCase();
 
@@ -215,10 +216,10 @@ function demoSeed() {
       { id: uid(), title: 'Monter le meuble de l’entrée', assignee: Y, due_on: null, done: true, done_at: iso(1), created_by: Y, created_at: iso(6) },
     ],
     chores: [
-      { id: uid(), title: 'Sortir les poubelles', every_days: 7, turn: Y, last_done_at: iso(8), last_done_by: M, created_by: Y, created_at: iso(30) },
+      { id: uid(), title: 'Sortir les poubelles', every_days: 7, weight: 1, turn: Y, last_done_at: iso(8), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: "Litière d'Azami", every_days: 2, turn: M, last_done_at: iso(1), last_done_by: Y, created_by: M, created_at: iso(30) },
       { id: uid(), title: 'Aspirateur', every_days: 7, turn: M, last_done_at: iso(3), last_done_by: Y, created_by: Y, created_at: iso(30) },
-      { id: uid(), title: 'Salle de bain', every_days: 14, turn: Y, last_done_at: iso(10), last_done_by: M, created_by: Y, created_at: iso(30) },
+      { id: uid(), title: 'Salle de bain', every_days: 14, weight: 3, turn: Y, last_done_at: iso(10), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Changer les draps', every_days: 14, turn: M, last_done_at: null, last_done_by: null, created_by: M, created_at: iso(30) },
     ],
     chore_log: [
@@ -243,6 +244,50 @@ function demoSeed() {
   };
 }
 
+// Notifications --------------------------------------------------------------
+// Sans serveur de push, l'app prévient quand elle est ouverte en arrière-plan.
+// Avec une clé VAPID dans config.js, elle enregistre aussi l'abonnement pour un futur serveur.
+
+let swReg = null;
+let seen = { care: new Set(), match: false, primed: false };
+
+async function enableNotifications() {
+  if (!('Notification' in window)) { toast('Pas de notifications sur cet appareil. Installe l\'app sur l\'écran d\'accueil.'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notifications refusées dans les réglages.'); render(); return; }
+  safeSet('maison-notif', '1');
+  try {
+    if (swReg && CFG.vapidPublicKey && sb) {
+      const sub = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(CFG.vapidPublicKey) });
+      await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON() });
+    }
+  } catch (e) { console.warn('push', e); }
+  toast('Notifications activées');
+  render();
+}
+function vapidKey(b64) {
+  const pad = '='.repeat((4 - b64.length % 4) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+const notifOn = () => 'Notification' in window && Notification.permission === 'granted' && safeGet('maison-notif') === '1';
+
+function notifyNew() {
+  const mine = S.care.filter(c => c.recipient === S.me && !c.read_at);
+  if (seen.primed && notifOn() && document.hidden) {
+    const fresh = mine.filter(c => !seen.care.has(c.id));
+    if (fresh.length) show('Un mot dans ta boîte', `${nameOf(fresh[0].author)} t'a écrit.`, 'care');
+    if (S.match && !seen.match) show('Nuit', 'Vous en avez envie tous les deux.', 'match');
+  }
+  mine.forEach(c => seen.care.add(c.id));
+  seen.match = S.match;
+  seen.primed = true;
+}
+function show(title, body, tag) {
+  const opts = { body, icon: 'icons/icon-192.png', tag, data: { url: './' } };
+  if (swReg) swReg.showNotification(title, opts).catch(() => {}); else try { new Notification(title, opts); } catch {}
+}
+
 // Chargement -----------------------------------------------------------------
 
 async function loadAll() {
@@ -254,6 +299,18 @@ async function loadAll() {
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care });
   S.libido = lib.find(r => r.email === S.me) || null;
   S.match = !!(await api.rpc('libido_match'));
+  notifyNew();
+  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores, choreLog, expenses, shopping, board }));
+}
+
+// Sans réseau : on affiche le dernier instantané (lecture seule, sans Care ni Libido).
+function loadSnapshot() {
+  try {
+    const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
+    if (!snap || snap.me !== S.me) return false;
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, care: [], libido: null, match: false, snapshotAt: snap.at });
+    return true;
+  } catch { return false; }
 }
 
 const typing = () => ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) && document.activeElement.type !== 'checkbox';
@@ -271,8 +328,10 @@ async function refresh() {
     S.offline = false; render();
   } catch (e) {
     console.error(e);
-    if (!$app.children.length || S.offline) { S.offline = true; render(); }
-    else toast('Connexion impossible pour le moment.');
+    S.offline = true;
+    if (!S.members.length) loadSnapshot();
+    render();
+    if (S.members.length) toast('Hors-ligne : lecture seule.');
   }
 }
 document.addEventListener('focusout', () => { if (refreshPending) { refreshPending = false; setTimeout(refresh, 150); } });
@@ -283,6 +342,7 @@ function scheduleRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeo
 // Une action à la fois par élément : un double tap n'enregistre pas deux fois.
 const pending = new Set();
 async function run(fn, okMsg, key = 'global') {
+  if (S.offline) { toast('Hors-ligne : impossible d\'enregistrer pour le moment.'); return; }
   if (pending.has(key)) return;
   pending.add(key);
   try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); }
@@ -356,6 +416,7 @@ function nav() {
 }
 
 function demoBar() {
+  if (S.offline) return `<div class="demo"><span>Hors-ligne, lecture seule. Dernière synchro ${esc(S.snapshotAt ? ago(new Date(S.snapshotAt).toISOString()) : 'inconnue')}.</span><button class="link" data-action="retry">Réessayer</button></div>`;
   if (!DEMO) return '';
   return `<div class="demo"><span>Démo : données sur cet appareil</span><button class="link" data-action="demo-swap">Voir comme ${esc(nameOf(other()))}</button></div>`;
 }
@@ -370,6 +431,7 @@ function viewOffline() {
 function render() {
   if (!S.ready) { $app.innerHTML = ''; return; }
   if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); return; }
+  if (S.offline && S.view === 'nuit') S.view = 'maison';
   if (S.recovery) S.login.step = 'newpass';
   if (!S.me || S.recovery) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); return; }
   if (!S.members.some(m => m.email === S.me)) { $app.innerHTML = viewNotMember(); return; }
@@ -378,6 +440,7 @@ function render() {
   const kept = {};
   $app.querySelectorAll('[data-keep]').forEach(el => { kept[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
   const focusId = document.activeElement?.id;
+  const folds = new Set([...$app.querySelectorAll('details[data-fold][open]')].map(d => d.dataset.fold));
   const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
 
   document.body.dataset.time = S.view === 'nuit' ? 'nuit' : 'jour';
@@ -386,6 +449,7 @@ function render() {
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
 
+  folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
   for (const [id, v] of Object.entries(kept)) {
     const el = document.getElementById(id);
     if (!el) continue;
@@ -441,7 +505,20 @@ function viewNotMember() {
     <button class="btn ghost" data-action="logout">Se déconnecter</button></section>`;
 }
 
-// Maison : coup d'œil, à faire, tableau
+// Maison : coup d'œil, fil récent, à faire, tableau
+
+function recentEvents() {
+  const ev = [];
+  for (const l of S.choreLog) ev.push({ at: l.done_at, who: l.done_by, text: `a fait ${l.title || 'une corvée'}` });
+  for (const t of S.tasks) {
+    ev.push({ at: t.created_at, who: t.created_by, text: `a ajouté « ${t.title} »` });
+    if (t.done && t.done_at) ev.push({ at: t.done_at, who: null, text: `« ${t.title} » est fait` });
+  }
+  for (const e of S.expenses) ev.push({ at: e.created_at, who: e.created_by, text: e.is_settlement ? `a remboursé ${chf(e.amount)}` : `a noté ${e.label}, ${chf(e.amount)}` });
+  for (const n of S.board) ev.push({ at: n.created_at, who: n.author, text: 'a laissé un mot sur le tableau' });
+  for (const s of S.shopping) ev.push({ at: s.created_at, who: s.added_by, text: `a ajouté ${s.label} aux courses` });
+  return ev.filter(e => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6);
+}
 
 function viewMaison() {
   const h = new Date().getHours();
@@ -468,6 +545,8 @@ function viewMaison() {
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
+    ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
+      `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire</button>
       <button data-action="maison-tab" data-tab="tableau" aria-pressed="${S.maisonTab === 'tableau'}">Tableau</button>
@@ -486,9 +565,9 @@ function viewTasks() {
     if (t.due_on && !t.done) meta.push(relDay(t.due_on));
     const late = t.due_on && !t.done && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) < 0;
     return `<li class="item ${t.done ? 'done' : ''}">
-      <button class="tick" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
+      <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
       <div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta" ${late ? 'style="color:var(--bleu);font-weight:700"' : ''}>${esc(meta.join(', '))}</div></div>
-      <button class="more" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
+      <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${S.open === t.id ? `<div class="item-actions">${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
   };
@@ -503,7 +582,7 @@ function viewTasks() {
       </div>
     </form>
     ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : '<p class="empty">Plus rien à faire. Profitez-en.</p>'}
-    ${done.length ? `<details class="fold"><summary>Faites récemment (${done.length})</summary><ul class="list">${done.map(item).join('')}</ul></details>` : ''}`;
+    ${done.length ? `<details class="fold" data-fold="done"><summary>Faites récemment (${done.length})</summary><ul class="list">${done.map(item).join('')}</ul></details>` : ''}`;
 }
 
 function viewBoard() {
@@ -527,7 +606,7 @@ function viewBoard() {
 function viewMenage() {
   const chores = [...S.chores].sort((a, b) => choreStatus(a).d - choreStatus(b).d);
   const since = Date.now() - 30 * DAY;
-  const counts = S.members.map(m => [m, S.choreLog.filter(l => l.done_by === m.email && new Date(l.done_at).getTime() >= since).length]);
+  const counts = S.members.map(m => [m, S.choreLog.filter(l => l.done_by === m.email && new Date(l.done_at).getTime() >= since).reduce((n, l) => n + (Number(l.weight) || 2), 0)]);
   const max = Math.max(1, ...counts.map(c => c[1]));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
@@ -538,10 +617,10 @@ function viewMenage() {
       return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}">
         <div><div class="c-title">${esc(c.title)}</div>
           <div class="c-meta">${mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`}, <span class="c-when">${esc(st.label)}</span></div>
-          <div class="c-meta">${esc(freqLabel(c.every_days))}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
+          <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
         <div style="display:flex;align-items:center;gap:4px">
-          <button class="btn ${st.due ? '' : 'ghost'} small" data-action="chore-done" data-id="${c.id}">Fait</button>
-          <button class="more" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
+          <button class="btn ${st.due ? '' : 'ghost'} small" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>
+          <button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
         </div>
         ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button><button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
@@ -552,11 +631,13 @@ function viewMenage() {
       <label class="sr" for="chore-title">Nom de la corvée</label>
       <input class="field" id="chore-title" data-keep name="title" placeholder="Arroser les plantes" autocomplete="off" required>
       ${chipGroup('chore-freq', FREQS.map(([n, l]) => [String(n), l]), '7', 'Fréquence')}
+      ${chipGroup('chore-weight', WEIGHTS, '2', 'Effort')}
       ${chipGroup('chore-first', who, S.me, 'Qui commence')}
       <div class="form-actions"><button type="button" class="btn ghost" data-action="chore-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter</button></div>
     </form>` : `<div class="form-actions"><button class="btn ghost" data-action="chore-form" data-show="1">Ajouter une corvée</button></div>`}
 
-    <h2>Ces 30 derniers jours</h2>
+    <h2>Ces 30 derniers jours, en effort</h2>
+    <p class="chip-label" style="margin:0 0 8px">Une corvée légère compte 1, normale 2, lourde 3.</p>
     <div class="fair">${counts.map(([m, n]) => `<div class="fair-row"><span>${esc(m.email === S.me ? 'Toi' : m.name)}</span><div class="fair-bar"><span style="width:${(n / max) * 100}%"></span></div><b>${n}</b></div>`).join('')}</div>`;
 }
 
@@ -565,7 +646,7 @@ function viewMenage() {
 function viewCourses() {
   const todo = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const cart = S.shopping.filter(s => s.checked);
-  const item = s => `<li class="item"><button class="tick" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
+  const item = s => `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     <div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div></li>`;
   return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.courses()}</button></header>
     <form class="form row" data-form="shop">
@@ -579,6 +660,12 @@ function viewCourses() {
 }
 
 // Argent
+
+function optionsSummary() {
+  const payer = chipVal('exp-payer', S.me) === S.me ? 'payé par moi' : `payé par ${nameOf(chipVal('exp-payer', S.me))}`;
+  const split = { half: 'moitié-moitié', other: "avancé pour l'autre", custom: 'autre partage' }[chipVal('exp-split', 'half')];
+  return `${catLabel(chipVal('exp-cat', 'courses'))}, ${payer}, ${split}`;
+}
 
 function viewArgent() {
   const net = balances()[S.me] || 0;
@@ -610,14 +697,14 @@ function viewArgent() {
           const to = S.members.find(m => m.email !== e.paid_by)?.email;
           return `<li class="item settle" style="grid-template-columns:1fr auto">
             <div class="item-main money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
-            <button class="more" aria-label="Options" data-action="more" data-id="${e.id}">⋯</button>
+            <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
             ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
         }
         const split = Number(e.payer_share) === 0.5 ? 'moitié-moitié' : Number(e.payer_share) === 0 ? `avancé pour ${e.paid_by === S.me ? nameOf(o) : 'toi'}` : `${Math.round(Number(e.payer_share) * 100)} % pour ${payer}`;
         return `<li class="item" style="grid-template-columns:1fr auto">
           <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
           <div class="item-meta">Payé par ${esc(payer)}, ${esc(split)}, ${esc(catLabel(e.category).toLowerCase())}, ${esc(relDay(e.spent_on))}</div></div>
-          <button class="more" aria-label="Options" data-action="more" data-id="${e.id}">⋯</button>
+          <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
           ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
       }).join('')}</ul>`;
   }).join('');
@@ -626,20 +713,23 @@ function viewArgent() {
     <p class="balance">${sentence}</p>
     ${Math.abs(net) >= 0.01 ? `<button class="link" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>` : ''}
 
-    ${S.showExpenseForm ? `<h2>Nouvelle dépense</h2>
     <form class="form" data-form="expense">
-      <label class="sr" for="exp-amount">Montant en francs</label>
-      <input class="field amount-input" id="exp-amount" data-keep name="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" required>
-      <label class="sr" for="exp-label">Pour quoi</label>
-      <input class="field" id="exp-label" data-keep name="label" placeholder="Pour quoi" autocomplete="off" required>
+      <div class="row">
+        <div style="width: 118px; flex: none"><label class="sr" for="exp-amount">Montant en francs</label>
+          <input class="field amount-input" id="exp-amount" data-keep name="amount" inputmode="decimal" placeholder="0.00" autocomplete="off" required></div>
+        <div class="grow"><label class="sr" for="exp-label">Pour quoi</label>
+          <input class="field" id="exp-label" data-keep name="label" placeholder="Pour quoi" autocomplete="off" required enterkeyhint="done"></div>
+        <button class="btn" type="submit">Ajouter</button>
+      </div>
+      <details class="fold" data-fold="exp-options"><summary>${esc(optionsSummary())}</summary>
       ${chipGroup('exp-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), S.me, 'Payé par')}
       ${chipGroup('exp-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], 'half', 'Partage')}
       ${share === 'custom' ? `<div class="row" style="margin-top:8px"><div class="grow"><label class="chip-label" for="exp-pct" style="display:block;margin:0">Part de celui ou celle qui paie, en %</label><input class="field" id="exp-pct" data-keep name="pct" inputmode="numeric" placeholder="60"></div></div>` : ''}
       ${chipGroup('exp-cat', CATS, 'courses', 'Catégorie')}
       <div class="row" style="margin-top:12px"><div class="grow"><label class="chip-label" for="exp-date" style="display:block;margin:0">Date</label>
         <input class="field" id="exp-date" data-keep name="date" type="date" value="${isoDate(new Date())}"></div></div>
-      <div class="form-actions"><button type="button" class="btn ghost" data-action="exp-form" data-show="0">Annuler</button><button class="btn" type="submit">Enregistrer</button></div>
-    </form>` : `<div class="form-actions"><button class="btn" data-action="exp-form" data-show="1">Ajouter une dépense</button></div>`}
+      </details>
+    </form>
     ${monthHtml || '<p class="empty">Aucune dépense pour l\'instant.</p>'}`;
 }
 
@@ -651,7 +741,8 @@ function viewNuit() {
       <button data-action="nuit-tab" data-tab="care" aria-pressed="${S.nuitTab === 'care'}">Care</button>
       <button data-action="nuit-tab" data-tab="libido" aria-pressed="${S.nuitTab === 'libido'}">Libido</button>
     </div>
-    ${S.nuitTab === 'care' ? viewCare() : viewLibido()}`;
+    ${S.nuitTab === 'care' ? viewCare() : viewLibido()}
+    ${notifOn() ? '' : `<div class="foot"><button class="btn ghost small" data-action="notif">Me prévenir quand un mot arrive</button></div>`}`;
 }
 
 function viewCare() {
@@ -672,7 +763,7 @@ function viewCare() {
 
   return `<h2 style="margin-top:4px">Ta boîte aux lettres</h2>
     ${unread.length ? `<div class="letters">${unread.map(letter).join('')}</div>` : '<p class="empty">Aucun mot en attente.</p>'}
-    ${read.length ? `<details class="fold" ${read.some(c => c.id === S.openLetter) ? 'open' : ''}><summary>Mots déjà lus (${read.length})</summary><div class="letters">${read.map(letter).join('')}</div></details>` : ''}
+    ${read.length ? `<details class="fold" data-fold="read" ${read.some(c => c.id === S.openLetter) ? 'open' : ''}><summary>Mots déjà lus (${read.length})</summary><div class="letters">${read.map(letter).join('')}</div></details>` : ''}
 
     <h2>Écrire à ${esc(nameOf(o))}</h2>
     <form class="form" data-form="care">
@@ -684,9 +775,9 @@ function viewCare() {
       <div class="form-actions"><button class="btn" type="submit">Déposer dans sa boîte</button></div>
     </form>
 
-    ${sent.length ? `<details class="fold"><summary>Tes mots envoyés (${sent.length})</summary><ul class="list sent">${sent.map(c => `
+    ${sent.length ? `<details class="fold" data-fold="sent"><summary>Tes mots envoyés (${sent.length})</summary><ul class="list sent">${sent.map(c => `
       <li class="item" style="grid-template-columns:1fr auto"><div class="item-main"><div class="item-title">${esc(c.body.length > 90 ? c.body.slice(0, 90) + '…' : c.body)}</div>
-      <div class="item-meta">${esc(ago(c.created_at))}, ${c.read_at ? `lu ${esc(ago(c.read_at))}` : 'pas encore lu'}</div></div>
+      <div class="item-meta">${esc(ago(c.created_at))}, ${c.read_at ? 'lu' : 'pas encore lu'}</div></div>
       <button class="link" data-action="care-delete" data-id="${c.id}">Retirer</button></li>`).join('')}</ul></details>` : ''}`;
 }
 
@@ -724,6 +815,7 @@ const actions = {
   more: el => { S.open = S.open === el.dataset.id ? null : el.dataset.id; render(); },
 
   retry: () => refresh(),
+  notif: () => enableNotifications(),
   'cancel-recovery': () => { S.recovery = false; S.login.step = 'login'; refresh(); },
   'task-toggle': el => {
     const t = S.tasks.find(x => x.id === el.dataset.id);
@@ -750,7 +842,7 @@ const actions = {
     meow();
     run(async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
-      await api.insert('chore_log', { chore_id: c.id, title: c.title });
+      await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
     }, `Merci ! Prochain tour : ${nameOf(next)}`, c.id);
   },
   'chore-swap': el => {
@@ -766,7 +858,6 @@ const actions = {
   'shop-toggle': el => { const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return refresh(); if (!s.checked) meow(); run(() => api.update('shopping', { id: s.id }, { checked: !s.checked }), null, s.id); },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
-  'exp-form': el => { S.showExpenseForm = el.dataset.show === '1'; render(); if (S.showExpenseForm) document.getElementById('exp-amount')?.focus(); },
   'exp-delete': el => { if (confirm('Supprimer cette dépense ?')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Dépense supprimée'); } },
   settle: () => {
     const net = balances()[S.me] || 0;
@@ -857,7 +948,7 @@ const forms = {
   },
   chore(f) {
     if (!f.title.value.trim()) { toast('Donne un nom à la corvée'); return; }
-    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), turn: chipVal('chore-first', S.me) };
+    const row = { title: f.title.value.trim(), every_days: Number(chipVal('chore-freq', '7')), weight: Number(chipVal('chore-weight', '2')), turn: chipVal('chore-first', S.me) };
     f.reset(); S.showChoreForm = false;
     run(() => api.insert('chores', row), 'Corvée ajoutée');
   },
@@ -882,8 +973,9 @@ const forms = {
     }
     if (!f.label.value.trim()) { toast('Indique pour quoi'); return; }
     const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()) };
-    f.reset(); S.showExpenseForm = false;
+    f.reset();
     run(() => api.insert('expenses', row), 'Dépense enregistrée');
+    setTimeout(() => document.getElementById('exp-amount')?.focus(), 50);
   },
   care(f) {
     const body = f.body.value.trim();
@@ -901,6 +993,7 @@ document.addEventListener('click', e => {
     S.chips[g.dataset.group] = c.dataset.chip;
     g.querySelectorAll('[data-chip]').forEach(b => b.setAttribute('aria-pressed', b === c));
     if (g.dataset.group === 'exp-split') render(); // affiche ou cache le champ %
+    else if (g.dataset.group.startsWith('exp-')) { const sum = document.querySelector('[data-fold="exp-options"] > summary'); if (sum) sum.textContent = optionsSummary(); }
     return;
   }
   const a = e.target.closest('[data-action]');
@@ -915,7 +1008,7 @@ document.addEventListener('submit', e => {
 });
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) refresh(); });
-setInterval(() => { if (!document.hidden && S.me && S.view === 'nuit') refresh(); }, 30000);
+setInterval(() => { if (S.me && !S.offline && (S.view === 'nuit' || notifOn())) refresh(); }, 30000);
 
 // Démarrage ------------------------------------------------------------------
 
@@ -928,7 +1021,8 @@ async function boot() {
     await refresh();
     return;
   }
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm');
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r => { swReg = r; }).catch(e => console.warn('sw', e));
+  const { createClient } = await import('./vendor/supabase-js-2.49.4.js');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   api = remoteApi(sb);
 
