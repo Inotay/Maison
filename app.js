@@ -846,7 +846,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v27</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v28</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1085,8 +1085,7 @@ function dechetsCard() {
     return `<li class="item dech ${e.state}">${icon}<div class="item-main"><div class="item-title">${esc(s.label)}</div><div class="item-meta"><span class="dot-${e.state}"></span>${esc(ETAT_TEXTE[e.state])}, ${esc(suite)}</div></div></li>`;
   }).join('');
   return `<details class="fold dechets-fold" data-fold="dechets"><summary><img class="ticon" src="icons/themes/poubelle.webp" alt="" width="34" height="34"><span class="d-main"><span class="d-title">Déchets</span><span class="d-sub">${esc(dechetsResume(now))}</span></span><span class="d-dots">${dots}</span></summary>
-    <ul class="list dechets">${rows}</ul>
-    <p class="hint">Vert : le container est près des garages. Jaune : il est déjà au bout du chemin, sur la route de Genève, y amener les sacs l'après-midi avant le ramassage. Rouge : jour de ramassage, on garde chez soi.</p></details>`;
+    <ul class="list dechets">${rows}</ul></details>`;
 }
 
 function pratiqueCard() {
@@ -1099,6 +1098,9 @@ function pratiqueCard() {
       <ul class="plain">${P.panne.map(p => `<li><b>${esc(p.quoi)}</b>${p.texte ? ` : ${esc(p.texte)}` : ''}${p.tel ? ` ${tel(p.tel)}` : ''}${p.note ? ` <span class="hint">${p.tel2 ? esc(p.note).replace(p.tel2, tel(p.tel2)) : esc(p.note)}</span>` : ''}</li>`).join('')}</ul>
       <h3>Déchèterie de Malley</h3><p><b>${esc(P.dechets.quoi)}</b> : ${esc(P.dechets.texte)}<br>${esc(P.dechets.lieu)}<br>${esc(P.dechets.horaires)}<br>${tel(P.dechets.tel)}<br><span class="hint">${esc(P.dechets.contact).replace(P.dechets.tel2, tel(P.dechets.tel2))}</span></p>
       <h3>Urgences</h3><p class="urgences">${P.urgences.map(([l, n]) => `<span><b>${esc(l)}</b> ${tel(n)}</span>`).join('')}</p>
+      <h3>Comment lire cette page</h3>
+      <p><b>Déchets</b> : vert, le container est près des garages, on peut descendre. Jaune, il est déjà au bout du chemin sur la route de Genève, y amener les sacs l'après-midi avant le ramassage. Rouge, jour de ramassage, on garde chez soi. Poubelles et papier sont ramassés mardi et vendredi, verre et compost le lundi.</p>
+      <p><b>Effort</b> : une corvée légère compte 1, normale 2, lourde 3. Le total compte les corvées faites par chacun sur les 30 derniers jours.</p>
     </div></details>`;
 }
 
@@ -1111,6 +1113,7 @@ function viewMenage() {
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
     ${dechetsCard()}
+    <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
@@ -1138,8 +1141,7 @@ function viewMenage() {
       <div class="form-actions"><button type="button" class="btn ghost" data-action="chore-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter</button></div>
     </form>` : `<div class="form-actions"><button class="btn ghost" data-action="chore-form" data-show="1">Ajouter une corvée</button></div>`}
 
-    <h2>Ces 30 derniers jours, en effort</h2>
-    <p class="chip-label mb">Une corvée légère compte 1, normale 2, lourde 3.</p>
+    <h2>Effort, ces 30 derniers jours</h2>
     <div class="fair">${counts.map(([m, n]) => `<div class="fair-row"><span>${esc(m.email === S.me ? 'Toi' : m.name)}</span><div class="fair-bar"><span style="width:${(n / max) * 100}%"></span></div><b>${n}</b></div>`).join('')}</div>
     ${pratiqueCard()}`;
 }

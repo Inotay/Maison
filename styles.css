@@ -664,7 +664,7 @@ body::before {
 .item.house { border-style: dashed; }
 /* Déchets */
 /* Repliée : une seule ligne, comme une carte ; ouverte : le détail des quatre sortes. */
-.dechets-fold { margin: 0 0 var(--s3); }
+.dechets-fold { margin: 0; }
 .dechets-fold > summary { display: flex; align-items: center; gap: var(--s3); list-style: none; padding: var(--s3) var(--s4); background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); box-shadow: 0 3px 0 var(--shadow); cursor: pointer; }
 .dechets-fold > summary::-webkit-details-marker { display: none; }
 .dechets-fold > summary::before, .dechets-fold[open] > summary::before { content: none; }
