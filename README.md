@@ -39,6 +39,9 @@ Dans Care, « Me prévenir quand un mot arrive » demande la permission. Sans se
 - Réussites : chaque chose faite (tâche, corvée, panier complet, comptes à zéro) est inscrite pour toujours dans la table `wins` ; l'accueil montre la semaine, la série de jours et le total depuis le début. Une tâche faite reste affichée dans sa liste pendant 24 h.
 - Argent : la carte Solde dit qui doit quoi, ce que chacun a payé et sa part depuis le dernier remboursement ; chaque dépense indique son effet sur le solde.
 
+### 7. Calendrier partagé (iCloud)
+Dans Maison › Agenda, « Relier le calendrier » demande l'identifiant Apple de la personne qui partage le calendrier, un **mot de passe d'application** (account.apple.com › Connexion et sécurité › Mots de passe d'application) et le nom exact du calendrier (« Les quatre pattes »). La fonction `supabase/functions/agenda` (déjà déployée) cherche ce calendrier par CalDAV, note son adresse, et n'utilise plus que celle-là : lecture des trois prochains mois, ajout, modification et suppression d'événements. Les autres calendriers du compte ne sont jamais lus. Le mot de passe est rangé dans la table `caldav_config`, sans aucune règle d'accès pour les comptes de l'app : seul le serveur la lit. « Déconnecter le calendrier » l'efface ; révoquer le mot de passe d'application chez Apple coupe tout aussi.
+
 ## Hors-ligne
 L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (sans Care). Les polices et la librairie Supabase sont embarquées dans le dépôt : aucune ressource externe.
 
@@ -56,4 +59,5 @@ L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (s
 - `config.js` : connexion à Supabase
 - `icons/`, `manifest.webmanifest` : installation sur l'écran d'accueil
 - `sounds/` : un enregistrement `azami.m4a` remplace le miaulement synthétique
+- `supabase/functions/agenda/` : la fonction serveur qui parle à iCloud (CalDAV)
 - `supabase/schema.sql` : tables et règles d'accès ; `supabase/02_durcissement.sql` : à appliquer ensuite ; `supabase/03_retrait_libido.sql` : efface ce qui servait à l'ancienne partie Libido

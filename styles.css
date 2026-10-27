@@ -642,3 +642,14 @@ body::before {
   content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: 8;
   height: env(safe-area-inset-top, 0px); background: var(--bg); pointer-events: none;
 }
+
+/* Agenda ------------------------------------------------------------------ */
+.hint { font-size: 14px; color: var(--muted); margin: 0 0 var(--s3); line-height: 1.45; }
+.hint.err { color: var(--rouge); font-weight: 700; }
+.item-actions .hint { margin: 0; font-size: 13px; }
+.ag-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); }
+.ag-head .link { padding: 0; }
+.day-head { margin: var(--s5) 0 var(--s2); color: var(--text); font-size: 13px; }
+.day-head.today { color: #8A6512; }
+.item.ev.ongoing { border-color: var(--accent); }
+.form.add + .day-head, .btn + .day-head { margin-top: var(--s4); }

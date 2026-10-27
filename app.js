@@ -53,6 +53,7 @@ const S = {
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   view: safeGet('maison-view') || 'maison',
   maisonTab: 'faire',
+  agenda: { configured: null, events: [], calendar: '', loading: false, error: null, at: null },
   open: null,          // élément dont les actions sont dépliées
   openLetter: null,
   chips: {},           // sélections des groupes de puces
@@ -449,6 +450,7 @@ async function loadAll() {
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
+  loadAgenda();
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, hints: hintsFrom(hints) });
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores, choreLog, expenses, shopping, board, wins }));
@@ -499,6 +501,16 @@ async function run(fn, okMsg, key = 'global') {
   try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); return true; }
   catch (e) { console.error(e); toast("Ça n'a pas marché. Vérifie la connexion et réessaie."); return false; }
   finally { pending.delete(key); }
+}
+
+// Une action sur le calendrier, puis relecture.
+async function runAgenda(fn, okMsg) {
+  if (S.offline) { toast('Hors-ligne : impossible pour le moment.'); return false; }
+  if (pending.has('agenda')) return false;
+  pending.add('agenda');
+  try { await fn(); if (okMsg) toast(okMsg); await loadAgenda(); return true; }
+  catch (e) { console.error(e); toast(e.message || "Ça n'a pas marché."); render(); return false; }
+  finally { pending.delete('agenda'); }
 }
 
 // Journal des réussites : chaque chose faite y reste pour toujours.
@@ -566,6 +578,56 @@ function balanceDetail() {
 function expenseEffect(e) {
   const owed = Math.round(cents(e.amount) * (1 - Number(e.payer_share))) / 100;
   return e.paid_by === S.me ? owed : -owed;
+}
+
+// Agenda : un seul calendrier iCloud partagé, lu et écrit par la fonction « agenda » -----
+
+const DEMO_EVENTS = () => { const d = n => isoDate(new Date(Date.now() + n * DAY)); const t = (n, h) => new Date(new Date(Date.now() + n * DAY).setHours(h, 0, 0, 0)).toISOString(); return [
+  { id: 'e1', href: 'demo/e1', title: 'Dentiste Mariana', start: t(1, 14), end: t(1, 15), allDay: false, recurring: false, place: 'Rue de Bourg' },
+  { id: 'e2', href: 'demo/e2', title: 'Dîner chez Antoine', start: t(3, 19), end: t(3, 23), allDay: false, recurring: false },
+  { id: 'e3', href: 'demo/e3', title: 'Week-end à Aomori', start: d(9), end: d(12), allDay: true, recurring: false },
+  { id: 'e4', href: 'demo/e4', title: 'Yoga', start: t(2, 19), end: t(2, 20), allDay: false, recurring: true },
+]; };
+async function agendaCall(body) {
+  if (DEMO) {
+    const key = 'maison-demo-agenda';
+    let st = JSON.parse(safeGet(key) || 'null') || { configured: true, calendar: 'Les quatre pattes', events: DEMO_EVENTS() };
+    if (body.action === 'setup') st = { configured: true, calendar: body.calendar_name, events: DEMO_EVENTS() };
+    if (body.action === 'forget') st = { configured: false, calendar: '', events: [] };
+    if (body.action === 'create') st.events.push({ ...body.event, id: uid(), href: 'demo/' + uid(), recurring: false });
+    if (body.action === 'update') st.events = st.events.map(e => e.id === body.event.id ? { ...e, ...body.event } : e);
+    if (body.action === 'delete') st.events = st.events.filter(e => e.href !== body.href);
+    safeSet(key, JSON.stringify(st));
+    return { ...st, events: [...st.events].sort((a, b) => a.start.localeCompare(b.start)), at: new Date().toISOString() };
+  }
+  const { data, error } = await sb.functions.invoke('agenda', { body });
+  if (error) { let msg = error.message; try { const j = await error.context?.json(); if (j?.error) msg = j.error; } catch {} throw new Error(msg); }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+async function loadAgenda() {
+  if (S.agenda.loading) return;
+  S.agenda.loading = true;
+  try {
+    const r = await agendaCall({ action: 'list' });
+    Object.assign(S.agenda, { configured: !!r.configured, calendar: r.calendar || '', events: r.events || [], at: r.at, error: null, apple_id: r.apple_id, set_by: r.set_by });
+    safeSet('maison-agenda', JSON.stringify(S.agenda));
+  } catch (e) {
+    console.warn('agenda', e);
+    const cached = JSON.parse(safeGet('maison-agenda') || 'null');
+    if (cached) Object.assign(S.agenda, cached, { error: e.message });
+    else S.agenda.error = e.message;
+  } finally { S.agenda.loading = false; render(); }
+}
+const evDay = e => e.allDay ? e.start.slice(0, 10) : isoDate(new Date(e.start));
+const evTime = iso => new Date(iso).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
+function evWhen(e) {
+  if (e.allDay) { const n = dayDiff(new Date(e.end + 'T12:00'), new Date(e.start + 'T12:00')); return n > 1 ? `${n} jours` : 'Toute la journée'; }
+  return `${evTime(e.start)} – ${evTime(e.end)}`;
+}
+function nextEvent() {
+  const today = isoDate(new Date()), now = new Date().toISOString();
+  return S.agenda.events.find(e => e.allDay ? e.end > today : e.end > now) || null;
 }
 
 // Ménage ---------------------------------------------------------------------
@@ -753,6 +815,8 @@ function viewMaison() {
   if (Math.abs(net) >= 0.01) lines.push([net > 0 ? `${nameOf(other())} te doit` : `Tu dois à ${nameOf(other())}`, `${chf(Math.abs(net))}`, 'argent', false]);
   else lines.push(['Vous êtes quittes', '0.00', 'argent', false]);
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
+  const ne = S.agenda.configured ? nextEvent() : null;
+  if (ne) lines.push([ne.title, ne.allDay ? relDay(ne.start) : `${relDay(evDay(ne))} ${evTime(ne.start)}`, 'agenda', false]);
 
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
@@ -762,12 +826,87 @@ function viewMaison() {
     ${winsCard()}
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire${S.tasks.filter(t => !t.done).length ? ` · ${S.tasks.filter(t => !t.done).length}` : ''}</button>
+      <button data-action="maison-tab" data-tab="agenda" aria-pressed="${S.maisonTab === 'agenda'}">Agenda</button>
       <button data-action="maison-tab" data-tab="tableau" aria-pressed="${S.maisonTab === 'tableau'}">Tableau</button>
     </div>
-    ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
+    ${S.maisonTab === 'faire' ? viewTasks() : S.maisonTab === 'agenda' ? viewAgenda() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v18</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v19</span></div>`;
+}
+
+function viewAgenda() {
+  const A = S.agenda;
+  if (A.configured === false) {
+    return `<h2 class="first">Calendrier partagé</h2>
+    <p class="hint">L'app lit et écrit <b>un seul</b> calendrier iCloud, celui que vous partagez. Elle ne voit jamais vos autres calendriers : une fois « ${esc(chipVal('ag-name', 'Les quatre pattes'))} » trouvé, c'est la seule adresse qu'elle utilise.</p>
+    <p class="hint">Il faut un <b>mot de passe d'application</b> Apple (pas ton mot de passe iCloud) : sur <b>account.apple.com</b> › Connexion et sécurité › Mots de passe d'application › Générer. Il est gardé sur le serveur, jamais sur les téléphones, et tu peux le révoquer n'importe quand depuis le même endroit.</p>
+    <form class="form" data-form="agenda-setup" autocomplete="off">
+      <label class="chip-label" for="ag-id">Identifiant Apple de qui partage le calendrier</label><input class="field" id="ag-id" name="apple_id" type="email" inputmode="email" placeholder="prenom@icloud.com" required>
+      <label class="chip-label" for="ag-pw">Mot de passe d'application</label><input class="field" id="ag-pw" name="app_password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" required>
+      <label class="chip-label" for="ag-name">Nom exact du calendrier</label><input class="field" id="ag-name" name="calendar_name" value="Les quatre pattes" required>
+      <div class="form-actions"><button class="btn" type="submit">Relier le calendrier</button></div>
+    </form>
+    ${A.error ? `<p class="hint err">${esc(A.error)}</p>` : ''}`;
+  }
+  if (A.configured === null) return `<p class="empty">${A.error ? esc(A.error) : 'Lecture du calendrier…'}</p>`;
+  const today = isoDate(new Date());
+  const upcoming = A.events.filter(e => (e.allDay ? e.end > today : e.end > new Date().toISOString()));
+  const days = new Map();
+  for (const e of upcoming) { const k = evDay(e) < today ? today : evDay(e); if (!days.has(k)) days.set(k, []); days.get(k).push(e); }
+  const item = e => {
+    if (S.edit?.id === e.id) return `<li class="item editing">${editEvent(e)}</li>`;
+    const ongoing = (e.allDay ? e.start < today : e.start < new Date().toISOString());
+    return `<li class="item ev ${ongoing ? 'ongoing' : ''}">${iconHtml(iconFor(e.title, 'task', S.hints))}<div class="item-main"><div class="item-title">${esc(e.title)}</div><div class="item-meta">${esc(evWhen(e))}${e.place ? `, ${esc(e.place)}` : ''}${e.recurring ? ', se répète' : ''}</div></div>
+      <button class="more" id="more-${esc(e.id)}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${esc(e.id)}">⋯</button>
+      ${S.open === e.id ? `<div class="item-actions">${e.recurring ? '<span class="hint">Les événements qui se répètent se modifient dans l\'app Calendrier.</span>' : `<button class="btn ghost small" data-action="ev-edit" data-id="${esc(e.id)}">Modifier</button><button class="btn ghost small" data-action="ev-delete" data-id="${esc(e.id)}">Supprimer</button>`}</div>` : ''}</li>`;
+  };
+  const dayLabel = k => { const d = new Date(k + 'T12:00'); const n = dayDiff(d, new Date()); const base = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return n === 0 ? `Aujourd'hui, ${base}` : n === 1 ? `Demain, ${base}` : base[0].toUpperCase() + base.slice(1); };
+  const blocks = [...days.entries()].slice(0, 40).map(([k, list]) => `<h2 class="day-head ${k === today ? 'today' : ''}">${esc(dayLabel(k))}</h2><ul class="list">${list.map(item).join('')}</ul>`).join('');
+  const defaultDate = isoDate(new Date());
+  return `<div class="ag-head"><h2 class="first">${esc(A.calendar || 'Calendrier partagé')}</h2><button class="link" data-action="agenda-refresh">${A.loading ? 'Mise à jour…' : 'Actualiser'}</button></div>
+    ${A.error ? `<p class="hint err">Dernière lecture impossible (${esc(A.error)}). Affichage de la copie d'il y a ${esc(ago(A.at || new Date().toISOString()))}.</p>` : ''}
+    ${S.showEventForm ? `<form class="form add" data-form="agenda-add">
+      <label class="sr" for="ev-title">Titre</label><input class="field" id="ev-title" data-keep name="title" placeholder="Quoi ?" autocomplete="off" required>
+      <div class="row mt"><div class="grow"><label class="chip-label" for="ev-date">Date</label><input class="field" id="ev-date" data-keep name="date" type="date" value="${defaultDate}" required></div>
+        <div class="w-110"><label class="chip-label" for="ev-time">Heure</label><input class="field" id="ev-time" data-keep name="time" type="time"></div></div>
+      ${chipGroup('ev-dur', [['allday', 'Toute la journée'], ['30', '30 min'], ['60', '1 h'], ['120', '2 h'], ['180', '3 h']], '60', 'Durée')}
+      <div class="row mt"><div class="grow"><label class="chip-label" for="ev-end">Jusqu'au (facultatif, pour plusieurs jours)</label><input class="field" id="ev-end" data-keep name="enddate" type="date"></div></div>
+      <label class="sr" for="ev-place">Lieu</label><input class="field mt" id="ev-place" data-keep name="place" placeholder="Lieu (facultatif)" autocomplete="off">
+      <div class="form-actions"><button type="button" class="btn ghost small" data-action="ev-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter au calendrier</button></div>
+    </form>` : `<button class="btn" data-action="ev-form" data-show="1">+ Ajouter un événement</button>`}
+    ${blocks || '<p class="empty">Rien de prévu dans les trois prochains mois.</p>'}
+    <details class="fold" data-fold="ag-settings"><summary>Connexion</summary><p class="hint">Relié à ${esc(A.calendar)} via ${esc(A.apple_id || 'iCloud')}${A.set_by ? `, par ${esc(nameOf(A.set_by))}` : ''}. L'app ne lit que ce calendrier.</p><button class="link" data-action="agenda-forget">Déconnecter le calendrier</button></details>`;
+}
+function editEvent(e) {
+  const d = evDay(e); const t = e.allDay ? '' : evTime(e.start);
+  const mins = e.allDay ? 'allday' : String(Math.round((new Date(e.end) - new Date(e.start)) / 60000));
+  const endDate = e.allDay ? isoDate(new Date(new Date(e.end + 'T12:00').getTime() - DAY)) : isoDate(new Date(e.end));
+  return `<form class="form edit" data-form="agenda-edit" data-id="${esc(e.id)}">
+    <label class="sr" for="ee-title">Titre</label><input class="field" id="ee-title" name="title" value="${esc(e.title)}" required>
+    <div class="row mt"><div class="grow"><label class="chip-label" for="ee-date">Date</label><input class="field" id="ee-date" name="date" type="date" value="${d}" required></div>
+      <div class="w-110"><label class="chip-label" for="ee-time">Heure</label><input class="field" id="ee-time" name="time" type="time" value="${t}"></div></div>
+    ${chipGroup('edit-dur', [['allday', 'Toute la journée'], ['30', '30 min'], ['60', '1 h'], ['120', '2 h'], ['180', '3 h']], ['allday', '30', '60', '120', '180'].includes(mins) ? mins : '60', 'Durée')}
+    <div class="row mt"><div class="grow"><label class="chip-label" for="ee-end">Jusqu'au</label><input class="field" id="ee-end" name="enddate" type="date" value="${endDate !== d ? endDate : ''}"></div></div>
+    <label class="sr" for="ee-place">Lieu</label><input class="field mt" id="ee-place" name="place" value="${esc(e.place || '')}" placeholder="Lieu">
+    <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
+  </form>`;
+}
+// Construit début et fin à partir des champs d'un formulaire d'événement.
+function eventFromForm(f, durGroup) {
+  const title = f.title.value.trim(); if (!title) return { error: 'Donne un titre.' };
+  const date = f.date.value; if (!date) return { error: 'Choisis une date.' };
+  const dur = chipVal(durGroup, '60'); const time = f.time.value; const endDate = f.enddate?.value;
+  const place = f.place?.value.trim() || undefined;
+  if (dur === 'allday' || !time) {
+    const last = endDate && endDate > date ? endDate : date;
+    const end = isoDate(new Date(new Date(last + 'T12:00').getTime() + DAY));
+    return { event: { title, start: date, end, allDay: true, place } };
+  }
+  const start = new Date(`${date}T${time}`);
+  let end = new Date(start.getTime() + Number(dur) * 60000);
+  if (endDate && endDate > date) end = new Date(`${endDate}T${time}`);
+  return { event: { title, start: start.toISOString(), end: end.toISOString(), allDay: false, place } };
 }
 
 function viewTasks() {
@@ -1101,6 +1240,7 @@ const actions = {
   glance: el => {
     const to = el.dataset.to;
     if (to === 'faire') { S.maisonTab = 'faire'; render(); document.querySelector('.list-head')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    if (to === 'agenda') { S.maisonTab = 'agenda'; render(); document.querySelector('.seg')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     actions.go({ dataset: { view: to } });
   },
   'maison-tab': el => { S.maisonTab = el.dataset.tab; render(); },
@@ -1131,6 +1271,16 @@ const actions = {
   'shop-delete': el => { S.open = null; run(() => api.remove('shopping', { id: el.dataset.id }), 'Retiré de la liste'); },
   edit: el => { S.edit = { type: el.dataset.type, id: el.dataset.id }; S.open = null; S.pick = null; S.chips = {}; render(); document.querySelector('.edit input, .edit textarea')?.focus(); },
   'edit-cancel': () => { S.edit = null; render(); },
+  'ev-form': el => { S.showEventForm = el.dataset.show === '1'; render(); if (S.showEventForm) document.getElementById('ev-title')?.focus(); },
+  'ev-edit': el => { S.edit = { type: 'event', id: el.dataset.id }; S.open = null; S.chips = {}; render(); document.getElementById('ee-title')?.focus(); },
+  'ev-delete': el => {
+    const e = S.agenda.events.find(x => x.id === el.dataset.id); if (!e) return;
+    if (!confirm(`Supprimer « ${e.title} » du calendrier partagé ?`)) return;
+    S.open = null;
+    runAgenda(() => agendaCall({ action: 'delete', href: e.href }), 'Supprimé du calendrier');
+  },
+  'agenda-refresh': () => { loadAgenda(); render(); },
+  'agenda-forget': () => { if (confirm('Déconnecter le calendrier ? Rien n\'est effacé dans iCloud ; le mot de passe d\'application est oublié.')) runAgenda(() => agendaCall({ action: 'forget' }), 'Calendrier déconnecté'); },
   pick: el => { S.pick = S.pick?.id === el.dataset.id ? null : { type: el.dataset.type, id: el.dataset.id }; S.open = null; render(); },
   'pick-set': el => {
     const { type, id, icon } = el.dataset;
@@ -1345,6 +1495,23 @@ const forms = {
     const patch = { amount: Math.round(amount * 100) / 100, label, paid_by: chipVal('edit-payer', S.me), payer_share, category: chipVal('edit-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()), icon: iconFor(label, 'expense', S.hints) };
     S.edit = null;
     run(() => api.update('expenses', { id: f.dataset.id }, patch), 'Modifié');
+  },
+  'agenda-setup'(f) {
+    const body = { action: 'setup', apple_id: f.apple_id.value, app_password: f.app_password.value, calendar_name: f.calendar_name.value };
+    toast('Connexion à iCloud…');
+    runAgenda(() => agendaCall(body), 'Calendrier relié').then(ok => { if (ok) { haptic('medium'); burst('sparkle', null, 14); } });
+  },
+  'agenda-add'(f) {
+    const r = eventFromForm(f, 'ev-dur'); if (r.error) return toast(r.error);
+    S.showEventForm = false; S.chips = {};
+    sfx('tick'); haptic('light'); burst('sparkle', f.querySelector('button[type="submit"]'), 8);
+    runAgenda(() => agendaCall({ action: 'create', event: r.event }), 'Ajouté au calendrier').then(ok => { if (!ok) { S.showEventForm = true; render(); } });
+  },
+  'agenda-edit'(f) {
+    const e = S.agenda.events.find(x => x.id === f.dataset.id); if (!e) return;
+    const r = eventFromForm(f, 'edit-dur'); if (r.error) return toast(r.error);
+    S.edit = null; S.chips = {};
+    runAgenda(() => agendaCall({ action: 'update', event: { ...e, ...r.event, notes: e.notes } }), 'Modifié dans le calendrier');
   },
   'edit-note'(f) {
     const body = f.body.value.trim(); if (!body) return toast('Le mot est vide');

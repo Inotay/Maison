@@ -72,6 +72,18 @@ drop policy if exists wins_insert on public.wins;
 create policy wins_insert on public.wins for insert to authenticated with check (public.is_member());
 create index if not exists wins_done_at on public.wins (done_at desc);
 
+-- Calendrier partagé : réglages lus uniquement par la fonction « agenda » (aucune règle pour les comptes).
+create table if not exists public.caldav_config (
+  id int primary key default 1 check (id = 1),
+  apple_id text not null,
+  app_password text not null,
+  calendar_name text not null,
+  calendar_href text not null,
+  set_by text not null default public.me(),
+  updated_at timestamptz not null default now()
+);
+alter table public.caldav_config enable row level security;
+
 -- Dépenses ----------------------------------------------------------------
 -- payer_share = part de la dépense qui revient à la personne qui a payé.
 -- 0.5 = moitié-moitié, 0 = avance pour l'autre (ou remboursement).
