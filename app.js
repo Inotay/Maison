@@ -2,7 +2,7 @@
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf } from './themes.js';
-import { burst, azamiJump, pop, praise } from './fx.js';
+import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp } from './fx.js';
 
 // Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
 function greeting(h = new Date().getHours()) {
@@ -466,6 +466,14 @@ function streak() {
   return n;
 }
 
+// Première réussite du jour : la série grandit, on le fête.
+const todayHasWin = () => S.wins.some(w => isoDate(new Date(w.done_at)) === isoDate(new Date()));
+function streakCheer(delay = 0) {
+  const n = streak();
+  if (n < 2) return;
+  setTimeout(() => { haptic('heavy'); celebrate({ title: `Jour ${n} de suite`, sub: n >= 7 ? 'Une semaine entière. Azami est fière.' : 'Ensemble, chaque jour.' }); }, delay);
+}
+
 // Récompenses : quelle particule pour quel geste.
 const AZAMI_ICONS = new Set(['🐱', '🐾', '🧶', '🪣', '🥣', '🥫']);
 const AZAMI_IDS = /^t:(chat|croquettes|gamelle|patee|friandises|griffoir|arbreachat|jouetschat|plumeau|brossechat|antipuces|veto|vaccinchat|caissetransport|fontaine|herbeachat|gardechat|antipoils|collierchat|pesee|litiere)$/;
@@ -581,7 +589,9 @@ function render() {
   placeAzami();
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
-  if (S.popId) { const id = S.popId; S.popId = null; pop((document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore')); }
+  if (S.popId) { const id = S.popId; S.popId = null; const row = (document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore'); pop(row); wiggle(row); }
+  const wb = document.querySelector('.wins-big b');
+  if (wb) { const to = Number(wb.textContent); if (S.weekShown != null && S.weekShown !== to) { wb.textContent = S.weekShown; countUp(wb, to); wiggle(wb.closest('.wins')); } S.weekShown = to; }
   for (const [id, v] of Object.entries(kept)) {
     const el = document.getElementById(id);
     if (!el) continue;
@@ -1053,12 +1063,13 @@ const actions = {
     if (!t) return refresh();
     if (t.done) { run(() => api.update('tasks', { id: t.id }, { done: false, done_at: null }), null, t.id); return; }
     meow();
-    burst(isAzami(t) ? 'paws' : 'sparkle', el);
-    const last = !S.tasks.some(x => !x.done && x.id !== t.id);
+    const last = !S.tasks.some(x => !x.done && x.id !== t.id), first = !todayHasWin();
+    haptic(last ? 'heavy' : 'medium');
+    ring(el); floatUp(el); burst(isAzami(t) ? 'paws' : 'sparkle', el, 12);
     sfx(last ? 'big' : 'done');
     S.popId = t.id;
-    run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, praise(last ? 'all' : 'task'), t.id)
-      .then(ok => { if (ok) { azamiJump(); if (last) burst('confetti', null, 36); } });
+    run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, last ? null : praise('task'), t.id)
+      .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all') }); if (first) streakCheer(last ? 2300 : 400); });
   },
   'task-assign': el => {
     const w = el.dataset.who;
@@ -1092,14 +1103,17 @@ const actions = {
     // Le tour passe à l'autre que moi : si je fais la corvée de l'autre, il ou elle garde la suivante.
     const next = S.members.find(m => m.email !== S.me)?.email || S.me;
     meow();
+    const first = !todayHasWin();
+    haptic('heavy'); el.classList.add('did'); el.textContent = '✓';
     sfx('big');
-    burst(isAzami(c) ? 'paws' : 'confetti', el, isAzami(c) ? 8 : 22);
+    floatUp(el, c.weight === 3 ? '+3' : c.weight === 1 ? '+1' : '+2');
+    burst(isAzami(c) ? 'paws' : 'confetti', el, isAzami(c) ? 10 : 26);
     S.popId = c.id;
     run(async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, `${praise('chore')} Prochain tour : ${nameOf(next)}`, c.id).then(ok => { if (ok) azamiJump(); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochain tour : ${nameOf(next)}`, level: 'small' }); if (first) streakCheer(1800); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
@@ -1115,12 +1129,13 @@ const actions = {
     const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return refresh();
     if (s.checked) { run(() => api.update('shopping', { id: s.id }, { checked: false }), null, s.id); return; }
     meow();
-    burst(isAzami(s) ? 'paws' : 'sparkle', el, isAzami(s) ? 5 : 8);
-    const last = !S.shopping.some(x => !x.checked && x.id !== s.id);
+    const last = !S.shopping.some(x => !x.checked && x.id !== s.id), first = !todayHasWin();
+    haptic(last ? 'heavy' : 'light');
+    ring(el); burst(isAzami(s) ? 'paws' : 'sparkle', el, isAzami(s) ? 6 : 9);
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
-    run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, last ? praise('basket') : null, s.id)
-      .then(ok => { if (ok && last) { burst('confetti', null, 30); azamiJump(); } });
+    run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
+      .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket') }); if (first) streakCheer(2300); } });
   },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
 
@@ -1133,10 +1148,10 @@ const actions = {
     const amt = Math.round(Math.abs(net) * 100) / 100;
     if (pending.has('settle')) return;
     if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde revient à zéro. Rien n'est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.`)) return;
-    sfx('coin');
-    burst('coins', document.querySelector('[data-action="settle"]'), 16);
-    run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, praise('settle'), 'settle')
-      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); } });
+    sfx('coin'); haptic('heavy');
+    burst('coins', document.querySelector('[data-action="settle"]'), 22);
+    run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, null, 'settle')
+      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); celebrate({ title: 'Comptes à zéro', sub: praise('settle') }); } });
   },
 
   'letter-open': el => {
@@ -1204,7 +1219,7 @@ const forms = {
     const title = f.title.value.trim();
     const row = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, icon: iconFor(title, 'task', S.hints) };
     f.reset();
-    sfx('tick');
+    sfx('tick'); haptic('light');
     burst('sparkle', f.querySelector('button[type="submit"]'), 6);
     run(() => api.insert('tasks', row));
   },
@@ -1242,7 +1257,7 @@ const forms = {
     if (!f.label.value.trim()) { toast('Indique pour quoi'); return; }
     const row = { amount: Math.round(amount * 100) / 100, label: f.label.value.trim(), paid_by: chipVal('exp-payer', S.me), payer_share, category: chipVal('exp-cat', 'courses'), spent_on: f.date.value || isoDate(new Date()), icon: iconFor(f.label.value, 'expense', S.hints) };
     f.reset();
-    sfx('coin');
+    sfx('coin'); haptic('light');
     burst('coins', f.querySelector('button[type="submit"]'), 7);
     run(() => api.insert('expenses', row), praise('expense')).then(ok => { if (ok) pop(document.querySelector('.bal-card')); });
     setTimeout(() => document.getElementById('exp-amount')?.focus(), 50);
@@ -1290,8 +1305,8 @@ const forms = {
     if (!body) return;
     const row = { recipient: other(), kind: chipVal('care-kind', 'merci'), body, wants_talk: f.talk.checked };
     f.reset();
-    sfx('heart');
-    burst('hearts', f.querySelector('button[type="submit"]'), 10);
+    sfx('heart'); haptic('medium');
+    burst('hearts', f.querySelector('button[type="submit"]'), 12);
     run(() => api.insert('care_messages', row), `${praise('care')} ${nameOf(other())} le trouvera dans sa boîte.`);
   },
 };

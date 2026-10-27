@@ -145,3 +145,101 @@ export function praise(kind) {
   SAID[kind] = m;
   return m;
 }
+
+// Retour haptique. Android : vibration. iPhone : Safari n'a pas l'API vibration, mais un
+// interrupteur natif (<input type="checkbox" switch>) déclenche le moteur haptique quand on
+// le bascule dans un geste de l'utilisateur ; on en cache un et on le bascule.
+let hapSwitch = null;
+function hapticSwitch() {
+  if (!hapSwitch) {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none';
+    lab.setAttribute('aria-hidden', 'true');
+    const inp = document.createElement('input');
+    inp.type = 'checkbox'; inp.setAttribute('switch', ''); inp.tabIndex = -1;
+    lab.appendChild(inp); document.body.appendChild(lab);
+    hapSwitch = inp;
+  }
+  return hapSwitch;
+}
+export function haptic(level = 'light') {
+  const pattern = { light: [10], medium: [18, 40, 18], heavy: [30, 50, 30, 50, 60] }[level] || [10];
+  try { if (navigator.vibrate && navigator.vibrate(pattern)) return; } catch {}
+  try {
+    const sw = hapticSwitch();
+    const pulses = { light: 1, medium: 2, heavy: 3 }[level] || 1;
+    for (let i = 0; i < pulses; i++) setTimeout(() => sw.click(), i * 90);
+  } catch {}
+}
+
+// « +1 » qui s'envole depuis le point touché.
+export function floatUp(el, text = '+1') {
+  if (reduced()) return;
+  const [x, y] = at(el);
+  spawn(x, y - 10, text, { color: C.lampe, fontSize: '22px', fontWeight: '900', textShadow: '0 2px 0 rgba(0,0,0,.35)' }, [
+    { transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 },
+    { transform: 'translate(-50%,-90%) scale(1.25)', opacity: 1, offset: .25 },
+    { transform: 'translate(-50%,-260%) scale(1)', opacity: 0 },
+  ], 1100, 'cubic-bezier(.2,.8,.3,1)');
+}
+
+// Anneau qui s'élargit autour de la case cochée.
+export function ring(el) {
+  if (reduced()) return;
+  const [x, y] = at(el);
+  spawn(x, y, '', { width: '30px', height: '30px', borderRadius: '50%', border: `4px solid ${C.lampe}` }, [
+    { transform: 'translate(-50%,-50%) scale(.6)', opacity: 1 },
+    { transform: 'translate(-50%,-50%) scale(3.2)', opacity: 0 },
+  ], 520, 'cubic-bezier(.1,.7,.3,1)');
+}
+
+// Pluie de confettis depuis le haut de l'écran.
+function rain(n = 70) {
+  for (let i = 0; i < n; i++) {
+    const x = rnd(0, innerWidth), w = rnd(6, 11), h = rnd(10, 18), delay = rnd(0, 500);
+    const cols = [C.lampe, '#FFFFFF', C.rouge, '#1E2F3F', '#9CC4E4'];
+    setTimeout(() => spawn(x, -20, '', { width: w + 'px', height: h + 'px', background: pick(cols), borderRadius: '2px' }, [
+      { transform: `translate(-50%,0) rotate(${rnd(0, 360)}deg)`, opacity: 1 },
+      { transform: `translate(${rnd(-80, 80)}px, ${innerHeight * .55}px) rotate(${rnd(360, 1080)}deg)`, opacity: 1, offset: .7 },
+      { transform: `translate(${rnd(-120, 120)}px, ${innerHeight + 40}px) rotate(${rnd(720, 1440)}deg)`, opacity: .6 },
+    ], rnd(1400, 2200), 'cubic-bezier(.2,.4,.6,1)'), delay);
+  }
+}
+
+// Grande célébration : flash, Azami qui saute au milieu, mot en gros, pluie de confettis.
+export function celebrate({ title, sub = '', level = 'big' } = {}) {
+  if (reduced()) return;
+  const old = document.getElementById('cele'); if (old) old.remove();
+  const box = document.createElement('div');
+  box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
+  const az = document.querySelector('img.azami');
+  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card">${az ? `<img class="cele-azami" src="${az.src}" alt="">` : ''}<p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('on'));
+  burst('confetti', null, level === 'big' ? 40 : 24);
+  rain(level === 'big' ? 80 : 40);
+  setTimeout(() => sparkle(innerWidth / 2, innerHeight * .38, 14), 250);
+  setTimeout(() => { box.classList.remove('on'); box.classList.add('off'); }, level === 'big' ? 1900 : 1400);
+  setTimeout(() => box.remove(), level === 'big' ? 2400 : 1900);
+}
+
+// Secoue joyeusement un élément (la ligne cochée, la carte Réussites).
+export function wiggle(el) {
+  if (!el || reduced()) return;
+  el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle');
+  setTimeout(() => el.classList.remove('wiggle'), 700);
+}
+
+// Fait compter un nombre vers sa nouvelle valeur, avec un rebond à l'arrivée.
+export function countUp(el, to, ms = 700) {
+  if (!el) return;
+  const from = Number(String(el.textContent).replace(/[^\d.-]/g, '')) || 0;
+  if (reduced() || from === to) { el.textContent = to; return; }
+  const t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = Math.round(from + (to - from) * e);
+    if (k < 1) requestAnimationFrame(step); else { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
+  };
+  requestAnimationFrame(step);
+}
