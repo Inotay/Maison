@@ -43,16 +43,18 @@ async function discover(cfg: { apple_id: string; app_password: string }, name: s
   if (!home) throw new Error("Impossible de trouver la liste des calendriers.");
   const homeUrl = abs(ICLOUD, home);
   const p3 = await dav(cfg, "PROPFIND", homeUrl, `<d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:resourcetype/></d:prop></d:propfind>`, { Depth: "1" });
-  const responses = p3.text.split(/<\/?d:response>|<\/?response>/i);
+  console.log("home", homeUrl, "réponse", p3.status, p3.text.slice(0, 6000));
   const want = name.trim().toLowerCase();
   const names: string[] = [];
-  for (const r of responses) {
-    const href = /href[^>]*>([^<]+)</i.exec(r)?.[1];
-    const dn = /displayname[^>]*>([^<]*)</i.exec(r)?.[1];
-    if (!href || dn == null || !/calendar\b/i.test(r) || !/resourcetype/i.test(r)) continue;
-    if (!/<[a-z]*:?calendar\s*\/?>/i.test(r)) continue;
-    names.push(unesc(dn));
-    if (unesc(dn).trim().toLowerCase() === want) return { href: abs(homeUrl, href), name: unesc(dn) };
+  const blocks = p3.text.match(/<(?:[a-z0-9_-]+:)?response[\s>][\s\S]*?<\/(?:[a-z0-9_-]+:)?response>/gi) ?? [];
+  for (const r of blocks) {
+    const href = /<(?:[a-z0-9_-]+:)?href[^>]*>([^<]+)</i.exec(r)?.[1];
+    const dnm = /<(?:[a-z0-9_-]+:)?displayname[^>]*>(?:<!\[CDATA\[)?([^<\]]*)/i.exec(r);
+    if (!href || !dnm) continue;
+    const dn = unesc(dnm[1]).trim();
+    if (!dn) continue;
+    names.push(dn);
+    if (dn.toLowerCase() === want) return { href: abs(homeUrl, href), name: dn };
   }
   throw new Error(`Aucun calendrier nommé « ${name} ». Calendriers vus : ${names.join(", ") || "aucun"}.`);
 }
