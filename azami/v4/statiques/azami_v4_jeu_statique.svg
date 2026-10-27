@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"
+ role="img" aria-label="Azami V4 — jeu" data-scene="jeu" data-animated="false"
+ data-duration="0" data-background="transparent" data-audio="none">
+<title>Azami V4 — jeu</title><desc>Azami se tapit, bondit rapidement vers une balle, atterrit puis l’observe.</desc>
+<style><![CDATA[#sit-rig,#ball,#stars{opacity:0} #quad-rig{opacity:1}]]></style>
+<!-- Entirely scalable shapes; transparent page, no raster assets, each rig is editable. -->
+<g id="quad-rig">
+<g id="quad-tail" style="transform-origin:324px 303px"><path d="M324 302 C353 295 380 261 379 215 C378 190 401 182 408 204" stroke="#39201E" stroke-width="23" stroke-linecap="round" fill="none"/></g>
+<g id="q-leg-rear-far" style="transform-origin:315px 315px">
+<path d="M315 315 Q326 348 323 377" stroke="#F4DBB4" stroke-width="27" stroke-linecap="round" fill="none"/>
+<ellipse cx="325" cy="388" rx="19" ry="14" fill="#39201E"/>
+</g>
+<g id="q-leg-front-far" style="transform-origin:212px 311px">
+<path d="M212 311 Q200 348 215 377" stroke="#F4DBB4" stroke-width="27" stroke-linecap="round" fill="none"/>
+<ellipse cx="217" cy="388" rx="19" ry="14" fill="#39201E"/>
+</g>
+<g id="quad-body"><ellipse cx="265" cy="308" rx="99" ry="57" fill="#F4DBB4"/><ellipse cx="258" cy="335" rx="74" ry="26" fill="#FFF2D9" opacity=".58"/></g>
+<ellipse cx="204" cy="296" rx="31" ry="47" fill="#F4DBB4" transform="rotate(-17 204 296)"/>
+<g id="q-leg-rear-near" style="transform-origin:319px 315px">
+<path d="M319 315 Q330 348 327 377" stroke="#F4DBB4" stroke-width="27" stroke-linecap="round" fill="none"/>
+<ellipse cx="329" cy="388" rx="19" ry="14" fill="#39201E"/>
+</g>
+<g id="q-leg-front-near" style="transform-origin:207px 311px">
+<path d="M207 311 Q195 348 210 377" stroke="#F4DBB4" stroke-width="27" stroke-linecap="round" fill="none"/>
+<ellipse cx="212" cy="388" rx="19" ry="14" fill="#39201E"/>
+</g>
+<g id="quad-head">
+<g id="quad-ear-left" style="transform-origin:116px 173px">
+ <path d="M129 178 Q104 131 94 116 Q83 103 85 131 L92 203Z" fill="#39201E"/>
+ <path d="M116 174 Q101 142 94 133 L98 178Z" fill="#F2A5AF"/>
+</g>
+<g id="quad-ear-right" style="transform-origin:202px 166px">
+ <path d="M192 177 Q206 128 217 115 Q229 103 227 128 L231 194Z" fill="#39201E"/>
+ <path d="M204 170 Q214 144 218 133 L218 177Z" fill="#F2A5AF"/>
+</g>
+<ellipse cx="162" cy="220" rx="76" ry="77" fill="#F4DBB4"/>
+<path d="M101 226 Q103 192 128 184 Q144 178 159 186 Q178 178 197 186 Q222 195 226 228 Q220 265 166 272 Q110 269 101 226Z" fill="#3B2322"/>
+<g id="quad-eyes-open"><g class="eye" transform="translate(138 215)">
+<ellipse rx="20" ry="23" fill="#FFF2D9"/>
+<ellipse rx="16" ry="19" fill="#70C3ED"/>
+<ellipse cx="2" cy="2" rx="10.5" ry="13.5" fill="#123855"/>
+<circle cx="-4" cy="-7" r="6.2" fill="white"/>
+<circle cx="9" cy="7" r="2.6" fill="white" opacity=".88"/>
+</g><g class="eye" transform="translate(190 215)">
+<ellipse rx="20" ry="23" fill="#FFF2D9"/>
+<ellipse rx="16" ry="19" fill="#70C3ED"/>
+<ellipse cx="2" cy="2" rx="10.5" ry="13.5" fill="#123855"/>
+<circle cx="-4" cy="-7" r="6.2" fill="white"/>
+<circle cx="9" cy="7" r="2.6" fill="white" opacity=".88"/>
+</g></g>
+<g id="quad-eyes-shut" opacity="0"><path d="M 120 217 Q 138 233 156 217 M 172 217 Q 190 233 208 217" stroke="#FFF2D9" stroke-width="6" stroke-linecap="round" fill="none"/></g>
+<ellipse cx="165" cy="251" rx="23" ry="13" fill="#69413D"/>
+<path d="M158 246 Q165 241 172 246 Q170 252 165 253 Q160 252 158 246Z" fill="#F5A6AD"/>
+<g id="quad-smile" stroke="#F5A6AD" stroke-width="3.2" fill="none" stroke-linecap="round"><path d="M165 251 V257 M165 257 Q160 262 156 258 M165 257 Q170 262 175 258"/></g>
+<g id="quad-mouth-open" opacity="0"><ellipse cx="165" cy="266" rx="8" ry="10" fill="#9C5560"/></g>
+<g id="quad-whiskers" stroke="#FFF2D9" stroke-width="3.8" fill="none" stroke-linecap="round">
+<path d="M119 250 Q97 241 80 241 M120 258 Q97 258 81 267"/>
+<path d="M211 250 Q233 241 250 241 M210 258 Q233 258 249 267"/>
+</g>
+</g>
+</g>
+<g id="sit-rig">
+<g id="sit-tail"><path d="M322 340 C361 305 400 333 389 366 Q383 393 352 382" stroke="#39201E" stroke-width="25" stroke-linecap="round" fill="none"/></g>
+<g id="sit-body"><ellipse cx="256" cy="337" rx="77" ry="76" fill="#F4DBB4"/>
+<ellipse cx="256" cy="341" rx="43" ry="57" fill="#FFF2D9" opacity=".86"/>
+<path d="M194 329 Q177 351 192 374" stroke="#EBC8A0" stroke-width="12" stroke-linecap="round" fill="none" opacity=".45"/>
+<path d="M318 329 Q335 351 320 374" stroke="#EBC8A0" stroke-width="12" stroke-linecap="round" fill="none" opacity=".45"/>
+</g>
+<g id="sit-feet"><ellipse cx="220" cy="404" rx="28" ry="18" fill="#39201E"/><ellipse cx="291" cy="404" rx="28" ry="18" fill="#39201E"/></g>
+<g id="sit-arm-far" style="transform-origin:299px 302px"><path d="M299 298 Q320 320 305 354" stroke="#F4DBB4" stroke-width="26" stroke-linecap="round" fill="none"/><ellipse cx="305" cy="354" rx="16" ry="14" fill="#39201E"/></g>
+<g id="sit-head" transform="translate(0 0)">
+<!-- Ear pivot groups FIRST: physically behind the cranium -->
+<g id="sit-ear-left" style="transform-origin:204px 154px">
+ <path d="M219 163 Q196 109 180 94 Q168 87 172 113 L181 185Z" fill="#39201E"/>
+ <path d="M209 157 Q192 126 182 113 L188 165Z" fill="#F2A5AF"/>
+</g>
+<g id="sit-ear-right" style="transform-origin:312px 154px">
+ <path d="M293 163 Q316 109 332 94 Q344 87 340 113 L331 185Z" fill="#39201E"/>
+ <path d="M303 157 Q320 126 330 113 L324 165Z" fill="#F2A5AF"/>
+</g>
+<path d="M163 202 C165 151 201 141 256 140 C312 141 348 151 349 202 C349 262 308 288 256 288 C204 288 162 262 163 202Z" fill="#F4DBB4"/>
+<path d="M179 213 C182 181 206 175 232 171 Q253 169 273 171 C300 167 326 184 333 213 C334 254 304 270 256 270 C209 270 177 255 179 213Z" fill="#3B2322"/>
+<g id="sit-eyes-open"><g class="eye" transform="translate(218 207)">
+<ellipse rx="20" ry="23" fill="#FFF2D9"/>
+<ellipse rx="16" ry="19" fill="#70C3ED"/>
+<ellipse cx="2" cy="2" rx="10.5" ry="13.5" fill="#123855"/>
+<circle cx="-4" cy="-7" r="6.2" fill="white"/>
+<circle cx="9" cy="7" r="2.6" fill="white" opacity=".88"/>
+</g><g class="eye" transform="translate(294 207)">
+<ellipse rx="20" ry="23" fill="#FFF2D9"/>
+<ellipse rx="16" ry="19" fill="#70C3ED"/>
+<ellipse cx="2" cy="2" rx="10.5" ry="13.5" fill="#123855"/>
+<circle cx="-4" cy="-7" r="6.2" fill="white"/>
+<circle cx="9" cy="7" r="2.6" fill="white" opacity=".88"/>
+</g></g>
+<g id="sit-eyes-shut" opacity="0"><path d="M 200 209 Q 218 225 236 209 M 276 209 Q 294 225 312 209" stroke="#FFF2D9" stroke-width="6" stroke-linecap="round" fill="none"/></g>
+<ellipse cx="256" cy="251" rx="28" ry="18" fill="#67403C" opacity=".82"/>
+<path d="M247 243 Q256 236 265 243 Q264 249 256 251 Q248 249 247 243Z" fill="#F5A6AD"/>
+<g id="sit-mouth-smile" stroke="#F5A6AD" stroke-width="3.6" fill="none" stroke-linecap="round"><path d="M256 250 V256 M256 256 Q248 265 240 258 M256 256 Q264 265 272 258"/></g>
+<g id="sit-mouth-open" opacity="0"><ellipse cx="256" cy="264" rx="9" ry="13" fill="#9C5560"/><path d="M252 271 Q256 266 260 271" stroke="#F8B8C1" stroke-width="3" stroke-linecap="round"/></g>
+<g id="sit-tongue" opacity="0"><path d="M254 256 Q248 261 250 274 Q257 285 264 274 Q266 267 260 259Z" fill="#F69DAE"/></g>
+<g id="sit-whiskers" stroke="#FFF2D9" stroke-width="3.8" fill="none" stroke-linecap="round">
+<path d="M210 254 Q188 245 171 245 M211 262 Q188 262 172 271"/>
+<path d="M302 254 Q324 245 341 245 M301 262 Q324 262 340 271"/>
+</g>
+</g>
+<g id="sit-arm-near" style="transform-origin:213px 299px"><path d="M213 299 Q193 321 206 350" stroke="#EBC8A0" stroke-width="31" stroke-linecap="round" fill="none"/><path d="M213 299 Q193 321 206 350" stroke="#F4DBB4" stroke-width="25" stroke-linecap="round" fill="none"/><ellipse cx="206" cy="350" rx="16" ry="15" fill="#39201E"/><path d="M198 350 L202 357 M209 351 L213 357" stroke="#EBC8A0" stroke-width="2" stroke-linecap="round" opacity=".5"/></g>
+<g id="groom-tongue-front" opacity="0"><path d="M244 262 Q249 256 254 260 Q255 268 249 273 Q243 270 244 262 Z" fill="#F2A5AF" /></g>
+</g>
+<g id="ball" opacity="0"><ellipse cx="396" cy="381" rx="28" ry="24" fill="#EA7561"/>
+<path d="M380 366 Q400 370 414 390" stroke="#F9C849" stroke-width="6" fill="none" stroke-linecap="round"/>
+<circle cx="387" cy="375" r="6" fill="#FFF5E8" opacity=".7"/>
+</g>
+<g id="stars" opacity="0"><path d="M387 173 Q390 187 403 190 Q389 194 387 207 Q383 193 372 190 Q384 187 387 173Z" fill="#F9C849"/>
+<path d="M101 324 Q104 333 113 337 Q104 339 101 349 Q98 340 88 337 Q99 334 101 324Z" fill="#F9C849"/></g>
+</svg>

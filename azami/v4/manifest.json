@@ -1,0 +1,61 @@
+{
+  "version": "4.0-prototype",
+  "character": "Azami",
+  "themes": [
+    "bleu",
+    "brun"
+  ],
+  "format": "SVG+CSS",
+  "background": "transparent",
+  "audio_included": false,
+  "scenes": [
+    {
+      "id": "demo",
+      "animated": "anime/azami_v4_demo_anime.svg",
+      "static": "statique/azami_v4_demo_statique.svg",
+      "duration_s": 18.8,
+      "description": "Azami passe d’une pose assise à une marche, fait un bond vers une balle, puis se toilette et miaule.",
+      "recommended_use": "validation du rig et écran de démonstration"
+    },
+    {
+      "id": "marche",
+      "animated": "anime/azami_v4_marche_anime.svg",
+      "static": "statique/azami_v4_marche_statique.svg",
+      "duration_s": 8.6,
+      "description": "Azami se déplace sur quatre pattes avec quatre membres indépendants, regarde autour d’elle et frémit des oreilles.",
+      "recommended_use": "micro-animation d’accueil"
+    },
+    {
+      "id": "toilette",
+      "animated": "anime/azami_v4_toilette_anime.svg",
+      "static": "statique/azami_v4_toilette_statique.svg",
+      "duration_s": 11.0,
+      "description": "Azami lève sa patte articulée, la lèche à plusieurs reprises, puis retrouve une pose élégante.",
+      "recommended_use": "idle / pause"
+    },
+    {
+      "id": "etirement",
+      "animated": "anime/azami_v4_etirement_anime.svg",
+      "static": "statique/azami_v4_etirement_statique.svg",
+      "duration_s": 10.4,
+      "description": "Azami s’étire en avançant les pattes avant, arqué le dos, reprend sa posture et se redresse.",
+      "recommended_use": "réveil et matinée"
+    },
+    {
+      "id": "jeu",
+      "animated": "anime/azami_v4_jeu_anime.svg",
+      "static": "statique/azami_v4_jeu_statique.svg",
+      "duration_s": 12.4,
+      "description": "Azami se tapit, bondit rapidement vers une balle, atterrit puis l’observe.",
+      "recommended_use": "surprise rare"
+    },
+    {
+      "id": "miaulement",
+      "animated": "anime/azami_v4_miaulement_anime.svg",
+      "static": "statique/azami_v4_miaulement_statique.svg",
+      "duration_s": 8.2,
+      "description": "Azami relève légèrement la tête, ouvre la bouche et miaule deux fois.",
+      "recommended_use": "réaction visuelle ponctuelle"
+    }
+  ]
+}

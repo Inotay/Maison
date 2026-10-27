@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Essai Azami V4</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* Page d'essai hors production : le prototype V4 dans les cadres d'en-tête réels, sur les deux thèmes. */
+  body { padding: 0 var(--gutter) 40px; }
+  .essai { max-width: 560px; margin: 0 auto; }
+  .essai h1 { margin: 24px 0 4px; }
+  .essai .hint { margin: 0 0 16px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0 20px; }
+  .pane { border-radius: var(--r); padding: 12px; border: 2px solid var(--line); }
+  .pane.ciel { background: #53A5C7; } .pane.brun { background: #241710; }
+  .pane .lbl { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .9; }
+  .pane.ciel .lbl { color: #1E2F3F; } .pane.brun .lbl { color: #F7EFE3; }
+  .pane img { display: block; width: 150px; height: 150px; margin: 0 auto; object-fit: contain; }
+  .scenes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
+  .scenes button { font: inherit; font-weight: 800; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--text); }
+  .scenes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-edge); color: var(--accent-text); }
+  .fps { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main class="essai">
+  <h1>Essai Azami V4</h1>
+  <p class="hint">Prototype articulé, hors production. Même SVG sur les deux fonds, taille d'en-tête (150 px). <span class="fps" id="fps">Mesure…</span></p>
+  <div class="scenes" id="scenes"></div>
+  <div class="two">
+    <div class="pane ciel"><div class="lbl">Ciel</div><img id="a" alt="Azami V4, thème ciel"></div>
+    <div class="pane brun"><div class="lbl">Brun</div><img id="b" alt="Azami V4, thème brun"></div>
+  </div>
+  <p class="hint">Avec « Réduire les animations » activé sur l'iPhone, c'est la version statique qui s'affiche. <label><input type="checkbox" id="static"> Forcer la version statique</label></p>
+  <p class="hint"><a class="link" href="./">← Retour à Maison</a></p>
+</main>
+<script>
+  const SCENES = ['demo', 'marche', 'toilette', 'etirement', 'jeu', 'miaulement'];
+  const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.getElementById('static').checked;
+  let cur = 'demo';
+  const src = s => reduced() ? `azami/v4/statiques/azami_v4_${s}_statique.svg` : `azami/v4/azami_v4_${s}_anime.svg?${Date.now()}`;
+  function show() { for (const id of ['a', 'b']) document.getElementById(id).src = src(cur); document.querySelectorAll('#scenes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === cur)); }
+  document.getElementById('scenes').innerHTML = SCENES.map(s => `<button data-s="${s}" aria-pressed="false">${s}</button>`).join('');
+  document.getElementById('scenes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { cur = b.dataset.s; show(); } });
+  document.getElementById('static').addEventListener('change', show);
+  show();
+  // Fluidité : images par seconde de la page pendant que les deux SVG tournent.
+  let n = 0, t0 = performance.now();
+  (function tick() { n++; const t = performance.now(); if (t - t0 >= 1000) { document.getElementById('fps').textContent = `${Math.round(n * 1000 / (t - t0))} i/s`; n = 0; t0 = t; } requestAnimationFrame(tick); })();
+</script>
+</body>
+</html>
