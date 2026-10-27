@@ -7,10 +7,10 @@
 
 const O = 'ok', R = 'route', N = 'non';
 export const SORTES = [
-  { id: 'poubelles', label: 'Poubelles', icon: 'poubelle', week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
-  { id: 'papier', label: 'Papier & carton', icon: 'recyclage', week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
-  { id: 'verre', label: 'Verre', icon: 'bulles', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
-  { id: 'compost', label: 'Compost', icon: 'legumes', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  { id: 'poubelles', label: 'Poubelles', icon: 'poubelle', every: 10, week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
+  { id: 'papier', label: 'Papier & carton', icon: 'recyclage', every: 14, week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
+  { id: 'verre', label: 'Verre', icon: 'bulles', every: 14, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  { id: 'compost', label: 'Compost', icon: 'legumes', every: 10, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
 ];
 
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
@@ -43,12 +43,28 @@ export const ETAT_TEXTE = {
   non: 'Ramassage : on garde chez soi',
 };
 
-// Résumé d'une ligne pour la tuile d'accueil.
-export function resume(now = new Date()) {
-  const ok = SORTES.filter(s => etat(s, now).state === 'ok').map(s => s.label.toLowerCase().replace(' & carton', ''));
-  if (ok.length === SORTES.length) return 'Tout peut descendre';
-  if (!ok.length) return 'Rien ne descend pour le moment';
-  return ok.join(', ')[0].toUpperCase() + ok.join(', ').slice(1);
+// Où en est une sorte : à descendre ou pas (d'après la dernière descente et sa fréquence),
+// et possible ou pas maintenant (d'après le calendrier de ramassage).
+const DAY = 86400000;
+export function descente(s, row, now = new Date()) {
+  const e = etat(s, now);
+  const every = Number(row?.every_days) || s.every;
+  const last = row?.last_done_at ? new Date(row.last_done_at) : null;
+  const dueAt = last ? new Date(last.getTime() + every * DAY) : now;
+  const due = !last || now >= dueAt;
+  const possible = e.state !== 'non';
+  return { due, possible, state: e.state, until: e.until, last, dueAt, every };
+}
+
+// Résumé d'une ligne pour la tuile d'accueil et l'en-tête de la carte.
+export function resume(waste, now = new Date()) {
+  const st = waste.map(c => descente(SORTES.find(s => s.id === c.sorte), c, now));
+  const a = st.filter(x => x.due && x.possible).length;
+  const b = st.filter(x => x.due && !x.possible).length;
+  if (!a && !b) return 'Tout est descendu';
+  if (a && !b) return a === 1 ? '1 à descendre' : `${a} à descendre`;
+  if (!a) return b === 1 ? '1 en attente du ramassage' : `${b} en attente du ramassage`;
+  return `${a} à descendre, ${b} en attente`;
 }
 
 // Fiche pratique de l'immeuble : gérance, pannes, déchèterie, urgences.

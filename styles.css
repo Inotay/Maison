@@ -669,6 +669,15 @@ body::before {
 .dech-card .dots { gap: 4px; padding-right: var(--s2); }
 .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .dot-ok { background: #58C06A; } .dot-route { background: #F2C14E; } .dot-non { background: var(--rouge); }
+.dot.off { opacity: .4; }
+/* Bouton de descente : rouge quand c'est le moment, vert quand c'est fait, grisé quand le calendrier l'interdit. */
+.dech-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 96px; height: 40px; padding: 0 var(--s3); border-radius: 12px; font-weight: 800; font-size: 14px; white-space: nowrap; }
+.dech-btn.due { background: var(--rouge); color: #fff; border: 0; box-shadow: 0 4px 0 #A33428; }
+.dech-btn.due.off { background: color-mix(in srgb, var(--rouge) 45%, var(--surface)); color: color-mix(in srgb, #fff 80%, var(--rouge)); box-shadow: 0 4px 0 color-mix(in srgb, #A33428 40%, var(--surface)); }
+.dech-btn.done { background: #58C06A; color: #0F3A1A; box-shadow: 0 4px 0 #2F8A42; }
+.dech-btn.done.off { background: color-mix(in srgb, #58C06A 45%, var(--surface)); color: color-mix(in srgb, #0F3A1A 60%, var(--surface)); box-shadow: 0 4px 0 color-mix(in srgb, #2F8A42 40%, var(--surface)); }
+.dech-btn.did { background: #58C06A; color: #0F3A1A; box-shadow: 0 4px 0 #2F8A42; }
+.dech-row .item-trail { flex: none; }
 .dech-list { list-style: none; margin: 0; padding: 0 var(--s3) var(--s2) var(--s4); border-top: 2px solid var(--line); }
 .dech-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
 .dech-row:first-child { border-top: 0; }
