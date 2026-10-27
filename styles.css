@@ -512,6 +512,30 @@ details.fold[open] > summary::before { content: "− "; }
 }
 #toast.on { opacity: 1; }
 
+/* Récompenses ------------------------------------------------------------- */
+
+#fx { position: fixed; inset: 0; pointer-events: none; z-index: 20; overflow: hidden; }
+.fx-p { position: absolute; display: block; will-change: transform, opacity; line-height: 1; font-weight: 700; }
+
+.btn, .chips button, .tick, .nav button, .more, .icon-btn, .switch, .azami-btn, .link, .picker button {
+  transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), background-color .18s, border-color .18s, color .18s;
+}
+.btn:active, .chips button:active, .more:active, .icon-btn:active, .link:active, .picker button:active { transform: scale(.93); }
+.tick:active, .nav button:active { transform: scale(.86); }
+.azami-btn:active { transform: scale(.96) rotate(-2deg); }
+.tick[aria-checked="true"] { animation: tick-pop .45s cubic-bezier(.34, 1.56, .64, 1); }
+.tick[aria-checked="true"]::after { animation: tick-draw .3s .1s ease-out backwards; }
+@keyframes tick-pop { 0% { transform: scale(.7); } 60% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@keyframes tick-draw { from { opacity: 0; transform: rotate(-45deg) translate(1px, -1px) scale(.4); } to { opacity: 1; transform: rotate(-45deg) translate(1px, -1px) scale(1); } }
+
+.pop { animation: pop .6s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes pop { 0% { transform: scale(1); } 35% { transform: scale(1.035); background-color: color-mix(in srgb, var(--bleu) 14%, transparent); } 100% { transform: scale(1); } }
+img.azami.jump { animation: jump .8s cubic-bezier(.34, 1.56, .64, 1); transform-origin: 50% 100%; }
+@keyframes jump { 0% { transform: translateY(0) scale(1, 1); } 20% { transform: translateY(4px) scale(1.08, .92); } 50% { transform: translateY(-18px) scale(.96, 1.06); } 75% { transform: translateY(0) scale(1.04, .96); } 100% { transform: translateY(0) scale(1, 1); } }
+
+#toast { transition: opacity .25s, transform .35s cubic-bezier(.34, 1.56, .64, 1); transform: translateX(-50%) translateY(14px) scale(.92); }
+#toast.on { transform: translateX(-50%) translateY(0) scale(1); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
