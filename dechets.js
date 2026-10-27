@@ -9,7 +9,7 @@ const O = 'ok', R = 'route', N = 'non';
 export const SORTES = [
   { id: 'poubelles', label: 'Poubelles', icon: 'poubelle', every: 10, week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
   { id: 'papier', label: 'Papier & carton', icon: 'recyclage', every: 14, week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
-  { id: 'verre', label: 'Verre', icon: 'bulles', every: 14, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  { id: 'verre', label: 'Verre', icon: 'verre', every: 14, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
   { id: 'compost', label: 'Compost', icon: 'legumes', every: 10, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
 ];
 
