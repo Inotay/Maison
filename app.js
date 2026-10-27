@@ -846,7 +846,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v28</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v29</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1078,14 +1078,13 @@ function viewBoard() {
 function dechetsCard() {
   const now = new Date();
   const states = SORTES.map(s => [s, etat(s, now)]);
-  const dots = states.map(([s, e]) => `<span class="dot-${e.state}" title="${esc(s.label)}"></span>`).join('');
+  const dots = states.map(([s, e]) => `<span class="dot dot-${e.state}" title="${esc(s.label)}"></span>`).join('');
   const rows = states.map(([s, e]) => {
-    const icon = s.icon ? `<img class="ticon" src="icons/themes/${s.icon}.webp" alt="" width="34" height="34" loading="lazy">` : `<span class="ticon emoji">${s.emoji}</span>`;
     const suite = e.state === 'non' ? `à nouveau ${e.until}` : `jusqu'à ${e.until}`;
-    return `<li class="item dech ${e.state}">${icon}<div class="item-main"><div class="item-title">${esc(s.label)}</div><div class="item-meta"><span class="dot-${e.state}"></span>${esc(ETAT_TEXTE[e.state])}, ${esc(suite)}</div></div></li>`;
+    return `<li class="dech-row"><img class="ticon" src="icons/themes/${s.icon}.webp" alt="" width="34" height="34" loading="lazy"><div class="item-main"><div class="item-title">${esc(s.label)}</div><div class="item-meta"><span class="dot dot-${e.state}"></span>${esc(ETAT_TEXTE[e.state])}, ${esc(suite)}</div></div></li>`;
   }).join('');
-  return `<details class="fold dechets-fold" data-fold="dechets"><summary><img class="ticon" src="icons/themes/poubelle.webp" alt="" width="34" height="34"><span class="d-main"><span class="d-title">Déchets</span><span class="d-sub">${esc(dechetsResume(now))}</span></span><span class="d-dots">${dots}</span></summary>
-    <ul class="list dechets">${rows}</ul></details>`;
+  return `<details class="chore dech-card" data-fold="dechets"><summary><img class="ticon" src="icons/themes/poubelle.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Déchets</div><div class="item-meta">${esc(dechetsResume(now))}</div></div><div class="item-trail dots">${dots}</div></summary>
+    <ul class="dech-list">${rows}</ul></details>`;
 }
 
 function pratiqueCard() {
@@ -1139,7 +1138,7 @@ function viewMenage() {
       ${chipGroup('chore-weight', WEIGHTS, '2', 'Effort')}
       ${chipGroup('chore-first', who, S.me, 'Qui commence')}
       <div class="form-actions"><button type="button" class="btn ghost" data-action="chore-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter</button></div>
-    </form>` : `<div class="form-actions"><button class="btn ghost" data-action="chore-form" data-show="1">Ajouter une corvée</button></div>`}
+    </form>` : `<button class="btn ghost wide" data-action="chore-form" data-show="1">+ Ajouter une corvée</button>`}
 
     <h2>Effort, ces 30 derniers jours</h2>
     <div class="fair">${counts.map(([m, n]) => `<div class="fair-row"><span>${esc(m.email === S.me ? 'Toi' : m.name)}</span><div class="fair-bar"><span style="width:${(n / max) * 100}%"></span></div><b>${n}</b></div>`).join('')}</div>

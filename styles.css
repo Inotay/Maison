@@ -662,21 +662,18 @@ body::before {
 .day-head.today { color: var(--gold-text); }
 .item.ev.ongoing { border-color: var(--accent); }
 .item.house { border-style: dashed; }
-/* Déchets */
-/* Repliée : une seule ligne, comme une carte ; ouverte : le détail des quatre sortes. */
-.dechets-fold { margin: 0; }
-.dechets-fold > summary { display: flex; align-items: center; gap: var(--s3); list-style: none; padding: var(--s3) var(--s4); background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); box-shadow: 0 3px 0 var(--shadow); cursor: pointer; }
-.dechets-fold > summary::-webkit-details-marker { display: none; }
-.dechets-fold > summary::before, .dechets-fold[open] > summary::before { content: none; }
-.dechets-fold .d-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.dechets-fold .d-title { font-weight: 800; }
-.dechets-fold .d-sub { font-size: 13px; font-weight: 700; color: var(--muted); }
-.dechets-fold .d-dots { display: flex; gap: 4px; flex: none; }
-.dechets-fold .dechets { margin-top: var(--s3); }
-.dechets .item-meta { display: flex; align-items: center; gap: 6px; }
-[class^="dot-"] { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(0,0,0,.15); }
+/* Déchets : une carte comme une corvée ; ouverte, les quatre sortes dedans, séparées par un trait. */
+.dech-card { display: block; padding: 0; }
+.dech-card > summary { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s3) var(--s3) var(--s4); min-height: 64px; list-style: none; cursor: pointer; }
+.dech-card > summary::-webkit-details-marker { display: none; }
+.dech-card .dots { gap: 4px; padding-right: var(--s2); }
+.dot { flex: none; width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .dot-ok { background: #58C06A; } .dot-route { background: #F2C14E; } .dot-non { background: var(--rouge); }
-.item.dech.non { opacity: .85; }
+.dech-list { list-style: none; margin: 0; padding: 0 var(--s3) var(--s2) var(--s4); border-top: 2px solid var(--line); }
+.dech-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.dech-row:first-child { border-top: 0; }
+.dech-row .item-meta { display: flex; align-items: center; gap: 6px; }
+.btn.wide { width: 100%; }
 .pratique h3 { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .pratique p, .pratique li { margin: 0 0 var(--s2); font-size: 15px; line-height: 1.4; }
 .pratique ul.plain { list-style: none; padding: 0; margin: 0; }

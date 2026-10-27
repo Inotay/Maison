@@ -9,8 +9,8 @@ const O = 'ok', R = 'route', N = 'non';
 export const SORTES = [
   { id: 'poubelles', label: 'Poubelles', icon: 'poubelle', week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
   { id: 'papier', label: 'Papier & carton', icon: 'recyclage', week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
-  { id: 'verre', label: 'Verre', icon: null, emoji: '🍾', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
-  { id: 'compost', label: 'Compost', icon: null, emoji: '🌱', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  { id: 'verre', label: 'Verre', icon: 'bulles', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  { id: 'compost', label: 'Compost', icon: 'legumes', week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
 ];
 
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
