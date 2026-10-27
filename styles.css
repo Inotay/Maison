@@ -661,4 +661,6 @@ body::before {
 .day-head { margin: var(--s5) 0 var(--s2); color: var(--text); font-size: 13px; }
 .day-head.today { color: var(--gold-text); }
 .item.ev.ongoing { border-color: var(--accent); }
+.item.house { border-style: dashed; }
+.house-toggle { display: block; margin: var(--s3) 0 0; font-size: 14px; }
 .form.add + .day-head, .btn + .day-head { margin-top: var(--s4); }

@@ -52,6 +52,7 @@ const S = {
   members: [],
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   view: safeGet('maison-view') || 'maison',
+  agendaHouse: safeGet('maison-agenda-house') !== '0',
   maisonTab: 'faire',
   agenda: { configured: null, events: [], calendar: '', loading: false, error: null, at: null },
   open: null,          // élément dont les actions sont dépliées
@@ -843,9 +844,41 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v24</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v25</span></div>`;
 }
 
+// Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
+// (Elles restent dans l'app : rien n'est écrit dans le calendrier iCloud.)
+function houseItems() {
+  const today = isoDate(new Date());
+  const out = [];
+  for (const t of S.tasks) {
+    if (t.done || !t.due_on) continue;
+    out.push({ kind: 'task', row: t, day: t.due_on < today ? today : t.due_on, late: t.due_on < today, time: t.due_time ? String(t.due_time).slice(0, 5) : '' });
+  }
+  for (const c of S.chores) {
+    const st = choreStatus(c);
+    let day = today;
+    if (c.last_done_at && !st.due) { const d = new Date(c.last_done_at); d.setDate(d.getDate() + c.every_days); day = isoDate(d); }
+    out.push({ kind: 'chore', row: c, day, late: st.late, time: '', st });
+  }
+  return out;
+}
+function houseItem(h) {
+  if (h.kind === 'task') {
+    const t = h.row;
+    const who = t.assignee ? (t.assignee === S.me ? 'Pour toi' : `Pour ${nameOf(t.assignee)}`) : 'Pour vous deux';
+    const meta = ['À faire', who, h.time ? `à ${h.time}` : '', h.late ? `prévu ${relDay(t.due_on)}` : ''].filter(Boolean).join(' · ');
+    return `<li class="item house">
+      <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="false" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
+      ${iconHtml(displayIcon('tasks', t))}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div></li>`;
+  }
+  const c = h.row;
+  const who = c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`;
+  const meta = ['Ménage', who, h.late ? h.st.label : ''].filter(Boolean).join(' · ');
+  return `<li class="item house">${iconHtml(displayIcon('chores', c))}<div class="item-main"><div class="item-title">${esc(c.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div>
+    <div class="item-trail"><button class="btn ${h.st.due ? '' : 'ghost'} small" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button></div></li>`;
+}
 function viewAgenda() {
   const A = S.agenda;
   if (A.configured === false) {
@@ -864,8 +897,14 @@ function viewAgenda() {
   const today = isoDate(new Date());
   const upcoming = A.events.filter(e => (e.allDay ? e.end > today : e.end > new Date().toISOString()));
   const days = new Map();
-  for (const e of upcoming) { const k = evDay(e) < today ? today : evDay(e); if (!days.has(k)) days.set(k, []); days.get(k).push(e); }
+  const put = (k, x) => { if (!days.has(k)) days.set(k, []); days.get(k).push(x); };
+  for (const e of upcoming) put(evDay(e) < today ? today : evDay(e), e);
+  if (S.agendaHouse !== false) for (const h of houseItems()) put(h.day, h);
+  const sortKey = x => x.kind ? (x.time ? `1${x.time}` : x.kind === 'task' ? '2' : '3') : (x.allDay ? '0' : `1${evTime(x.start)}`);
+  for (const list of days.values()) list.sort((p, q) => sortKey(p).localeCompare(sortKey(q)));
+  const sorted = new Map([...days.entries()].sort((p, q) => p[0].localeCompare(q[0])));
   const item = e => {
+    if (e.kind) return houseItem(e);
     if (S.edit?.id === e.id) return `<li class="item editing">${editEvent(e)}</li>`;
     const ongoing = (e.allDay ? e.start < today : e.start < new Date().toISOString());
     return `<li class="item ev ${ongoing ? 'ongoing' : ''}">${iconHtml(iconFor(e.title, 'task', S.hints))}<div class="item-main"><div class="item-title">${esc(e.title)}</div><div class="item-meta">${esc(evWhen(e))}${e.place ? `, ${esc(e.place)}` : ''}${e.recurring ? ', se répète' : ''}</div></div>
@@ -873,7 +912,7 @@ function viewAgenda() {
       ${S.open === e.id ? `<div class="item-actions">${e.recurring ? '<span class="hint">Les événements qui se répètent se modifient dans l\'app Calendrier.</span>' : `<button class="btn ghost small" data-action="ev-edit" data-id="${esc(e.id)}">Modifier</button><button class="btn ghost small" data-action="ev-delete" data-id="${esc(e.id)}">Supprimer</button>`}</div>` : ''}</li>`;
   };
   const dayLabel = k => { const d = new Date(k + 'T12:00'); const n = dayDiff(d, new Date()); const base = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return n === 0 ? `Aujourd'hui, ${base}` : n === 1 ? `Demain, ${base}` : base[0].toUpperCase() + base.slice(1); };
-  const blocks = [...days.entries()].slice(0, 40).map(([k, list]) => `<h2 class="day-head ${k === today ? 'today' : ''}">${esc(dayLabel(k))}</h2><ul class="list">${list.map(item).join('')}</ul>`).join('');
+  const blocks = [...sorted.entries()].slice(0, 40).map(([k, list]) => `<h2 class="day-head ${k === today ? 'today' : ''}">${esc(dayLabel(k))}</h2><ul class="list">${list.map(item).join('')}</ul>`).join('');
   const defaultDate = isoDate(new Date());
   return `<div class="ag-head"><h2 class="first">${esc(A.calendar || 'Calendrier partagé')}</h2><button class="link" data-action="agenda-refresh">${A.loading ? 'Mise à jour…' : 'Actualiser'}</button></div>
     ${A.error ? `<p class="hint err">Dernière lecture impossible (${esc(A.error)}). Affichage de la copie d'il y a ${esc(ago(A.at || new Date().toISOString()))}.</p>` : ''}
@@ -886,6 +925,7 @@ function viewAgenda() {
       <label class="sr" for="ev-place">Lieu</label><input class="field mt" id="ev-place" data-keep name="place" placeholder="Lieu (facultatif)" autocomplete="off">
       <div class="form-actions"><button type="button" class="btn ghost small" data-action="ev-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter au calendrier</button></div>
     </form>` : `<button class="btn" data-action="ev-form" data-show="1">+ Ajouter un événement</button>`}
+    <button class="link house-toggle" data-action="agenda-house" aria-pressed="${S.agendaHouse !== false}">${S.agendaHouse !== false ? 'Masquer' : 'Afficher'} le ménage et les choses à faire</button>
     ${blocks || '<p class="empty">Rien de prévu dans les trois prochains mois.</p>'}
     <details class="fold" data-fold="ag-settings"><summary>Connexion</summary><p class="hint">Relié à ${esc(A.calendar)} via ${esc(A.apple_id || 'iCloud')}${A.set_by ? `, par ${esc(nameOf(A.set_by))}` : ''}. L'app ne lit que ce calendrier.</p><button class="link" data-action="agenda-forget">Déconnecter le calendrier</button></details>`;
 }
@@ -1248,6 +1288,7 @@ function viewCare() {
 
 const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },
   theme: el => { THEME = el.dataset.theme; safeSet('maison-theme', THEME); haptic(1); sfx('tick'); render(); },
   glance: el => {
     const to = el.dataset.to;
