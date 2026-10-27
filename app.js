@@ -10,7 +10,7 @@ function greeting(h = new Date().getHours()) {
   if (h < 18) return ['Bonne après-midi', 'accueil_bonne_apres_midi'];
   return ['Bonsoir', 'accueil_bonsoir'];
 }
-const azami = (scene, alt) => `<img class="azami" src="azami/azami_${scene}_anime.svg" alt="${alt}" width="512" height="512" decoding="async">`;
+const azami = (scene, alt) => `<img class="azami" src="azami/azami_${scene}_anime.svg" alt="${alt}" width="512" height="568" decoding="async">`;
 
 const CFG = window.MAISON_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseKey);

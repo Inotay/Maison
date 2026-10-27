@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Bonjour">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 -56 512 568" width="512" height="568" role="img" aria-label="Bonjour">
       <title>Bonjour</title><desc>Azami fait de grands étirements au réveil. Animation CSS de 12 secondes en boucle. Fond transparent.</desc>
       <style><![CDATA[
+      /* Maison : les traits de décor abstrait lisent mal en petit sur fond sombre ; on garde étincelles et cœurs. */
+      #abstract-decor > path:not([id]), #abstract-decor > circle:not([id]) { display: none; }
+
       :root { color-scheme: dark; }
       #head-rig, #body-rig, #cat-rig, #tail, #ear-left, #ear-right, #arm-left, #arm-right,
       #broom-rig, #basket-rig, #fish-pop, #fish-rig, #coin-rig, #coin-sparkles,

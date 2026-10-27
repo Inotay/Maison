@@ -240,13 +240,13 @@ details.fold[open] > summary::before { content: "− "; }
 
 /* Azami : pack d'animations V2, une scène par page ---------------------- */
 
-.azami { display: block; width: 200px; height: 200px; margin: 0 auto; }
+.azami { display: block; width: 200px; height: 222px; margin: 0 auto; }
 .azami-btn { all: unset; cursor: pointer; display: block; width: 200px; margin: 0 auto; }
 .azami-btn:focus-visible { outline: 2px solid var(--bleu); outline-offset: 4px; border-radius: 24px; }
 .hd.centered { text-align: center; }
 .hd.centered .hd-kicker { margin-top: 6px; }
 .hd.row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; }
-.hd.row .azami { width: 150px; height: 150px; margin: 0; }
+.hd.row .azami { width: 150px; height: 166px; margin: 0; }
 .hd.row .azami-btn { width: 150px; margin: 0; }
 
 /* Récemment -------------------------------------------------------------- */
