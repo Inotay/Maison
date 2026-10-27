@@ -1,7 +1,7 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
-import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK } from './themes.js';
+import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK, PARENT } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
@@ -468,7 +468,13 @@ function show(title, body, tag) {
 
 const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore', wins: 'task' };
 const labelOf = (type, row) => type === 'tasks' || type === 'chores' || type === 'wins' ? row.title : row.label;
-const iconOf = (type, row) => (row.icon && !(isVariant(row.icon) && !variantSrc(row.icon)) ? row.icon : null) || iconFor(labelOf(type, row), ctxOf[type], S.hints);
+// Icône enregistrée, sauf si c'était l'icône large d'un thème qui a depuis une icône plus précise (« t:pates » → « t:lasagnes »).
+function refined(type, row) {
+  if (!row.icon || !row.icon.startsWith('t:')) return row.icon;
+  const r = classify(labelOf(type, row) || '', S.hints);
+  return r && PARENT[r.id] === row.icon.slice(2) ? `t:${r.id}` : row.icon;
+}
+const iconOf = (type, row) => (row.icon && !(isVariant(row.icon) && !variantSrc(row.icon)) ? refined(type, row) : null) || iconFor(labelOf(type, row), ctxOf[type], S.hints);
 
 // Variantes personnalisées ---------------------------------------------------
 // Qui « porte » l'élément : la personne assignée, à qui c'est le tour, qui a payé, qui l'a fait.
@@ -969,7 +975,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v56</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v57</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1383,7 +1389,7 @@ const SHOPS = [
   ['autre', 'Divers', 'cadeaux, commandes, le reste'],
 ];
 const SHOP_OF_THEME = {
-  asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie',
+  asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie', riz_sushi: 'asie,super', panko: 'asie,super',
   bricolage: 'maison', reparation: 'maison', lampe: 'maison', peinture: 'maison', mesures: 'maison',
   meubles: 'maison', deco: 'maison', tapis: 'maison', rideaux: 'maison', etagere: 'maison', futon: 'maison', rangement: 'maison', plantes: 'maison', jardin: 'maison', fleurs: 'maison', bougie: 'maison', textile: 'maison', lit: 'maison', serviettes: 'maison',
   pharmacie: 'pharma', premierssoins: 'pharma', malade: 'pharma', beaute: 'pharma', rasage: 'pharma', dents: 'pharma', regles: 'pharma', intime: 'pharma',
