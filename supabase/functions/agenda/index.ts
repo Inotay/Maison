@@ -117,6 +117,7 @@ async function listEvents(cfg: Cfg, from: Date, to: Date) {
     <c:time-range start="${fmtUtc(from)}" end="${fmtUtc(to)}"/>
   </c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`;
   const r = await dav(cfg, "REPORT", cfg.calendar_href, body, { Depth: "1" });
+  console.log("report", cfg.calendar_href, r.status, r.text.length, r.text.slice(0, 4000));
   return parseEvents(r.text, cfg.calendar_href, from, to).sort((a, b) => a.start.localeCompare(b.start));
 }
 
