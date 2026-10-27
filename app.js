@@ -8,22 +8,28 @@ import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, r
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
 // une scène par page, six accueils selon l'heure, « reussite » jouée une fois quand quelque chose est fait.
+// Accueil : rig articulé V4.1 (Azami sans accessoire) choisi selon l'heure. Les autres pages gardent la V3,
+// dont les accessoires (balai, panier, pièce, lettre) n'existent pas encore en V4.1.
 function greeting(h = new Date().getHours()) {
-  if (h >= 22 || h < 5) return ['Bonne nuit', 'accueil_bonne_nuit'];
-  if (h < 9) return ['Bonjour', 'accueil_bonjour'];
-  if (h < 11) return ['Bonne matinée', 'accueil_bonne_matinee'];
-  if (h < 14) return ['Bon midi', 'accueil_bon_midi'];
-  if (h < 18) return ['Bonne après-midi', 'accueil_bonne_apres_midi'];
-  return ['Bonsoir', 'accueil_bonsoir'];
+  if (h >= 22 || h < 5) return ['Bonne nuit', 'v41_repos'];
+  if (h < 9) return ['Bonjour', 'v41_etirement'];
+  if (h < 11) return ['Bonne matinée', 'v41_jeu'];
+  if (h < 14) return ['Bon midi', 'v41_toilette'];
+  if (h < 18) return ['Bonne après-midi', 'v41_marche'];
+  return ['Bonsoir', 'v41_miaulement'];
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
 // à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
-const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_bonne_nuit', 'menage', 'courses', 'argent', 'care', 'reussite'];
+const SCENES = ['v41_etirement', 'v41_jeu', 'v41_toilette', 'v41_marche', 'v41_miaulement', 'v41_repos', 'menage', 'courses', 'argent', 'care', 'reussite'];
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const azamiSrc = scene => scene.startsWith('v41_')
+  ? `azami/v41/${reducedMotion() ? 'statiques/' : ''}azami_${scene}_${reducedMotion() ? 'statique' : 'anime'}.svg`
+  : `azami/azami_${scene}_anime.svg`;
 const azamiImgs = {};
 function azamiImg(scene) {
   if (!azamiImgs[scene]) {
     const img = new Image(512, 512);
-    img.className = 'azami'; img.decoding = 'sync'; img.src = `azami/azami_${scene}_anime.svg`;
+    img.className = `azami ${scene.startsWith('v41_') ? 'v41' : ''}`; img.decoding = 'sync'; img.src = azamiSrc(scene);
     azamiImgs[scene] = img;
   }
   return azamiImgs[scene];
@@ -976,7 +982,7 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <p class="foot-essai"><a class="link" href="essai-v4.html">Essai Azami V4.1 (prototype)</a></p>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v58</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v59</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
