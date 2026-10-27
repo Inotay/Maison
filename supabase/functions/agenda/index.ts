@@ -43,7 +43,6 @@ async function discover(cfg: { apple_id: string; app_password: string }, name: s
   if (!home) throw new Error("Impossible de trouver la liste des calendriers.");
   const homeUrl = abs(ICLOUD, home);
   const p3 = await dav(cfg, "PROPFIND", homeUrl, `<d:propfind xmlns:d="DAV:"><d:prop><d:displayname/><d:resourcetype/></d:prop></d:propfind>`, { Depth: "1" });
-  console.log("home", homeUrl, "réponse", p3.status, p3.text.slice(0, 6000));
   const want = name.trim().toLowerCase();
   const names: string[] = [];
   const blocks = p3.text.match(/<(?:[a-z0-9_-]+:)?response[\s>][\s\S]*?<\/(?:[a-z0-9_-]+:)?response>/gi) ?? [];
@@ -68,10 +67,13 @@ function parseEvents(xml: string, calHref: string, from: Date, to: Date): Ev[] {
   for (const block of xml.split(/<\/?d:response>|<\/?response>/i)) {
     const href = /href[^>]*>([^<]+)</i.exec(block)?.[1];
     const etag = /getetag[^>]*>([^<]*)</i.exec(block)?.[1]?.replace(/&quot;/g, '"') ?? "";
-    const data = /calendar-data[^>]*>([\s\S]*?)<\/[a-z]*:?calendar-data>/i.exec(block)?.[1];
+    let data = /calendar-data[^>]*>([\s\S]*?)<\/[a-z]*:?calendar-data>/i.exec(block)?.[1];
     if (!href || !data) continue;
+    // iCloud enveloppe le calendrier dans un CDATA ; d'autres serveurs l'échappent.
+    const cdata = /^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/.exec(data);
+    data = cdata ? cdata[1] : unesc(data);
     let comp: ICAL.Component;
-    try { comp = new ICAL.Component(ICAL.parse(unesc(data))); } catch { continue; }
+    try { comp = new ICAL.Component(ICAL.parse(data)); } catch (e) { console.warn("ics illisible", href, (e as Error).message); continue; }
     for (const tz of comp.getAllSubcomponents("vtimezone")) {
       const z = new ICAL.Timezone({ component: tz, tzid: tz.getFirstPropertyValue("tzid") });
       if (!ICAL.TimezoneService.has(z.tzid)) ICAL.TimezoneService.register(z.tzid, z);
@@ -117,7 +119,6 @@ async function listEvents(cfg: Cfg, from: Date, to: Date) {
     <c:time-range start="${fmtUtc(from)}" end="${fmtUtc(to)}"/>
   </c:comp-filter></c:comp-filter></c:filter></c:calendar-query>`;
   const r = await dav(cfg, "REPORT", cfg.calendar_href, body, { Depth: "1" });
-  console.log("report", cfg.calendar_href, r.status, r.text.length, r.text.slice(0, 4000));
   return parseEvents(r.text, cfg.calendar_href, from, to).sort((a, b) => a.start.localeCompare(b.start));
 }
 
