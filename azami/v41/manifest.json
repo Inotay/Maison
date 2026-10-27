@@ -1,0 +1,76 @@
+{
+  "version": "4.1-prototype",
+  "name": "Azami — rig unique articulé",
+  "themes_compatibles": [
+    "bleu",
+    "brun"
+  ],
+  "transparent": true,
+  "personnage": "Azami",
+  "systeme": "SVG CSS — same rig, independent transforms per body part",
+  "scenes": [
+    {
+      "id": "demo",
+      "titre": "Démo — mini-film articulé",
+      "description": "Observation, pas furtifs, bond, toilette, surprise, miaulement et retour au repos",
+      "duree_secondes": 20.0,
+      "anime": "anime/azami_v41_demo_anime.svg",
+      "statique": "statique/azami_v41_demo_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "marche",
+      "titre": "Marche — appuis alternés",
+      "description": "Alternance des appuis avec translation du bassin et oscillation de tête",
+      "duree_secondes": 7.2,
+      "anime": "anime/azami_v41_marche_anime.svg",
+      "statique": "statique/azami_v41_marche_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "etirement",
+      "titre": "Étirement — colonne et épaules",
+      "description": "Azami abaisse les épaules puis étend les pattes avant et se redresse",
+      "duree_secondes": 8.4,
+      "anime": "anime/azami_v41_etirement_anime.svg",
+      "statique": "statique/azami_v41_etirement_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "toilette",
+      "titre": "Toilette — patte devant le museau",
+      "description": "Azami s’accroupit, lève une patte, la lèche puis se frotte la joue",
+      "duree_secondes": 9.1,
+      "anime": "anime/azami_v41_toilette_anime.svg",
+      "statique": "statique/azami_v41_toilette_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "jeu",
+      "titre": "Jeu — chasse et bond",
+      "description": "Observation de la balle, fesses relevées, bond puis atterrissage",
+      "duree_secondes": 9.6,
+      "anime": "anime/azami_v41_jeu_anime.svg",
+      "statique": "statique/azami_v41_jeu_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "miaulement",
+      "titre": "Miaulement — regard et voix",
+      "description": "Azami incline la tête, ouvre la bouche deux fois et fixe la caméra",
+      "duree_secondes": 6.2,
+      "anime": "anime/azami_v41_miaulement_anime.svg",
+      "statique": "statique/azami_v41_miaulement_statique.svg",
+      "audio_inclus": false
+    },
+    {
+      "id": "repos",
+      "titre": "Repos — micro-gestes",
+      "description": "Clignements, oreilles, queue, respiration et observation de l’environnement",
+      "duree_secondes": 11.2,
+      "anime": "anime/azami_v41_repos_anime.svg",
+      "statique": "statique/azami_v41_repos_statique.svg",
+      "audio_inclus": false
+    }
+  ]
+}

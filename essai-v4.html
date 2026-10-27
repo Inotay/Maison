@@ -17,7 +17,7 @@
   .pane.ciel { background: #53A5C7; } .pane.brun { background: #241710; }
   .pane .lbl { font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; opacity: .9; }
   .pane.ciel .lbl { color: #1E2F3F; } .pane.brun .lbl { color: #F7EFE3; }
-  .pane img { display: block; width: 150px; height: 150px; margin: 0 auto; object-fit: contain; }
+  .pane img { display: block; width: 160px; height: 160px; margin: 0 auto; object-fit: contain; }
   .scenes { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 16px; }
   .scenes button { font: inherit; font-weight: 800; padding: 8px 12px; border-radius: 12px; border: 2px solid var(--line); background: var(--surface); color: var(--text); }
   .scenes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-edge); color: var(--accent-text); }
@@ -27,7 +27,8 @@
 <body>
 <main class="essai">
   <h1>Essai Azami V4</h1>
-  <p class="hint">Prototype articulé, hors production. Même SVG sur les deux fonds, taille d'en-tête (150 px). <span class="fps" id="fps">Mesure…</span></p>
+  <p class="hint">Prototypes articulés, hors production. Même SVG sur les deux fonds, taille d'en-tête (160 px). <span class="fps" id="fps">Mesure…</span></p>
+  <div class="scenes" id="versions"></div>
   <div class="scenes" id="scenes"></div>
   <div class="two">
     <div class="pane ciel"><div class="lbl">Ciel</div><img id="a" alt="Azami V4, thème ciel"></div>
@@ -37,14 +38,25 @@
   <p class="hint"><a class="link" href="./">← Retour à Maison</a></p>
 </main>
 <script>
-  const SCENES = ['demo', 'marche', 'toilette', 'etirement', 'jeu', 'miaulement'];
+  // V4.1 (rig unique) par défaut ; V4 (deux rigs) gardée pour comparer.
+  const VERSIONS = {
+    v41: { label: 'V4.1 · rig unique', dir: 'azami/v41', prefix: 'azami_v41', scenes: ['demo', 'marche', 'toilette', 'etirement', 'jeu', 'miaulement', 'repos'] },
+    v4: { label: 'V4 · ancien', dir: 'azami/v4', prefix: 'azami_v4', scenes: ['demo', 'marche', 'toilette', 'etirement', 'jeu', 'miaulement'] },
+  };
+  let ver = 'v41', cur = 'demo';
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.getElementById('static').checked;
-  let cur = 'demo';
-  const src = s => reduced() ? `azami/v4/statiques/azami_v4_${s}_statique.svg` : `azami/v4/azami_v4_${s}_anime.svg?${Date.now()}`;
-  function show() { for (const id of ['a', 'b']) document.getElementById(id).src = src(cur); document.querySelectorAll('#scenes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === cur)); }
-  document.getElementById('scenes').innerHTML = SCENES.map(s => `<button data-s="${s}" aria-pressed="false">${s}</button>`).join('');
+  const src = s => { const V = VERSIONS[ver]; return reduced() ? `${V.dir}/statiques/${V.prefix}_${s}_statique.svg` : `${V.dir}/${V.prefix}_${s}_anime.svg?${Date.now()}`; };
+  function show() {
+    const V = VERSIONS[ver]; if (!V.scenes.includes(cur)) cur = 'demo';
+    document.getElementById('versions').innerHTML = Object.entries(VERSIONS).map(([k, v]) => `<button data-v="${k}" aria-pressed="${k === ver}">${v.label}</button>`).join('');
+    document.getElementById('scenes').innerHTML = V.scenes.map(s => `<button data-s="${s}" aria-pressed="${s === cur}">${s}</button>`).join('');
+    for (const id of ['a', 'b']) document.getElementById(id).src = src(cur);
+  }
+  document.getElementById('versions').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ver = b.dataset.v; show(); } });
   document.getElementById('scenes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { cur = b.dataset.s; show(); } });
   document.getElementById('static').addEventListener('change', show);
+  // Hors écran (onglet en arrière-plan) : on démonte les SVG pour qu'ils ne tournent pas pour rien.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { for (const id of ['a', 'b']) document.getElementById(id).removeAttribute('src'); } else show(); });
   show();
   // Fluidité : images par seconde de la page pendant que les deux SVG tournent.
   let n = 0, t0 = performance.now();
