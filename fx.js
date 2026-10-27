@@ -208,20 +208,43 @@ function rain(n = 70) {
 }
 
 // Grande célébration : flash, Azami qui saute au milieu, mot en gros, pluie de confettis.
-export function celebrate({ title, sub = '', level = 'big', badge = null } = {}) {
+// Réactions Azami V3 : un SVG joué une seule fois (azami/reactions/<id>_anime.svg), jamais deux à la fois.
+const REACTION_MS = { tache_cochee: 4400, corvee_terminee: 4800, courses_completees: 4300, comptes_equilibres: 4700, mot_envoye: 4200, objectif_commun: 5000, surprise_coucou: 4600, fete_reussites: 5200 };
+const reactionSrc = id => `azami/reactions/${id}_${reduced() ? 'statique' : 'anime'}.svg${reduced() ? '' : '?' + Date.now()}`;
+let reactionEl = null;
+// Petite réaction posée à côté d'un élément (la ligne cochée, le bouton), sans rien déplacer ni bloquer.
+export function react(id, anchor) {
+  if (!REACTION_MS[id]) return;
+  if (reactionEl) { reactionEl.remove(); reactionEl = null; }
+  const img = document.createElement('img');
+  img.className = 'reaction'; img.alt = ''; img.src = reactionSrc(id);
+  const r = anchor?.getBoundingClientRect();
+  const size = 120;
+  const top = r ? Math.max(8, Math.min(innerHeight - size - 90, r.top + r.height / 2 - size / 2)) : innerHeight * .3;
+  const left = r ? Math.min(innerWidth - size - 8, r.right + 6) : innerWidth / 2 - size / 2;
+  img.style.cssText = `position:fixed;top:${top}px;left:${left}px;width:${size}px;height:${size}px;z-index:60;pointer-events:none;`;
+  document.body.appendChild(img); reactionEl = img;
+  requestAnimationFrame(() => img.classList.add('on'));
+  const ms = reduced() ? 1600 : REACTION_MS[id];
+  setTimeout(() => { img.classList.add('off'); }, ms - 400);
+  setTimeout(() => { if (reactionEl === img) reactionEl = null; img.remove(); }, ms);
+}
+
+export function celebrate({ title, sub = '', level = 'big', badge = null, reaction = 'fete_reussites' } = {}) {
   if (reduced()) return;
+  if (reactionEl) { reactionEl.remove(); reactionEl = null; }   // un seul Azami à l'écran
   const old = document.getElementById('cele'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
   // Scène « reussite » du pack V3, montée le temps de la fête puis retirée (jamais en boucle permanente).
-  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="azami/azami_reussite_anime.svg?${Date.now()}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="${REACTION_MS[reaction] ? reactionSrc(reaction) : `azami/azami_reussite_anime.svg?${Date.now()}`}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   burst('confetti', null, level === 'big' ? 40 : 24);
   rain(level === 'big' ? 80 : 40);
   setTimeout(() => sparkle(innerWidth / 2, innerHeight * .38, 14), 250);
-  setTimeout(() => { box.classList.remove('on'); box.classList.add('off'); }, level === 'big' ? 1900 : 1400);
-  setTimeout(() => box.remove(), level === 'big' ? 2400 : 1900);
+  setTimeout(() => { box.classList.remove('on'); box.classList.add('off'); }, level === 'big' ? 2600 : 2000);
+  setTimeout(() => box.remove(), level === 'big' ? 3100 : 2500);
 }
 
 // Secoue joyeusement un élément (la ligne cochée, la carte Réussites).

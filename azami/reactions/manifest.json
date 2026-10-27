@@ -1,0 +1,163 @@
+{
+  "pack": "Azami V3 · Reactions",
+  "version": "3.1.0",
+  "render": "SVG CSS animations (one-shot)",
+  "background": "transparent",
+  "theme_support": [
+    "bleu",
+    "brun"
+  ],
+  "reactions": [
+    {
+      "id": "tache_cochee",
+      "source": "reussite",
+      "duration": 4.4,
+      "titre": "Tâche accomplie",
+      "trigger": "task_completed",
+      "desc": "Azami prend son élan, saute, puis un grand check apparaît dans une étoile",
+      "sound": "tiny_meow_optional",
+      "animated": "anime/tache_cochee_anime.svg",
+      "static": "statique/tache_cochee_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "corvee_terminee",
+      "source": "menage",
+      "duration": 4.8,
+      "titre": "Corvée terminée",
+      "trigger": "chore_completed",
+      "desc": "Deux coups de balai nerveux, tourbillon et étoiles de propreté",
+      "sound": "soft_sweep_optional",
+      "animated": "anime/corvee_terminee_anime.svg",
+      "static": "statique/corvee_terminee_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "courses_completees",
+      "source": "courses",
+      "duration": 4.3,
+      "titre": "Courses terminées",
+      "trigger": "shopping_list_completed",
+      "desc": "Le panier tremble, un poisson jaillit et Azami sursaute",
+      "sound": "surprise_meow_optional",
+      "animated": "anime/courses_completees_anime.svg",
+      "static": "statique/courses_completees_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "comptes_equilibres",
+      "source": "argent",
+      "duration": 4.7,
+      "titre": "Comptes équilibrés",
+      "trigger": "balances_settled",
+      "desc": "Une pièce bondit, tourbillonne et retombe entre ses pattes",
+      "sound": "coin_ting_optional",
+      "animated": "anime/comptes_equilibres_anime.svg",
+      "static": "statique/comptes_equilibres_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "mot_envoye",
+      "source": "care",
+      "duration": 5.1,
+      "titre": "Mot envoyé",
+      "trigger": "care_message_sent",
+      "desc": "Azami serre l’enveloppe, puis relâche deux cœurs",
+      "sound": "soft_purr_optional",
+      "animated": "anime/mot_envoye_anime.svg",
+      "static": "statique/mot_envoye_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "objectif_commun",
+      "source": "reussite",
+      "duration": 5.5,
+      "titre": "Objectif commun atteint",
+      "trigger": "shared_goal_reached",
+      "desc": "Azami bombe le torse, une médaille surgit, confettis et révérence",
+      "sound": "achievement_optional",
+      "animated": "anime/objectif_commun_anime.svg",
+      "static": "statique/objectif_commun_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "surprise_coucou",
+      "source": "reussite",
+      "duration": 4.5,
+      "titre": "Petit coucou surprise",
+      "trigger": "rare_surprise",
+      "desc": "Azami se cache, pointe le nez puis bondit pour saluer",
+      "sound": "meow_rare_optional",
+      "animated": "anime/surprise_coucou_anime.svg",
+      "static": "statique/surprise_coucou_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    },
+    {
+      "id": "fete_reussites",
+      "source": "reussite",
+      "duration": 6.0,
+      "titre": "Célébration du bilan",
+      "trigger": "milestone_reached",
+      "desc": "Deux bonds irréguliers, pluie de petites étoiles et retour au calme",
+      "sound": "celebration_optional",
+      "animated": "anime/fete_reussites_anime.svg",
+      "static": "statique/fete_reussites_statique.svg",
+      "loop": false,
+      "theme_support": [
+        "bleu",
+        "brun"
+      ],
+      "background": "transparent"
+    }
+  ],
+  "behavior": {
+    "play_once_per_event": true,
+    "remount_on_new_event": true,
+    "queue_reactions": false,
+    "avoid_interrupting_user": true,
+    "reduced_motion": "Display static SVG",
+    "on_complete": "unmount or retain last frame",
+    "sound_included": false,
+    "sound_default": "off",
+    "sound_cooldown_seconds": 60,
+    "sound_requires_user_opt_in": true,
+    "surprise_opt_in": true,
+    "surprise_frequency": "rare, non-compulsive; disabled while user typing"
+  },
+  "future_roadmap": "V4 cinematic rig: 4 articulate paws, locomotion, sit/stand/loaf/stretch, grooming, lip-sync meows, reactive accessories, smoother physical action. Not included in this reactions pack."
+}

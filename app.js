@@ -4,7 +4,7 @@
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
-import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
+import { react, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
 // une scène par page, six accueils selon l'heure, « reussite » jouée une fois quand quelque chose est fait.
@@ -29,6 +29,14 @@ function azamiImg(scene) {
   return azamiImgs[scene];
 }
 const azami = (scene, alt) => `<span class="azami-slot" data-scene="${scene}" data-alt="${esc(alt)}"></span>`;
+let coucouDone = false;
+function maybeCoucou() {
+  if (coucouDone || S.view !== 'maison' || !S.me) return;
+  const today = isoDate(new Date());
+  if (safeGet('maison-coucou') === today) { coucouDone = true; return; }
+  coucouDone = true;
+  if (Math.random() < 1 / 12) { safeSet('maison-coucou', today); setTimeout(() => react('surprise_coucou', document.querySelector('.hd .azami')), 900); }
+}
 function placeAzami() {
   document.querySelectorAll('.azami-slot').forEach(slot => {
     const img = azamiImg(slot.dataset.scene); img.alt = slot.dataset.alt;
@@ -184,7 +192,9 @@ function shimmer(c, at, dur, vol) {
   src.buffer = buf; f.type = 'highpass'; f.frequency.value = 6000; g.gain.value = vol;
   src.connect(f); f.connect(g); g.connect(c.destination); src.start(at);
 }
+let SOUNDS = safeGet('maison-sounds') !== '0';
 function sfx(kind) {
+  if (!SOUNDS) return;
   try {
     if (sfxFile[kind]) { const a = new Audio(sfxFile[kind]); a.volume = .7; a.play().catch(() => {}); return; }
     const c = ctxAudio(), t = c.currentTime + .01;
@@ -587,7 +597,7 @@ const todayHasWin = () => S.wins.some(w => isoDate(new Date(w.done_at)) === isoD
 function streakCheer(delay = 0) {
   const n = streak();
   if (n < 2) return;
-  setTimeout(() => { haptic('heavy'); celebrate({ title: `Jour ${n} de suite`, sub: n >= 7 ? 'Une semaine entière. Azami est fière.' : 'Ensemble, chaque jour.' }); }, delay);
+  setTimeout(() => { haptic('heavy'); celebrate({ reaction: 'fete_reussites', title: `Jour ${n} de suite`, sub: n >= 7 ? 'Une semaine entière. Azami est fière.' : 'Ensemble, chaque jour.' }); }, delay);
 }
 
 // Récompenses : quelle particule pour quel geste.
@@ -753,6 +763,7 @@ function render() {
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
   placeAzami();
+  maybeCoucou();
   armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
@@ -891,11 +902,14 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
+    <div class="theme-row"><span>Sons de l'app</span><div class="seg" role="group" aria-label="Sons">
+      <button data-action="sounds" data-on="1" aria-pressed="${SOUNDS}">Oui</button>
+      <button data-action="sounds" data-on="0" aria-pressed="${!SOUNDS}">Non</button></div></div>
     <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v48</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v49</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1423,6 +1437,7 @@ function viewCare() {
 const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },
+  sounds: el => { SOUNDS = el.dataset.on === '1'; safeSet('maison-sounds', SOUNDS ? '1' : '0'); haptic(1); render(); },
   meows: el => { MEOWS = el.dataset.on === '1'; safeSet('maison-meows', MEOWS ? '1' : '0'); haptic(1); render(); },
   theme: el => { THEME = el.dataset.theme; safeSet('maison-theme', THEME); haptic(1); sfx('tick'); render(); },
   glance: el => {
@@ -1448,7 +1463,7 @@ const actions = {
     sfx(last ? 'big' : 'done');
     S.popId = t.id;
     run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, last ? null : praise('task'), t.id)
-      .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all'), badge: variantBadge('tasks', t, S.me) }); if (first) streakCheer(last ? 2300 : 400); });
+      .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all'), badge: variantBadge('tasks', t, S.me), reaction: 'objectif_commun' }); else react('tache_cochee', document.getElementById(`tick-${t.id}`)); if (first) streakCheer(last ? 3000 : 400); });
   },
   'task-assign': el => {
     const w = el.dataset.who;
@@ -1510,7 +1525,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me) }); if (first) streakCheer(1800); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
@@ -1532,7 +1547,7 @@ const actions = {
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
     run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
-      .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || '') }); if (first) streakCheer(2300); } });
+      .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || ''), reaction: 'courses_completees' }); if (first) streakCheer(3000); } });
   },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
   'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); render(); },
@@ -1546,7 +1561,7 @@ const actions = {
       for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
       await api.remove('shopping', { checked: true });
       await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
-    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me) }); if (first) streakCheer(1800); });
+    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600); });
   },
 
   'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
@@ -1561,7 +1576,7 @@ const actions = {
     sfx('coin'); haptic('heavy');
     burst('coins', document.querySelector('[data-action="settle"]'), 22);
     run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, null, 'settle')
-      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); celebrate({ title: 'Comptes à zéro', sub: praise('settle'), badge: variantSrc(variantFor(personOf(S.me), 'budget') || '') }); } });
+      .then(ok => { if (ok) { azamiJump(); pop(document.querySelector('.bal-card')); celebrate({ title: 'Comptes à zéro', sub: praise('settle'), reaction: 'comptes_equilibres', badge: variantSrc(variantFor(personOf(S.me), 'budget') || '') }); } });
   },
 
   'letter-open': el => {
@@ -1737,7 +1752,7 @@ const forms = {
     f.reset();
     sfx('heart'); haptic('medium');
     burst('hearts', f.querySelector('button[type="submit"]'), 12);
-    run(() => api.insert('care_messages', row), `${praise('care')} ${nameOf(other())} le trouvera dans sa boîte.`);
+    run(() => api.insert('care_messages', row), `${praise('care')} ${nameOf(other())} le trouvera dans sa boîte.`).then(ok => { if (ok) react('mot_envoye', document.querySelector('[data-form="care"] button[type="submit"]') || document.querySelector('.hd .azami')); });
   },
 };
 
