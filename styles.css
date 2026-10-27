@@ -687,6 +687,8 @@ body::before {
 .dech-row .item-meta { display: flex; align-items: center; gap: 6px; }
 .btn.wide { width: 100%; }
 .shop-head { margin-top: var(--s5); }
+.where { margin: var(--s3) 0 var(--s2); }
+.where .chips { margin-top: var(--s1); }
 .shop-head .hint-inline { font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .75; margin-left: 6px; }
 .item-actions.shops { flex-wrap: wrap; }
 .item-actions.shops .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-edge); color: var(--accent-text); }

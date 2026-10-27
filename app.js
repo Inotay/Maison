@@ -54,6 +54,8 @@ const S = {
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   view: safeGet('maison-view') || 'maison',
   agendaHouse: safeGet('maison-agenda-house') !== '0',
+  shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
+  achats: [],                                       // historique des articles achetés (pour les pré-listes, plus tard)
   dechetsOpen: safeGet('maison-dechets-open') !== '0',
   maisonTab: 'faire',
   agenda: { configured: null, events: [], calendar: '', loading: false, error: null, at: null },
@@ -461,8 +463,10 @@ async function loadAll() {
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
+  const achats = wins.filter(w => w.kind === 'achat');
+  wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, hints: hintsFrom(hints) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints) });
   await ensureDechets();
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins }));
@@ -482,7 +486,7 @@ function loadSnapshot() {
   try {
     const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
     if (!snap || snap.me !== S.me) return false;
-    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: snap.wins || [], care: [], snapshotAt: snap.at });
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, wins: (snap.wins || []).filter(w => w.kind !== 'achat'), care: [], snapshotAt: snap.at });
     return true;
   } catch { return false; }
 }
@@ -858,7 +862,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v37</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v38</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1202,23 +1206,30 @@ function guessShop(label) { const r = classify(label, S.hints); return (r && SHO
 const shopsOf = s => { const v = String(s.shop || '').split(',').filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
 
 function viewCourses() {
-  const todo = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const mode = SHOPS.find(x => x[0] === S.shopMode) ? S.shopMode : null;
+  const todoAll = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const todo = mode ? todoAll.filter(s => shopsOf(s).includes(mode)) : todoAll;
   const cart = S.shopping.filter(s => s.checked);
+  const modeLabel = mode ? SHOPS.find(x => x[0] === mode)[1] : '';
   const item = s => S.edit?.id === s.id ? `<li class="item editing">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
       <div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopsOf(s).includes(k)}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
-  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('courses', 'Azami fouille le panier')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${mode ? `Je suis : ${esc(modeLabel)}` : todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter (sépare par des virgules)" autocomplete="off" enterkeyhint="done" required></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
-    <div class="shop">${todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>'}
-    ${cart.length ? `<h2>Dans le panier</h2><ul class="list">${cart.map(item).join('')}</ul>
-      <div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
+    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.filter(x => x[0] !== 'autre').map(([k, l]) => `<button type="button" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="shop">${mode
+      ? (todo.length ? `<h2 class="list-head shop-head">${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
+      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>')}
+    ${cart.length ? `<h2>Dans le panier <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
+    ${mode ? `<div class="form-actions"><button class="btn ghost" data-action="shop-mode" data-shop="${mode}">Je ressors</button><button class="btn" data-action="shop-done" ${cart.length ? '' : 'disabled'}>Courses faites</button></div>`
+      : cart.length ? `<div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
 }
 
 // Argent
@@ -1488,6 +1499,19 @@ const actions = {
       .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || '') }); if (first) streakCheer(2300); } });
   },
   'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
+  'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); render(); },
+  // Courses faites : ce qui est dans le panier sort de la liste, chaque article est gardé en mémoire (pour les pré-listes), et c'est une réussite.
+  'shop-done': el => {
+    const cart = S.shopping.filter(s => s.checked); if (!cart.length) return;
+    const where = SHOPS.find(x => x[0] === S.shopMode)?.[1] || 'Courses';
+    haptic('heavy'); sfx('big'); burst('confetti', el, 26);
+    const first = !todayHasWin();
+    run(async () => {
+      for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
+      await api.remove('shopping', { checked: true });
+      await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
+    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me) }); if (first) streakCheer(1800); });
+  },
 
   'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
   'exp-delete': el => { if (confirm('Supprimer cette dépense ?')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Dépense supprimée'); } },
