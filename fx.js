@@ -244,3 +244,17 @@ export function countUp(el, to, ms = 700) {
   };
   requestAnimationFrame(step);
 }
+
+// Haptique au toucher réel (iOS 17.4 à 26.4) : un interrupteur natif transparent posé sur le
+// bouton reçoit le doigt lui-même ; iOS joue alors sa vibration. Le clic remonte au bouton comme
+// d'habitude. Apple a fermé cette porte à partir d'iOS 26.5 : là, il ne se passe simplement rien.
+export function armHaptics(root = document) {
+  root.querySelectorAll('.tick, .btn, .nav button, .chips button, .icon-btn, .seg button').forEach(el => {
+    if (el.querySelector(':scope > input.hap')) return;
+    const t = document.createElement('input');
+    t.type = 'checkbox'; t.setAttribute('switch', ''); t.className = 'hap'; t.tabIndex = -1;
+    t.setAttribute('aria-hidden', 'true');
+    el.appendChild(t);
+  });
+}
+

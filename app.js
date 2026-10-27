@@ -3,7 +3,7 @@
 
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
-import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp } from './fx.js';
+import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
 function greeting(h = new Date().getHours()) {
@@ -637,6 +637,7 @@ function render() {
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
   placeAzami();
+  armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
   if (S.popId) { const id = S.popId; S.popId = null; const row = (document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore'); pop(row); wiggle(row); }
@@ -766,7 +767,7 @@ function viewMaison() {
     ${S.maisonTab === 'faire' ? viewTasks() : viewBoard()}
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v16</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v17</span></div>`;
 }
 
 function viewTasks() {
@@ -1371,8 +1372,11 @@ document.addEventListener('click', e => {
     else if (g.dataset.group.startsWith('exp-')) { const sum = document.querySelector('[data-fold="exp-options"] > summary'); if (sum) sum.textContent = optionsSummary(); }
     return;
   }
+  // Toucher reçu par l'interrupteur haptique invisible : un bouton d'envoi doit quand même envoyer le formulaire.
+  const hap = e.target.matches?.('input.hap') ? e.target : null;
+  if (hap) { const host = hap.parentElement; if (host?.type === 'submit' && host.form) { host.form.requestSubmit(host); return; } }
   const a = e.target.closest('[data-action]');
-  if (a && actions[a.dataset.action]) { e.preventDefault(); actions[a.dataset.action](a); }
+  if (a && actions[a.dataset.action]) { if (!hap) e.preventDefault(); actions[a.dataset.action](a); }
 });
 
 document.addEventListener('submit', e => {

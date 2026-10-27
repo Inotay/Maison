@@ -632,3 +632,7 @@ body[data-time="nuit"] .cele-title { text-shadow: 0 3px 0 #0D1820, 0 6px 18px rg
 .btn.did { background: var(--accent); color: var(--accent-text); animation: did .5s cubic-bezier(.34, 1.56, .64, 1); }
 @keyframes did { 0% { transform: scale(1); } 40% { transform: scale(1.15) rotate(-3deg); } 100% { transform: scale(1); } }
 .tick[aria-checked="true"]::after { animation: tick-draw .3s .05s ease-out backwards; }
+
+/* Interrupteur natif invisible posé sur les boutons (haptique iOS 17.4 à 26.4). */
+.tick, .btn, .nav button, .chips button, .icon-btn, .seg button { position: relative; }
+input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; clip-path: inset(0 round 999px); touch-action: manipulation; -webkit-tap-highlight-color: transparent; z-index: 1; }
