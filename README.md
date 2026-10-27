@@ -1,6 +1,6 @@
 # Maison
 
-L'app de notre appartement : ménage et tournus, choses à faire, dépenses partagées, courses, tableau de la maison, et une partie Nuit avec une boîte aux lettres care.
+L'app de notre appartement : ménage et tournus, choses à faire, dépenses partagées, courses, tableau de la maison, et Care, une boîte aux lettres pour ce qu'on n'ose pas dire en face.
 
 L'app est une page web statique (publiée par GitHub Pages) qui s'installe sur l'écran d'accueil de l'iPhone. Les données vivent dans une base Supabase privée : le code est public, les données ne le sont pas. Sans configuration, l'app tourne en mode démo avec des données d'exemple stockées sur l'appareil.
 
@@ -31,7 +31,7 @@ Ouvrir `https://inotay.github.io/Maison/` dans Safari, bouton Partager, puis **S
 Une fois vos deux comptes créés, coller `supabase/02_durcissement.sql` dans SQL Editor et lancer Run : seules les adresses de `members` peuvent désormais créer un compte. Par sécurité, désactiver aussi « Allow new users to sign up » dans Authentication > Providers > Email.
 
 ### 6. Notifications
-Dans Nuit, « Me prévenir quand un mot arrive » demande la permission. Sans serveur de push, l'app prévient quand elle est ouverte en arrière-plan (un mot care reçu). Pour recevoir des notifications app fermée, il faudra un petit serveur de push : sa clé publique VAPID va dans `config.js`, la table `push_subscriptions` est déjà prête.
+Dans Care, « Me prévenir quand un mot arrive » demande la permission. Sans serveur de push, l'app prévient quand elle est ouverte en arrière-plan (un mot care reçu). Pour recevoir des notifications app fermée, il faudra un petit serveur de push : sa clé publique VAPID va dans `config.js`, la table `push_subscriptions` est déjà prête.
 
 ## Au quotidien
 - Tout se modifie après coup : bouton ⋯ puis « Modifier » sur une tâche (titre, pour qui, date, heure), une corvée, une dépense, un article ou un mot du tableau.

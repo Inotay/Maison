@@ -537,13 +537,13 @@ const ICONS = {
   menage: '<path d="M14 3 10.5 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 11h8l2 9H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 15v5M13 15v5" stroke="currentColor" stroke-width="1.2"/>',
   courses: '<path d="M4 9h16l-1.6 10H5.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9 11 4M15.5 9 13 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   argent: '<rect x="3.5" y="6.5" width="17" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>',
-  nuit: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+  nuit: '<path d="M12 20s-7-4.4-7-9.6A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
 };
 
 function nav() {
   const openShop = S.shopping.filter(s => !s.checked).length;
   const unread = S.care.filter(c => c.recipient === S.me && !c.read_at).length;
-  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['argent', 'Argent'], ['nuit', 'Nuit']];
+  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['argent', 'Argent'], ['nuit', 'Care']];
   return `<nav class="nav" aria-label="Sections"><ul>${items.map(([k, l]) => {
     let mark = '';
     if (k === 'courses' && openShop) mark = `<span class="badge" aria-hidden="true">${openShop}</span>`;
@@ -1002,7 +1002,7 @@ function viewArgent() {
 // Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Care</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
