@@ -238,32 +238,23 @@ details.fold[open] > summary::before { content: "− "; }
 .glance .g-num { font-weight: 800; font-size: 18px; flex: none; }
 .glance .late { color: var(--bleu); font-weight: 700; }
 
-/* Azami : une pose par page, kawaii Bauhaus, animée doucement ------------ */
+/* Azami : pack d'animations V2, une scène par page ---------------------- */
 
-.azami { display: block; width: 210px; height: 225px; margin: 0 auto; }
-.azami-btn { all: unset; cursor: pointer; display: block; width: 210px; margin: 0 auto; }
+.azami { display: block; width: 200px; height: 200px; margin: 0 auto; }
+.azami-btn { all: unset; cursor: pointer; display: block; width: 200px; margin: 0 auto; }
 .azami-btn:focus-visible { outline: 2px solid var(--bleu); outline-offset: 4px; border-radius: 24px; }
-.azami .queue { transform-origin: 520px 576px; animation: remue 3.2s ease-in-out infinite; }
-.azami .queue.vite { animation-duration: .6s; }
-@keyframes remue { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(8deg); } }
-.azami .paupiere { animation: clignement 5.4s ease-in-out infinite; }
-@keyframes clignement { 0%, 40%, 44%, 100% { transform: scaleY(0); } 42% { transform: scaleY(1); } }
-.azami .tete-mobile { transform-origin: 405px 490px; animation: inclination 4.6s ease-in-out infinite; }
-@keyframes inclination { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
-.azami .balai { animation: balaie 2.6s ease-in-out infinite; }
-@keyframes balaie { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-7deg); } }
-.azami .poisson { animation: fretille 1.8s ease-in-out infinite; }
-@keyframes fretille { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-10deg); } }
-.azami .piece { animation: retourne 4s ease-in-out infinite; }
-@keyframes retourne { 0%, 70%, 100% { transform: scaleX(1); } 85% { transform: scaleX(-1); } }
-.azami .zz { animation: monte 3s ease-in-out infinite; opacity: 0; }
-.azami .z2 { animation-delay: 1.3s; }
-@keyframes monte { 0% { transform: translateY(20px); opacity: 0; } 30%, 60% { opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
 .hd.centered { text-align: center; }
 .hd.centered .hd-kicker { margin-top: 6px; }
 .hd.row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; }
-.hd.row .azami { width: 140px; height: 150px; margin: 0; }
-.hd.row .azami-btn { width: 140px; margin: 0; }
+.hd.row .azami { width: 150px; height: 150px; margin: 0; }
+.hd.row .azami-btn { width: 150px; margin: 0; }
+
+/* Récemment -------------------------------------------------------------- */
+
+.recent { list-style: none; margin: 0 0 6px; padding: 0; font-size: 14px; }
+.recent li { display: flex; gap: 6px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.recent .who { font-weight: 700; }
+.recent .when { margin-left: auto; color: var(--muted); font-size: 12px; white-space: nowrap; }
 
 /* Tableau ---------------------------------------------------------------- */
 

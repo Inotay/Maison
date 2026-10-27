@@ -1,7 +1,16 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
-import { AZAMI } from './azami.js';
+// Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
+function greeting(h = new Date().getHours()) {
+  if (h >= 22 || h < 5) return ['Bonne nuit', 'accueil_nuit'];
+  if (h < 9) return ['Bonjour', 'accueil_bonjour'];
+  if (h < 11) return ['Bonne matinée', 'accueil_bonne_matinee'];
+  if (h < 14) return ['Bon midi', 'accueil_bon_midi'];
+  if (h < 18) return ['Bonne après-midi', 'accueil_bonne_apres_midi'];
+  return ['Bonsoir', 'accueil_bonsoir'];
+}
+const azami = (scene, alt) => `<img class="azami" src="azami/azami_${scene}_anime.svg" alt="${alt}" width="512" height="512" decoding="async">`;
 
 const CFG = window.MAISON_CONFIG || {};
 const DEMO = !(CFG.supabaseUrl && CFG.supabaseKey);
@@ -25,7 +34,6 @@ const S = {
   login: { step: 'login', email: '' },
   recovery: false,     // arrivée par un lien « mot de passe oublié »
   showChoreForm: false,
-  meowing: false,
   offline: false,
 };
 
@@ -94,7 +102,6 @@ fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = '
 let audioCtx = null;
 function meow(force) {
   if (!force && Math.random() > 0.18) return;
-  if (!typing()) { S.meowing = true; render(); setTimeout(() => { S.meowing = false; if (!typing()) render(); }, 750); }
   try {
     if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -521,8 +528,7 @@ function recentEvents() {
 }
 
 function viewMaison() {
-  const h = new Date().getHours();
-  const hello = h < 5 ? 'Bonne nuit' : h < 18 ? 'Bonjour' : 'Bonsoir';
+  const [hello, scene] = greeting();
   const date = new Date().toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const myChores = S.chores.filter(c => c.turn === S.me && choreStatus(c).due);
@@ -541,7 +547,7 @@ function viewMaison() {
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
 
   return `<header class="hd centered">
-    <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.maison()}</button>
+    <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num">${esc(num)}</span></button>`).join('')}</div>
@@ -610,7 +616,7 @@ function viewMenage() {
   const max = Math.max(1, ...counts.map(c => c[1]));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
-  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.menage()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
     ${chores.length ? `<div>${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
@@ -648,7 +654,7 @@ function viewCourses() {
   const cart = S.shopping.filter(s => s.checked);
   const item = s => `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     <div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div></li>`;
-  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.courses()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter (sépare par des virgules)" autocomplete="off" enterkeyhint="done" required></div>
@@ -709,7 +715,7 @@ function viewArgent() {
       }).join('')}</ul>`;
   }).join('');
 
-  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.argent()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('argent', 'Azami fait sauter une pièce')}</button></header>
     <p class="balance">${sentence}</p>
     ${Math.abs(net) >= 0.01 ? `<button class="link" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>` : ''}
 
@@ -736,7 +742,7 @@ function viewArgent() {
 // Nuit : care et libido
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.meowing ? AZAMI.meow() : AZAMI.nuit()}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Nuit</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${S.nuitTab === 'libido' ? azami('nuit_libido', 'Azami touche le switch') : azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="nuit-tab" data-tab="care" aria-pressed="${S.nuitTab === 'care'}">Care</button>
       <button data-action="nuit-tab" data-tab="libido" aria-pressed="${S.nuitTab === 'libido'}">Libido</button>

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Argent">
+      <title>Argent</title><desc>Azami découvre une pièce qui saute et essaie de l’attraper. SVG statique entièrement éditable. Fond transparent.</desc>
+      
+      <g id="abstract-decor">
+          <path d="M165 159 A116 116 0 0 1 347 151" stroke="#F2BC42" stroke-width="7" stroke-linecap="round" fill="none" opacity=".17"/>
+          <g id="decor-sparkle-1"><path d="M115 244.5 Q116.4 253.6 125.5 255 Q116.4 256.4 115 265.5 Q113.6 256.4 104.5 255 Q113.6 253.6 115 244.5Z" fill="#F2BC42"/></g>
+          <circle cx="395" cy="195" r="8" fill="#8DBBE0" opacity=".38"/>
+          </g>
+      <g id="cat-rig">
+       <g id="tail" class="tail">
+       <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
+       </g>
+       <g id="body-rig" class="body-rig">
+        <ellipse cx="256" cy="322" rx="87" ry="90" fill="#F2DAB4"/>
+        <ellipse cx="256" cy="324" rx="46" ry="61" fill="#FFF0D7" opacity=".72"/>
+        <path d="M205 297 Q182 314 199 344" stroke="#E4C49C" stroke-width="15" stroke-linecap="round" fill="none" opacity=".6"/>
+        <path d="M307 297 Q330 314 313 344" stroke="#E4C49C" stroke-width="15" stroke-linecap="round" fill="none" opacity=".6"/>
+        </g>
+        <g id="feet">
+        <ellipse cx="213" cy="386" rx="29" ry="20" fill="#38211F"/>
+        <ellipse cx="299" cy="386" rx="29" ry="20" fill="#38211F"/>
+        </g>
+       <g id="arms">
+      <g id="arm-left" class="arm-left"><path d="M193 289 Q183 308 197 330 Q201 337 218 330 Q232 323 219 306 L207 286Z" fill="#F2DAB4"/><ellipse cx="208" cy="318" rx="20" ry="17" fill="#38211F"/></g>
+      <g id="arm-right" class="arm-right"><path d="M319 289 Q329 308 315 330 Q311 337 294 330 Q280 323 293 306 L305 286Z" fill="#F2DAB4"/><ellipse cx="304" cy="318" rx="20" ry="17" fill="#38211F"/></g>
+      </g>
+       <g id="head-rig" class="head-rig">
+        <g id="ear-left" class="ear-left">
+          <path d="M188 132 Q168 98 155 54 Q150 44 146 60 Q135 110 150 162 L194 158Z" fill="#38211F"/>
+          <path d="M178 126 Q163 94 155 75 Q150 104 158 138Z" fill="#F4ADAF"/>
+          </g><g id="ear-right" class="ear-right">
+          <path d="M324 132 Q344 98 357 54 Q362 44 366 60 Q377 110 362 162 L318 158Z" fill="#38211F"/>
+          <path d="M334 126 Q349 94 357 75 Q362 104 354 138Z" fill="#F4ADAF"/>
+          </g>
+        <path d="M150 188 C150 119 195 106 256 105 C317 106 362 119 362 188 C362 250 317 280 256 280 C195 280 150 250 150 188Z" fill="#F2DAB4"/>
+        <path d="M162 201 C162 167 182 144 210 141 C231 135 239 145 256 142 C276 138 291 136 311 146 C340 161 350 182 350 206 C349 244 313 260 256 261 C201 261 166 243 162 201Z" fill="#38211F"/>
+        <ellipse cx="201" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
+        <ellipse cx="311" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
+        <g id="eyes-open" opacity="1"><g class="eye" transform="translate(217 188)">
+      <ellipse rx="27" ry="31" fill="#FFF7EB"/>
+      <ellipse rx="22.5" ry="26" fill="#86C2ED"/>
+      <ellipse cx="3" cy="3" rx="15.5" ry="20" fill="#18364A"/>
+      <ellipse cx="-5" cy="-11" rx="7" ry="8" fill="#FFF7EB"/>
+      <circle cx="12" cy="9" r="3.3" fill="#FFF7EB" opacity=".86"/>
+      </g><g class="eye" transform="translate(295 188)">
+      <ellipse rx="27" ry="31" fill="#FFF7EB"/>
+      <ellipse rx="22.5" ry="26" fill="#86C2ED"/>
+      <ellipse cx="3" cy="3" rx="15.5" ry="20" fill="#18364A"/>
+      <ellipse cx="-5" cy="-11" rx="7" ry="8" fill="#FFF7EB"/>
+      <circle cx="12" cy="9" r="3.3" fill="#FFF7EB" opacity=".86"/>
+      </g></g>
+        <g id="eyes-sleepy" opacity="0">
+          <path d="M192 192 Q215 215 240 191" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
+          <path d="M272 191 Q297 215 320 192" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
+        </g>
+        <g id="nose"><path d="M244 227 Q256 219 268 227 Q263 236 256 238 Q249 236 244 227Z" fill="#F4ADAF"/></g>
+        <g id="smile" opacity="1">
+           <path d="M256 237 V242 M256 242 Q248 251 240 244 M256 242 Q264 251 272 244" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
+        </g>
+        <g id="meow-mouth" opacity="0">
+          <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
+          <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
+        </g>
+        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+           <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
+        </g>
+     </g>
+      </g>
+      <g id="scene-prop">
+           <g id="coin-left"><rect x="150" y="367" width="53" height="14" rx="7" fill="#F2BC42"/><rect x="156" y="351" width="53" height="14" rx="7" fill="#E9A937"/></g>
+           <g id="coin-right"><rect x="315" y="369" width="53" height="14" rx="7" fill="#F2BC42"/><rect x="309" y="353" width="53" height="14" rx="7" fill="#E9A937"/></g>
+           <g id="coin-rig"><circle cx="256" cy="329" r="39" fill="#F2BC42" stroke="#E9A937" stroke-width="5"/><circle cx="256" cy="329" r="28" fill="none" stroke="#FFF7EB" stroke-width="3" opacity=".55"/><path d="M256 311 V347 M266 317 Q242 304 243 323 Q244 332 261 332 Q272 343 250 345" stroke="#9B681D" stroke-width="6" stroke-linecap="round" fill="none"/></g>
+           <g id="coin-sparkles"><g><path d="M354 276.25 Q355.3 284.7 363.75 286 Q355.3 287.3 354 295.75 Q352.7 287.3 344.25 286 Q352.7 284.7 354 276.25Z" fill="#F2BC42"/></g><g><path d="M379 311.25 Q379.9 317.1 385.75 318 Q379.9 318.9 379 324.75 Q378.1 318.9 372.25 318 Q378.1 317.1 379 311.25Z" fill="#8DBBE0"/></g></g>
+          </g>
+      </svg>

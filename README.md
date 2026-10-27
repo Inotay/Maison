@@ -43,7 +43,7 @@ L'app s'ouvre sans réseau et montre le dernier état connu, en lecture seule (s
 
 ## Fichiers
 - `index.html`, `styles.css`, `app.js` : l'app
-- `azami.js` : Azami, une pose par page
+- `azami/` : pack d'animations V2 d'Azami (11 scènes SVG en boucle, six accueils selon l'heure) ; `azami/statiques/` : les versions éditables
 - `sw.js` : hors-ligne et notifications
 - `vendor/` : librairie Supabase 2.49.4 figée ; `fonts/` : polices (licence OFL)
 - `config.js` : connexion à Supabase
