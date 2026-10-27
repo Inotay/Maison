@@ -289,7 +289,7 @@ const BY_EMOJI = {}; for (const t of THEMES) if (!BY_EMOJI[t.icon]) BY_EMOJI[t.i
 // Pour afficher une valeur stockée (emoji ou « t:id ») : image ou emoji.
 export function iconView(v) {
   if (!v) return { emoji: '' };
-  if (v.startsWith('t:')) { const t = BY_ID[v.slice(2)]; return t ? { img: imgOf(t.id), emoji: t.icon, id: t.id } : { emoji: '📌' }; }
+  if (v.startsWith('t:')) { const id = v.slice(2), t = BY_ID[id]; if (t) return { img: imgOf(t.id), emoji: t.icon, id: t.id }; return IMG.has(id) ? { img: id, emoji: '', id } : { emoji: '📌' }; }   // image seule, sans thème de mots-clés (verre, déchets…)
   const t = BY_EMOJI[v];
   return t && imgOf(t.id) ? { img: imgOf(t.id), emoji: v, id: t.id } : { emoji: v };
 }

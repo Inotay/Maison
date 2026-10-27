@@ -63,13 +63,13 @@
 
 /* Thème « Brun » : la première version, seal point d'Azami. Choisi par personne dans les réglages. */
 html[data-theme="brun"] {
-  --bg: #241710;
-  --surface: #3E2C20;       /* cartes nettement plus claires que le fond */
-  --surface-2: #4A3628;
-  --text: #F7EFE3;
-  --muted: #D2C0A9;         /* texte secondaire plus clair, lisible sur les cartes */
-  --line: #5C4634;          /* bord visible */
-  --shadow: #140C07;
+  --bg: #4A3627;            /* brun moyen : les oreilles, la queue et les pattes d'Azami s'en détachent */
+  --surface: #5E4636;       /* cartes plus claires que le fond */
+  --surface-2: #6A503E;
+  --text: #FAF3E8;
+  --muted: #E0CFB8;         /* texte secondaire, lisible sur les cartes */
+  --line: #7A5F4A;          /* bord visible */
+  --shadow: #2C1F16;
   --accent: var(--bleu);
   --accent-edge: var(--bleu-2);
   --accent-text: #1C120C;
@@ -85,8 +85,8 @@ html[data-theme="brun"] {
   --gold-text: #F5CB5C;
   color-scheme: dark;
 }
-html[data-theme="brun"] .glance button { border-color: #5C4634; }
-html[data-theme="brun"] .hd-kicker, html[data-theme="brun"] h2 { color: #D2C0A9; }
+html[data-theme="brun"] .glance button { border-color: #7A5F4A; }
+html[data-theme="brun"] .hd-kicker, html[data-theme="brun"] h2 { color: #E0CFB8; }
 html[data-theme="brun"] .picker { background: var(--seal); }
 
 * { box-sizing: border-box; }

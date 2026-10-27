@@ -213,6 +213,7 @@ const REACTION_MS = { tache_cochee: 4400, corvee_terminee: 4800, courses_complet
 const reactionSrc = id => `azami/reactions/${id}_${reduced() ? 'statique' : 'anime'}.svg${reduced() ? '' : '?' + Date.now()}`;
 let reactionEl = null;
 // Petite réaction posée à côté d'un élément (la ligne cochée, le bouton), sans rien déplacer ni bloquer.
+export function clearReaction() { if (reactionEl) { reactionEl.remove(); reactionEl = null; } }
 export function react(id, anchor) {
   if (!REACTION_MS[id]) return;
   if (reactionEl) { reactionEl.remove(); reactionEl = null; }

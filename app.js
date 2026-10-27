@@ -4,7 +4,7 @@
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
-import { react, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
+import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
 // une scène par page, six accueils selon l'heure, « reussite » jouée une fois quand quelque chose est fait.
@@ -85,7 +85,7 @@ let sb = null;
 
 function safeGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
 // Thème choisi sur cet appareil : « ciel » (bleu) ou « brun » (la première version). Chacun le sien.
-const THEME_COLORS = { ciel: '#53A5C7', brun: '#2A1C15' };
+const THEME_COLORS = { ciel: '#53A5C7', brun: '#4A3627' };
 let THEME = THEME_COLORS[safeGet('maison-theme')] ? safeGet('maison-theme') : 'ciel';
 function applyTheme() {
   document.documentElement.dataset.theme = THEME;
@@ -934,7 +934,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v53</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v54</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1544,7 +1544,7 @@ function viewCare() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
-  go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
