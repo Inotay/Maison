@@ -86,7 +86,6 @@ html[data-theme="brun"] {
   color-scheme: dark;
 }
 html[data-theme="brun"] .picker { background: var(--seal); }
-html[data-theme="brun"] .ticon:not(.emoji):not(.person) { background: #FFF3D4; padding: 3px; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
