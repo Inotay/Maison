@@ -662,5 +662,16 @@ body::before {
 .day-head.today { color: var(--gold-text); }
 .item.ev.ongoing { border-color: var(--accent); }
 .item.house { border-style: dashed; }
+/* Déchets */
+.hint-inline { font-weight: 700; letter-spacing: 0; text-transform: none; opacity: .8; margin-left: 6px; }
+.dechets .item-meta { display: flex; align-items: center; gap: 6px; }
+[class^="dot-"] { flex: none; width: 10px; height: 10px; border-radius: 50%; border: 2px solid rgba(0,0,0,.15); }
+.dot-ok { background: #58C06A; } .dot-route { background: #F2C14E; } .dot-non { background: var(--rouge); }
+.item.dech.non { opacity: .85; }
+.pratique h3 { margin: var(--s4) 0 var(--s1); font-size: 13px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pratique p, .pratique li { margin: 0 0 var(--s2); font-size: 15px; line-height: 1.4; }
+.pratique ul.plain { list-style: none; padding: 0; margin: 0; }
+.pratique .tel { color: var(--text); font-weight: 800; text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; white-space: nowrap; }
+.pratique .urgences { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); }
 .house-toggle { display: block; margin: var(--s3) 0 0; font-size: 14px; }
 .form.add + .day-head, .btn + .day-head { margin-top: var(--s4); }
