@@ -109,6 +109,7 @@ create table if not exists public.shopping (
   id         uuid primary key default gen_random_uuid(),
   label      text not null,
   checked    boolean not null default false,
+  shop       text,                                 -- super, asie, maison, pharma, azami, autre
   added_by   text not null default public.me(),
   created_at timestamptz not null default now()
 );
