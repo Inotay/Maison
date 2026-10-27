@@ -397,7 +397,7 @@ function show(title, body, tag) {
 
 const ctxOf = { tasks: 'task', shopping: 'shopping', expenses: 'expense', chores: 'chore', wins: 'task' };
 const labelOf = (type, row) => type === 'tasks' || type === 'chores' || type === 'wins' ? row.title : row.label;
-const iconOf = (type, row) => row.icon || iconFor(labelOf(type, row), ctxOf[type], S.hints);
+const iconOf = (type, row) => (row.icon && !(isVariant(row.icon) && !variantSrc(row.icon)) ? row.icon : null) || iconFor(labelOf(type, row), ctxOf[type], S.hints);
 
 // Variantes personnalisées ---------------------------------------------------
 // Qui « porte » l'élément : la personne assignée, à qui c'est le tour, qui a payé, qui l'a fait.
@@ -415,8 +415,8 @@ function autoTheme(label, stored, ctx) {
 // Ce qu'on affiche : un choix manuel tel quel ; sinon la variante de la personne si elle existe ; sinon l'icône de thème.
 function displayIcon(type, row, owner = ownerOf(type, row)) {
   const base = iconOf(type, row);
-  if (isVariant(row.icon)) return row.icon;
-  const theme = autoTheme(labelOf(type, row) || '', row.icon, ctxOf[type]);
+  if (isVariant(row.icon)) { if (variantSrc(row.icon)) return row.icon; }   // une variante d'un ancien pack : on repasse en automatique
+  const theme = autoTheme(labelOf(type, row) || '', isVariant(row.icon) ? null : row.icon, ctxOf[type]);
   const action = actionFor(theme);
   if (type === 'expenses' && !EXPENSE_ACTIONS.has(action)) return base;
   return variantFor(personOf(owner), action) || base;
@@ -862,7 +862,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v38</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v39</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
