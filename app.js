@@ -4,6 +4,7 @@
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK, PARENT } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
+import { RECETTES, CUISINES, TAGS, qty } from './recettes.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -103,6 +104,7 @@ const S = {
   members: [],
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   view: safeGet('maison-view') || 'maison',
+  rq: '', rcuisine: '', recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
   shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
   achats: [],                                       // historique des articles achetés (pour les pré-listes, plus tard)
@@ -785,13 +787,14 @@ const ICONS = {
   menage: '<path d="M14 3 10.5 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 11h8l2 9H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 15v5M13 15v5" stroke="currentColor" stroke-width="1.2"/>',
   courses: '<path d="M4 9h16l-1.6 10H5.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9 11 4M15.5 9 13 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   argent: '<rect x="3.5" y="6.5" width="17" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>',
+  recettes: '<path d="M6 3v7a3 3 0 0 0 6 0V3M9 3v18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M18 3c-2 2-3 5-3 8h3v10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
   nuit: '<path d="M12 20s-7-4.4-7-9.6A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
 };
 
 function nav() {
   const openShop = S.shopping.filter(s => !s.checked).length;
   const unread = S.care.filter(c => c.recipient === S.me && !c.read_at).length;
-  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['argent', 'Argent'], ['nuit', 'Care']];
+  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['recettes', 'Recettes'], ['argent', 'Argent'], ['nuit', 'Care']];
   return `<nav class="nav" aria-label="Sections"><ul>${items.map(([k, l]) => {
     let mark = '';
     if (k === 'courses' && openShop) mark = `<span class="badge" aria-hidden="true">${openShop}</span>`;
@@ -832,7 +835,7 @@ function render() {
   document.body.dataset.time = 'jour';
   applyTheme();
 
-  const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, argent: viewArgent, nuit: viewNuit };
+  const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
   placeAzami();
   maybeCoucou();
@@ -981,7 +984,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v61</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v62</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1472,6 +1475,72 @@ function balanceCard() {
   </section>`;
 }
 
+// Recettes --------------------------------------------------------------------
+const RID = id => RECETTES.find(r => r.id === id);
+const rMeta = r => `${CUISINES[r.cuisine]} · ${r.min} min${r.tags.includes('vege') ? ' · végé' : ''}`;
+function viewRecettes() {
+  if (S.cook) return viewCuisiner();
+  if (S.recette) return viewRecette(RID(S.recette));
+  const q = norm(S.rq || '');
+  const list = RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine || r.tags.includes(S.rcuisine))
+    && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)));
+  const chips = [['', 'Tout'], ...Object.entries(CUISINES), ['vege', 'Végé'], ['rapide', 'Rapide'], ['sucre', 'Sucré']];
+  return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
+    <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
+      <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, rapide…" autocomplete="off" enterkeyhint="search"></div></div>
+    <div class="chips rchips">${chips.map(([k, l]) => `<button type="button" data-action="r-cuisine" data-k="${k}" aria-pressed="${S.rcuisine === k}">${esc(l)}</button>`).join('')}</div>
+    <ul class="list rlist" id="rlist">${rList(list)}</ul>`;
+}
+function rList(list) {
+  if (!list.length) return `<li class="empty">Rien avec ça. Essaie un ingrédient ou une cuisine.</li>`;
+  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0"><div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="chev" aria-hidden="true">›</span></li>`).join('');
+}
+const rSearch = v => { S.rq = v; const q = norm(v); const el = document.getElementById('rlist'); if (!el) return;
+  el.innerHTML = rList(RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine || r.tags.includes(S.rcuisine)) && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))); };
+function viewRecette(r) {
+  const n = S.persons || 2;
+  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
+    <p class="rdesc">${esc(r.desc)}</p>
+    <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
+    <h2>Ingrédients <span class="muted">pour ${n}</span></h2>
+    <ul class="list ring">${r.ing.map(x => `<li><b>${esc(qty(x, n))}</b> ${esc(x.n)}</li>`).join('')}</ul>
+    <h2>Recette</h2>
+    <ol class="rsteps">${r.etapes.map(e => `<li>${esc(e)}</li>`).join('')}</ol>`;
+}
+function viewCuisiner() {
+  const r = RID(S.cook.id), k = S.cook.step, last = k >= r.etapes.length - 1;
+  const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>`;
+  if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${esc(e)}</li>`).join('')}</ol>
+    <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
+  return head + `<div class="rstep"><div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>
+      <div class="dots-inline" aria-hidden="true">${r.etapes.map((_, j) => `<span class="dot ${j < k ? 'dot-ok' : j === k ? 'now' : 'off'}"></span>`).join('')}</div></div>
+    <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C\'est prêt !' : 'Suivant'}</button></div>
+    <div class="form-actions"><button class="link" data-action="r-cook-full">Lire la recette en entier</button></div>
+    <details class="fold mt" data-fold="r-ing"><summary>Ingrédients</summary><ul class="list ring">${r.ing.map(x => `<li><b>${esc(qty(x, S.persons || 2))}</b> ${esc(x.n)}</li>`).join('')}</ul></details>`;
+}
+// Feuille « rajouter à la liste » : nombre de personnes, puis on coche ce qu'on a déjà.
+function openPanier(id) {
+  const r = RID(id); S.panier = { id, have: new Set() };
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  const draw = () => {
+    const n = S.persons || 2;
+    const inList = new Set(S.shopping.filter(s => !s.checked).map(s => norm(s.label.replace(/\s*\(.*\)$/, ''))));
+    box.innerHTML = `<div class="ticket-card panier" role="dialog" aria-label="Ajouter à la liste">
+      <p class="ticket-title">${esc(r.titre)}</p>
+      <div class="persons"><button type="button" class="btn ghost small" data-p="-1" aria-label="Moins">−</button><span><b>${n}</b> ${n > 1 ? 'personnes' : 'personne'}</span><button type="button" class="btn ghost small" data-p="1" aria-label="Plus">+</button></div>
+      <p class="ticket-sub">Coche ce que tu as déjà à la maison.</p>
+      <ul class="list ring check">${r.ing.map((x, j) => { const dup = inList.has(norm(x.n)); const on = S.panier.have.has(j) || dup; return `<li><button type="button" class="tick" role="checkbox" aria-checked="${on}" data-j="${j}" aria-label="${esc(x.n)}"></button><span class="${on ? 'have' : ''}"><b>${esc(qty(x, n))}</b> ${esc(x.n)}${dup ? ' <em>déjà sur la liste</em>' : ''}</span></li>`; }).join('')}</ul>
+      <div class="form-actions"><button class="btn ghost" data-action="ticket-skip">Annuler</button><button class="btn" data-action="r-panier-ok">Ajouter ce qui manque</button></div></div>`;
+    box.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { S.persons = Math.min(12, Math.max(1, n + Number(b.dataset.p))); safeSet('maison-persons', String(S.persons)); haptic(1); draw(); }));
+    box.querySelectorAll('[data-j]').forEach(b => b.addEventListener('click', () => { const j = Number(b.dataset.j); S.panier.have.has(j) ? S.panier.have.delete(j) : S.panier.have.add(j); haptic(1); draw(); }));
+  };
+  draw();
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('on'));
+  haptic(1);
+}
+
 function viewArgent() {
   const o = other();
   const lastSettle = balanceDetail().lastSettle;
@@ -1591,7 +1660,28 @@ function viewCare() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
-  go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+
+  'r-open': el => { S.recette = el.dataset.id; render(); window.scrollTo(0, 0); },
+  'r-back': () => { S.recette = null; render(); },
+  'r-cuisine': el => { S.rcuisine = el.dataset.k; render(); },
+  'r-cook': el => { S.cook = { id: el.dataset.id, step: 0, full: false }; render(); window.scrollTo(0, 0); },
+  'r-cook-stop': () => { S.cook = null; render(); },
+  'r-cook-full': () => { S.cook.full = true; render(); },
+  'r-cook-steps': () => { S.cook.full = false; render(); },
+  'r-next': () => { S.cook.step++; haptic(1); render(); window.scrollTo(0, 0); },
+  'r-prev': () => { S.cook.step = Math.max(0, S.cook.step - 1); render(); },
+  'r-done': () => { const r = RID(S.cook.id); S.cook = null; S.recette = null; render(); azamiJump(); win('cuisine', r.titre, 1, 'cuisine'); celebrate({ title: 'Bon appétit !', sub: r.titre, level: 'small', reaction: 'fete_reussites' }); },
+  'r-panier': el => openPanier(el.dataset.id),
+  'r-panier-ok': () => {
+    const r = RID(S.panier.id), n = S.persons || 2;
+    const inList = new Set(S.shopping.filter(s => !s.checked).map(s => norm(s.label.replace(/\s*\(.*\)$/, ''))));
+    const todo = r.ing.filter((x, j) => !S.panier.have.has(j) && !inList.has(norm(x.n)));
+    closeTicket();
+    if (!todo.length) { toast('Tu as déjà tout'); return; }
+    run(async () => { for (const x of todo) { const label = `${x.n[0].toUpperCase()}${x.n.slice(1)} (${qty(x, n)})`; await api.insert('shopping', { label, icon: iconFor(x.n, 'shopping', S.hints), shop: guessShop(x.n) }); } }, null)
+      .then(ok => { if (ok) { toast(`${pl(todo.length, 'article ajouté', 'articles ajoutés')} à la liste`); react('courses_completees', document.querySelector('.hd .azami')); } });
+  },
+  go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
@@ -1971,6 +2061,8 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-action]');
   if (a && actions[a.dataset.action]) { if (!hap) e.preventDefault(); actions[a.dataset.action](a); }
 });
+
+document.addEventListener('input', e => { if (e.target.id === 'rq') rSearch(e.target.value); });
 
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]');
