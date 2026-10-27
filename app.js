@@ -858,7 +858,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v34</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v35</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1094,7 +1094,7 @@ function choreBtn(c, now = new Date()) {
   const st = choreStatus(c);
   const s = c.sorte && SORTES.find(x => x.id === c.sorte);
   const d = s ? descente(s, c, now) : null;
-  if (d && st.due && !d.possible) return `<span class="dech-btn due off">${esc(d.until)}</span>`;
+  // Hors calendrier, le bouton reste cliquable (le container est parfois là quand même), juste atténué.
   const off = d && !d.possible ? 'off' : '';
   return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>`;
 }
@@ -1102,7 +1102,7 @@ function dechetMeta(c, now = new Date()) {
   const s = SORTES.find(x => x.id === c.sorte);
   const st = choreStatus(c);
   const d = descente(s, c, now);
-  if (st.due && !d.possible) return `Ramassage, à descendre dès ${d.until}`;
+  if (st.due && !d.possible) return `À descendre, normalement dès ${d.until} (ramassage)`;
   if (st.due) return d.state === 'route' ? 'À descendre, au bout du chemin sur la route de Genève' : (st.late ? `À descendre, ${st.label}` : 'À descendre');
   return `Prochaine fois ${st.label}${c.last_done_by ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
 }

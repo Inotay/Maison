@@ -63,8 +63,8 @@ export function resume(waste, now = new Date()) {
   const b = st.filter(x => x.due && !x.possible).length;
   if (!a && !b) return 'Tout est descendu';
   if (a && !b) return a === 1 ? '1 à descendre' : `${a} à descendre`;
-  if (!a) return b === 1 ? '1 en attente du ramassage' : `${b} en attente du ramassage`;
-  return `${a} à descendre, ${b} en attente`;
+  if (!a) return b === 1 ? '1 à descendre, jour de ramassage' : `${b} à descendre, jour de ramassage`;
+  return `${a + b} à descendre`;
 }
 
 // Fiche pratique de l'immeuble : gérance, pannes, déchèterie, urgences.

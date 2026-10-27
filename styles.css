@@ -673,7 +673,7 @@ body::before {
 /* Bouton de descente : rouge quand c'est le moment, vert quand c'est fait, grisé quand le calendrier l'interdit. */
 .dech-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 96px; height: 40px; padding: 0 var(--s3); border-radius: 12px; font-weight: 800; font-size: 14px; white-space: nowrap; }
 .dech-btn.due { background: var(--rouge); color: #fff; border: 0; box-shadow: 0 4px 0 #A33428; }
-.dech-btn.due.off { background: color-mix(in srgb, var(--rouge) 45%, var(--surface)); color: color-mix(in srgb, #fff 80%, var(--rouge)); box-shadow: 0 4px 0 color-mix(in srgb, #A33428 40%, var(--surface)); }
+.dech-btn.due.off { background: color-mix(in srgb, var(--rouge) 55%, var(--surface)); color: #fff; box-shadow: 0 4px 0 color-mix(in srgb, #A33428 50%, var(--surface)); }
 .dech-btn.done { background: #58C06A; color: #0F3A1A; box-shadow: 0 4px 0 #2F8A42; }
 .dech-btn.done.off { background: color-mix(in srgb, #58C06A 45%, var(--surface)); color: color-mix(in srgb, #0F3A1A 60%, var(--surface)); box-shadow: 0 4px 0 color-mix(in srgb, #2F8A42 40%, var(--surface)); }
 .dech-btn.did { background: #58C06A; color: #0F3A1A; box-shadow: 0 4px 0 #2F8A42; }
