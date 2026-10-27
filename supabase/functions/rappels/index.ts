@@ -101,6 +101,44 @@ async function run(db: ReturnType<typeof admin>) {
   return { sent, items: items.length };
 }
 
+// Minuteurs des corvées en étapes (lave-vaisselle, lessive) : quand le temps est écoulé et que
+// personne n'a encore été prévenu pour ce lancement, une notification part (à la personne pour une
+// corvée personnelle, aux deux sinon). Appelé toutes les 10 minutes.
+const SEQ: Record<string, { label: string; steps: { key: string; minutes?: number; meta?: string; btn: string }[] }> = {
+  lavevaisselle: { label: "Lave-vaisselle", steps: [{ key: "cycle", minutes: 60, btn: "Lancer" }, { key: "sortir", btn: "Sortie", meta: "Fini : sortir la vaisselle" }] },
+  lessive: { label: "Lessive", steps: [{ key: "lavage", minutes: 60, btn: "Lancer" }, { key: "sechage", minutes: 80, btn: "Au séchage", meta: "Lavage fini : mettre au séchage" }, { key: "ranger", btn: "Rangée", meta: "Sec : plier et ranger" }] },
+};
+async function minuteurs(db: ReturnType<typeof admin>) {
+  const now = Date.now();
+  const [{ data: chores }, { data: subs }] = await Promise.all([
+    db.from("chores").select("id, sorte, turn, step, started_at, notified_at, options").not("started_at", "is", null),
+    db.from("push_subscriptions").select("endpoint, email, sub"),
+  ]);
+  const due = (chores ?? []).filter((c: { sorte: string; step: number; started_at: string; notified_at: string | null; options: { minutes?: Record<string, number> } | null }) => {
+    const q = SEQ[c.sorte]; if (!q) return false;
+    const st = q.steps[Math.min(Number(c.step) || 0, q.steps.length - 1)];
+    const min = Number(c.options?.minutes?.[st.key]) || st.minutes || 0;
+    if (!min) return false;
+    const ready = new Date(c.started_at).getTime() + min * 60000;
+    return now >= ready && !(c.notified_at && new Date(c.notified_at).getTime() >= new Date(c.started_at).getTime());
+  });
+  if (!due.length) return { sent: 0, items: 0 };
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  let sent = 0; const dead: string[] = [];
+  for (const c of due) {
+    const q = SEQ[c.sorte]; const nx = q.steps[Math.min((Number(c.step) || 0) + 1, q.steps.length - 1)];
+    const payload = JSON.stringify({ title: `${q.label} : prêt`, body: nx.meta || nx.btn, tag: `maison-seq-${c.id}`, url: "./?v=menage" });
+    for (const s of (subs ?? []).filter((s: { email: string }) => !c.turn || s.email === c.turn)) {
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 3600 }); sent++; }
+      catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+    }
+    await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  return { sent, items: due.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin();
@@ -117,6 +155,7 @@ Deno.serve(async (req) => {
       return json({ publicKey: (await vapid(db)).publicKey });
     }
     if (action === "run") return json(await run(db));
+    if (action === "minuteurs") return json(await minuteurs(db));
     return json({ error: "Action inconnue." }, 400);
   } catch (e) {
     console.error(e);
