@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v68</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v69</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1566,28 +1566,28 @@ function viewRecettes() {
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
   const list = rFiltered();
-  const chip = (group, k, l, on) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${on}">${esc(l)}</button>`;
-  const temps = [['', 'Tout'], ['15', '≤ 15 min'], ['30', '≤ 30 min'], ['60', '≤ 1 h'], ['long', 'Plus long']];
-  const types = [['', 'Tout'], ['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
+  const chip = (group, k, l) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${S[group] === k}">${esc(l)}</button>`;
+  const types = [['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
+  const ti = RTIME.indexOf(Number(S.rtime) || 0);
   const nf = [S.rtime, S.rcuisine, S.rtype].filter(Boolean).length;
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
     ${S.rq || S.rtime || S.rcuisine || S.rtype ? '' : menuCard()}
-    <div class="rfilters">
-      <div class="rf"><span class="chip-label">Temps</span><div class="chips rchips">${temps.map(([k, l]) => chip('rtime', k, l, S.rtime === k)).join('')}</div></div>
-      <div class="rf"><span class="chip-label">Cuisine</span><div class="chips rchips">${[['', 'Toutes'], ...Object.entries(CUISINES)].map(([k, l]) => chip('rcuisine', k, l, S.rcuisine === k)).join('')}</div></div>
-      <div class="rf"><span class="chip-label">Envie</span><div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l, S.rtype === k)).join('')}</div></div>
-    </div>
+    <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
+    <div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}<span class="rsep" aria-hidden="true"></span>${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div>
     <p class="rcount" id="rcount">${pl(list.length, 'recette', 'recettes')}${nf ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}</p>
     <ul class="list rlist" id="rlist">${rList(list)}</ul>`;
 }
+// Jauge du temps : 0 = peu importe, sinon « prêt en … max ».
+const RTIME = [0, 10, 15, 20, 30, 45, 60, 90];
+const rtimeText = m => { m = Number(m) || 0; return !m ? 'peu importe' : m < 60 ? `${m} min max` : m === 60 ? '1 h max' : '1 h 30 max'; };
 function rFiltered() {
   const q = norm(S.rq || '');
   const t = S.rtime;
   return RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine)
     && (!S.rtype || r.tags.includes(S.rtype))
-    && (!t || (t === 'long' ? r.min > 60 : r.min <= Number(t)))
+    && (!t || r.min <= Number(t))
     && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))
     .sort((a, b) => (t || S.rtype === 'flemme' ? a.min - b.min : 0));
 }
@@ -2208,7 +2208,17 @@ document.addEventListener('click', e => {
   if (a && actions[a.dataset.action]) { if (!hap) e.preventDefault(); actions[a.dataset.action](a); }
 });
 
-document.addEventListener('input', e => { if (e.target.id === 'rq') rSearch(e.target.value); });
+document.addEventListener('input', e => {
+  if (e.target.id === 'rq') rSearch(e.target.value);
+  if (e.target.id === 'rtime') {
+    const i = Number(e.target.value); S.rtime = RTIME[i] || '';
+    e.target.style.setProperty('--p', `${i / (RTIME.length - 1) * 100}%`);
+    const o = document.getElementById('rtime-txt'); if (o) o.textContent = rtimeText(S.rtime);
+    haptic(1); rSearch(S.rq);
+  }
+});
+
+document.addEventListener('change', e => { if (e.target.id === 'rtime') render(); });
 
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]');
