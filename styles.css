@@ -679,7 +679,10 @@ body::before {
 .dech-btn.did { background: #58C06A; color: #0F3A1A; box-shadow: 0 4px 0 #2F8A42; }
 .dech-row .item-trail { flex: none; }
 .dech-list { list-style: none; margin: 0; padding: 0 var(--s3) var(--s2) var(--s4); border-top: 2px solid var(--line); }
-.dech-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.dech-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); padding: var(--s3) 0; border-top: 1px solid var(--line); }
+.dech-row .item-main { flex: 1 1 0; min-width: 0; }
+.dech-row .item-actions, .dech-row .picker { flex-basis: 100%; }
+.dech-row.editing { display: block; }
 .dech-row:first-child { border-top: 0; }
 .dech-row .item-meta { display: flex; align-items: center; gap: 6px; }
 .btn.wide { width: 100%; }
