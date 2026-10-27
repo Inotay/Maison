@@ -379,14 +379,27 @@ async function enableNotifications() {
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { toast('Notifications refusées dans les réglages.'); render(); return; }
   safeSet('maison-notif', '1');
-  try {
-    if (swReg && CFG.vapidPublicKey && sb) {
-      const sub = await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(CFG.vapidPublicKey) });
-      await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON() });
-    }
-  } catch (e) { console.warn('push', e); }
+  await subscribePush();
   toast('Notifications activées');
   render();
+}
+// Abonnement push (notifications app fermée) : la clé publique vient du serveur de rappels.
+async function pushKey() {
+  if (CFG.vapidPublicKey) return CFG.vapidPublicKey;
+  const cached = safeGet('maison-vapid'); if (cached) return cached;
+  if (!sb) return null;
+  const { data, error } = await sb.functions.invoke('rappels', { body: { action: 'vapid' } });
+  if (error || !data?.publicKey) return null;
+  safeSet('maison-vapid', data.publicKey);
+  return data.publicKey;
+}
+async function subscribePush() {
+  try {
+    if (!swReg || !sb || !('pushManager' in swReg)) return;
+    const key = await pushKey(); if (!key) return;
+    const sub = await swReg.pushManager.getSubscription() || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(key) });
+    await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON() });
+  } catch (e) { console.warn('push', e); }
 }
 function vapidKey(b64) {
   const pad = '='.repeat((4 - b64.length % 4) % 4);
@@ -881,7 +894,8 @@ function viewMaison() {
     <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v47</span></div>`;
+    ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v48</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1769,7 +1783,7 @@ async function boot() {
     // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
     let had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing()) location.reload(); had = true; });
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); }).catch(e => console.warn('sw', e));
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
   }
   const { createClient } = await import('./vendor/supabase-js-2.49.4.js');

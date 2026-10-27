@@ -65,10 +65,9 @@ async function run(db: ReturnType<typeof admin>) {
   const items: Item[] = [];
   for (const c of chores ?? []) {
     if (c.notified_at && zurich(new Date(c.notified_at)) === today) continue;
-    let late: number;
-    if (!c.last_done_at) late = Math.max(0, daysBetween(zurich(new Date(c.last_done_at ?? now)), today));
+    // Jamais faite : on compte depuis sa création n'est pas possible ici, on la considère due aujourd'hui (pas de rappel avant 2 jours de retard réel).
     const due = c.last_done_at ? new Date(new Date(c.last_done_at).getTime() + Number(c.every_days) * DAY) : null;
-    late = due ? daysBetween(zurich(due), today) : 0;
+    const late = due ? daysBetween(zurich(due), today) : 0;
     if (c.sorte) { if (late >= 2 && possibleNow(c.sorte, now)) items.push({ kind: "chore", id: c.id, title: c.title, who: null, late, sorte: c.sorte }); }
     else if (late >= 2) items.push({ kind: "chore", id: c.id, title: c.title, who: c.turn ?? null, late });
   }
