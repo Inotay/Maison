@@ -862,7 +862,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v40</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v41</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1120,7 +1120,7 @@ function dechetsCard(waste) {
       ${iconPicker('chores', c)}
       ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button></div>` : ''}</li>`;
   }).join('');
-  return `<details class="chore dech-card" data-fold="dechets" ${S.dechetsOpen === false ? '' : 'open'}><summary><img class="ticon" src="icons/themes/poubelle.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Déchets</div><div class="item-meta">${esc(dechetsResume(waste, now))}</div></div><div class="item-trail dots">${dots}</div></summary>
+  return `<details class="chore dech-card" data-fold="dechets" ${S.dechetsOpen === false ? '' : 'open'}><summary><img class="ticon" src="icons/themes/dechets.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Déchets</div><div class="item-meta">${esc(dechetsResume(waste, now))}</div></div><div class="item-trail dots">${dots}</div></summary>
     <ul class="dech-list">${rows}</ul></details>`;
 }
 
