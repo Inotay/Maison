@@ -862,7 +862,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v42</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v43</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1106,9 +1106,11 @@ function dechetMeta(c, now = new Date()) {
   const s = SORTES.find(x => x.id === c.sorte);
   const st = choreStatus(c);
   const d = descente(s, c, now);
-  if (st.due && !d.possible) return `À descendre, normalement dès ${d.until} (ramassage)`;
-  if (st.due) return d.state === 'route' ? 'À descendre, au bout du chemin sur la route de Genève' : (st.late ? `À descendre, ${st.label}` : 'À descendre');
-  return `Prochaine fois ${st.label}${c.last_done_by ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
+  // Une ligne, pour que les quatre blocs fassent la même hauteur.
+  if (st.due && !d.possible) return `Ramassage, plutôt ${d.until}`;
+  if (st.due) return d.state === 'route' ? 'Au bout du chemin' : st.late ? st.label[0].toUpperCase() + st.label.slice(1) : 'À descendre';
+  const w = st.label[0].toUpperCase() + st.label.slice(1);
+  return c.last_done_by ? `${w}, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : w;
 }
 function dechetsCard(waste) {
   const now = new Date();
