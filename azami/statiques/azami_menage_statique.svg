@@ -1,12 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Ménage">
-      <title>Ménage</title><desc>Azami sursaute, balaie vivement puis admire son travail. SVG statique entièrement éditable. Fond transparent.</desc>
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Ménage" data-scene="menage" data-theme-agnostic="true" data-background="transparent">
+      <title>Ménage</title><g id="micro-accents" opacity="0.75"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g></g><desc>Coup d’œil, trois coups de balai rapides, poussière qui scintille Illustration vectorielle statique, calques modifiables.</desc>
       
-      <g id="abstract-decor">
-          <path d="M130 348 Q257 377 392 344" stroke="#F2BC42" stroke-width="8" stroke-linecap="round" opacity=".13"/>
-          <circle cx="115" cy="213" r="16" stroke="#8DBBE0" stroke-width="3" opacity=".28"/>
-          <circle cx="400" cy="252" r="9" stroke="#8DBBE0" stroke-width="3" opacity=".38"/>
-          <g id="decor-sparkle-1"><path d="M113 313.5 Q114.4 322.6 123.5 324 Q114.4 325.4 113 334.5 Q111.6 325.4 102.5 324 Q111.6 322.6 113 313.5Z" fill="#F2BC42"/></g>
-          </g>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -62,7 +57,7 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
@@ -76,4 +71,9 @@
             </g>
             <g id="clean-sparkles"><g><path d="M392 357.25 Q393.3 365.7 401.75 367 Q393.3 368.3 392 376.75 Q390.7 368.3 382.25 367 Q390.7 365.7 392 357.25Z" fill="#F2BC42"/></g><g><path d="M408 391.25 Q408.9 397.1 414.75 398 Q408.9 398.9 408 404.75 Q407.1 398.9 401.25 398 Q407.1 397.1 408 391.25Z" fill="#8DBBE0"/></g></g>
           </g>
-      </svg>
+      <g id="fx-layer"><g id="motion-arcs" opacity="0" fill="none" stroke="#F2BC42" stroke-width="7" stroke-linecap="round">
+        <path d="M389 154 L401 140"/><path d="M400 176 L418 176"/><path d="M123 154 L113 138"/>
+      </g>
+      <g id="spark-pop" opacity="0">
+        <path d="M382 263 Q384 278 399 280 Q384 282 382 297 Q380 282 365 280 Q380 278 382 263Z" fill="#FFD35D"/>
+      </g></g></svg>

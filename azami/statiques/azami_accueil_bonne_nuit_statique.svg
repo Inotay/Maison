@@ -1,12 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Accueil · bonne nuit">
-      <title>Accueil · bonne nuit</title><desc>Azami se réveille, miaule, joue et se rendort. SVG statique entièrement éditable. Fond transparent.</desc>
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Accueil · bonne nuit" data-scene="accueil_bonne_nuit" data-theme-agnostic="true" data-background="transparent">
+      <title>Accueil · Bonne nuit</title><g id="micro-accents" opacity="0.75"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g></g><desc>Azami tapote son poisson, ferme les yeux et rêve Illustration vectorielle statique, calques modifiables.</desc>
       
-      <g id="abstract-decor" opacity="0.85">
-          <path d="M312 76 A78 78 0 1 0 362 175 A61 61 0 1 1 312 76 Z" fill="#507A9A" opacity=".20"/>
-          <g id="decor-sparkle-1"><path d="M391 109.25 Q392.3 117.7 400.75 119 Q392.3 120.3 391 128.75 Q389.7 120.3 381.25 119 Q389.7 117.7 391 109.25Z" fill="#F2BC42"/></g>
-          <g id="decor-sparkle-2"><path d="M113 226.6 Q113.72 231.28 118.4 232 Q113.72 232.72 113 237.4 Q112.28 232.72 107.6 232 Q112.28 231.28 113 226.6Z" fill="#8DBBE0"/></g>
-          <circle cx="374" cy="212" r="4" fill="#F2BC42" opacity=".56"/>
-          </g>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -62,7 +57,7 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
@@ -71,4 +66,9 @@
            <g id="fish-rig"><ellipse cx="337" cy="373" rx="34" ry="19" fill="#507A9A"/><path d="M360 372 L390 353 V392Z" fill="#8DBBE0"/><circle cx="323" cy="366" r="3.5" fill="#FFF7EB"/></g>
            <g id="stars-rig"><g><path d="M392 281.75 Q393.5 291.5 403.25 293 Q393.5 294.5 392 304.25 Q390.5 294.5 380.75 293 Q390.5 291.5 392 281.75Z" fill="#F2BC42"/></g><g><path d="M409 315.25 Q409.9 321.1 415.75 322 Q409.9 322.9 409 328.75 Q408.1 322.9 402.25 322 Q408.1 321.1 409 315.25Z" fill="#8DBBE0"/></g></g>
           </g>
-      </svg>
+      <g id="fx-layer"><g id="motion-arcs" opacity="0" fill="none" stroke="#F2BC42" stroke-width="7" stroke-linecap="round">
+        <path d="M389 154 L401 140"/><path d="M400 176 L418 176"/><path d="M123 154 L113 138"/>
+      </g>
+      <g id="spark-pop" opacity="0">
+        <path d="M382 263 Q384 278 399 280 Q384 282 382 297 Q380 282 365 280 Q380 278 382 263Z" fill="#FFD35D"/>
+      </g></g></svg>

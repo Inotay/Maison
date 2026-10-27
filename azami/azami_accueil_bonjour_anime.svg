@@ -1,71 +1,57 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 -56 512 568" width="512" height="568" role="img" aria-label="Bonjour">
-      <title>Bonjour</title><desc>Azami fait de grands étirements au réveil. Animation CSS de 12 secondes en boucle. Fond transparent.</desc>
-      <style><![CDATA[
-      /* Maison : les traits de décor abstrait lisent mal en petit sur fond sombre ; on garde étincelles et cœurs. */
-      #abstract-decor > path:not([id]), #abstract-decor > circle:not([id]) { display: none; }
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Bonjour" data-scene="accueil_bonjour" data-theme-agnostic="true" data-background="transparent" data-duration="12.8">
+      <title>Accueil · Bonjour</title><g id="micro-accents"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g><g id="spark-c"><path d="M378 124 Q379 132 387 133 Q379 134 378 142 Q377 134 369 133 Q377 132 378 124Z" fill="#E28B86"/></g></g><style><![CDATA[:root{--scene-duration:12.8s;}
 
-      :root { color-scheme: dark; }
-      #head-rig, #body-rig, #cat-rig, #tail, #ear-left, #ear-right, #arm-left, #arm-right,
-      #broom-rig, #basket-rig, #fish-pop, #fish-rig, #coin-rig, #coin-sparkles,
-      #envelope-rig, #heart-rig, #switch-knob, #switch-on, #stars-rig, #clean-sparkles,
-      #decor-sparkle-1, #decor-sparkle-2, #decor-heart, #meow-mouth, #smile,
-      #eyes-open, #eyes-sleepy { transform-box: view-box; }
-      #head-rig { transform-origin: 256px 238px; animation: head-move 12s ease-in-out infinite; }
-      #body-rig { transform-origin: 256px 352px; animation: breathe 12s ease-in-out infinite; }
-      #cat-rig { transform-origin: 256px 350px; animation: cat-move 12s ease-in-out infinite; }
-      #tail { transform-origin: 323px 337px; animation: tail-move 12s ease-in-out infinite; }
-      #ear-left { transform-origin: 182px 142px; animation: ear-left-move 12s ease-in-out infinite; }
-      #ear-right { transform-origin: 330px 142px; animation: ear-right-move 12s ease-in-out infinite; }
-      #arm-left { transform-origin: 208px 295px; animation: paw-left-move 12s ease-in-out infinite; }
-      #arm-right { transform-origin: 304px 295px; animation: paw-right-move 12s ease-in-out infinite; }
-      #eyes-open { animation: open-eye 9.7s steps(1,end) infinite; }
-      #eyes-sleepy { animation: closed-eye 9.7s steps(1,end) infinite; }
-      #whiskers { transform-origin: 256px 235px; animation: whisker-twitch 5.3s ease-in-out infinite; }
-      #nose { transform-origin: 256px 228px; animation: nose-twitch 7.1s ease-in-out infinite; }
-      #decor-sparkle-1 { animation: independent-glimmer 5.7s ease-in-out infinite; }
-      #decor-sparkle-2 { animation: independent-glimmer 4.3s ease-in-out infinite reverse; }
-      #meow-mouth { animation: meow-face 12s steps(1,end) infinite; }
-      #smile { animation: smile-face 12s steps(1,end) infinite; }
-      @keyframes breathe {
-        0%,12%,22%,34%,52%,68%,79%,100% { transform: scale(1); }
-        7%,28%,60%,92% { transform: translateY(2px) scale(1.012,.988); }
-        47% { transform: translateY(-3px) scale(1.05,.95); }
-      }
-      @keyframes open-eye {
-        0%,14%,17.5%,38%,41%,73%,75.5%,100% {opacity:1;}
-        14.5%,16.2%,38.5%,40.5%,73.5%,75% {opacity:0;}
-      }
-      @keyframes closed-eye {
-        0%,14%,17.5%,38%,41%,73%,75.5%,100% {opacity:0;}
-        14.5%,16.2%,38.5%,40.5%,73.5%,75% {opacity:1;}
-      }
-      @keyframes whisker-twitch {0%,20%,56%,86%,100% {transform:translateX(0);} 21% {transform:translateX(-2px);} 23% {transform:translateX(1px);} 58% {transform:translateX(1.6px);} 60% {transform:translateX(-1px);}}
-      @keyframes nose-twitch {0%,38%,65%,100% {transform:translateY(0);} 40% {transform:translateY(2px);} 42% {transform:translateY(-1px);} 66% {transform:translateY(1px);} 69% {transform:translateY(0);}}
-      @keyframes independent-glimmer {0%,100% {opacity:.35;} 33% {opacity:.9;} 67% {opacity:.55;}}
-      @keyframes meow-face {0%,38%,43%,78%,83%,100% {opacity:0;} 39%,42%,79%,82% {opacity:1;} }
-      @keyframes smile-face {0%,38%,43%,78%,83%,100% {opacity:1;} 39%,42%,79%,82% {opacity:0;} }
-      @keyframes ear-left-move {0%,22%,28%,56%,60%,100% {transform:rotate(0deg);} 22.6% {transform:rotate(-17deg);} 23.4% {transform:rotate(5deg);} 24% {transform:rotate(-8deg);} 57% {transform:rotate(9deg);} 58.3% {transform:rotate(-5deg);} }
-      @keyframes ear-right-move {0%,30%,34%,71%,74%,100% {transform:rotate(0deg);} 30.8% {transform:rotate(13deg);} 31.6% {transform:rotate(-6deg);} 32.5% {transform:rotate(4deg);} 71.8% {transform:rotate(-13deg);} 72.8% {transform:rotate(4deg);} }
-      @media (prefers-reduced-motion: reduce) { * {animation: none !important;} }
-    
-       @keyframes head-move {0%,15%,100%{transform:rotate(0deg);} 17%{transform:rotate(-5deg);} 19%{transform:rotate(3deg);} 22%{transform:rotate(0deg);} 36%{transform:rotate(13deg);} 40%{transform:rotate(-7deg);} 44%{transform:rotate(0deg);} 63%{transform:rotate(-10deg);} 69%{transform:rotate(-8deg);} 79%{transform:rotate(0deg);} }
-       @keyframes cat-move {0%,33%,100%{transform:translate(0,0) scale(1);} 35%{transform:translateY(-11px) scale(.98,1.04);} 37%{transform:translateY(-19px) scale(1,1.01);} 39%{transform:translateY(0) scale(1.06,.90);} 41%{transform:translateY(-3px) scale(.98,1.02);} 44%{transform:translate(0,0) scale(1);} }
-       @keyframes tail-move {0%,22%,48%,70%,100%{transform:rotate(0deg);} 24%{transform:rotate(-9deg);} 37%{transform:rotate(20deg);} 40%{transform:rotate(-16deg);} 64%{transform:rotate(9deg);} 82%{transform:rotate(-12deg);} }
-       @keyframes paw-left-move {0%,34%,48%,100%{transform:rotate(0deg);} 35%{transform:translate(6px,-11px) rotate(-30deg);} 38%{transform:translate(12px,-12px) rotate(-40deg);} 40%{transform:translate(5px,-6px) rotate(-18deg);} 43%{transform:rotate(0deg);} }
-       @keyframes paw-right-move {0%,56%,100%{transform:rotate(0deg);} 60%{transform:translate(-4px,-8px) rotate(13deg);} 64%{transform:translate(-7px,-8px) rotate(-14deg);} 72%{transform:rotate(0deg);} }
-       #fish-rig { transform-origin: 336px 372px; animation: fish-flick 12s ease-in-out infinite; }
-       #stars-rig { animation: stars-flick 12s ease-in-out infinite; }
-       @keyframes fish-flick {0%,26%,42%,100%{transform:translateY(0) rotate(0deg);} 29%{transform:translateY(-13px) rotate(-18deg);} 32%{transform:translateY(-3px) rotate(12deg);} 35%{transform:translateY(-8px) rotate(-8deg);} 38%{transform:translateY(0) rotate(0deg);} }
-       @keyframes stars-flick {0%,50%,85%,100%{opacity:.12;} 55%,72%{opacity:1;} }
-    #extra-prop {transform-box:view-box; transform-origin: 370px 300px;}@keyframes cat-move{0%,11%,100%{transform:translateY(0) scale(1);} 18%{transform:translateY(8px) scale(1.11,.87);} 22%{transform:translateY(-28px) scale(.92,1.12);} 27%{transform:translateY(-15px) rotate(-5deg);} 30%{transform:translateY(0) scale(1.05,.96);} 34%{transform:translateY(-3px);} 39%{transform:translateY(0);} }
- @keyframes head-move{0%,11%,100%{transform:rotate(0deg);} 17%{transform:rotate(-8deg);} 22%{transform:rotate(10deg);} 28%{transform:rotate(-4deg);} 33%{transform:rotate(0deg);} 57%{transform:rotate(-12deg);} 61%{transform:rotate(6deg);} 65%{transform:rotate(0deg);} }
- @keyframes paw-right-move{0%,45%,68%,100%{transform:rotate(0deg);} 50%{transform:translate(-8px,-31px) rotate(-18deg);} 53%{transform:translate(-6px,-38px) rotate(18deg);} 56%{transform:translate(-8px,-30px) rotate(-12deg);} 60%{transform:translate(-6px,-38px) rotate(17deg);} 64%{transform:rotate(0deg);} }
- @keyframes tail-move{0%,14%,100%{transform:rotate(0deg);} 19%{transform:rotate(22deg);} 26%{transform:rotate(-21deg);} 31%{transform:rotate(10deg);} 61%{transform:rotate(-13deg);} 67%{transform:rotate(0deg);} }
- #extra-prop{animation: prop-burst 12s ease-in-out infinite;}
- @keyframes prop-burst{0%,13%,40%,100%{opacity:0;} 18%,29%{opacity:1;}}]]></style>
-      <g id="abstract-decor"><path d="M300 68 A86 86 0 0 1 387 174" stroke="#F2BC42" stroke-width="20" stroke-linecap="round" opacity=".22" fill="none"/>
-  <path d="M362 103 L380 86 M384 134 L410 130 M356 76 L359 54" stroke="#F2BC42" stroke-width="7" stroke-linecap="round" opacity=".4"/>
-  <g id="decor-sparkle-1"><path d="M109 243.75 Q110.1 250.9 117.25 252 Q110.1 253.1 109 260.25 Q107.9 253.1 100.75 252 Q107.9 250.9 109 243.75Z" fill="#8DBBE0"/></g></g>
+/* AZAMI V3 — MOTION SYSTEM. 100 % VECTOR, CSS KEYFRAMES, NO DEPENDENCIES. */
+#cat-rig,#head-rig,#body-rig,#tail,#ear-left,#ear-right,#arm-left,#arm-right,
+#scene-prop,#extra-prop,#basket-rig,#fish-pop,#broom-rig,#coin-rig,#coin-sparkles,
+#envelope-rig,#heart-rig,#fish-rig,#stars-rig,#spark-pop,#motion-arcs,
+#decor-sparkle-1,#decor-sparkle-2,#meow-mouth,#smile,#eyes-open,#eyes-sleepy,
+#spark-a,#spark-b,#spark-c,#confetti,#clean-sparkles,#ear-twinkle,#cheek-blush,
+#nose,#whiskers { transform-box:view-box; }
+#cat-rig { transform-origin:256px 353px; animation:cat-action var(--scene-duration) cubic-bezier(.35,.0,.25,1) infinite; }
+#head-rig { transform-origin:256px 246px; animation:head-action var(--scene-duration) cubic-bezier(.45,0,.25,1) infinite; }
+#body-rig { transform-origin:256px 353px; animation:breath 4.9s ease-in-out infinite; }
+#tail { transform-origin:321px 340px; animation:tail-idle 4.3s ease-in-out infinite; }
+#ear-left { transform-origin:178px 145px; animation:ear-left-idle 5.6s ease-in-out infinite; }
+#ear-right { transform-origin:333px 145px; animation:ear-right-idle 7.3s ease-in-out infinite; }
+#arm-left { transform-origin:205px 308px; animation:paw-l var(--scene-duration) ease-in-out infinite; }
+#arm-right { transform-origin:303px 308px; animation:paw-r var(--scene-duration) ease-in-out infinite; }
+#eyes-open { animation:eyes-open-anim 6.85s steps(1,end) infinite; }
+#eyes-sleepy { animation:eyes-close-anim 6.85s steps(1,end) infinite; }
+#smile { animation:smile-action var(--scene-duration) steps(1,end) infinite; }
+#meow-mouth { animation:mouth-action var(--scene-duration) steps(1,end) infinite; }
+#cheek-blush { animation:blush 8.2s ease-in-out infinite; }
+#nose { transform-origin:256px 228px; animation:nose 5.6s ease-in-out infinite; }
+#whiskers {transform-origin:256px 232px; animation:whiskers 6.9s ease-in-out infinite;}
+#motion-arcs {animation:surprise var(--scene-duration) steps(1,end) infinite;}
+#spark-pop {animation:surprise var(--scene-duration) steps(1,end) infinite;}
+#spark-a {animation:independent-sparkle 3.7s ease-in-out infinite;}
+#spark-b {animation:independent-sparkle 5.3s ease-in-out -1.7s infinite;}
+#spark-c {animation:independent-sparkle 4.9s ease-in-out -3.2s infinite;}
+@keyframes breath {0%,100%{transform:scale(1,1);} 46%{transform:translateY(2px) scale(1.015,.982);} }
+@keyframes tail-idle {0%,11%,100%{transform:rotate(0deg)} 19%{transform:rotate(17deg)} 26%{transform:rotate(-7deg)} 34%{transform:rotate(8deg)} 45%,72%{transform:rotate(0deg)} 81%{transform:rotate(-14deg)} 91%{transform:rotate(3deg)}}
+@keyframes ear-left-idle {0%,38%,100%{transform:rotate(0deg)} 39%{transform:rotate(-13deg)} 43%{transform:rotate(5deg)} 47%{transform:rotate(0deg)} 81%{transform:rotate(-5deg)} 85%{transform:rotate(0deg)}}
+@keyframes ear-right-idle {0%,17%,100%{transform:rotate(0deg)} 19%{transform:rotate(10deg)} 23%{transform:rotate(-5deg)} 27%{transform:rotate(0deg)} 71%{transform:rotate(7deg)} 75%{transform:rotate(0deg)}}
+@keyframes eyes-open-anim {0%,15%,17.3%,39%,40.7%,75%,77.4%,100%{opacity:1;} 15.2%,17%,39.2%,40.5%,75.2%,77.1%{opacity:0;}}
+@keyframes eyes-close-anim {0%,15%,17.3%,39%,40.7%,75%,77.4%,100%{opacity:0;} 15.2%,17%,39.2%,40.5%,75.2%,77.1%{opacity:1;}}
+@keyframes nose {0%,28%,64%,100%{transform:translateY(0)}29%{transform:translateY(1.6px)}32%{transform:translateY(0)}65%{transform:translateY(2px)}67%{transform:translateY(-1px)}70%{transform:translateY(0)}}
+@keyframes whiskers {0%,22%,100%{transform:translateX(0)}24%{transform:translateX(-2px)}27%{transform:translateX(1px)}30%{transform:translateX(0)}80%{transform:translateX(2px)}84%{transform:translateX(0)}}
+@keyframes blush {0%,45%,70%,100%{opacity:.38}53%,62%{opacity:.72}}
+@keyframes independent-sparkle {0%,100%{opacity:.16;transform:scale(.76)}43%{opacity:.92;transform:scale(1.11)}70%{opacity:.35;transform:scale(.91)}}
+@keyframes smile-action {0%,21%,27%,66%,75%,100%{opacity:1}22%,26%,67%,74%{opacity:0}}
+@keyframes mouth-action {0%,21%,27%,66%,75%,100%{opacity:0}22%,26%,67%,74%{opacity:1}}
+@keyframes surprise {0%,17%,33%,64%,80%,100%{opacity:0}19%,26%,68%,75%{opacity:1}}
+@keyframes paw-l {0%,13%,44%,100%{transform:rotate(0deg)}17%{transform:rotate(-17deg)}26%{transform:rotate(12deg)}32%{transform:rotate(0deg)}}
+@keyframes paw-r {0%,24%,56%,100%{transform:rotate(0deg)}29%{transform:rotate(16deg)}36%{transform:rotate(-18deg)}43%{transform:rotate(8deg)}49%{transform:rotate(0deg)}}
+@keyframes cat-action {0%,100%{transform:translate(0,0) scale(1)} }
+@keyframes head-action {0%,100%{transform:rotate(0deg)} }
+/* Force reduced motion respected even when app embeds SVG as an image. */
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important;}}
+
+@keyframes cat-action {0%,12%,100%{transform:translate(0,0) scale(1)} 17%{transform:translateY(5px) scale(1.075,.89)} 22%{transform:translateY(-42px) rotate(-5deg) scale(.94,1.07)} 26%{transform:translateY(-58px) rotate(5deg)} 30%{transform:translateY(7px) scale(1.11,.87)} 33%{transform:translateY(-12px) scale(.98,1.035)} 36%{transform:translateY(0)} 65%{transform:translateY(0)} 69%{transform:translateY(-14px) rotate(4deg)} 72%{transform:translateY(3px) rotate(-2deg)} 77%{transform:translateY(0)}}
+@keyframes head-action {0%,11%,100%{transform:rotate(0deg)} 15%{transform:rotate(-13deg)} 20%{transform:rotate(13deg)} 25%{transform:rotate(-10deg)} 32%{transform:rotate(5deg)} 38%{transform:rotate(0deg)} 69%{transform:rotate(-8deg)} 74%{transform:rotate(3deg)} 80%{transform:rotate(0deg)}}
+#extra-prop{transform-origin:388px 310px;animation:accent-spark var(--scene-duration) infinite;} @keyframes accent-spark{0%,15%,40%,100%{opacity:.15;transform:scale(.7)}23%,31%,72%,80%{opacity:1;transform:scale(1.16)}}]]></style><desc>Réveil explosif : étirement, saut, atterrissage joyeux Boucle dynamique de 12.8 secondes.</desc>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -121,10 +107,15 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
       </g>
       <g id="scene-prop"><g id="extra-prop"><g><path d="M388 293.5 Q389.4 302.6 398.5 304 Q389.4 305.4 388 314.5 Q386.6 305.4 377.5 304 Q386.6 302.6 388 293.5Z" fill="#F2BC42"/></g><g><path d="M406 339.0 Q406.8 344.2 412.0 345 Q406.8 345.8 406 351.0 Q405.2 345.8 400.0 345 Q405.2 344.2 406 339.0Z" fill="#DF8779"/></g></g></g>
-      </svg>
+      <g id="fx-layer"><g id="motion-arcs" opacity="0" fill="none" stroke="#F2BC42" stroke-width="7" stroke-linecap="round">
+        <path d="M389 154 L401 140"/><path d="M400 176 L418 176"/><path d="M123 154 L113 138"/>
+      </g>
+      <g id="spark-pop" opacity="0">
+        <path d="M382 263 Q384 278 399 280 Q384 282 382 297 Q380 282 365 280 Q380 278 382 263Z" fill="#FFD35D"/>
+      </g></g></svg>

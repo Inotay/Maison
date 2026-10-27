@@ -6,9 +6,10 @@ import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor,
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
 import { burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
-// Azami : pack d'animations V2 (azami/*.svg), une scène par page, six accueils selon l'heure.
+// Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
+// une scène par page, six accueils selon l'heure, « reussite » jouée une fois quand quelque chose est fait.
 function greeting(h = new Date().getHours()) {
-  if (h >= 22 || h < 5) return ['Bonne nuit', 'accueil_nuit'];
+  if (h >= 22 || h < 5) return ['Bonne nuit', 'accueil_bonne_nuit'];
   if (h < 9) return ['Bonjour', 'accueil_bonjour'];
   if (h < 11) return ['Bonne matinée', 'accueil_bonne_matinee'];
   if (h < 14) return ['Bon midi', 'accueil_bon_midi'];
@@ -17,11 +18,11 @@ function greeting(h = new Date().getHours()) {
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
 // à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
-const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_nuit', 'menage', 'courses', 'argent', 'nuit_care'];
+const SCENES = ['accueil_bonjour', 'accueil_bonne_matinee', 'accueil_bon_midi', 'accueil_bonne_apres_midi', 'accueil_bonsoir', 'accueil_bonne_nuit', 'menage', 'courses', 'argent', 'care', 'reussite'];
 const azamiImgs = {};
 function azamiImg(scene) {
   if (!azamiImgs[scene]) {
-    const img = new Image(512, 568);
+    const img = new Image(512, 512);
     img.className = 'azami'; img.decoding = 'sync'; img.src = `azami/azami_${scene}_anime.svg`;
     azamiImgs[scene] = img;
   }
@@ -196,10 +197,25 @@ function sfx(kind) {
   } catch {}
 }
 
-function meow(force) {
+// Miaulements d'ambiance : optionnels, rares (≈ 20 % des occasions, jamais à moins de 40 s),
+// seulement avec un vrai enregistrement, après un premier geste, page visible, mouvement non réduit.
+let MEOWS = safeGet('maison-meows') !== '0';
+let lastAmbient = 0, touched = false;
+addEventListener('touchstart', () => { touched = true; }, { once: true, passive: true });
+addEventListener('pointerdown', () => { touched = true; }, { once: true });
+setInterval(() => {
+  if (!MEOWS || !meowFile || !touched || document.hidden) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!document.querySelector('img.azami')) return;
+  const t = Date.now();
+  if (t - lastAmbient < 40000) return;
+  if (Math.random() < 0.2) { lastAmbient = t; meow(true, .25); }
+}, 8000);
+function meow(force, volume = .6) {
   if (!force && Math.random() > 0.18) return;
   try {
-    if (meowFile) { const a = new Audio(meowFile); a.volume = .6; a.play().catch(() => {}); return; }
+    if (!MEOWS && !force) return;
+    if (meowFile) { const a = new Audio(meowFile); a.volume = volume; a.play().catch(() => {}); return; }
     const c = ctxAudio();
     const t = c.currentTime;
     const osc = c.createOscillator(), osc2 = c.createOscillator();
@@ -862,7 +878,10 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v43</span></div>`;
+    <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
+      <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
+      <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v44</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1344,7 +1363,7 @@ function viewArgent() {
 // Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Care</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('nuit_care', 'Azami tient une enveloppe')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Care</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
@@ -1390,6 +1409,7 @@ function viewCare() {
 const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },
+  meows: el => { MEOWS = el.dataset.on === '1'; safeSet('maison-meows', MEOWS ? '1' : '0'); haptic(1); render(); },
   theme: el => { THEME = el.dataset.theme; safeSet('maison-theme', THEME); haptic(1); sfx('tick'); render(); },
   glance: el => {
     const to = el.dataset.to;

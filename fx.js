@@ -213,8 +213,8 @@ export function celebrate({ title, sub = '', level = 'big', badge = null } = {})
   const old = document.getElementById('cele'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
-  const az = document.querySelector('img.azami');
-  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair">${az ? `<img class="cele-azami" src="${az.src}" alt="">` : ''}${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  // Scène « reussite » du pack V3, montée le temps de la fête puis retirée (jamais en boucle permanente).
+  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="azami/azami_reussite_anime.svg?${Date.now()}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   burst('confetti', null, level === 'big' ? 40 : 24);

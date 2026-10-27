@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Nuit · Care">
-      <title>Nuit · Care</title><desc>Azami lit et serre un petit message affectueux. SVG statique entièrement éditable. Fond transparent.</desc>
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Bonjour" data-scene="reussite" data-theme-agnostic="true" data-background="transparent">
+      <title>Réussite · Tâche accomplie</title><g id="micro-accents" opacity="0.75"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g><g id="spark-c"><path d="M378 124 Q379 132 387 133 Q379 134 378 142 Q377 134 369 133 Q377 132 378 124Z" fill="#E28B86"/></g></g><desc>Bond de célébration et confettis (à déclencher une fois) Illustration vectorielle statique, calques modifiables.</desc>
       
-      <g id="abstract-decor">
-          <circle cx="255" cy="193" r="121" stroke="#8DBBE0" stroke-width="7" opacity=".12"/>
-          <path id="decor-heart" transform="translate(372 150) scale(0.5)" d="M0 22 C-8 15 -21 8 -21 -3 C-21 -14 -5 -19 0 -8 C5 -19 21 -14 21 -3 C21 8 8 15 0 22Z" fill="#685063"/>
-          <g id="decor-sparkle-1"><path d="M118 271.6 Q119.12 278.88 126.4 280 Q119.12 281.12 118 288.4 Q116.88 281.12 109.6 280 Q116.88 278.88 118 271.6Z" fill="#8DBBE0"/></g>
-          </g>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -36,7 +32,7 @@
         <path d="M162 201 C162 167 182 144 210 141 C231 135 239 145 256 142 C276 138 291 136 311 146 C340 161 350 182 350 206 C349 244 313 260 256 261 C201 261 166 243 162 201Z" fill="#38211F"/>
         <ellipse cx="201" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
         <ellipse cx="311" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
-        <g id="eyes-open" opacity="0"><g class="eye" transform="translate(217 188)">
+        <g id="eyes-open" opacity="1"><g class="eye" transform="translate(217 188)">
       <ellipse rx="27" ry="31" fill="#FFF7EB"/>
       <ellipse rx="22.5" ry="26" fill="#86C2ED"/>
       <ellipse cx="3" cy="3" rx="15.5" ry="20" fill="#18364A"/>
@@ -49,7 +45,7 @@
       <ellipse cx="-5" cy="-11" rx="7" ry="8" fill="#FFF7EB"/>
       <circle cx="12" cy="9" r="3.3" fill="#FFF7EB" opacity=".86"/>
       </g></g>
-        <g id="eyes-sleepy" opacity="1">
+        <g id="eyes-sleepy" opacity="0">
           <path d="M192 192 Q215 215 240 191" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
           <path d="M272 191 Q297 215 320 192" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
         </g>
@@ -61,17 +57,9 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
       </g>
-      <g id="scene-prop">
-            <g id="envelope-rig">
-              <rect x="189" y="310" width="133" height="82" rx="10" fill="#FFF0D7"/>
-              <path d="M193 315 L256 357 L318 315" stroke="#E4C49C" stroke-width="5" stroke-linejoin="round" fill="none"/>
-              <path transform="translate(257 345) scale(0.34)" d="M0 22 C-8 15 -21 8 -21 -3 C-21 -14 -5 -19 0 -8 C5 -19 21 -14 21 -3 C21 8 8 15 0 22Z" fill="#DF8779"/>
-            </g>
-            <g id="heart-rig"><path transform="translate(349 269) scale(0.7)" d="M0 22 C-8 15 -21 8 -21 -3 C-21 -14 -5 -19 0 -8 C5 -19 21 -14 21 -3 C21 8 8 15 0 22Z" fill="#F4ADAF"/><path transform="translate(378 239) scale(0.32)" d="M0 22 C-8 15 -21 8 -21 -3 C-21 -14 -5 -19 0 -8 C5 -19 21 -14 21 -3 C21 8 8 15 0 22Z" fill="#F2BC42"/></g>
-          </g>
-      </svg>
+      <g id="fx-layer"><g id="confetti" opacity="0"><g transform="translate(131 130) rotate(32)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(369 116) rotate(-37)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#8DBBE0"/></g><g transform="translate(112 247) rotate(46)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#DF8779"/></g><g transform="translate(395 288) rotate(12)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(205 53) rotate(24)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(308 63) rotate(-27)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#DF8779"/></g><g transform="translate(423 211) rotate(60)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#8DBBE0"/></g></g></g></svg>

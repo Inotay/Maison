@@ -1,0 +1,172 @@
+{
+  "pack": "Azami V3 Motion",
+  "version": "3.0.0",
+  "renderer": "SVG/CSS",
+  "theme_support": [
+    "bleu",
+    "brun"
+  ],
+  "background": "transparent",
+  "aspect_ratio": "1:1",
+  "scenes": [
+    {
+      "id": "accueil_bonjour",
+      "titre": "Accueil · Bonjour",
+      "description": "Réveil explosif : étirement, saut, atterrissage joyeux",
+      "duration_seconds": 12.8,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.07,
+        9.22
+      ],
+      "animated": "anime/accueil_bonjour_anime.svg",
+      "static": "statique/accueil_bonjour_statique.svg"
+    },
+    {
+      "id": "accueil_bonne_matinee",
+      "titre": "Accueil · Bonne matinée",
+      "description": "Une plume attire Azami ; elle l’observe, bondit et essaie de l’attraper",
+      "duration_seconds": 14.6,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.5,
+        10.51
+      ],
+      "animated": "anime/accueil_bonne_matinee_anime.svg",
+      "static": "statique/accueil_bonne_matinee_statique.svg"
+    },
+    {
+      "id": "accueil_bon_midi",
+      "titre": "Accueil · Bon midi",
+      "description": "Petite dégustation curieuse, sursaut gourmand et léchouille",
+      "duration_seconds": 11.8,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        2.83,
+        8.5
+      ],
+      "animated": "anime/accueil_bon_midi_anime.svg",
+      "static": "statique/accueil_bon_midi_statique.svg"
+    },
+    {
+      "id": "accueil_bonne_apres_midi",
+      "titre": "Accueil · Bonne après-midi",
+      "description": "Mini zoomies soudains avec une balle, puis arrêt net",
+      "duration_seconds": 13.7,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.29,
+        9.86
+      ],
+      "animated": "anime/accueil_bonne_apres_midi_anime.svg",
+      "static": "statique/accueil_bonne_apres_midi_statique.svg"
+    },
+    {
+      "id": "accueil_bonsoir",
+      "titre": "Accueil · Bonsoir",
+      "description": "Bâillement immense, étirement et regard ensommeillé",
+      "duration_seconds": 16.4,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.94,
+        11.81
+      ],
+      "animated": "anime/accueil_bonsoir_anime.svg",
+      "static": "statique/accueil_bonsoir_statique.svg"
+    },
+    {
+      "id": "accueil_bonne_nuit",
+      "titre": "Accueil · Bonne nuit",
+      "description": "Azami tapote son poisson, ferme les yeux et rêve",
+      "duration_seconds": 18.2,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        4.37,
+        13.1
+      ],
+      "animated": "anime/accueil_bonne_nuit_anime.svg",
+      "static": "statique/accueil_bonne_nuit_statique.svg"
+    },
+    {
+      "id": "menage",
+      "titre": "Ménage",
+      "description": "Coup d’œil, trois coups de balai rapides, poussière qui scintille",
+      "duration_seconds": 13.6,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.26,
+        9.79
+      ],
+      "animated": "anime/menage_anime.svg",
+      "static": "statique/menage_statique.svg"
+    },
+    {
+      "id": "courses",
+      "titre": "Courses",
+      "description": "Le panier gigote, un poisson bondit, Azami sursaute",
+      "duration_seconds": 12.9,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.1,
+        9.29
+      ],
+      "animated": "anime/courses_anime.svg",
+      "static": "statique/courses_statique.svg"
+    },
+    {
+      "id": "argent",
+      "titre": "Argent",
+      "description": "La pièce s’envole, Azami la rattrape et jubile",
+      "duration_seconds": 14.3,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        3.43,
+        10.3
+      ],
+      "animated": "anime/argent_anime.svg",
+      "static": "statique/argent_statique.svg"
+    },
+    {
+      "id": "care",
+      "titre": "Care",
+      "description": "Lettre câlinée, cœur qui s’échappe, petit sourire discret",
+      "duration_seconds": 17.5,
+      "loop": true,
+      "trigger": "on_page_visible",
+      "sounds_at_seconds": [
+        4.2,
+        12.6
+      ],
+      "animated": "anime/care_anime.svg",
+      "static": "statique/care_statique.svg"
+    },
+    {
+      "id": "reussite",
+      "titre": "Réussite · Tâche accomplie",
+      "description": "Bond de célébration et confettis (à déclencher une fois)",
+      "duration_seconds": 9.6,
+      "loop": false,
+      "trigger": "task_completed",
+      "sounds_at_seconds": [
+        2.8,
+        7.5
+      ],
+      "animated": "anime/reussite_anime.svg",
+      "static": "statique/reussite_statique.svg"
+    }
+  ],
+  "sound": {
+    "included": false,
+    "integration": "optional; nécessite un enregistrement .mp3/.wav et un premier geste utilisateur pour autoriser la lecture sur iOS"
+  },
+  "notes": "Libido supprimée. Care = lettres et attention. Respecte prefers-reduced-motion."
+}

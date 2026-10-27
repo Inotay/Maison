@@ -1,8 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Bonsoir">
-      <title>Bonsoir</title><desc>Azami baille et s’installe paisiblement. SVG statique entièrement éditable. Fond transparent.</desc>
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Bonsoir" data-scene="accueil_bonsoir" data-theme-agnostic="true" data-background="transparent">
+      <title>Accueil · Bonsoir</title><g id="micro-accents" opacity="0.75"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g></g><desc>Bâillement immense, étirement et regard ensommeillé Illustration vectorielle statique, calques modifiables.</desc>
       
-      <g id="abstract-decor"><path d="M307 86 A85 85 0 1 0 366 202 A66 66 0 1 1 307 86Z" fill="#507A9A" opacity=".20"/>
- <g id="decor-sparkle-1"><path d="M391 108.75 Q392.5 118.5 402.25 120 Q392.5 121.5 391 131.25 Q389.5 121.5 379.75 120 Q389.5 118.5 391 108.75Z" fill="#F2BC42"/></g><g id="decor-sparkle-2"><path d="M118 263.5 Q119.0 270.0 125.5 271 Q119.0 272.0 118 278.5 Q117.0 272.0 110.5 271 Q117.0 270.0 118 263.5Z" fill="#8DBBE0"/></g></g>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -58,7 +57,7 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
@@ -66,4 +65,9 @@
       <g id="scene-prop"><g id="extra-prop"><ellipse cx="337" cy="388" rx="55" ry="17" fill="#8DBBE0" opacity=".75"/>
  <path d="M293 385 Q338 414 382 385" stroke="#507A9A" stroke-width="6" fill="none"/>
  <g><path d="M377 295.5 Q378.0 302.0 384.5 303 Q378.0 304.0 377 310.5 Q376.0 304.0 369.5 303 Q376.0 302.0 377 295.5Z" fill="#F2BC42"/></g></g></g>
-      </svg>
+      <g id="fx-layer"><g id="motion-arcs" opacity="0" fill="none" stroke="#F2BC42" stroke-width="7" stroke-linecap="round">
+        <path d="M389 154 L401 140"/><path d="M400 176 L418 176"/><path d="M123 154 L113 138"/>
+      </g>
+      <g id="spark-pop" opacity="0">
+        <path d="M382 263 Q384 278 399 280 Q384 282 382 297 Q380 282 365 280 Q380 278 382 263Z" fill="#FFD35D"/>
+      </g></g></svg>

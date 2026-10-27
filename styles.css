@@ -350,12 +350,13 @@ body[data-time="nuit"] .list-head.done-head { color: var(--jaune); }
 
 /* Azami : pack d'animations V2, une scène par page ---------------------- */
 
-.azami { display: block; width: 200px; height: 222px; margin: 0 auto; }
+.azami { display: block; width: 200px; height: 200px; margin: 0 auto; object-fit: contain; }
 .azami-btn { all: unset; cursor: pointer; display: block; width: 200px; margin: 0 auto; }
 .azami-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; border-radius: 24px; }
 .hd.centered { text-align: center; margin-bottom: 12px; }
 .hd.centered .azami, .hd.centered .azami-btn { width: 164px; }
-.hd.centered .azami { height: 182px; }
+.hd.centered .azami { height: 182px; transform: scale(1.18); transform-origin: 50% 85%; }  /* même encombrement qu'avant : le dessin V3 a des marges internes, on le grossit sans bouger la mise en page */
+.hd.row .azami { transform: scale(1.12); transform-origin: 50% 80%; }
 .hd.centered h1 { font-size: clamp(26px, 8vw, 34px); }
 .hd.centered .hd-kicker { margin-top: 4px; }
 .hd.row { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 6px; }

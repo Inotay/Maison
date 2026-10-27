@@ -1,11 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Argent">
-      <title>Argent</title><desc>Azami découvre une pièce qui saute et essaie de l’attraper. SVG statique entièrement éditable. Fond transparent.</desc>
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Argent" data-scene="argent" data-theme-agnostic="true" data-background="transparent">
+      <title>Argent</title><g id="micro-accents" opacity="0.75"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g></g><desc>La pièce s’envole, Azami la rattrape et jubile Illustration vectorielle statique, calques modifiables.</desc>
       
-      <g id="abstract-decor">
-          <path d="M165 159 A116 116 0 0 1 347 151" stroke="#F2BC42" stroke-width="7" stroke-linecap="round" fill="none" opacity=".17"/>
-          <g id="decor-sparkle-1"><path d="M115 244.5 Q116.4 253.6 125.5 255 Q116.4 256.4 115 265.5 Q113.6 256.4 104.5 255 Q113.6 253.6 115 244.5Z" fill="#F2BC42"/></g>
-          <circle cx="395" cy="195" r="8" fill="#8DBBE0" opacity=".38"/>
-          </g>
       <g id="cat-rig">
        <g id="tail" class="tail">
        <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
@@ -61,7 +57,7 @@
           <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
           <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
         </g>
-        <g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
+        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
            <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
         </g>
      </g>
@@ -72,4 +68,9 @@
            <g id="coin-rig"><circle cx="256" cy="329" r="39" fill="#F2BC42" stroke="#E9A937" stroke-width="5"/><circle cx="256" cy="329" r="28" fill="none" stroke="#FFF7EB" stroke-width="3" opacity=".55"/><path d="M256 311 V347 M266 317 Q242 304 243 323 Q244 332 261 332 Q272 343 250 345" stroke="#9B681D" stroke-width="6" stroke-linecap="round" fill="none"/></g>
            <g id="coin-sparkles"><g><path d="M354 276.25 Q355.3 284.7 363.75 286 Q355.3 287.3 354 295.75 Q352.7 287.3 344.25 286 Q352.7 284.7 354 276.25Z" fill="#F2BC42"/></g><g><path d="M379 311.25 Q379.9 317.1 385.75 318 Q379.9 318.9 379 324.75 Q378.1 318.9 372.25 318 Q378.1 317.1 379 311.25Z" fill="#8DBBE0"/></g></g>
           </g>
-      </svg>
+      <g id="fx-layer"><g id="motion-arcs" opacity="0" fill="none" stroke="#F2BC42" stroke-width="7" stroke-linecap="round">
+        <path d="M389 154 L401 140"/><path d="M400 176 L418 176"/><path d="M123 154 L113 138"/>
+      </g>
+      <g id="spark-pop" opacity="0">
+        <path d="M382 263 Q384 278 399 280 Q384 282 382 297 Q380 282 365 280 Q380 278 382 263Z" fill="#FFD35D"/>
+      </g></g></svg>
