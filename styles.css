@@ -766,3 +766,25 @@ h2 .muted { color: var(--muted); font-weight: 800; text-transform: none; letter-
 .rchips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: calc(-1 * var(--s4)); margin-right: calc(-1 * var(--s4)); padding: 0 var(--s4) 6px; }
 .rchips::-webkit-scrollbar { display: none; }
 .rchips button { flex: none; }
+
+.rfilters { display: grid; gap: 2px; margin: var(--s2) 0 0; }
+.rf { display: grid; grid-template-columns: 64px 1fr; align-items: center; }
+.rf .chip-label { margin: 0; }
+.rf .rchips { margin: 0; margin-right: calc(-1 * var(--s4)); padding: 4px var(--s4) 6px 0; }
+.rcount { margin: var(--s3) 0 var(--s2); color: var(--muted); font-size: 13px; font-weight: 800; }
+.rcount .link { font-size: 13px; }
+.rmin { flex: none; min-width: 44px; text-align: right; font-weight: 900; color: var(--muted); font-size: 15px; }
+.tbtns { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+.rstep .tbtns { justify-content: center; margin: 0 0 var(--s3); }
+.tbtn { font-variant-numeric: tabular-nums; }
+.timers { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + var(--safe-b) + 6px); z-index: 30; display: grid; gap: 6px; padding: 0 var(--s4); max-width: 560px; margin: 0 auto; pointer-events: none; }
+.timer { pointer-events: auto; display: flex; align-items: center; gap: var(--s2); padding: 8px 8px 8px 14px; border-radius: 999px; background: var(--ink); color: #FAF3E8; box-shadow: 0 3px 0 var(--ink-edge); }
+.timer .tl { flex: 1 1 0; min-width: 0; font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.timer b { font-size: 18px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.timer .link { color: #FAF3E8; font-size: 14px; }
+.timer .tx { flex: none; min-width: 34px; height: 34px; padding: 0 10px; border-radius: 999px; border: 0; background: rgba(255,255,255,.14); color: inherit; font-weight: 900; font-size: 15px; }
+.timer.ring { background: var(--accent); color: var(--accent-text); box-shadow: 0 3px 0 var(--accent-edge); animation: tring .6s ease-in-out infinite alternate; }
+.timer.ring .tx { background: var(--ink); color: #FAF3E8; }
+@keyframes tring { from { transform: scale(1); } to { transform: scale(1.03); } }
+@media (prefers-reduced-motion: reduce) { .timer.ring { animation: none; } }
+.rsteps .tbtns .btn { height: 32px; font-size: 13px; }

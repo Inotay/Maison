@@ -104,7 +104,7 @@ const S = {
   members: [],
   tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [],
   view: safeGet('maison-view') || 'maison',
-  rq: '', rcuisine: '', recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
+  rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
   shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
   achats: [],                                       // historique des articles achetés (pour les pré-listes, plus tard)
@@ -794,7 +794,7 @@ const ICONS = {
 function nav() {
   const openShop = S.shopping.filter(s => !s.checked).length;
   const unread = S.care.filter(c => c.recipient === S.me && !c.read_at).length;
-  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['courses', 'Courses'], ['recettes', 'Recettes'], ['argent', 'Argent'], ['nuit', 'Care']];
+  const items = [['maison', 'Maison'], ['menage', 'Ménage'], ['recettes', 'Recettes'], ['courses', 'Courses'], ['argent', 'Argent'], ['nuit', 'Care']];
   return `<nav class="nav" aria-label="Sections"><ul>${items.map(([k, l]) => {
     let mark = '';
     if (k === 'courses' && openShop) mark = `<span class="badge" aria-hidden="true">${openShop}</span>`;
@@ -836,7 +836,7 @@ function render() {
   applyTheme();
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
-  $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + nav();
+  $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + timersBar() + nav();
   placeAzami();
   maybeCoucou();
   armHaptics($app);
@@ -984,7 +984,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v63</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v64</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1399,7 +1399,7 @@ const SHOPS = [
 ];
 const SHOP_OF_THEME = {
   asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie', riz_sushi: 'asie,super', panko: 'asie,super', tofu: 'asie,super', tempeh: 'asie', sauce_soja: 'asie,super', miso: 'asie', mirin: 'asie', pate_gyoza: 'asie', feuilles_riz: 'asie', ramen: 'asie,super', udon: 'asie', soba: 'asie', nouilles_riz: 'asie,super', vermicelles: 'asie',
-  vinaigre_riz: 'asie,super', huile_sesame: 'asie,super', sesame: 'asie,super', nori: 'asie,super', wakame: 'asie', dashi: 'asie', kimchi: 'asie', gochujang: 'asie', sriracha: 'asie,super', lait_coco: 'asie,super', pate_curry: 'asie,super', gyozas: 'asie', mochi: 'asie', matcha: 'asie,super', sauce_okonomi: 'asie', mayo_jp: 'asie', furikake: 'asie', edamame: 'asie,super', chou_chinois: 'asie,super', pak_choi: 'asie,super', shiitake: 'asie,super',
+  vinaigre_riz: 'asie,super', huile_sesame: 'asie,super', sesame: 'asie,super', nori: 'asie,super', wakame: 'asie', dashi: 'asie', kimchi: 'asie', gochujang: 'asie', sriracha: 'asie,super', lait_coco: 'asie,super', pate_curry: 'asie,super', gyozas: 'asie', mochi: 'asie', matcha: 'asie,super', sauce_okonomi: 'asie', mayo_jp: 'asie', furikake: 'asie', edamame: 'asie,super', chou_chinois: 'asie,super', pak_choi: 'asie,super', shiitake: 'asie,super', mangue: 'super,asie', citron_vert: 'super,asie', yuzu: 'asie', kaki: 'super,asie', coriandre: 'super,asie',
   bricolage: 'maison', reparation: 'maison', lampe: 'maison', peinture: 'maison', mesures: 'maison',
   meubles: 'maison', deco: 'maison', tapis: 'maison', rideaux: 'maison', etagere: 'maison', futon: 'maison', rangement: 'maison', plantes: 'maison', jardin: 'maison', fleurs: 'maison', bougie: 'maison', textile: 'maison', lit: 'maison', serviettes: 'maison',
   pharmacie: 'pharma', premierssoins: 'pharma', malade: 'pharma', beaute: 'pharma', rasage: 'pharma', dents: 'pharma', regles: 'pharma', intime: 'pharma',
@@ -1421,7 +1421,7 @@ function viewCourses() {
   const cart = S.shopping.filter(s => s.checked);
   const modeLabel = mode ? SHOPS.find(x => x[0] === mode)[1] : '';
   const item = s => S.edit?.id === s.id ? `<li class="item editing">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
-    ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(s.label)}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
+    ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(shopLabel(s.label))}</div>${s.added_by !== S.me ? `<div class="item-meta">Ajouté par ${esc(nameOf(s.added_by))}</div>` : ''}</div>
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
@@ -1476,28 +1476,93 @@ function balanceCard() {
   </section>`;
 }
 
+// Minuteurs de cuisine : lancés depuis une étape, gardés sur l'appareil, visibles sur toutes les pages.
+function durations(text) {
+  const out = [], seen = new Set();
+  const re = /(\d+(?:[.,]\d+)?)\s*h(?:eures?)?\s*(\d{1,2})?(?!\w)|(\d+)\s*(?:à\s*(\d+)\s*)?min(?:utes?)?\b|(\d+)\s*s(?:ec(?:ondes?)?)?\b/gi;
+  let m;
+  while ((m = re.exec(text))) {
+    let sec, label;
+    if (m[1]) { const h = parseFloat(m[1].replace(',', '.')); const mn = Number(m[2] || 0); sec = Math.round(h * 3600 + mn * 60); label = `${m[1]} h${m[2] ? ' ' + m[2] : ''}`; }
+    else if (m[3]) { const a = Number(m[3]), b = m[4] ? Number(m[4]) : null; sec = (b || a) * 60; label = `${b || a} min`; }
+    else { sec = Number(m[5]); if (sec < 10) continue; label = sec >= 60 && sec % 60 === 0 ? `${sec / 60} min` : `${sec} s`; }
+    if (!sec || sec > 6 * 3600 || seen.has(sec)) continue;
+    seen.add(sec); out.push({ sec, label });
+  }
+  return out;
+}
+const loadTimers = () => { try { return JSON.parse(safeGet('maison-timers') || '[]'); } catch { return []; } };
+const saveTimers = () => safeSet('maison-timers', JSON.stringify(S.timers));
+const fmtLeft = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sc = t % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(sc).padStart(2, '0')}` : `${m}:${String(sc).padStart(2, '0')}`; };
+function timerBtns(text, recipe) {
+  const d = durations(text); if (!d.length) return '';
+  return `<div class="tbtns">${d.map(x => `<button type="button" class="btn ghost small tbtn" data-action="timer-start" data-sec="${x.sec}" data-label="${esc(recipe)}">⏱ ${esc(x.label)}</button>`).join('')}</div>`;
+}
+function timersBar() {
+  if (!S.timers?.length) return '';
+  const now = Date.now();
+  return `<div aria-hidden="true" style="height:${S.timers.length * 54}px"></div><div class="timers" role="status">${S.timers.map(t => { const left = t.end - now; const done = left <= 0; return `<div class="timer ${done ? 'ring' : ''}" data-tid="${t.id}"><span class="tl">${esc(t.label)}</span><b data-timer="${t.id}">${done ? 'Fini !' : fmtLeft(left)}</b>${done ? '' : `<button class="link" data-action="timer-add" data-id="${t.id}" aria-label="Une minute de plus">+1′</button>`}<button class="tx" data-action="timer-stop" data-id="${t.id}" aria-label="${done ? 'OK' : 'Arrêter'}">${done ? 'OK' : '×'}</button></div>`; }).join('')}</div>`;
+}
+function timerRing(t) {
+  haptic('heavy'); sfx('big'); setTimeout(() => sfx('big'), 1200); setTimeout(() => sfx('big'), 2400);
+  if ('Notification' in window && Notification.permission === 'granted') show('Minuteur fini', t.label, 'timer-' + t.id);
+  toast(`Minuteur fini : ${t.label}`);
+}
+setInterval(() => {
+  if (!S.timers?.length) return;
+  const now = Date.now(); let changed = false;
+  for (const t of S.timers) {
+    const el = document.querySelector(`[data-timer="${t.id}"]`);
+    if (t.end > now) { if (el) el.textContent = fmtLeft(t.end - now); continue; }
+    if (!t.fired) { t.fired = true; changed = true; timerRing(t); }
+  }
+  if (changed) { saveTimers(); render(); }
+}, 1000);
+
+// Quantité utile en magasin : poids, volumes, et pièces au-delà d'une. Pas de cuillères ni de pincées.
+function shopQty(x, n) {
+  if (['g', 'kg', 'ml', 'l'].includes(x.u)) return ` (${qty(x, n)})`;
+  if (x.u === 'pc') { const v = Math.ceil(x.q * n / 2 - 0.01); return v > 1 ? ` (×${v})` : ''; }
+  return '';
+}
+// Articles déjà ajoutés depuis une recette avec une quantité inutile : on la cache à l'affichage.
+const shopLabel = l => String(l).replace(/\s*\((?:[\d.,]+\s*(?:c\. à [sc]\.|pincée)|1|0\.\d+)\)\s*$/, '').replace(/\s*\((\d+(?:[.,]\d+)?)\)\s*$/, (_, v) => { const k = Math.ceil(parseFloat(v.replace(',', '.'))); return k > 1 ? ` (×${k})` : ''; });
 // Recettes --------------------------------------------------------------------
 const RID = id => RECETTES.find(r => r.id === id);
-const rMeta = r => `${CUISINES[r.cuisine]} · ${r.min} min${r.tags.includes('vege') ? ' · végé' : ''}`;
+const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') && 'végé'].filter(Boolean).join(' · ');
 function viewRecettes() {
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
-  const q = norm(S.rq || '');
-  const list = RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine || r.tags.includes(S.rcuisine))
-    && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)));
-  const chips = [['', 'Tout'], ...Object.entries(CUISINES), ['vege', 'Végé'], ['rapide', 'Rapide'], ['sucre', 'Sucré']];
+  const list = rFiltered();
+  const chip = (group, k, l, on) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${on}">${esc(l)}</button>`;
+  const temps = [['', 'Tout'], ['15', '≤ 15 min'], ['30', '≤ 30 min'], ['60', '≤ 1 h'], ['long', 'Plus long']];
+  const types = [['', 'Tout'], ['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
+  const nf = [S.rtime, S.rcuisine, S.rtype].filter(Boolean).length;
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
-      <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, rapide…" autocomplete="off" enterkeyhint="search"></div></div>
-    <div class="chips rchips">${chips.map(([k, l]) => `<button type="button" data-action="r-cuisine" data-k="${k}" aria-pressed="${S.rcuisine === k}">${esc(l)}</button>`).join('')}</div>
+      <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
+    <div class="rfilters">
+      <div class="rf"><span class="chip-label">Temps</span><div class="chips rchips">${temps.map(([k, l]) => chip('rtime', k, l, S.rtime === k)).join('')}</div></div>
+      <div class="rf"><span class="chip-label">Cuisine</span><div class="chips rchips">${[['', 'Toutes'], ...Object.entries(CUISINES)].map(([k, l]) => chip('rcuisine', k, l, S.rcuisine === k)).join('')}</div></div>
+      <div class="rf"><span class="chip-label">Envie</span><div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l, S.rtype === k)).join('')}</div></div>
+    </div>
+    <p class="rcount" id="rcount">${pl(list.length, 'recette', 'recettes')}${nf ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}</p>
     <ul class="list rlist" id="rlist">${rList(list)}</ul>`;
 }
-function rList(list) {
-  if (!list.length) return `<li class="empty">Rien avec ça. Essaie un ingrédient ou une cuisine.</li>`;
-  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0"><div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="chev" aria-hidden="true">›</span></li>`).join('');
+function rFiltered() {
+  const q = norm(S.rq || '');
+  const t = S.rtime;
+  return RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine)
+    && (!S.rtype || r.tags.includes(S.rtype))
+    && (!t || (t === 'long' ? r.min > 60 : r.min <= Number(t)))
+    && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))
+    .sort((a, b) => (t || S.rtype === 'flemme' ? a.min - b.min : 0));
 }
-const rSearch = v => { S.rq = v; const q = norm(v); const el = document.getElementById('rlist'); if (!el) return;
-  el.innerHTML = rList(RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine || r.tags.includes(S.rcuisine)) && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))); };
+function rList(list) {
+  if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
+  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0"><div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('');
+}
+const rSearch = v => { S.rq = v; const el = document.getElementById('rlist'); if (!el) return; const list = rFiltered(); el.innerHTML = rList(list); const c = document.getElementById('rcount'); if (c) c.firstChild.textContent = pl(list.length, 'recette', 'recettes'); };
 function viewRecette(r) {
   const n = S.persons || 2;
   return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
@@ -1506,14 +1571,14 @@ function viewRecette(r) {
     <h2>Ingrédients <span class="muted">pour ${n}</span></h2>
     <ul class="list ring">${r.ing.map(x => `<li><b>${esc(qty(x, n))}</b> ${esc(x.n)}</li>`).join('')}</ul>
     <h2>Recette</h2>
-    <ol class="rsteps">${r.etapes.map(e => `<li>${esc(e)}</li>`).join('')}</ol>`;
+    <ol class="rsteps">${r.etapes.map(e => `<li>${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>`;
 }
 function viewCuisiner() {
   const r = RID(S.cook.id), k = S.cook.step, last = k >= r.etapes.length - 1;
   const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>`;
-  if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${esc(e)}</li>`).join('')}</ol>
+  if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>
     <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
-  return head + `<div class="rstep"><div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>
+  return head + `<div class="rstep"><div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>${timerBtns(r.etapes[k], r.titre)}
       <div class="dots-inline" aria-hidden="true">${r.etapes.map((_, j) => `<span class="dot ${j < k ? 'dot-ok' : j === k ? 'now' : 'off'}"></span>`).join('')}</div></div>
     <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C\'est prêt !' : 'Suivant'}</button></div>
     <div class="form-actions"><button class="link" data-action="r-cook-full">Lire la recette en entier</button></div>
@@ -1662,9 +1727,20 @@ function viewCare() {
 
 const actions = {
 
+  'timer-start': el => {
+    const sec = Number(el.dataset.sec);
+    S.timers.push({ id: Date.now().toString(36), label: el.dataset.label, end: Date.now() + sec * 1000 }); saveTimers();
+    haptic(1); sfx('tick');
+    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+    render();
+  },
+  'timer-add': el => { const t = S.timers.find(x => x.id === el.dataset.id); if (t) { t.end += 60000; saveTimers(); render(); } },
+  'timer-stop': el => { S.timers = S.timers.filter(x => x.id !== el.dataset.id); saveTimers(); haptic(1); render(); },
+
   'r-open': el => { S.recette = el.dataset.id; render(); window.scrollTo(0, 0); },
   'r-back': () => { S.recette = null; render(); },
-  'r-cuisine': el => { S.rcuisine = el.dataset.k; render(); },
+  'r-filter': el => { S[el.dataset.g] = S[el.dataset.g] === el.dataset.k ? '' : el.dataset.k; haptic(1); render(); },
+  'r-reset': () => { S.rtime = S.rcuisine = S.rtype = ''; render(); },
   'r-cook': el => { S.cook = { id: el.dataset.id, step: 0, full: false }; render(); window.scrollTo(0, 0); },
   'r-cook-stop': () => { S.cook = null; render(); },
   'r-cook-full': () => { S.cook.full = true; render(); },
@@ -1679,7 +1755,7 @@ const actions = {
     const todo = r.ing.filter((x, j) => !S.panier.have.has(j) && !inList.has(norm(x.n)));
     closeTicket();
     if (!todo.length) { toast('Tu as déjà tout'); return; }
-    run(async () => { for (const x of todo) { const label = `${x.n[0].toUpperCase()}${x.n.slice(1)} (${qty(x, n)})`; await api.insert('shopping', { label, icon: iconFor(x.n, 'shopping', S.hints), shop: guessShop(x.n) }); } }, null)
+    run(async () => { for (const x of todo) { const label = `${x.n[0].toUpperCase()}${x.n.slice(1)}${shopQty(x, n)}`; await api.insert('shopping', { label, icon: iconFor(x.n, 'shopping', S.hints), shop: guessShop(x.n) }); } }, null)
       .then(ok => { if (ok) { toast(`${pl(todo.length, 'article ajouté', 'articles ajoutés')} à la liste`); react('courses_completees', document.querySelector('.hd .azami')); } });
   },
   go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
@@ -1815,7 +1891,7 @@ const actions = {
     run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
       .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || ''), reaction: 'courses_completees' }); if (first) streakCheer(3000); } });
   },
-  'shop-clear': () => run(() => api.remove('shopping', { checked: true }), 'Panier vidé'),
+  'shop-clear': el => actions['shop-done'](el),   // même chemin que « Courses faites » : historique + ticket de caisse
   'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); render(); },
   // Courses faites : ce qui est dans le panier sort de la liste, chaque article est gardé en mémoire (pour les pré-listes), et c'est une réussite.
   'shop-done': el => {
