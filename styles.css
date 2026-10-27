@@ -634,6 +634,9 @@ body:has(textarea:focus) .nav { display: none; }
 .ticket-card .amount-input.big { font-size: 30px; font-weight: 900; height: 58px; text-align: right; }
 .ticket-cur { font-weight: 800; color: var(--muted); }
 .ticket-card .chips { justify-content: center; }
+.ticket-perso { text-align: left; margin: var(--s2) 0 0; }
+.ticket-perso .chips { justify-content: flex-start; margin-top: var(--s2); }
+.ticket-perso .hint { margin: var(--s1) 0 0; font-size: 13px; }
 .ticket-split { margin: var(--s2) 0 0; }
 .ticket-split input[type="range"] { width: 100%; accent-color: var(--accent); height: 32px; }
 .ticket-split-txt { font-weight: 800; font-size: 14px; color: var(--text); margin-top: 2px; }

@@ -39,7 +39,7 @@ function maybeCoucou() {
 }
 function openTicket({ where, n }) {
   if (DEMO && !S.me) return;
-  S.ticket = { where, n, payer: S.me, share: 50 };
+  S.ticket = { where, n, payer: S.me, share: 50, persoWho: S.me };
   const old = document.getElementById('ticket'); if (old) old.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card" role="dialog" aria-label="Ticket de caisse">
@@ -49,7 +49,11 @@ function openTicket({ where, n }) {
     <div class="row"><div class="grow"><label class="sr" for="ticket-amount">Montant</label><input class="field amount-input big" id="ticket-amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></div><span class="ticket-cur">CHF</span></div>
     <p class="chip-label">Qui a payé ?</p>
     <div class="chips">${S.members.map(m => `<button type="button" data-action="ticket-pay" data-who="${esc(m.email)}" aria-pressed="${m.email === S.me}">${esc(m.email === S.me ? 'Moi' : m.name)}</button>`).join('')}</div>
-    <p class="chip-label">Partage</p>
+    <details class="fold ticket-perso"><summary>Dont des articles perso</summary>
+      <div class="row mt"><div class="grow"><label class="sr" for="ticket-perso">Montant perso</label><input class="field amount-input" id="ticket-perso" inputmode="decimal" placeholder="0.00" autocomplete="off"></div><span class="ticket-cur">CHF</span></div>
+      <div class="chips">${S.members.map(m => `<button type="button" data-action="ticket-perso-who" data-who="${esc(m.email)}" aria-pressed="${m.email === S.me}">${esc(m.email === S.me ? 'Pour moi' : `Pour ${m.name}`)}</button>`).join('')}</div>
+      <p class="hint" id="ticket-perso-txt">Ce montant est retiré du partage.</p></details>
+    <p class="chip-label">Partage du reste</p>
     <div class="ticket-split"><input type="range" id="ticket-share" min="0" max="100" step="5" value="50" aria-label="Part de celui qui a payé"><div class="ticket-split-txt" id="ticket-split-txt">Moitié-moitié</div></div>
     <div class="form-actions"><button class="btn ghost" data-action="ticket-skip">Plus tard</button><button class="btn" data-action="ticket-ok">Noter la dépense</button></div></div>`;
   document.body.appendChild(box);
@@ -965,7 +969,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v55</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v56</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1725,6 +1729,7 @@ const actions = {
   },
   // Fiche après les courses : combien, qui a payé → dépense partagée moitié-moitié, avec sa petite pluie de pièces.
   'ticket-pay': el => { S.ticket.payer = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-pay"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); },
+  'ticket-perso-who': el => { S.ticket.persoWho = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-perso-who"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); const t = document.getElementById('ticket-perso-txt'); if (t) t.textContent = el.dataset.who === S.ticket.payer ? 'Ce montant est retiré du partage.' : `${nameOf(el.dataset.who)} devra ce montant en entier.`; },
   'ticket-skip': () => { closeTicket(); toast('Pas noté. Tu peux l\'ajouter dans Argent.'); },
   'ticket-ok': el => {
     const f = document.getElementById('ticket-amount');
@@ -1732,11 +1737,17 @@ const actions = {
     if (!(amount > 0)) { toast('Indique le montant du ticket'); f?.focus(); return; }
     const t = S.ticket;
     const share = (t.share ?? 50) / 100;
-    const row = { amount: Math.round(amount * 100) / 100, label: `Courses ${t.where}`, paid_by: t.payer, payer_share: share, category: 'courses', spent_on: isoDate(new Date()), icon: 't:courses' };
-    const owed = Math.round(row.amount * (1 - share) * 100) / 100;
-    haptic('medium'); sfx('coin'); burst('coins', el, 12); floatUp(el, chf(row.amount));
+    const perso = Math.max(0, Number(String(document.getElementById('ticket-perso')?.value || '0').replace(/[’'\s]/g, '').replace(',', '.')) || 0);
+    if (perso >= amount) { toast('Le montant perso dépasse le ticket'); return; }
+    const today = isoDate(new Date());
+    // Le partage porte sur le ticket moins les articles perso. Si les articles perso sont à l'autre, il ou elle les doit en entier.
+    const rows = [{ amount: Math.round((amount - perso) * 100) / 100, label: `Courses ${t.where}${perso ? ` (sans ${chf(perso)} perso)` : ''}`, paid_by: t.payer, payer_share: share, category: 'courses', spent_on: today, icon: 't:courses' }];
+    if (perso && t.persoWho !== t.payer) rows.push({ amount: Math.round(perso * 100) / 100, label: `Articles perso de ${nameOf(t.persoWho)}`, paid_by: t.payer, payer_share: 0, category: 'courses', spent_on: today, icon: 't:courses' });
+    const owed = Math.round(rows.reduce((s, r) => s + r.amount * (1 - r.payer_share), 0) * 100) / 100;
+    const row = rows[0];
+    haptic('medium'); sfx('coin'); burst('coins', el, 12); floatUp(el, chf(amount));
     closeTicket();
-    run(() => api.insert('expenses', row), null).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: `${chf(row.amount)} notés`, sub: owed === 0 ? 'Rien à partager' : row.paid_by === S.me ? `${nameOf(other())} te doit ${chf(owed)}` : `Tu dois ${chf(owed)} à ${nameOf(row.paid_by)}`, level: 'small', reaction: 'comptes_equilibres', badge: variantBadge('expenses', { label: 'courses', paid_by: row.paid_by }, row.paid_by) }); });
+    run(async () => { for (const r of rows) await api.insert('expenses', r); }, null).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: `${chf(amount)} notés`, sub: owed === 0 ? 'Rien à partager' : row.paid_by === S.me ? `${nameOf(other())} te doit ${chf(owed)}` : `Tu dois ${chf(owed)} à ${nameOf(row.paid_by)}`, level: 'small', reaction: 'comptes_equilibres', badge: variantBadge('expenses', { label: 'courses', paid_by: row.paid_by }, row.paid_by) }); });
   },
 
   'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
