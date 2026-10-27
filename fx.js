@@ -168,7 +168,8 @@ export function haptic(level = 'light') {
   try {
     const sw = hapticSwitch();
     const pulses = { light: 1, medium: 2, heavy: 3 }[level] || 1;
-    for (let i = 0; i < pulses; i++) setTimeout(() => sw.click(), i * 90);
+    sw.click(); // dans le geste lui-même : c'est ce qui déclenche le moteur haptique d'iOS
+    for (let i = 1; i < pulses; i++) setTimeout(() => sw.click(), i * 90);
   } catch {}
 }
 
