@@ -129,6 +129,24 @@ fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = '
 let audioCtx = null;
 const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state !== 'running') audioCtx.resume(); return audioCtx; };
 
+// iPhone : l'interrupteur « silence » coupe les sons synthétiques (Web Audio) mais pas la lecture
+// d'un média. On lance au premier toucher une piste muette en boucle : iOS passe alors en mode
+// lecture et nos petits sons sortent même en mode silencieux. Mise en pause quand l'app est cachée.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
+let silentTrack = null;
+function unlockAudio() {
+  try {
+    if (!silentTrack) {
+      silentTrack = new Audio(SILENT_WAV);
+      silentTrack.loop = true; silentTrack.volume = 0.01; silentTrack.setAttribute('playsinline', '');
+    }
+    silentTrack.play().catch(() => {});
+    ctxAudio();
+  } catch {}
+}
+['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
+document.addEventListener('visibilitychange', () => { if (document.hidden) silentTrack?.pause(); });
+
 // Petits sons de récompense, dans l'esprit Duolingo : notes claires et courtes, style marimba.
 // Un fichier sounds/<nom>.m4a (tick, done, big, coin, heart) remplace la version synthétique.
 const sfxFile = {};
