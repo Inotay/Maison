@@ -156,20 +156,17 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 // iPhone : l'interrupteur « silence » coupe les sons synthétiques (Web Audio) mais pas la lecture
 // d'un média. On lance au premier toucher une piste muette en boucle : iOS passe alors en mode
 // lecture et nos petits sons sortent même en mode silencieux. Mise en pause quand l'app est cachée.
-const SILENT_WAV = 'data:audio/wav;base64,UklGRkQDAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YSADAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgA==';
-let silentTrack = null;
+// Audio : l'app se mélange à ce qui joue déjà (musique, YouTube) au lieu de le couper.
+// Conséquence assumée : interrupteur silencieux enclenché = pas de sons de l'app, comme un jeu.
+// (L'ancienne astuce de la piste muette en boucle rendait les sons audibles en mode silence,
+// mais prenait la main sur la musique en cours.)
 function unlockAudio() {
   try {
-    if (!silentTrack) {
-      silentTrack = new Audio(SILENT_WAV);
-      silentTrack.loop = true; silentTrack.volume = 0.01; silentTrack.setAttribute('playsinline', '');
-    }
-    silentTrack.play().catch(() => {});
-    ctxAudio();
+    if (navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient';
+    const c = ctxAudio(); if (c.state === 'suspended') c.resume().catch(() => {});
   } catch {}
 }
 ['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
-document.addEventListener('visibilitychange', () => { if (document.hidden) silentTrack?.pause(); });
 
 // Petits sons de récompense, dans l'esprit Duolingo : notes claires et courtes, style marimba.
 // Un fichier sounds/<nom>.m4a (tick, done, big, coin, heart) remplace la version synthétique.
@@ -937,7 +934,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v51</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v52</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
