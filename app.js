@@ -862,7 +862,7 @@ function viewMaison() {
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v39</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v40</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1100,7 +1100,7 @@ function choreBtn(c, now = new Date()) {
   const d = s ? descente(s, c, now) : null;
   // Hors calendrier, le bouton reste cliquable (le container est parfois là quand même), juste atténué.
   const off = d && !d.possible ? 'off' : '';
-  return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">Fait</button>`;
+  return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">${st.due ? 'À faire' : 'Fait ✓'}</button>`;
 }
 function dechetMeta(c, now = new Date()) {
   const s = SORTES.find(x => x.id === c.sorte);
