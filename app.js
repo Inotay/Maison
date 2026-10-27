@@ -512,7 +512,35 @@ async function loadAll() {
 }
 
 // Les quatre sortes de déchets existent toujours comme corvées (sans tour, liées au calendrier de ramassage).
+// Corvées en étapes : chaque étape se fait à la suite, les étapes minutées envoient une notification à la fin.
+// Lave-vaisselle pour la maison ; lessive personnelle (une par personne).
+const SEQ = {
+  lavevaisselle: { label: 'Lave-vaisselle', icon: 'lavevaisselle', every: 4, personal: false, done: 'Lave-vaisselle vidé',
+    steps: [{ key: 'cycle', btn: 'Lancer', doing: 'En route', minutes: 60 }, { key: 'sortir', btn: 'Sortie', meta: 'Fini : sortir la vaisselle' }] },
+  lessive: { label: 'Lessive', icon: 'lessive', every: 14, personal: true, done: 'Lessive rangée',
+    steps: [{ key: 'lavage', btn: 'Lancer', doing: 'Lavage en cours', minutes: 60 }, { key: 'sechage', btn: 'Au séchage', doing: 'Séchage en cours', minutes: 80 }, { key: 'ranger', btn: 'Rangée', meta: 'Sec : plier et ranger' }] },
+};
+const seqOf = c => c?.sorte && SEQ[c.sorte];
+const seqMinutes = (c, st) => Number(c.options?.minutes?.[st.key]) || st.minutes;
+// Où en est la séquence : { step, ready, left } pendant un minuteur, { next } quand une étape est à faire.
+function seqState(c, now = Date.now()) {
+  const q = seqOf(c); const i = Math.min(Number(c.step) || 0, q.steps.length - 1);
+  if (c.started_at) {
+    const ready = new Date(c.started_at).getTime() + seqMinutes(c, q.steps[i]) * 60000;
+    if (now < ready) return { phase: 'timer', i, ready, left: Math.ceil((ready - now) / 60000) };
+    return { phase: 'next', i: i + 1 };
+  }
+  return { phase: 'start', i: 0, st: choreStatus(c) };
+}
 async function ensureDechets() {
+  for (const [id, q] of Object.entries(SEQ)) {
+    const owners = q.personal ? S.members.map(m => m.email) : [null];
+    for (const who of owners) {
+      if (S.chores.some(c => c.sorte === id && (c.turn || null) === who)) continue;
+      const row = { title: q.label, every_days: q.every, weight: 1, fixed: true, turn: who, sorte: id, icon: `t:${q.icon}`, step: 0 };
+      try { const r = await api.insert('chores', row); S.chores.push(r || row); } catch (e) { console.warn(id, e); }
+    }
+  }
   for (const s of SORTES) {
     if (S.chores.some(c => c.sorte === s.id)) continue;
     const row = { title: s.label, every_days: s.every, weight: 1, fixed: true, turn: null, sorte: s.id, icon: `t:${s.icon}` };
@@ -879,7 +907,7 @@ function viewMaison() {
   lines.push([myTasks.length > 1 ? 'Choses à faire pour toi ou vous deux' : 'Chose à faire pour toi ou vous deux', myTasks.length, 'faire', false]);
   if (Math.abs(net) >= 0.01) lines.push([net > 0 ? `${nameOf(other())} te doit` : `Tu dois à ${nameOf(other())}`, `${chf(Math.abs(net))}`, 'argent', false]);
   else lines.push(['Vous êtes quittes', '0.00', 'argent', false]);
-  const waste = S.chores.filter(c => c.sorte);
+  const waste = S.chores.filter(c => SORTES.some(s => s.id === c.sorte));
   lines.push(['Déchets', dechetsResume(waste, new Date(), true), 'menage', waste.some(c => choreStatus(c).due && descente(SORTES.find(x => x.id === c.sorte), c).possible)]);
   lines.push([shop > 1 ? 'Articles sur la liste de courses' : 'Article sur la liste de courses', shop, 'courses', false]);
   const ne = S.agenda.configured ? nextEvent() : null;
@@ -909,7 +937,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v49</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v50</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -922,6 +950,14 @@ function houseItems() {
     out.push({ kind: 'task', row: t, day: t.due_on < today ? today : t.due_on, late: t.due_on < today, time: t.due_time ? String(t.due_time).slice(0, 5) : '' });
   }
   for (const c of S.chores) {
+    const q = seqOf(c);
+    if (q) {
+      if (q.personal && c.turn !== S.me) continue;
+      const s = seqState(c);
+      if (s.phase !== 'start' || s.st.due) out.push({ kind: 'seq', row: c, day: today, late: s.phase === 'start' && s.st.late, time: '' });
+      else { const d = new Date(c.last_done_at); d.setDate(d.getDate() + c.every_days); out.push({ kind: 'seq', row: c, day: isoDate(d), late: false, time: '' }); }
+      continue;
+    }
     const st = choreStatus(c);
     let day = today;
     if (c.last_done_at && !st.due) { const d = new Date(c.last_done_at); d.setDate(d.getDate() + c.every_days); day = isoDate(d); }
@@ -937,6 +973,12 @@ function houseItem(h) {
     return `<li class="item house">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="false" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
       ${iconHtml(displayIcon('tasks', t))}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div></li>`;
+  }
+  if (h.kind === 'seq') {
+    const c = h.row, q = seqOf(c), s = seqState(c);
+    const meta = s.phase === 'timer' ? `Ménage · ${q.steps[s.i].doing.toLowerCase()}, prêt dans ${s.left} min` : s.phase === 'next' ? `Ménage · ${(q.steps[s.i].meta || q.steps[s.i].btn).toLowerCase()}` : `Ménage · ${s.st.due ? 'à lancer' : s.st.label}`;
+    const btn = s.phase === 'timer' ? `<span class="dech-btn cycle">${esc(hhmm(s.ready))}</span>` : s.phase === 'next' ? `<button class="btn dech-btn due" data-action="seq-step" data-id="${c.id}" data-i="${s.i}">${esc(q.steps[s.i].btn)}</button>` : `<button class="btn dech-btn ${s.st.due ? 'due' : 'done'}" data-action="seq-step" data-id="${c.id}" data-i="0">${esc(q.steps[0].btn)}</button>`;
+    return `<li class="item house">${iconHtml(displayIcon('chores', c))}<div class="item-main"><div class="item-title">${esc(q.label)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div><div class="item-trail">${btn}</div></li>`;
   }
   const c = h.row;
   const who = !c.turn ? 'Qui veut' : c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`;
@@ -1091,6 +1133,7 @@ function editChore(c) {
     ${chipGroup('edit-weight', WEIGHTS, String(c.weight || 2), 'Effort')}
     ${c.sorte ? '' : chipGroup('edit-who', [['tour', 'À tour de rôle'], ['any', 'Qui veut'], ...who.map(([e, l]) => [e, `Toujours ${l === 'Moi' ? 'moi' : l}`])], c.fixed ? (c.turn || 'any') : 'tour', 'Qui')}
     ${!c.sorte && chipVal('edit-who', c.fixed ? (c.turn || 'any') : 'tour') === 'tour' ? chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour') : ''}
+    ${seqOf(c) ? seqOf(c).steps.filter(s => s.minutes).map(s => `<div class="row mt"><div class="grow"><label class="chip-label" for="ec-min-${s.key}">${esc(s.doing)} : durée en minutes</label><input class="field" id="ec-min-${s.key}" name="min_${s.key}" type="number" inputmode="numeric" min="1" max="600" value="${seqMinutes(c, s)}"></div></div>`).join('') : ''}
     <div class="row mt"><div class="grow"><label class="chip-label" for="ec-last">Dernière fois faite le</label><input class="field" id="ec-last" name="last" type="date" value="${esc(c.last_done_at ? isoDate(new Date(c.last_done_at)) : '')}"></div></div>
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
@@ -1159,6 +1202,33 @@ function dechetMeta(c, now = new Date()) {
   const w = st.label[0].toUpperCase() + st.label.slice(1);
   return c.last_done_by ? `${w}, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : w;
 }
+const hhmm = ms => new Date(ms).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+// Carte d'une corvée en étapes.
+function seqCard(c) {
+  const q = seqOf(c); if (!q) return '';
+  if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
+  const s = seqState(c);
+  let meta, btn;
+  if (s.phase === 'start') {
+    const st = s.st;
+    meta = st.due ? (st.late ? cap(st.label) : 'À lancer') : `${cap(st.label)}${c.last_done_by && !q.personal ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
+    btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${esc(q.steps[0].btn)}${st.due ? '' : ' ✓'}</button>`;
+  } else if (s.phase === 'timer') {
+    meta = `${q.steps[s.i].doing}, prêt dans ${s.left} min`;
+    btn = `<span class="dech-btn cycle">${esc(hhmm(s.ready))}</span>`;
+  } else {
+    const nx = q.steps[s.i];
+    meta = nx.meta || `Prêt : ${nx.btn.toLowerCase()}`;
+    btn = `<button class="btn dech-btn due" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="${s.i}">${esc(nx.btn)}</button>`;
+  }
+  const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
+  const actions = S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>` : '';
+  const title = q.personal ? `${q.label}${c.turn === S.me ? '' : ` de ${nameOf(c.turn)}`}` : c.title;
+  return `<div class="chore seq-card">${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(title)}</div><div class="c-meta">${esc(meta)}</div><div class="lv-dots">${dots}</div></div>
+    <div class="item-trail">${btn}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
+    ${iconPicker('chores', c)}${actions}</div>`;
+}
 function dechetsCard(waste) {
   const now = new Date();
   const dots = waste.map(c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c, now); return `<span class="dot ${st.due ? 'dot-non' : 'dot-ok'} ${d.possible ? '' : 'off'}" title="${esc(c.title)}"></span>`; }).join('');
@@ -1193,10 +1263,13 @@ function viewMenage() {
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
   const chores = S.chores.filter(c => !c.sorte).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
+  // Séquences : le lave-vaisselle (commun) puis ma lessive ; celle de l'autre reste dans son app.
+  const seqs = S.chores.filter(c => seqOf(c) && (!seqOf(c).personal || c.turn === S.me));
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
     ${dechetsCard(waste)}
+    ${seqs.map(seqCard).join('')}
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
@@ -1238,15 +1311,18 @@ const SHOPS = [
   ['maison', 'Maison & brico', 'Jumbo, Ikea, Brico'],
   ['pharma', 'Pharmacie & droguerie', 'Pharmacie, Müller'],
   ['azami', 'Animalerie', 'Qualipet, Fressnapf'],
-  ['autre', 'Autre', ''],
+  ['tech', 'Électronique', 'Digitec, Interdiscount, Fust'],
+  ['autre', 'Divers', 'cadeaux, commandes, le reste'],
 ];
 const SHOP_OF_THEME = {
   asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie',
-  bricolage: 'maison', reparation: 'maison', lampe: 'maison', electricite: 'maison', cables: 'maison', piles: 'maison', peinture: 'maison', mesures: 'maison',
+  bricolage: 'maison', reparation: 'maison', lampe: 'maison', peinture: 'maison', mesures: 'maison',
   meubles: 'maison', deco: 'maison', tapis: 'maison', rideaux: 'maison', etagere: 'maison', futon: 'maison', rangement: 'maison', plantes: 'maison', jardin: 'maison', fleurs: 'maison', bougie: 'maison', textile: 'maison', lit: 'maison', serviettes: 'maison',
   pharmacie: 'pharma', premierssoins: 'pharma', malade: 'pharma', beaute: 'pharma', rasage: 'pharma', dents: 'pharma', regles: 'pharma', intime: 'pharma',
   // ce qu'on trouve à plusieurs endroits
   menage: 'super,maison', plumeau: 'super,maison', aspirateur: 'super,maison', poubelle: 'super,maison', lessive: 'super,maison', vaisselle: 'super,maison', papiertoilette: 'super,maison', hygiene: 'super,pharma', cuisine: 'super,maison', machinecafe: 'super,maison', frigo: 'super,maison',
+  cables: 'tech', piles: 'tech,super', telephone: 'tech', ordinateur: 'tech', audio: 'tech', tv: 'tech', photo: 'tech', jeux: 'tech', electricite: 'tech,maison', internet_sites: 'tech', telecom: 'tech',
+  cadeau: 'autre', anniversaire: 'autre', noel: 'autre', amis: 'autre', famille: 'autre', fete: 'autre', mariage: 'autre',
   litiere: 'azami,super', croquettes: 'azami,super', patee: 'azami,super', friandises: 'azami,super',
   croquettes: 'azami', patee: 'azami', friandises: 'azami', litiere: 'azami', griffoir: 'azami', arbreachat: 'azami', jouetschat: 'azami', antipuces: 'azami', brossechat: 'azami', herbeachat: 'azami', fontaine: 'azami', gamelle: 'azami', caissetransport: 'azami', collierchat: 'azami', antipoils: 'azami', animalerie: 'azami', chat: 'azami',
 };
@@ -1272,7 +1348,7 @@ function viewCourses() {
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter un article" autocomplete="off" enterkeyhint="done" required></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
-    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.filter(x => x[0] !== 'autre').map(([k, l]) => `<button type="button" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div></div>
     <div class="shop">${mode
       ? (todo.length ? `<h2 class="list-head shop-head">${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
       : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>')}
@@ -1436,6 +1512,25 @@ function viewCare() {
 
 const actions = {
   go: el => { S.view = el.dataset.view; S.open = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
+  'seq-step': el => {
+    const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
+    const i = Number(el.dataset.i); const st = q.steps[i];
+    if (st.minutes) {
+      haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(c, st)} min`);
+      run(() => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c\'est prêt.' : 'C\'est parti.');
+      return;
+    }
+    meow(); haptic('heavy'); sfx('big'); el.classList.add('did'); el.textContent = '✓';
+    burst('confetti', el, 24); floatUp(el, '+1');
+    const first = !todayHasWin();
+    run(async () => {
+      await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: S.me });
+      await api.insert('chore_log', { chore_id: c.id, title: q.done, weight: 1 });
+      await win('chore', q.done, 1, c.icon);
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochaine fois dans ${c.every_days} jours`, level: 'small', reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
+  },
+  'seq-reset': el => { S.open = null; run(() => api.update('chores', { id: el.dataset.id }, { step: 0, started_at: null }), 'Cycle annulé'); },
   'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },
   sounds: el => { SOUNDS = el.dataset.on === '1'; safeSet('maison-sounds', SOUNDS ? '1' : '0'); haptic(1); render(); },
   meows: el => { MEOWS = el.dataset.on === '1'; safeSet('maison-meows', MEOWS ? '1' : '0'); haptic(1); render(); },
@@ -1707,8 +1802,9 @@ const forms = {
     const title = f.title.value.trim(); if (!title) return toast('Le nom est vide');
     const c0 = S.chores.find(x => x.id === f.dataset.id) || {};
     const w = c0.sorte ? 'any' : chipVal('edit-who', c0.fixed ? (c0.turn || 'any') : 'tour');
-    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: w === 'tour' ? chipVal('edit-turn', c0.turn || S.me) : w === 'any' ? null : w, icon: c0.sorte ? c0.icon : iconFor(title, 'chore', S.hints) };
+    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: c0.sorte ? (c0.turn || null) : w === 'tour' ? chipVal('edit-turn', c0.turn || S.me) : w === 'any' ? null : w, icon: c0.sorte ? c0.icon : iconFor(title, 'chore', S.hints) };
     if (f.last.value) patch.last_done_at = new Date(f.last.value + 'T12:00').toISOString();
+    if (seqOf(c0)) { const minutes = {}; for (const s of seqOf(c0).steps) if (s.minutes && f[`min_${s.key}`]?.value) minutes[s.key] = Number(f[`min_${s.key}`].value); patch.options = { ...(c0.options || {}), minutes }; patch.title = c0.title; }
     S.edit = null;
     run(() => api.update('chores', { id: f.dataset.id }, patch), 'Modifié');
   },
@@ -1782,6 +1878,20 @@ document.addEventListener('submit', e => {
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) refresh(); });
 setInterval(() => { if (S.me && !S.offline && (S.view === 'nuit' || notifOn())) refresh(); }, 30000);
+// Corvées en étapes : fin d'un minuteur pendant que l'app est ouverte → carte à jour et notification locale.
+const seqNotified = new Set();
+setInterval(() => {
+  for (const c of S.chores) {
+    const q = seqOf(c); if (!q || !c.started_at) continue;
+    if (q.personal && c.turn !== S.me) continue;
+    const s = seqState(c);
+    if (s.phase === 'timer') { document.querySelectorAll(`.seq-card #done-${c.id}`); continue; }
+    const key = `${c.id}|${c.started_at}`;
+    if (seqNotified.has(key)) continue;
+    seqNotified.add(key); render();
+    if (notifOn()) show(`${q.label} : prêt`, q.steps[s.i]?.meta || `${q.steps[s.i]?.btn}`, 'maison-seq');
+  }
+}, 20000);
 
 // Démarrage ------------------------------------------------------------------
 
