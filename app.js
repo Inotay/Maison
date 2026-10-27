@@ -934,7 +934,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v52</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v53</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1265,6 +1265,13 @@ function vaisselleCard() {
   const summary = n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre';
   return groupCard({ id: 'vaisselle', icon: 'vaisselle', title: 'Vaisselle', summary, dots: all.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: [...main.map(plainRow), ...lv.map(seqRow)] });
 }
+// Azami : toutes les corvées qui la concernent (caisse, croquettes, véto…), groupées comme la vaisselle.
+function azamiCard() {
+  const rows = S.chores.filter(c => !c.sorte && isAzami(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  if (!rows.length) return '';
+  const n = rows.filter(isDue).length;
+  return groupCard({ id: 'azami', icon: 'chat', title: 'Azami', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
+}
 function lessiveCard() {
   const mine = S.chores.filter(c => c.sorte === 'lessive' && c.turn === S.me); if (!mine.length) return '';
   const c = mine[0]; const s = seqState(c);
@@ -1291,11 +1298,11 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title)).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
+  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAzami(c)).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('menage', 'Azami passe le balai')}</button></header>
-    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}</div>
+    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores">${chores.map(c => {
       const st = choreStatus(c);
