@@ -622,6 +622,22 @@ body:has(textarea:focus) .nav { display: none; }
 
 /* Grande célébration ----------------------------------------------------- */
 
+/* Fiche « C'était combien ? » après les courses : une feuille qui monte du bas, par-dessus la page. */
+#ticket { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-end; justify-content: center; background: rgba(20, 30, 40, 0); transition: background .3s; }
+#ticket.on { background: rgba(20, 30, 40, .45); }
+.ticket-card { width: 100%; max-width: 560px; background: var(--surface); color: var(--text); border: 2px solid var(--line); border-bottom: 0; border-radius: var(--r) var(--r) 0 0; padding: var(--s4) var(--s4) calc(var(--s5) + var(--safe-b)); transform: translateY(100%); transition: transform .4s cubic-bezier(.34, 1.4, .64, 1); text-align: center; }
+#ticket.on .ticket-card { transform: none; }
+.ticket-icon { width: 64px; height: 64px; margin: -44px auto 0; display: block; }
+.ticket-title { margin: var(--s2) 0 2px; font-size: 24px; font-weight: 900; }
+.ticket-sub { margin: 0 0 var(--s4); color: var(--muted); font-size: 14px; font-weight: 700; }
+.ticket-card .row { align-items: center; gap: var(--s2); }
+.ticket-card .amount-input.big { font-size: 30px; font-weight: 900; height: 58px; text-align: right; }
+.ticket-cur { font-weight: 800; color: var(--muted); }
+.ticket-card .chips { justify-content: center; }
+.ticket-split { margin: var(--s2) 0 0; }
+.ticket-split input[type="range"] { width: 100%; accent-color: var(--accent); height: 32px; }
+.ticket-split-txt { font-weight: 800; font-size: 14px; color: var(--text); margin-top: 2px; }
+.ticket-card .form-actions { margin-top: var(--s4); display: flex; gap: var(--s2); justify-content: center; }
 #cele { position: fixed; inset: 0; z-index: 30; pointer-events: none; display: grid; place-items: center; opacity: 0; transition: opacity .25s; background: radial-gradient(circle at 50% 45%, rgba(30,47,63,.5), rgba(30,47,63,.15) 55%, transparent 75%); }
 #cele.on { opacity: 1; }
 #cele.off { opacity: 0; transition: opacity .5s; }

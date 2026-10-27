@@ -37,6 +37,37 @@ function maybeCoucou() {
   coucouDone = true;
   if (Math.random() < 1 / 12) { safeSet('maison-coucou', today); setTimeout(() => react('surprise_coucou', document.querySelector('.hd .azami')), 900); }
 }
+function openTicket({ where, n }) {
+  if (DEMO && !S.me) return;
+  S.ticket = { where, n, payer: S.me, share: 50 };
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = `<div class="ticket-card" role="dialog" aria-label="Ticket de caisse">
+    <img class="ticket-icon" src="icons/themes/recu.webp" alt="">
+    <p class="ticket-title">C'était combien ?</p>
+    <p class="ticket-sub">${esc(where)} · ${pl(n, 'article', 'articles')}. Ça part directement dans les dépenses.</p>
+    <div class="row"><div class="grow"><label class="sr" for="ticket-amount">Montant</label><input class="field amount-input big" id="ticket-amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></div><span class="ticket-cur">CHF</span></div>
+    <p class="chip-label">Qui a payé ?</p>
+    <div class="chips">${S.members.map(m => `<button type="button" data-action="ticket-pay" data-who="${esc(m.email)}" aria-pressed="${m.email === S.me}">${esc(m.email === S.me ? 'Moi' : m.name)}</button>`).join('')}</div>
+    <p class="chip-label">Partage</p>
+    <div class="ticket-split"><input type="range" id="ticket-share" min="0" max="100" step="5" value="50" aria-label="Part de celui qui a payé"><div class="ticket-split-txt" id="ticket-split-txt">Moitié-moitié</div></div>
+    <div class="form-actions"><button class="btn ghost" data-action="ticket-skip">Plus tard</button><button class="btn" data-action="ticket-ok">Noter la dépense</button></div></div>`;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => { box.classList.add('on'); setTimeout(() => document.getElementById('ticket-amount')?.focus(), 350); });
+  box.querySelector('#ticket-share').addEventListener('input', e => { S.ticket.share = Number(e.target.value); box.querySelector('#ticket-split-txt').textContent = splitText(); haptic(1); });
+  box.querySelectorAll('[data-action="ticket-pay"]').forEach(b => b.addEventListener('click', () => { box.querySelector('#ticket-split-txt').textContent = splitText(); }));
+  haptic(1);
+}
+// « Moitié-moitié », « Toi 70 % · Mariana 30 % », « Tout pour Mariana »…
+function splitText() {
+  const t = S.ticket; const p = t.share ?? 50;
+  const payer = t.payer === S.me ? 'Toi' : nameOf(t.payer), oth = t.payer === S.me ? nameOf(other()) : 'Toi';
+  if (p === 50) return 'Moitié-moitié';
+  if (p === 100) return `${payer === 'Toi' ? 'Tout pour toi' : `Tout pour ${payer}`}, rien à partager`;
+  if (p === 0) return `Avancé pour ${oth === 'Toi' ? 'toi' : oth} : ${oth === 'Toi' ? 'tu dois' : oth + ' doit'} tout`;
+  return `${payer} ${p} % · ${oth} ${100 - p} %`;
+}
+function closeTicket() { const b = document.getElementById('ticket'); if (!b) return; b.classList.remove('on'); setTimeout(() => b.remove(), 300); S.ticket = null; }
 function placeAzami() {
   document.querySelectorAll('.azami-slot').forEach(slot => {
     const img = azamiImg(slot.dataset.scene); img.alt = slot.dataset.alt;
@@ -934,7 +965,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v54</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v55</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1689,7 +1720,23 @@ const actions = {
       for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
       await api.remove('shopping', { checked: true });
       await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
-    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600); });
+    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600);
+      setTimeout(() => openTicket({ where, n: cart.length }), first ? 5200 : 2300); });
+  },
+  // Fiche après les courses : combien, qui a payé → dépense partagée moitié-moitié, avec sa petite pluie de pièces.
+  'ticket-pay': el => { S.ticket.payer = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-pay"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); },
+  'ticket-skip': () => { closeTicket(); toast('Pas noté. Tu peux l\'ajouter dans Argent.'); },
+  'ticket-ok': el => {
+    const f = document.getElementById('ticket-amount');
+    const amount = Number(String(f?.value || '').replace(/[’'\s]/g, '').replace(',', '.'));
+    if (!(amount > 0)) { toast('Indique le montant du ticket'); f?.focus(); return; }
+    const t = S.ticket;
+    const share = (t.share ?? 50) / 100;
+    const row = { amount: Math.round(amount * 100) / 100, label: `Courses ${t.where}`, paid_by: t.payer, payer_share: share, category: 'courses', spent_on: isoDate(new Date()), icon: 't:courses' };
+    const owed = Math.round(row.amount * (1 - share) * 100) / 100;
+    haptic('medium'); sfx('coin'); burst('coins', el, 12); floatUp(el, chf(row.amount));
+    closeTicket();
+    run(() => api.insert('expenses', row), null).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: `${chf(row.amount)} notés`, sub: owed === 0 ? 'Rien à partager' : row.paid_by === S.me ? `${nameOf(other())} te doit ${chf(owed)}` : `Tu dois ${chf(owed)} à ${nameOf(row.paid_by)}`, level: 'small', reaction: 'comptes_equilibres', badge: variantBadge('expenses', { label: 'courses', paid_by: row.paid_by }, row.paid_by) }); });
   },
 
   'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
