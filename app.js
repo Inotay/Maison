@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v84</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v85</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1403,6 +1403,8 @@ const SHOPS = [
   ['tech', 'Électronique', 'Digitec, Interdiscount, Fust'],
   ['autre', 'Divers', 'cadeaux, commandes, le reste'],
 ];
+const SHOP_ICON = { super: 'rayon_super', asie: 'rayon_asie', maison: 'rayon_maison', pharma: 'rayon_pharma', azami: 'rayon_azami', tech: 'rayon_tech', autre: 'cadeau' };
+const shopIc = (k, cls = 'shop-ic') => SHOP_ICON[k] ? `<img class="${cls}" src="icons/themes/${SHOP_ICON[k]}.webp" alt="" width="40" height="40" decoding="async">` : '';
 const SHOP_OF_THEME = {
   asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie', riz_sushi: 'asie,super', panko: 'asie,super', tofu: 'asie,super', tempeh: 'asie', sauce_soja: 'asie,super', miso: 'asie', mirin: 'asie', pate_gyoza: 'asie', feuilles_riz: 'asie', ramen: 'asie,super', udon: 'asie', soba: 'asie', nouilles_riz: 'asie,super', vermicelles: 'asie',
   vinaigre_riz: 'asie,super', huile_sesame: 'asie,super', sesame: 'asie,super', nori: 'asie,super', wakame: 'asie', dashi: 'asie', kimchi: 'asie', gochujang: 'asie', sriracha: 'asie,super', lait_coco: 'asie,super', pate_curry: 'asie,super', gyozas: 'asie', mochi: 'asie', matcha: 'asie,super', sauce_okonomi: 'asie', mayo_jp: 'asie', furikake: 'asie', edamame: 'asie,super', chou_chinois: 'asie,super', pak_choi: 'asie,super', shiitake: 'asie,super', mangue: 'super,asie', citron_vert: 'super,asie', yuzu: 'asie', kaki: 'super,asie', coriandre: 'super,asie',
@@ -1441,10 +1443,10 @@ function viewCourses() {
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter un article" autocomplete="off" enterkeyhint="done" required></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
-    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" class="shop-chip" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${shopIc(k, 'chip-ic')}${esc(l)}</button>`).join('')}</div></div>
     <div class="shop">${mode
-      ? (todo.length ? `<h2 class="list-head shop-head">${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
-      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>')}
+      ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
+      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>')}
     ${cart.length ? `<h2>Dans le panier <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
     ${mode ? `<div class="form-actions"><button class="btn ghost" data-action="shop-mode" data-shop="${mode}">Je ressors</button><button class="btn" data-action="shop-done" ${cart.length ? '' : 'disabled'}>Courses faites</button></div>`
       : cart.length ? `<div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
