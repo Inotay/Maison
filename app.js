@@ -997,7 +997,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v93</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v94</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1591,7 +1591,7 @@ const imgOf = s => { const r = classify(s); return r && THEME_IMG.has(r.id) ? r.
 const rArtCache = {};
 function rArt(r) {
   if (rArtCache[r.id]) return rArtCache[r.id];
-  const hero = HERO[r.id] || imgOf(r.titre);
+  const hero = HERO[r.base || r.id] || imgOf((r.base ? RID0(r.base) : r).titre);
   const ings = r.ing.map(x => imgOf(x.n));
   const key = [...new Set(ings.filter(x => x && !RSTAPLE.has(x) && x !== hero))].slice(0, 3);
   return (rArtCache[r.id] = { hero, ings, key });
@@ -1653,8 +1653,36 @@ function freshCard() {
 }
 
 // Recettes --------------------------------------------------------------------
-const RID = id => RECETTES.find(r => r.id === id);
-const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') && 'végé'].filter(Boolean).join(' · ');
+const RID0 = id => RECETTES.find(r => r.id === id);
+// Version végé : on remplace viande et poisson par un équivalent (le réglage est gardé sur ce téléphone).
+const VSUB = [
+  [/poulet ou tofu/i, 'tofu ferme'], [/^restes \(poulet/i, 'restes de légumes'], [/saumon cuit ou umeboshi/i, 'umeboshi'],
+  [/bouillon de (poulet|bœuf)/i, 'bouillon de légumes'], [/sauce poisson/i, 'sauce soja'], [/sauce huître/i, 'sauce soja sucrée'],
+  [/anchois/i, 'câpres'], [/bonite séchée/i, 'nori émietté'], [/^dashi( ou eau)?$/i, 'dashi de kombu'], [/gélatine/i, 'agar-agar'],
+  [/cordons? bleus?/i, 'cordons bleus végé'], [/bâtonnets de poisson/i, 'nuggets végé'], [/viande séchée/i, 'tomates séchées'],
+  [/^steaks? hachés?$|(bœuf|porc) haché/i, 'haché végétal'], [/^steaks?$/i, 'steaks végétaux'],
+  [/lardons|guanciale|spam|poitrine de porc/i, 'tofu fumé'], [/jambon/i, 'jambon végé'],
+  [/\bsaucisses?\b|cervelas/i, 'saucisses végé'], [/\bpoulet\b/i, 'émincé végétal'],
+  [/\b(bœuf|porc|veau|côtelettes|escalopes)\b/i, 'émincé végétal'],
+  [/\b(saumon|poisson|cabillaud|crevettes)\b/i, 'tofu ferme'], [/\bthon\b/i, 'pois chiches'], [/\bmoules\b/i, null],
+];
+const VWORDS = [[/\bpoulet\b/gi, 'émincé végé'], [/\bviande\b/gi, 'haché végétal'], [/\bbœuf\b/gi, 'émincé végé'], [/\bporc\b/gi, 'émincé végé'],
+  [/\blardons\b/gi, 'tofu fumé'], [/\bguanciale\b/gi, 'tofu fumé'], [/\bspam\b/gi, 'tofu fumé'], [/\bjambon\b/gi, 'jambon végé'],
+  [/\bsaucisses\b/gi, 'saucisses végé'], [/\bsaucisse\b/gi, 'saucisse végé'], [/\bcervelas\b/gi, 'saucisse végé'], [/\bsaumon\b/gi, 'tofu'],
+  [/\bpoisson\b/gi, 'tofu'], [/\bcrevettes\b/gi, 'tofu'], [/\bthon\b/gi, 'pois chiches'], [/\bsteaks\b/gi, 'steaks végétaux'], [/\bcordons bleus\b/gi, 'cordons bleus végé'], [/sauce poisson/gi, 'sauce soja']];
+const vegeCache = {};
+function vegeOf(r) {
+  if (!r || r.tags.includes('vege')) return null;
+  if (r.id in vegeCache) return vegeCache[r.id];
+  let changed = false, impossible = false;
+  const ing = r.ing.map(x => { for (const [re, to] of VSUB) if (re.test(x.n)) { if (to === null) impossible = true; changed = true; return { ...x, n: to || x.n, u: /haché|émincé|tofu/.test(to || '') && x.u === 'pc' ? x.u : x.u }; } return x; });
+  const etapes = r.etapes.map(e => VWORDS.reduce((t, [re, to]) => t.replace(re, to), e));
+  return (vegeCache[r.id] = changed && !impossible ? { ...r, id: r.id + '~v', base: r.id, titre: `${r.titre} (végé)`, ing, etapes, tags: [...r.tags, 'vege'], desc: r.desc } : null);
+}
+const VEGE_ON = () => safeGet('maison-vege') === '1';
+const RID = id => { const base = String(id).replace(/~v$/, ''); const r = RID0(base); return (VEGE_ON() || String(id).endsWith('~v')) && vegeOf(r) ? vegeOf(r) : r; };
+const rDur = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`;
+const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') ? 'végé' : vegeOf(r) && 'végé possible'].filter(Boolean).join(' · ');
 function viewRecettes() {
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
@@ -1680,10 +1708,10 @@ function rFiltered() {
   const q = norm(S.rq || '');
   const t = S.rtime;
   return RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine)
-    && (!S.rtype || r.tags.includes(S.rtype))
+    && (!S.rtype || r.tags.includes(S.rtype) || (S.rtype === 'vege' && vegeOf(r)))
     && (!t || r.min <= Number(t))
     && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))
-    .sort((a, b) => (t || S.rtype === 'flemme' ? a.min - b.min : 0));
+    .sort((a, b) => (S.rtype === 'vege' ? (b.tags.includes('vege') - a.tags.includes('vege')) : 0) || (t || S.rtype === 'flemme' ? a.min - b.min : 0));
 }
 function rList(list) {
   if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
@@ -1707,9 +1735,10 @@ function rSyncFilters() {
 }
 function viewRecette(r) {
   const n = S.persons || 2;
-  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
+  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     ${rPlate(r)}
     <p class="rdesc">${esc(r.desc)}</p>
+    ${r.base || vegeOf(r) ? `<button type="button" class="vege-toggle" data-action="r-vege" aria-pressed="${!!r.base}"><span class="vt-dot"></span>Version végé${r.base ? ' : viande et poisson remplacés' : ''}</button>` : ''}
     <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
     <h2>Ingrédients <span class="muted">pour ${n}</span></h2>
     <ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, n))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul>
@@ -1870,6 +1899,8 @@ function viewCare() {
 
 const actions = {
 
+  'r-vege': () => { safeSet('maison-vege', VEGE_ON() ? '0' : '1'); haptic(1); render(); },
+
   'fresh-shift': el => {
     const x = S.pantry.find(p => p.id === el.dataset.id); if (!x) return;
     const d = new Date(x.expires_on + 'T12:00'); d.setDate(d.getDate() + Number(el.dataset.d)); x.expires_on = isoDate(d);
@@ -1933,7 +1964,7 @@ const actions = {
   'r-cook-steps': () => { S.cook.full = false; render(); },
   'r-next': () => { S.cook.step++; haptic(1); render(); window.scrollTo(0, 0); },
   'r-prev': () => { S.cook.step = Math.max(0, S.cook.step - 1); render(); },
-  'r-done': () => { const r = RID(S.cook.id); const plan = S.plans.find(p => p.id === S.cook.plan) || S.plans.find(p => p.recipe === r.id); S.cook = null; S.recette = null;
+  'r-done': () => { const r = RID(S.cook.id); const plan = S.plans.find(p => p.id === S.cook.plan) || S.plans.find(p => p.recipe === (r.base || r.id) || p.recipe === r.id); S.cook = null; S.recette = null;
     if (plan) { S.plans = S.plans.filter(p => p !== plan); api.remove('meal_plans', { id: plan.id }).catch(e => console.warn('menu', e)); }
     { const used = new Set(rArt(r).ings.filter(Boolean)); for (const x of S.pantry.filter(p => !p.status && (used.has(p.theme) || [...used].some(t => PARENT[t] === p.theme)))) { x.status = 'mange'; api.update('pantry', { id: x.id }, { status: 'mange' }).catch(() => {}); } S.pantry = S.pantry.filter(p => !p.status); }
     render(); azamiJump(); win('cuisine', r.titre, 1, 'cuisine'); celebrate({ title: 'Bon appétit !', sub: r.titre, level: 'small', reaction: 'fete_reussites' }); },
