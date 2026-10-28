@@ -1,114 +1,62 @@
 <?xml version='1.0' encoding='utf-8'?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Objectif commun atteint" data-scene="objectif_commun" data-theme-agnostic="true" data-background="transparent" data-duration="5.5" data-loop="false" data-trigger="shared_goal_reached">
-      <title>Objectif commun atteint</title><g id="micro-accents"><g id="spark-a"><path d="M120 276 Q121 284 129 285 Q121 286 120 294 Q119 286 111 285 Q119 284 120 276Z" fill="#F2BC42"/></g><g id="spark-b"><path d="M391 315 Q392 323 400 324 Q392 325 391 333 Q390 325 382 324 Q390 323 391 315Z" fill="#FFF5DD"/></g><g id="spark-c"><path d="M378 124 Q379 132 387 133 Q379 134 378 142 Q377 134 369 133 Q377 132 378 124Z" fill="#E28B86"/></g></g><style><![CDATA[:root{--azami-r:5.5s;}
-
-/* Azami V3 · short reactions, played ONCE on trigger, no background */
-:root { --azami-r: 4.5s; }
-#cat-rig,#head-rig,#body-rig,#tail,#ear-left,#ear-right,#arm-left,#arm-right,
-#scene-prop,#basket-rig,#fish-pop,#broom-rig,#clean-sparkles,#coin-rig,#coin-sparkles,
-#envelope-rig,#heart-rig,#eyes-open,#eyes-sleepy,#smile,#meow-mouth,#confetti,
-#motion-arcs,#spark-pop,#spark-a,#spark-b,#spark-c,#reward-mark,#reward-medal,#peek-spark,
-#reward-rays,#reward-stars,#extra-reward,#nose,#whiskers{ transform-box:view-box; }
-#cat-rig{transform-origin:256px 359px;animation:cat-action var(--azami-r) cubic-bezier(.18,.8,.29,1) 1 both;}
-#head-rig{transform-origin:256px 242px;animation:head-action var(--azami-r) ease-in-out 1 both;}
-#body-rig{transform-origin:256px 359px;animation:breath var(--azami-r) ease-in-out 1 both;}
-#tail{transform-origin:321px 340px;animation:tail-action var(--azami-r) ease-in-out 1 both;}
-#ear-left{transform-origin:178px 145px;animation:ear-l var(--azami-r) ease-in-out 1 both;}
-#ear-right{transform-origin:333px 145px;animation:ear-r var(--azami-r) ease-in-out 1 both;}
-#arm-left{transform-origin:205px 308px;animation:paw-l var(--azami-r) ease-in-out 1 both;}
-#arm-right{transform-origin:303px 308px;animation:paw-r var(--azami-r) ease-in-out 1 both;}
-#eyes-open{animation:eyes-open-anim var(--azami-r) steps(1,end) 1 both;}
-#eyes-sleepy{animation:eyes-close-anim var(--azami-r) steps(1,end) 1 both;}
-#smile{animation:smile-anim var(--azami-r) steps(1,end) 1 both;}
-#meow-mouth{animation:mouth-anim var(--azami-r) steps(1,end) 1 both;}
-#spark-a{animation:spark-a var(--azami-r) ease-in-out 1 both;}
-#spark-b,#spark-c{animation:spark-b var(--azami-r) ease-in-out 1 both;}
-#motion-arcs,#spark-pop{animation:fx var(--azami-r) steps(1,end) 1 both;}
-#reward-mark,#reward-medal,#reward-rays,#reward-stars,#peek-spark,#extra-reward{transform-origin:256px 240px;animation:reward-emerge var(--azami-r) ease-out 1 both;}
-@keyframes breath{0%,12%,100%{transform:scale(1)} 35%{transform:scale(1.03,.965)} 55%{transform:scale(.985,1.02)}}
-@keyframes head-action{0%,10%,80%,100%{transform:rotate(0deg)} 18%{transform:rotate(-9deg)} 30%{transform:rotate(8deg)} 42%{transform:rotate(-5deg)} 58%{transform:rotate(9deg)}}
-@keyframes cat-action{0%,100%{transform:translate(0,0)} 18%{transform:translateY(7px) scale(1.07,.93)} 34%{transform:translateY(-38px) rotate(-6deg)} 44%{transform:translateY(1px) scale(1.08,.94)} 55%{transform:translateY(-10px)} 70%{transform:translate(0,0)}}
-@keyframes tail-action{0%,100%{transform:rotate(0)} 16%{transform:rotate(-12deg)} 35%{transform:rotate(24deg)} 52%{transform:rotate(-19deg)} 70%{transform:rotate(6deg)}}
-@keyframes ear-l{0%,100%{transform:rotate(0)} 19%{transform:rotate(-8deg)} 25%{transform:rotate(7deg)} 37%{transform:rotate(0)}}
-@keyframes ear-r{0%,100%{transform:rotate(0)} 25%{transform:rotate(9deg)} 34%{transform:rotate(-5deg)} 42%{transform:rotate(0)}}
-@keyframes paw-l{0%,100%{transform:rotate(0)} 29%{transform:rotate(-26deg)} 49%{transform:rotate(12deg)} 61%{transform:rotate(0)}}
-@keyframes paw-r{0%,100%{transform:rotate(0)} 32%{transform:rotate(23deg)} 44%{transform:rotate(-12deg)} 58%{transform:rotate(0)}}
-@keyframes eyes-open-anim{0%,14%,20%,46%,52%,100%{opacity:1}15%,19%,47%,51%{opacity:0}}
-@keyframes eyes-close-anim{0%,14%,20%,46%,52%,100%{opacity:0}15%,19%,47%,51%{opacity:1}}
-@keyframes smile-anim{0%,28%,41%,100%{opacity:1}29%,40%{opacity:0}}
-@keyframes mouth-anim{0%,28%,41%,100%{opacity:0}29%,40%{opacity:1}}
-@keyframes spark-a{0%,12%,100%{opacity:0;transform:scale(.3)}25%,47%{opacity:1;transform:scale(1.18)}65%{opacity:.5;transform:scale(.9)}}
-@keyframes spark-b{0%,19%,100%{opacity:0;transform:scale(.25)}32%,58%{opacity:1;transform:scale(1.1)}78%{opacity:.2;transform:scale(.85)}}
-@keyframes fx{0%,12%,49%,100%{opacity:0}13%,48%{opacity:1}}
-@keyframes reward-emerge{0%,20%,95%,100%{opacity:0;transform:translateY(25px) scale(.35)}34%,72%{opacity:1;transform:translateY(-15px) scale(1.02)}}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}#reward-mark,#reward-medal,#reward-rays,#reward-stars,#peek-spark,#extra-reward{opacity:1!important}}
-
-
- #reward-medal{transform-origin:383px 245px;animation:medal-pop var(--azami-r) cubic-bezier(.15,.8,.25,1) 1 both}
- @keyframes medal-pop{0%,23%,92%,100%{opacity:0;transform:translateY(36px) scale(.25) rotate(-40deg)}39%{opacity:1;transform:translateY(-21px) scale(1.25) rotate(12deg)}51%,82%{opacity:1;transform:translateY(0) scale(1)}}
- #cat-rig{animation:proud-bow var(--azami-r) ease-in-out 1 both}
- @keyframes proud-bow{0%,10%,100%{transform:translateY(0)}18%{transform:translateY(9px) scale(1.09,.9)}30%{transform:translateY(-35px) rotate(6deg)}39%{transform:translateY(-8px)}57%{transform:translateY(0)}75%{transform:rotate(7deg) scale(1.02)}}
- #confetti{animation:confetti-burst var(--azami-r) ease-in-out 1 both}
- @keyframes confetti-burst{0%,28%,91%,100%{opacity:0;transform:translateY(0) scale(.7)}40%,70%{opacity:1;transform:translateY(-29px) scale(1)}85%{opacity:0;transform:translateY(25px)}}
- ]]></style><desc>Azami bombe le torse, une médaille surgit, confettis et révérence</desc>
-      <g id="cat-rig">
-       <g id="tail" class="tail">
-       <path d="M317 321 C352 306 381 324 389 345 C403 383 382 401 355 401 C335 401 329 387 343 380 C363 377 374 364 368 352 C362 337 344 337 326 344Z" fill="#38211F"/>
-       </g>
-       <g id="body-rig" class="body-rig">
-        <ellipse cx="256" cy="322" rx="87" ry="90" fill="#F2DAB4"/>
-        <ellipse cx="256" cy="324" rx="46" ry="61" fill="#FFF0D7" opacity=".72"/>
-        <path d="M205 297 Q182 314 199 344" stroke="#E4C49C" stroke-width="15" stroke-linecap="round" fill="none" opacity=".6"/>
-        <path d="M307 297 Q330 314 313 344" stroke="#E4C49C" stroke-width="15" stroke-linecap="round" fill="none" opacity=".6"/>
-        </g>
-        <g id="feet">
-        <ellipse cx="213" cy="386" rx="29" ry="20" fill="#38211F"/>
-        <ellipse cx="299" cy="386" rx="29" ry="20" fill="#38211F"/>
-        </g>
-       <g id="arms">
-      <g id="arm-left" class="arm-left"><path d="M193 289 Q183 308 197 330 Q201 337 218 330 Q232 323 219 306 L207 286Z" fill="#F2DAB4"/><ellipse cx="208" cy="318" rx="20" ry="17" fill="#38211F"/></g>
-      <g id="arm-right" class="arm-right"><path d="M319 289 Q329 308 315 330 Q311 337 294 330 Q280 323 293 306 L305 286Z" fill="#F2DAB4"/><ellipse cx="304" cy="318" rx="20" ry="17" fill="#38211F"/></g>
-      </g>
-       <g id="head-rig" class="head-rig">
-        <g id="ear-left" class="ear-left">
-          <path d="M188 132 Q168 98 155 54 Q150 44 146 60 Q135 110 150 162 L194 158Z" fill="#38211F"/>
-          <path d="M178 126 Q163 94 155 75 Q150 104 158 138Z" fill="#F4ADAF"/>
-          </g><g id="ear-right" class="ear-right">
-          <path d="M324 132 Q344 98 357 54 Q362 44 366 60 Q377 110 362 162 L318 158Z" fill="#38211F"/>
-          <path d="M334 126 Q349 94 357 75 Q362 104 354 138Z" fill="#F4ADAF"/>
-          </g>
-        <path d="M150 188 C150 119 195 106 256 105 C317 106 362 119 362 188 C362 250 317 280 256 280 C195 280 150 250 150 188Z" fill="#F2DAB4"/>
-        <path d="M162 201 C162 167 182 144 210 141 C231 135 239 145 256 142 C276 138 291 136 311 146 C340 161 350 182 350 206 C349 244 313 260 256 261 C201 261 166 243 162 201Z" fill="#38211F"/>
-        <ellipse cx="201" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
-        <ellipse cx="311" cy="224" rx="14" ry="9" fill="#67413E" opacity=".77"/>
-        <g id="eyes-open" opacity="1"><g class="eye" transform="translate(217 188)">
-      <ellipse rx="27" ry="31" fill="#FFF7EB"/>
-      <ellipse rx="22.5" ry="26" fill="#86C2ED"/>
-      <ellipse cx="3" cy="3" rx="15.5" ry="20" fill="#18364A"/>
-      <ellipse cx="-5" cy="-11" rx="7" ry="8" fill="#FFF7EB"/>
-      <circle cx="12" cy="9" r="3.3" fill="#FFF7EB" opacity=".86"/>
-      </g><g class="eye" transform="translate(295 188)">
-      <ellipse rx="27" ry="31" fill="#FFF7EB"/>
-      <ellipse rx="22.5" ry="26" fill="#86C2ED"/>
-      <ellipse cx="3" cy="3" rx="15.5" ry="20" fill="#18364A"/>
-      <ellipse cx="-5" cy="-11" rx="7" ry="8" fill="#FFF7EB"/>
-      <circle cx="12" cy="9" r="3.3" fill="#FFF7EB" opacity=".86"/>
-      </g></g>
-        <g id="eyes-sleepy" opacity="0">
-          <path d="M192 192 Q215 215 240 191" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
-          <path d="M272 191 Q297 215 320 192" stroke="#FFF7EB" stroke-width="7" stroke-linecap="round" fill="none"/>
-        </g>
-        <g id="nose"><path d="M244 227 Q256 219 268 227 Q263 236 256 238 Q249 236 244 227Z" fill="#F4ADAF"/></g>
-        <g id="smile" opacity="1">
-           <path d="M256 237 V242 M256 242 Q248 251 240 244 M256 242 Q264 251 272 244" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
-        </g>
-        <g id="meow-mouth" opacity="0">
-          <ellipse cx="256" cy="249" rx="11" ry="13" fill="#8C4F56"/>
-          <path d="M251 257 Q256 251 261 257" stroke="#F4ADAF" stroke-width="4" stroke-linecap="round" fill="none"/>
-        </g>
-        <g id="cheek-blush" opacity="0.38"><ellipse cx="186" cy="227" rx="9" ry="5" fill="#FFA6AE"/><ellipse cx="326" cy="227" rx="9" ry="5" fill="#FFA6AE"/></g><g id="whiskers" fill="none" stroke="#FFF7EB" stroke-linecap="round" stroke-width="4.2">
-           <path d="M178 228 Q160 220 148 224 M181 241 Q161 241 144 252 M334 228 Q352 220 364 224 M331 241 Q351 241 368 252"/>
-        </g>
-     </g>
-      </g>
-      <g id="fx-layer"><g id="confetti" opacity="0"><g transform="translate(131 130) rotate(32)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(369 116) rotate(-37)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#8DBBE0"/></g><g transform="translate(112 247) rotate(46)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#DF8779"/></g><g transform="translate(395 288) rotate(12)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(205 53) rotate(24)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#F2BC42"/></g><g transform="translate(308 63) rotate(-27)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#DF8779"/></g><g transform="translate(423 211) rotate(60)"><rect x="-5" y="-10" width="10" height="20" rx="3" fill="#8DBBE0"/></g></g></g><g id="reward-medal" opacity="0"><path d="M355 169 L370 220 L389 211 L401 167" fill="#8DBBE0" stroke="#38211F" stroke-width="7" stroke-linejoin="round"/><circle cx="382" cy="242" r="43" fill="#F2BC42" stroke="#38211F" stroke-width="7"/><path d="M382 219 L389 234 L407 236 L394 248 L397 265 L382 257 L367 265 L370 248 L357 236 L375 234Z" fill="#FFF7EB"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Objectif commun" data-id="objectif_commun" data-duration="5.0" data-loop="false" data-source-rig="Azami-V4.1"><title>Objectif commun</title><desc>Azami donne un petit coup de museau à un cœur. Tous les accessoires sont des vecteurs SVG natifs, sans audio.</desc><style><![CDATA[:root{--D:5s}#eyes-shut,#mouth-open,#tongue{opacity:0}#eyes-open,#mouth-smile{opacity:1}*{transform-box:view-box;animation-fill-mode:both}#character,#core,#neck,#head,#tail,#front-near,#front-far,#back-near,#back-far,#ear-left,#ear-right,#eyes-open,#eyes-shut,#mouth-open,#mouth-smile,#tongue{animation-iteration-count:1}#character{transform-origin:255px 379px}#core{transform-origin:270px 300px}#neck{transform-origin:192px 298px}#head{transform-origin:176px 269px}#ear-left{transform-origin:112px 164px}#ear-right{transform-origin:231px 166px}#tail{transform-origin:339px 294px}#front-near{transform-origin:210px 312px}#front-far{transform-origin:210px 312px}#back-near{transform-origin:324px 322px}#back-far{transform-origin:320px 322px}#eyes-open{transform-origin:176px 209px}#eyes-shut{transform-origin:176px 209px}#mouth-open{transform-origin:177px 268px}#tongue{transform-origin:177px 264px}#mouth-smile{transform-origin:177px 265px}#prop-broom{transform-origin:264px 351px}#prop-dust{transform-origin:350px 330px}#prop-bag{transform-origin:322px 396px}#prop-leek{transform-origin:355px 297px}#prop-leaf-spark{transform-origin:415px 262px}#prop-coin{transform-origin:333px 359px}#prop-coin-spark{transform-origin:397px 310px}#prop-envelope{transform-origin:299px 373px}#prop-heart{transform-origin:335px 300px}#prop-trophy{transform-origin:328px 383px}#prop-glory{transform-origin:350px 218px}#prop-pan{transform-origin:344px 390px}#prop-steam{transform-origin:347px 282px}#prop-spoon{transform-origin:411px 305px}#prop-check{transform-origin:342px 356px}#prop-sparkle{transform-origin:350px 330px}#prop-basket{transform-origin:348px 390px}#prop-veg{transform-origin:348px 332px}#prop-scale{transform-origin:353px 390px}#prop-mail{transform-origin:350px 360px}#prop-wave{transform-origin:360px 355px}#prop-star{transform-origin:353px 350px}#prop-confetti{transform-origin:351px 330px}#prop-oops{transform-origin:364px 358px}#prop-timer{transform-origin:364px 359px}#prop-washer{transform-origin:354px 375px}#prop-drum{transform-origin:354px 368px}#prop-plate{transform-origin:346px 384px}#prop-purr{transform-origin:407px 328px}#prop-food{transform-origin:359px 388px}#prop-alert{transform-origin:410px 320px}#prop-spark{transform-origin:366px 324px}#head{animation:act_head var(--D) ease-in-out 0s 1 both}@keyframes act_head{0%{transform:none}12%{transform:rotate(0)}34%{transform:rotate(16deg) translate(12px,3px)}51%{transform:rotate(12deg) translate(20px,4px)}70%{transform:rotate(-8deg)}88%{transform:rotate(0)}100%{transform:none}}#tail{animation:act_tail var(--D) ease-in-out 0s 1 both}@keyframes act_tail{0%{transform:none}12%{transform:rotate(0)}26%{transform:rotate(18deg)}43%{transform:rotate(-12deg)}64%{transform:rotate(9deg)}86%{transform:rotate(0)}100%{transform:none}}#ear-left{animation:act_ear_left var(--D) ease-in-out 0s 1 both}@keyframes act_ear_left{0%{transform:none}17%{transform:rotate(0)}23%{transform:rotate(-10deg)}34%{transform:rotate(3deg)}52%{transform:rotate(0)}100%{transform:none}}#ear-right{animation:act_ear_right var(--D) ease-in-out 0s 1 both}@keyframes act_ear_right{0%{transform:none}16%{transform:rotate(0)}27%{transform:rotate(10deg)}38%{transform:rotate(-4deg)}56%{transform:rotate(0)}100%{transform:none}}#eyes-open{animation:act_eyes_open var(--D) steps(1,end) 0s 1 both}@keyframes act_eyes_open{0%{opacity:1}41%{opacity:1}43%{opacity:0}48%{opacity:0}50%{opacity:1}100%{opacity:1}}#eyes-shut{animation:act_eyes_shut var(--D) steps(1,end) 0s 1 both}@keyframes act_eyes_shut{0%{opacity:0}41%{opacity:0}43%{opacity:1}48%{opacity:1}50%{opacity:0}100%{opacity:0}}#prop-heart{animation:act_prop_heart var(--D) steps(1,end) 0s 1 both}@keyframes act_prop_heart{0%{opacity:0}22%{opacity:0}33%{opacity:1}68%{opacity:1}79%{opacity:0}100%{opacity:0}}@media (prefers-reduced-motion:reduce){*{animation:none!important}#eyes-open,#mouth-smile{opacity:1!important}#eyes-shut,#mouth-open,#tongue{opacity:0!important}#character,#core,#neck,#head,#tail,#front-near,#front-far,#back-near,#back-far,#ear-left,#ear-right{transform:none!important}}]]></style><g id="ground-shadow"><ellipse cx="252" cy="402" rx="140" ry="16" fill="#39201E" opacity=".10"/></g>
+<g id="character">
+  <g id="tail" transform="rotate(0 339 294)">
+    <path d="M334 302 C363 286 384 250 377 212 C370 180 401 171 414 195" stroke="#39201E" stroke-width="27" stroke-linecap="round" fill="none"/>
+    <path d="M336 302 C365 279 379 251 374 226" stroke="#6B403A" stroke-width="4" stroke-linecap="round" fill="none" opacity=".28"/>
+  </g>
+  <g id="back-far" transform="rotate(0 320 322)">
+    <path d="M320 313 Q314 343 322 376" stroke="#DFC49F" stroke-width="26" fill="none" stroke-linecap="round"/>
+    <ellipse cx="324" cy="384" rx="19" ry="14" fill="#39201E"/>
+  </g>
+  <g id="front-far" transform="rotate(0 210 312)">
+    <path d="M210 309 Q198 344 205 377" stroke="#E6CCA7" stroke-width="27" fill="none" stroke-linecap="round"/>
+    <ellipse cx="205" cy="385" rx="19" ry="13" fill="#39201E"/>
+  </g>
+  <g id="core" transform="translate(0 0)">
+    <ellipse cx="267" cy="297" rx="96" ry="61" fill="#F4DBB4"/>
+    <ellipse cx="252" cy="322" rx="71" ry="31" fill="#FFF2D9" opacity=".78"/>
+    <ellipse cx="206" cy="296" rx="37" ry="51" transform="rotate(-12 206 296)" fill="#F4DBB4"/>
+    <path d="M308 246 Q328 274 332 300" stroke="#F9E4C3" stroke-width="6" opacity=".8" stroke-linecap="round"/>
+  </g>
+  <g id="back-near" transform="rotate(0 324 322)">
+    <path d="M324 313 Q332 342 335 377" stroke="#F4DBB4" stroke-width="29" fill="none" stroke-linecap="round"/>
+    <ellipse cx="337" cy="384" rx="21" ry="15" fill="#39201E"/>
+  </g>
+  <g id="neck" transform="translate(0 0)">
+    <ellipse cx="196" cy="276" rx="39" ry="51" transform="rotate(-10 196 276)" fill="#F4DBB4"/>
+  </g>
+  <g id="head" transform="rotate(0 176 226)">
+    <!-- Ears are behind the skull, and grouped with the entire head. -->
+    <g id="ear-left" transform="rotate(0 112 164)">
+      <path d="M130 178 Q102 124 89 110 Q78 99 81 127 L92 206Z" fill="#39201E"/>
+      <path d="M112 175 Q98 145 92 135 L98 181Z" fill="#F2A5AF"/>
+    </g>
+    <g id="ear-right" transform="rotate(0 231 166)">
+      <path d="M206 177 Q219 129 239 108 Q250 100 248 131 L253 196Z" fill="#39201E"/>
+      <path d="M220 174 Q235 146 241 133 L242 176Z" fill="#F2A5AF"/>
+    </g>
+    <ellipse cx="176" cy="220" rx="85" ry="87" fill="#F4DBB4"/>
+    <path d="M107 220 Q110 184 147 181 Q166 179 174 182 Q194 175 213 183 Q245 190 244 226 Q241 276 179 280 Q114 280 107 237 Q106 229 107 220Z" fill="#39201E"/>
+    <g id="eyes-open">
+      <g transform="translate(146 211)"><ellipse rx="23" ry="26" fill="#FFF2D9"/><ellipse rx="18" ry="21" fill="#70C3ED"/><ellipse cx="2" cy="2" rx="12" ry="15" fill="#123855"/><circle cx="-5" cy="-9" r="7" fill="#FFFFFF"/><circle cx="9" cy="7" r="3" fill="#FFFFFF"/></g>
+      <g transform="translate(207 211)"><ellipse rx="23" ry="26" fill="#FFF2D9"/><ellipse rx="18" ry="21" fill="#70C3ED"/><ellipse cx="2" cy="2" rx="12" ry="15" fill="#123855"/><circle cx="-5" cy="-9" r="7" fill="#FFFFFF"/><circle cx="9" cy="7" r="3" fill="#FFFFFF"/></g>
+    </g>
+    <g id="eyes-shut" opacity="0">
+      <path d="M125 212 Q146 233 166 212 M187 212 Q207 233 228 212" stroke="#FFF2D9" stroke-width="7" stroke-linecap="round" fill="none"/>
+    </g>
+    <ellipse cx="177" cy="257" rx="28" ry="17" fill="#66403B"/>
+    <path d="M167 248 Q177 241 187 248 Q184 256 177 258 Q170 256 167 248Z" fill="#F2A5AF"/>
+    <g id="mouth-smile" stroke="#F2A5AF" stroke-width="3.8" stroke-linecap="round" fill="none"><path d="M177 257 V262 M177 262 Q169 272 161 264 M177 262 Q185 272 193 264"/></g>
+    <g id="mouth-open" opacity="0"><ellipse cx="177" cy="268" rx="11" ry="13" fill="#8F4357"/><path d="M171 275 Q177 269 183 275" stroke="#F0A7B3" stroke-width="3" stroke-linecap="round"/></g>
+    <g id="tongue" opacity="0"><path d="M175 261 Q165 262 170 275 Q177 283 185 274 Q190 264 181 260Z" fill="#F6A2B0"/></g>
+    <g id="whiskers" stroke="#FFF2D9" stroke-width="4" stroke-linecap="round" fill="none"><path d="M131 260 Q109 251 86 250 M134 270 Q111 268 91 278 M223 261 Q242 250 263 249 M221 271 Q241 270 263 279"/></g>
+  </g>
+  <g id="front-near" transform="rotate(0 210 312)">
+    <path d="M211 309 Q203 343 215 375" stroke="#DFC49F" stroke-width="35" fill="none" stroke-linecap="round"/>
+    <path d="M211 309 Q203 343 215 375" stroke="#F4DBB4" stroke-width="29" fill="none" stroke-linecap="round"/>
+    <ellipse cx="215" cy="385" rx="21" ry="16" fill="#39201E"/>
+    <path d="M209 389 L209 394 M220 389 L220 394" stroke="#F2C8A5" stroke-width="2" opacity=".56"/>
+  </g>
+</g>
+<g id="prop-heart" opacity="0"><path d="M346 322q-24 -30 -36 -12 -11 17 36 52 46 -35 35 -52 -13 -18 -35 12" fill="#ED776C" stroke="#172B42" stroke-width="5"/></g></svg>

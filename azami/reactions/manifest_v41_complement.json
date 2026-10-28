@@ -1,0 +1,253 @@
+{
+  "version": "4.1-complement",
+  "rig_source": "Azami_V41_rig_unique_prototype.zip",
+  "viewBox": "0 0 512 512",
+  "themes": [
+    "#53A5C7",
+    "#4A3627"
+  ],
+  "scenes": [
+    {
+      "id": "menage",
+      "titre": "Ménage — balai, poussière et éternuement",
+      "description": "Azami explore le balai, le pousse, éternue puis retrouve sa pose fière.",
+      "duree_secondes": 12.8,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_menage_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_menage_statique.svg"
+      }
+    },
+    {
+      "id": "courses",
+      "titre": "Courses — sac et poireau",
+      "description": "Azami observe le sac, y plonge le museau et en ressort intriguée.",
+      "duree_secondes": 13.4,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_courses_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_courses_statique.svg"
+      }
+    },
+    {
+      "id": "argent",
+      "titre": "Argent — pièce roulante",
+      "description": "Azami touche une pièce, la suit puis l’arrête avec une patte.",
+      "duree_secondes": 11.8,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_argent_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_argent_statique.svg"
+      }
+    },
+    {
+      "id": "care",
+      "titre": "Care — enveloppe et bisou félin",
+      "description": "Azami livre un message tendre et ferme lentement les yeux.",
+      "duree_secondes": 12.2,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_care_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_care_statique.svg"
+      }
+    },
+    {
+      "id": "reussite",
+      "titre": "Réussites — petite championne",
+      "description": "Azami découvre son trophée, se redresse fièrement et fait une pirouette de queue.",
+      "duree_secondes": 10.2,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_reussite_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_reussite_statique.svg"
+      }
+    },
+    {
+      "id": "cuisine",
+      "titre": "Recettes — casserole et cuillère",
+      "description": "Azami renifle la casserole, suit la cuillère puis se lèche les babines.",
+      "duree_secondes": 14.4,
+      "boucle": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_cuisine_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_cuisine_statique.svg"
+      }
+    },
+    {
+      "id": "tache_cochee",
+      "titre": "Tâche cochée",
+      "description": "Petit hochement victorieux devant une coche.",
+      "duree_secondes": 4.4,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/tache_cochee_anime.svg",
+        "statique": "azami/reactions/statiques/tache_cochee_statique.svg"
+      }
+    },
+    {
+      "id": "corvee_terminee",
+      "titre": "Corvée terminée",
+      "description": "Azami s’étire et reçoit deux étincelles.",
+      "duree_secondes": 4.8,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/corvee_terminee_anime.svg",
+        "statique": "azami/reactions/statiques/corvee_terminee_statique.svg"
+      }
+    },
+    {
+      "id": "courses_completees",
+      "titre": "Courses terminées",
+      "description": "Azami découvre un panier plein et se réjouit.",
+      "duree_secondes": 4.3,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/courses_completees_anime.svg",
+        "statique": "azami/reactions/statiques/courses_completees_statique.svg"
+      }
+    },
+    {
+      "id": "comptes_equilibres",
+      "titre": "Comptes équilibrés",
+      "description": "La balance s’équilibre, Azami cligne des yeux.",
+      "duree_secondes": 4.7,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/comptes_equilibres_anime.svg",
+        "statique": "azami/reactions/statiques/comptes_equilibres_statique.svg"
+      }
+    },
+    {
+      "id": "mot_envoye",
+      "titre": "Mot envoyé",
+      "description": "Une enveloppe file et un cœur s’envole.",
+      "duree_secondes": 4.2,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/mot_envoye_anime.svg",
+        "statique": "azami/reactions/statiques/mot_envoye_statique.svg"
+      }
+    },
+    {
+      "id": "objectif_commun",
+      "titre": "Objectif commun",
+      "description": "Azami donne un petit coup de museau à un cœur.",
+      "duree_secondes": 5.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/objectif_commun_anime.svg",
+        "statique": "azami/reactions/statiques/objectif_commun_statique.svg"
+      }
+    },
+    {
+      "id": "surprise_coucou",
+      "titre": "Coucou surprise",
+      "description": "Azami passe la tête, fait coucou puis se repose.",
+      "duree_secondes": 4.6,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/surprise_coucou_anime.svg",
+        "statique": "azami/reactions/statiques/surprise_coucou_statique.svg"
+      }
+    },
+    {
+      "id": "fete_reussites",
+      "titre": "Fête des réussites",
+      "description": "Azami bondit, une étoile apparaît et les confettis tombent.",
+      "duree_secondes": 5.2,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/fete_reussites_anime.svg",
+        "statique": "azami/reactions/statiques/fete_reussites_statique.svg"
+      }
+    },
+    {
+      "id": "annuler",
+      "titre": "Annuler — oups",
+      "description": "Un recul surpris, oreilles couchées, puis assise calme.",
+      "duree_secondes": 3.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/annuler_anime.svg",
+        "statique": "azami/reactions/statiques/annuler_statique.svg"
+      }
+    },
+    {
+      "id": "minuteur_fini",
+      "titre": "Minuteur terminé",
+      "description": "Azami sursaute, dresse les oreilles et miaule visuellement.",
+      "duree_secondes": 3.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/minuteur_fini_anime.svg",
+        "statique": "azami/reactions/statiques/minuteur_fini_statique.svg"
+      }
+    },
+    {
+      "id": "machine_lancee",
+      "titre": "Machine lancée",
+      "description": "Azami suit un tambour qui tourne de gauche à droite.",
+      "duree_secondes": 3.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/machine_lancee_anime.svg",
+        "statique": "azami/reactions/statiques/machine_lancee_statique.svg"
+      }
+    },
+    {
+      "id": "recette_reussie",
+      "titre": "Recette réussie",
+      "description": "Azami renifle, se lèche les babines puis plisse les yeux.",
+      "duree_secondes": 4.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/recette_reussie_anime.svg",
+        "statique": "azami/reactions/statiques/recette_reussie_statique.svg"
+      }
+    },
+    {
+      "id": "a_finir_vite",
+      "titre": "À finir vite",
+      "description": "Azami renifle un aliment, fronce le museau et pousse l’assiette.",
+      "duree_secondes": 3.0,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/a_finir_vite_anime.svg",
+        "statique": "azami/reactions/statiques/a_finir_vite_statique.svg"
+      }
+    },
+    {
+      "id": "caresse_1",
+      "titre": "Caresse — appui tendre",
+      "description": "Azami ferme les yeux et presse doucement sa tête.",
+      "duree_secondes": 2.5,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/caresse_1_anime.svg",
+        "statique": "azami/reactions/statiques/caresse_1_statique.svg"
+      }
+    },
+    {
+      "id": "caresse_2",
+      "titre": "Caresse — joue câline",
+      "description": "Azami incline la joue, plisse les yeux puis se redresse.",
+      "duree_secondes": 2.5,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/caresse_2_anime.svg",
+        "statique": "azami/reactions/statiques/caresse_2_statique.svg"
+      }
+    },
+    {
+      "id": "caresse_3",
+      "titre": "Caresse — petit ronron",
+      "description": "Azami baisse la tête, se cambre et ondule la queue.",
+      "duree_secondes": 2.5,
+      "boucle": false,
+      "fichiers": {
+        "anime": "azami/reactions/caresse_3_anime.svg",
+        "statique": "azami/reactions/statiques/caresse_3_statique.svg"
+      }
+    }
+  ]
+}

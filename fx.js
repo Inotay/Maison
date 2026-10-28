@@ -209,8 +209,8 @@ function rain(n = 70) {
 
 // Grande célébration : flash, Azami qui saute au milieu, mot en gros, pluie de confettis.
 // Réactions Azami V3 : un SVG joué une seule fois (azami/reactions/<id>_anime.svg), jamais deux à la fois.
-const REACTION_MS = { tache_cochee: 4400, corvee_terminee: 4800, courses_completees: 4300, comptes_equilibres: 4700, mot_envoye: 4200, objectif_commun: 5000, surprise_coucou: 4600, fete_reussites: 5200 };
-const reactionSrc = id => `azami/reactions/${id}_${reduced() ? 'statique' : 'anime'}.svg${reduced() ? '' : '?' + Date.now()}`;
+const REACTION_MS = { tache_cochee: 4400, corvee_terminee: 4800, courses_completees: 4300, comptes_equilibres: 4700, mot_envoye: 4200, objectif_commun: 5000, surprise_coucou: 4600, fete_reussites: 5200, annuler: 3000, minuteur_fini: 3000, machine_lancee: 3000, recette_reussie: 4000, a_finir_vite: 3000, caresse_1: 2500, caresse_2: 2500, caresse_3: 2500 };
+const reactionSrc = id => reduced() ? `azami/reactions/statiques/${id}_statique.svg` : `azami/reactions/${id}_anime.svg?${Date.now()}`;
 let reactionEl = null;
 // Petite réaction posée à côté d'un élément (la ligne cochée, le bouton), sans rien déplacer ni bloquer.
 export function clearReaction() { if (reactionEl) { reactionEl.remove(); reactionEl = null; } }
@@ -237,8 +237,8 @@ export function celebrate({ title, sub = '', level = 'big', badge = null, reacti
   const old = document.getElementById('cele'); if (old) old.remove();
   const box = document.createElement('div');
   box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
-  // Scène « reussite » du pack V3, montée le temps de la fête puis retirée (jamais en boucle permanente).
-  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="${REACTION_MS[reaction] ? reactionSrc(reaction) : `azami/azami_reussite_anime.svg?${Date.now()}`}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  // Scène « reussite » V4.1 en secours, montée le temps de la fête puis retirée (jamais en boucle permanente).
+  box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="${REACTION_MS[reaction] ? reactionSrc(reaction) : (reduced() ? 'azami/v41/statiques/azami_v41_reussite_statique.svg' : `azami/v41/azami_v41_reussite_anime.svg?${Date.now()}`)}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   burst('confetti', null, level === 'big' ? 40 : 24);
