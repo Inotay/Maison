@@ -288,3 +288,7 @@ alter table public.chores add column if not exists priority text check (priority
 create table if not exists public.help_requests (id uuid primary key default gen_random_uuid(), from_email text not null default lower(auth.jwt() ->> 'email'), to_email text not null, item_kind text check (item_kind in ('chore','task')), item_id uuid, label text, ask text not null default 'remplacer' check (ask in ('remplacer','ensemble','souffler')), status text check (status in ('pris','ensemble','non')), answered_at timestamptz, notified_at timestamptz, created_at timestamptz not null default now());
 alter table public.help_requests enable row level security;
 create policy shared_all on public.help_requests for all to authenticated using ((select is_member())) with check ((select is_member()));
+
+-- Ordre choisi à la main (appui long puis déplacement) : partagé entre vous deux.
+alter table public.tasks add column if not exists rank integer;
+alter table public.chores add column if not exists rank integer;

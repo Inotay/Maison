@@ -871,7 +871,7 @@ function myPending() {
     const pr = prioOf('task', t);
     out.push({ kind: 'task', row: t, late: t.due_on && t.due_on < today ? -dayDiff(new Date(t.due_on + 'T12:00'), new Date()) : 0, ...pr });
   }
-  return out.sort((a, b) => PRIO[a.p] - PRIO[b.p] || (S.calmSkip.indexOf(a.row.id) - S.calmSkip.indexOf(b.row.id)) || b.late - a.late || (a.row.weight || 2) - (b.row.weight || 2));
+  return out.sort((a, b) => PRIO[a.p] - PRIO[b.p] || (S.calmSkip.indexOf(a.row.id) - S.calmSkip.indexOf(b.row.id)) || rankOf(a.row) - rankOf(b.row) || b.late - a.late || (a.row.weight || 2) - (b.row.weight || 2));
 }
 // État de surcharge : on entre à 5 retards (ou 3 dont un de plus d'une semaine), on sort quand plus rien
 // de vital ou d'important n'est en retard et qu'il en reste au plus 2.
@@ -1077,8 +1077,62 @@ function afvCheck() {
   setTimeout(() => react('a_finir_vite', document.querySelector('.fresh-item')), 500);
 }
 
+// Déplacer en appuyant longtemps : l'ordre choisi est gardé (colonne rank) et partagé entre vous deux.
+// Ce qui a été placé à la main passe devant, dans l'ordre choisi ; le reste garde l'ordre automatique.
+const rankOf = r => r.rank == null ? 1e9 : Number(r.rank);
+const SORT_TABLE = { tasks: 'tasks', chores: 'chores' };
+let drag = null, pressT = null;
+const sortItem = el => el.closest?.('[data-sid]');
+function dragStart(el, y) {
+  const box = el.parentElement; if (!box?.dataset.sort) return;
+  drag = { el, box, y0: y, h: el.getBoundingClientRect().height, moved: false };
+  el.classList.add('dragging'); box.classList.add('sorting'); document.body.classList.add('no-scroll');
+  haptic('medium'); sfx('tick');
+}
+function dragMove(y) {
+  if (!drag) return;
+  const { el, box } = drag; drag.moved = true;
+  el.style.transform = `translateY(${y - drag.y0}px)`;
+  const r = el.getBoundingClientRect(); const mid = r.top + r.height / 2;
+  const sibs = [...box.querySelectorAll(':scope > [data-sid]')].filter(x => x !== el);
+  const prev = el.previousElementSibling, next = el.nextElementSibling;
+  if (next && next.dataset.sid && mid > next.getBoundingClientRect().top + next.getBoundingClientRect().height / 2) { box.insertBefore(next, el); drag.y0 += next.getBoundingClientRect().height + gapOf(box); el.style.transform = `translateY(${y - drag.y0}px)`; haptic(1); }
+  else if (prev && prev.dataset.sid && mid < prev.getBoundingClientRect().top + prev.getBoundingClientRect().height / 2) { box.insertBefore(el, prev); drag.y0 -= prev.getBoundingClientRect().height + gapOf(box); el.style.transform = `translateY(${y - drag.y0}px)`; haptic(1); }
+}
+const gapOf = box => parseFloat(getComputedStyle(box).rowGap) || 0;
+function dragEnd() {
+  if (!drag) return;
+  const { el, box, moved } = drag; drag = null;
+  el.classList.remove('dragging'); el.style.transform = ''; box.classList.remove('sorting'); document.body.classList.remove('no-scroll');
+  if (!moved) return;
+  const t = SORT_TABLE[box.dataset.sort]; const rows = S[t];
+  const order = [...box.querySelectorAll(':scope > [data-sid]')].map(x => rows.find(r => r.id === x.dataset.sid)).filter(Boolean);
+  const idx = order.indexOf(rows.find(r => r.id === el.dataset.sid));
+  const lastRanked = order.reduce((m, r, i) => r.rank != null ? i : m, -1);
+  const upTo = Math.max(idx, lastRanked);
+  const changes = [];
+  order.forEach((r, i) => { if (i <= upTo && r.rank !== i) { changes.push([r.id, r.rank ?? null, i]); r.rank = i; } });
+  render(); haptic('medium');
+  if (!changes.length) return;
+  undoable('ordre déplacé', changes.map(([id, rank]) => ({ t, id, row: { rank } })), async () => { for (const [id, , rank] of changes) await api.update(t, { id }, { rank }); }, null, 'sort');
+}
+document.addEventListener('pointerdown', e => {
+  if (e.button && e.button !== 0) return;
+  const el = sortItem(e.target); if (!el || !el.parentElement?.dataset.sort || el.classList.contains('editing')) return;
+  if (e.target.closest('button, input, textarea, a, .item-actions, .picker')) return;
+  clearTimeout(pressT);
+  const y = e.clientY;
+  pressT = setTimeout(() => { dragStart(el, y); }, 420);
+});
+document.addEventListener('pointermove', e => { if (drag) { dragMove(e.clientY); return; } if (pressT && Math.abs(e.movementY) + Math.abs(e.movementX) > 6) { clearTimeout(pressT); pressT = null; } });
+document.addEventListener('pointerup', () => { clearTimeout(pressT); pressT = null; dragEnd(); });
+document.addEventListener('pointercancel', () => { clearTimeout(pressT); pressT = null; dragEnd(); });
+document.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
+document.addEventListener('contextmenu', e => { if (drag || (pressT && sortItem(e.target))) e.preventDefault(); });
+
 const FOLD_ON = new WeakSet();
 function render() {
+  if (drag) return;   // pas pendant un déplacement au doigt
   if (!S.ready) { $app.innerHTML = ''; return; }
   if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); return; }
   if (S.offline && S.view === 'nuit') S.view = 'maison';
@@ -1254,7 +1308,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v106</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v107</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1385,7 +1439,7 @@ function eventFromForm(f, durGroup) {
 }
 
 function viewTasks() {
-  const open = S.tasks.filter(t => !t.done).sort((a, b) => (a.due_on || '9999') .localeCompare(b.due_on || '9999') || a.created_at.localeCompare(b.created_at));
+  const open = S.tasks.filter(t => !t.done).sort((a, b) => rankOf(a) - rankOf(b) || (a.due_on || '9999').localeCompare(b.due_on || '9999') || a.created_at.localeCompare(b.created_at));
   const allDone = S.tasks.filter(t => t.done).sort((a, b) => (b.done_at || '').localeCompare(a.done_at || ''));
   const fresh = allDone.filter(t => t.done_at && Date.now() - new Date(t.done_at).getTime() < DAY);
   const done = allDone.filter(t => !fresh.includes(t)).slice(0, 15);
@@ -1397,7 +1451,7 @@ function viewTasks() {
     if (t.due_on && !t.done) meta.push(relDay(t.due_on) + (t.due_time ? ` à ${String(t.due_time).slice(0, 5)}` : ''));
     const late = t.due_on && !t.done && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) < 0;
     if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
-    return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}">
+    return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}" data-sid="${t.id}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
       ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${late ? 'late' : ''}">${esc(meta.join(', '))}</div></div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
@@ -1406,7 +1460,7 @@ function viewTasks() {
     </li>`;
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
-    ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : emptyArt('vide_taches', 'Plus rien à faire. Profitez-en.')}
+    ${open.length ? `<ul class="list" data-sort="tasks">${open.map(item).join('')}</ul>${open.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une ligne pour la déplacer.</p>' : ''}` : emptyArt('vide_taches', 'Plus rien à faire. Profitez-en.')}
     ${fresh.length ? `<h2 class="list-head done-head">Fait aujourd'hui <span class="count">${fresh.length}</span></h2><ul class="list">${fresh.map(item).join('')}</ul>` : ''}
     <form class="form add" data-form="task">
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
@@ -1627,17 +1681,17 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAzami(c)).sort((a, b) => choreStatus(a).d - choreStatus(b).d);
+  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_menage', 'Azami passe le balai')}</button></header>
     <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
-    ${chores.length ? `<div class="chores">${chores.map(c => {
+    ${chores.length ? `<div class="chores" data-sort="chores">${chores.map(c => {
       const st = choreStatus(c);
       const mine = c.turn === S.me;
       if (S.edit?.id === c.id) return `<div class="chore editing">${editChore(c)}</div>`;
-      return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}">
+      return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}" data-sid="${c.id}">
         ${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(c.title)}</div>
           <div class="c-meta">${!c.turn ? 'Qui veut' : c.fixed ? (mine ? 'Toujours toi' : `Toujours ${esc(nameOf(c.turn))}`) : (mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`)}, <span class="c-when">${esc(st.label)}</span></div>
           <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
@@ -1648,7 +1702,7 @@ function viewMenage() {
         ${iconPicker('chores', c)}
         ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
-    }).join('')}</div>` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
+    }).join('')}</div>${chores.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une corvée pour la déplacer.</p>' : ''}` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
 
     ${S.showChoreForm ? `<h2>Nouvelle corvée</h2>
     <form class="form" data-form="chore">

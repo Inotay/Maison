@@ -959,3 +959,10 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .help-opts { display: grid; gap: var(--s2); margin: var(--s3) 0 var(--s2); }
 .help-sheet .ticket-sub { text-align: center; }
 .calm-title { text-transform: none; letter-spacing: 0; color: var(--num); font-weight: 900; }
+
+/* Déplacer en appuyant longtemps */
+[data-sort] > [data-sid] { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+[data-sort].sorting > [data-sid] { transition: none; }
+[data-sort] > .dragging { position: relative; z-index: 5; box-shadow: 0 12px 28px rgba(0,0,0,.25), 0 0 0 3px var(--accent); transform-origin: center; scale: 1.03; opacity: .96; cursor: grabbing; }
+body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none; }
+.sort-hint { margin: 6px 0 0; font-size: 12px; text-align: center; opacity: .75; }
