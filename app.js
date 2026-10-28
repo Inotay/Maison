@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v74</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v75</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1573,10 +1573,10 @@ function viewRecettes() {
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
-    ${S.rq || S.rtime || S.rcuisine || S.rtype ? '' : menuCard()}
+    ${menuCard()}
     <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
     <div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}<span class="rsep" aria-hidden="true"></span>${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div>
-    <p class="rcount" id="rcount">${pl(list.length, 'recette', 'recettes')}${nf ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}</p>
+    <p class="rcount" id="rcount">${rcountHtml(list.length)}</p>
     <ul class="list rlist" id="rlist">${rList(list)}</ul>`;
 }
 // Jauge du temps : 0 = peu importe, sinon « prêt en … max ».
@@ -1595,7 +1595,22 @@ function rList(list) {
   if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
   return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0"><div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('');
 }
-const rSearch = v => { S.rq = v; const el = document.getElementById('rlist'); if (!el) return; const list = rFiltered(); el.innerHTML = rList(list); const c = document.getElementById('rcount'); if (c) c.firstChild.textContent = pl(list.length, 'recette', 'recettes'); };
+const rcountHtml = n => `${pl(n, 'recette', 'recettes')}${S.rtime || S.rcuisine || S.rtype ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}`;
+// Filtre ou recherche : seule la liste change, le reste de la page reste où il est.
+function rSearch(v) {
+  S.rq = v; const el = document.getElementById('rlist'); if (!el) return;
+  const list = rFiltered(); el.innerHTML = rList(list);
+  el.classList.remove('rfade'); void el.offsetWidth; el.classList.add('rfade');
+  const c = document.getElementById('rcount'); if (c) c.innerHTML = rcountHtml(list.length);
+  // si on était descendu dans la liste, on remonte juste sous les filtres (et pas tout en haut)
+  const f = document.querySelector('.rtime');
+  if (f && f.getBoundingClientRect().top < 0) window.scrollTo({ top: window.scrollY + f.getBoundingClientRect().top - 12 });
+}
+function rSyncFilters() {
+  document.querySelectorAll('[data-action="r-filter"]').forEach(b => b.setAttribute('aria-pressed', S[b.dataset.g] === b.dataset.k));
+  const r = document.getElementById('rtime'); if (r) { const i = Math.max(0, RTIME.indexOf(Number(S.rtime) || 0)); r.value = i; r.style.setProperty('--p', `${i / (RTIME.length - 1) * 100}%`); }
+  const o = document.getElementById('rtime-txt'); if (o) o.textContent = rtimeText(S.rtime);
+}
 function viewRecette(r) {
   const n = S.persons || 2;
   return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
@@ -1789,8 +1804,8 @@ const actions = {
 
   'r-open': el => { S.recette = el.dataset.id; render(); window.scrollTo(0, 0); },
   'r-back': () => { S.recette = null; render(); },
-  'r-filter': el => { S[el.dataset.g] = S[el.dataset.g] === el.dataset.k ? '' : el.dataset.k; haptic(1); render(); },
-  'r-reset': () => { S.rtime = S.rcuisine = S.rtype = ''; render(); },
+  'r-filter': el => { S[el.dataset.g] = S[el.dataset.g] === el.dataset.k ? '' : el.dataset.k; haptic(1); rSyncFilters(); rSearch(S.rq); },
+  'r-reset': () => { S.rtime = S.rcuisine = S.rtype = ''; haptic(1); rSyncFilters(); rSearch(S.rq); },
   'r-cook': el => { S.cook = { id: el.dataset.id, step: 0, full: false }; render(); window.scrollTo(0, 0); },
   'r-cook-stop': () => { S.cook = null; render(); },
   'r-cook-full': () => { S.cook.full = true; render(); },
@@ -2218,7 +2233,6 @@ document.addEventListener('input', e => {
   }
 });
 
-document.addEventListener('change', e => { if (e.target.id === 'rtime') render(); });
 
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]');

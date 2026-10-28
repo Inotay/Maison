@@ -801,3 +801,8 @@ h2 .muted { color: var(--muted); font-weight: 800; text-transform: none; letter-
 .rtime input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface-2); box-shadow: 0 3px 0 var(--accent-edge); }
 .rtime input[type=range]::-moz-range-thumb { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface-2); box-shadow: 0 3px 0 var(--accent-edge); }
 .rsep { flex: none; width: 2px; align-self: stretch; margin: 4px 2px; border-radius: 2px; background: var(--line); }
+
+.rlist.rfade { animation: rfade .22s ease-out; }
+@keyframes rfade { from { opacity: .35; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rlist.rfade { animation: none; } }
+.rcount { min-height: 20px; }
