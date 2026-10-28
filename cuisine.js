@@ -60,14 +60,13 @@ export const GLOSS = [
 // Matériel qui ne se trouve pas dans toutes les cuisines. [clé, nom, repérage dans titre + ingrédients + étapes]
 export const GEAR = [
   ['raclette', 'Appareil à raclette', /raclette/i],
-  ['fondue', 'Caquelon et réchaud à fondue', /fondue|caquelon/i],
-  ['mixeur', 'Mixeur ou blender', /mix(e|er|é|ée|ez|eur)\b|blender|plongeant/i],
+  ['fondue', 'Caquelon et réchaud à fondue', /caquelon|fondue moitié|réchaud à fondue/i],
+  ['mixeur', 'Mixeur ou blender', /mixeur|blender|\bmix(e|er|ez)\b/i],
   ['batteur', 'Batteur électrique (ou fouet et de bons bras)', /en neige|monte[rz]? les blancs|batteur/i],
-  ['wok', 'Wok (une grande poêle fait l’affaire)', /\bwok\b/i],
-  ['moule', 'Moule (à tarte, à cake ou carré)', /\bmoule\b(?!s marini)/i],
+  ['moule', 'Moule (à tarte, à cake ou carré)', /\bmoule (à|rond|carré|d.environ)/i],
   ['ramequins', 'Ramequins', /ramequin/i],
   ['brochettes', 'Pics à brochette', /brochette|enfil(er|e)/i],
-  ['vapeur', 'Panier vapeur', /panier vapeur|à la vapeur|cuit-vapeur/i],
+  ['vapeur', 'Panier vapeur', /panier vapeur|cuit-vapeur/i],
   ['friture', 'Casserole profonde pour frire (huile chaude)', /friture|bain d.huile|huile.{0,40}1[5-9]0 ?°C|1[5-9]0 ?°C.{0,40}huile|plonge.{0,30}huile|frit coréen/i],
   ['microondes', 'Micro-ondes', /micro-ondes|micro ondes/i],
   ['rouleau', 'Rouleau à pâtisserie', /rouleau à pâtisserie/i],

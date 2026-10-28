@@ -1,3 +1,4 @@
+import { ETAPES } from './etapes.js';
 // Recettes simples de la maison : occidentales, italiennes, japonaises, coréennes et quelques autres.
 // Quantités pour 2 personnes ; l'app les ajuste. u : g, ml, pc (pièce), cs (cuillère à soupe), cc (cuillère à café), pincée.
 // cuisine : italie, france, suisse, japon, coree, asie, inde, mexique, monde. tags : vege, rapide, confort, sucre.
@@ -830,3 +831,6 @@ export function scale(q, persons, u) {
 }
 export const UNITS = { g: 'g', ml: 'ml', l: 'l', kg: 'kg', pc: '', cs: 'c. à s.', cc: 'c. à c.', 'pincée': 'pincée' };
 export const qty = (ing, persons) => { const v = scale(ing.q, persons, ing.u); const u = UNITS[ing.u] ?? ing.u; return u ? `${v} ${u}` : `${v}`; };
+
+// Étapes détaillées pas à pas (remplacent les étapes courtes quand elles existent).
+for (const r of RECETTES) if (ETAPES[r.id]) r.etapes = ETAPES[r.id];

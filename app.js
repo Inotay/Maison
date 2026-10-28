@@ -998,7 +998,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v95</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v96</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1655,7 +1655,9 @@ function freshCard() {
 
 // Étapes : marqueurs {i:N} (quantité + ingrédient) et {q:N} (quantité seule), adaptés au nombre de personnes ;
 // mots techniques touchables (lexique). Le texte brut sert aux minuteurs.
-const stepPlain = (r, text, n = S.persons || 2) => String(text).replace(/\{([iq]):(\d+)\}/g, (_, k, j) => { const x = r.ing[Number(j)]; if (!x) return ''; return k === 'i' ? `${qty(x, n)} ${x.n}` : qty(x, n); });
+// « 100 ml de vin blanc », « 2 c. à s. d’huile » ; rien pour les pièces (« 2 oignons »).
+const deOf = x => x.u && x.u !== 'pc' ? (/^[aeiouyàâéèêëîïôœùûh]/i.test(x.n) ? 'd’' : 'de ') : '';
+const stepPlain = (r, text, n = S.persons || 2) => String(text).replace(/\{([iq]):(\d+)\}/g, (_, k, j) => { const x = r.ing[Number(j)]; if (!x) return ''; return k === 'i' ? `${qty(x, n)} ${deOf(x)}${x.n}` : qty(x, n); });
 function stepHtml(r, text, n = S.persons || 2) {
   const parts = String(text).split(/(\{[iq]:\d+\})/);
   const seen = new Set(); let count = 0;
@@ -1671,7 +1673,7 @@ function stepHtml(r, text, n = S.persons || 2) {
     return html;
   };
   return parts.map(p => { const m = p.match(/^\{([iq]):(\d+)\}$/); if (!m) return gloss(p); const x = r.ing[Number(m[2])]; if (!x) return '';
-    return m[1] === 'i' ? `<b class="sq">${esc(qty(x, n))}</b> ${esc(x.n)}` : `<b class="sq">${esc(qty(x, n))}</b>`; }).join('');
+    return m[1] === 'i' ? `<b class="sq">${esc(qty(x, n))}</b> ${esc(deOf(x) + x.n)}` : `<b class="sq">${esc(qty(x, n))}</b>`; }).join('');
 }
 // Ingrédients d'une étape : ceux des marqueurs, sinon ceux dont le nom apparaît.
 function stepIngList(r, text) {
