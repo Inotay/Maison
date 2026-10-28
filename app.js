@@ -1359,7 +1359,7 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v109</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v110</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2701,7 +2701,7 @@ const forms = {
     const { error } = await sb.auth.updateUser({ password: f.pass.value });
     if (error) { toast(authError(error)); return; }
     S.recovery = false;
-    toast('Mot de passe changé');
+    toast('Mot de passe changé. Sur l’app installée, connecte-toi avec ce nouveau mot de passe.');
     refresh();
   },
   task(f) {
@@ -2894,12 +2894,16 @@ async function boot() {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
   }
+  // Lien « mot de passe oublié » : on le repère dans l'adresse avant que la connexion ne la lise.
+  // (L'événement PASSWORD_RECOVERY part pendant getSession(), avant que l'écoute ci-dessous existe.)
+  const fromRecovery = /type=recovery/.test(location.hash + location.search);
   const { createClient } = await import('./vendor/supabase-js-2.49.4.js');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   api = tracked(remoteApi(sb));
 
   const { data: { session } } = await sb.auth.getSession();
   S.me = session?.user?.email?.toLowerCase() || null;
+  if (fromRecovery && S.me) { S.recovery = true; history.replaceState(null, '', appUrl()); }
   S.ready = true; preloadAzami();
   if (S.me) await refresh(); else render();
 
