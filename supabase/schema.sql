@@ -278,3 +278,6 @@ create table if not exists public.meal_plans (
 );
 alter table public.meal_plans enable row level security;
 alter table public.shopping add column if not exists pour text;
+
+-- Annuler une réussite (bouton « Annuler ») : chacun peut retirer les siennes.
+create policy wins_delete_own on public.wins for delete to authenticated using ((select is_member()) and done_by = lower((select auth.jwt()) ->> 'email'));
