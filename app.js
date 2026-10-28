@@ -568,6 +568,17 @@ const SEQ = {
     steps: [{ key: 'lavage', btn: 'Lancer', doing: 'Lavage en cours', minutes: 60 }, { key: 'sechage', btn: 'Au séchage', doing: 'Séchage en cours', minutes: 80 }, { key: 'ranger', btn: 'Rangée', meta: 'Sec : plier et ranger' }] },
 };
 const seqOf = c => c?.sorte && SEQ[c.sorte];
+// Durées d'une corvée en étapes : gardées pour les fois suivantes. La lessive, c'est la même machine
+// pour vous deux, donc la durée vaut aussi pour la lessive de l'autre.
+async function saveSeqMinutes(c, minutes) {
+  const rows = S.chores.filter(x => x.sorte === c.sorte);
+  for (const r of rows) {
+    const options = { ...(r.options || {}), minutes: { ...(r.options?.minutes || {}), ...minutes } };
+    r.options = options;
+    await api.update('chores', { id: r.id }, { options });
+  }
+}
+
 const seqMinutes = (c, st) => Number(c.options?.minutes?.[st.key]) || st.minutes;
 // Où en est la séquence : { step, ready, left } pendant un minuteur, { next } quand une étape est à faire.
 function seqState(c, now = Date.now()) {
@@ -985,7 +996,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v90</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v91</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1265,14 +1276,16 @@ function seqRow(c) {
     btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${esc(q.steps[0].btn)}${st.due ? '' : ' ✓'}</button>`;
   } else if (s.phase === 'timer') {
     meta = `${q.steps[s.i].doing}, prêt dans ${s.left} min`;
-    btn = `<span class="dech-btn cycle">${esc(hhmm(s.ready))}</span>`;
+    btn = `<button type="button" class="dech-btn cycle" data-action="seq-adjust" data-id="${c.id}" aria-expanded="${S.adjust === c.id}" aria-label="Prêt à ${esc(hhmm(s.ready))}, changer la durée">${esc(hhmm(s.ready))}</button>`;
   } else {
     const nx = q.steps[s.i];
     meta = nx.meta || `Prêt : ${nx.btn.toLowerCase()}`;
     btn = `<button class="btn dech-btn due" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="${s.i}">${esc(nx.btn)}</button>`;
   }
   const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
-  const actions = S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>` : '';
+  const st0 = q.steps[s.i];
+  const adjust = S.adjust === c.id && s.phase === 'timer' ? `<div class="item-actions seq-adjust"><div class="chips">${[-10, -5, 5, 10].map(d => `<button type="button" data-action="seq-shift" data-id="${c.id}" data-key="${st0.key}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} min</button>`).join('')}</div><p class="hint">${esc(st0.doing)} : ${seqMinutes(c, st0)} min. Gardé pour les prochaines fois.</p></div>` : '';
+  const actions = adjust || S.open === c.id ? adjust + (S.open !== c.id ? '' : `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>`) : '';
   const title = q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
   // L'image suit l'étape en cours (sauf si on a choisi une icône à la main).
   const stepIcon = (!c.icon || c.icon === `t:${q.icon}`) && s.phase !== 'start' ? (STEP_ICONS[c.sorte] || {})[`${s.phase}:${q.steps[s.i]?.key}`] : null;
@@ -1816,6 +1829,15 @@ function viewCare() {
 
 const actions = {
 
+  'seq-adjust': el => { S.adjust = S.adjust === el.dataset.id ? null : el.dataset.id; haptic(1); render(); },
+  'seq-shift': el => {
+    const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
+    const st = q.steps.find(x => x.key === el.dataset.key);
+    const v = Math.max(5, Math.min(600, seqMinutes(c, st) + Number(el.dataset.d)));
+    haptic(1);
+    run(() => saveSeqMinutes(c, { [st.key]: v }), null);
+  },
+
   'plan-cook': el => { const p = S.plans.find(x => x.id === el.dataset.id); if (!p) return; S.persons = p.persons; S.cook = { id: p.recipe, step: 0, full: false, plan: p.id }; S.open = null; render(); window.scrollTo(0, 0); },
   'plan-remove': el => {
     const p = S.plans.find(x => x.id === el.dataset.id); if (!p) return; S.open = null;
@@ -2199,9 +2221,10 @@ const forms = {
     const w = c0.sorte ? 'any' : chipVal('edit-who', c0.fixed ? (c0.turn || 'any') : 'tour');
     const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: c0.sorte ? (c0.turn || null) : w === 'tour' ? chipVal('edit-turn', c0.turn || S.me) : w === 'any' ? null : w, icon: c0.sorte ? c0.icon : iconFor(title, 'chore', S.hints) };
     if (f.last.value) patch.last_done_at = new Date(f.last.value + 'T12:00').toISOString();
-    if (seqOf(c0)) { const minutes = {}; for (const s of seqOf(c0).steps) if (s.minutes && f[`min_${s.key}`]?.value) minutes[s.key] = Number(f[`min_${s.key}`].value); patch.options = { ...(c0.options || {}), minutes }; patch.title = c0.title; }
+    let minutes = null;
+    if (seqOf(c0)) { minutes = {}; for (const s of seqOf(c0).steps) if (s.minutes && f[`min_${s.key}`]?.value) minutes[s.key] = Number(f[`min_${s.key}`].value); patch.title = c0.title; }
     S.edit = null;
-    run(() => api.update('chores', { id: f.dataset.id }, patch), 'Modifié');
+    run(async () => { await api.update('chores', { id: f.dataset.id }, patch); if (minutes) await saveSeqMinutes(c0, minutes); }, 'Modifié');
   },
   'edit-expense'(f) {
     const amount = Number(String(f.amount.value).replace(/[’'\s]/g, '').replace(',', '.'));
