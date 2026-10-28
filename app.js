@@ -1395,8 +1395,9 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
+    ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v112</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v113</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2556,7 +2557,8 @@ const actions = {
 
   retry: () => refresh(),
   notif: () => enableNotifications(),
-  'cancel-recovery': () => { S.recovery = false; S.login.step = 'login'; refresh(); },
+  'cancel-recovery': () => { S.recovery = false; try { sessionStorage.removeItem('maison-recovery'); } catch {} S.login.step = 'login'; refresh(); },
+  'change-pass': () => { S.recovery = true; S.login.step = 'newpass'; render(); window.scrollTo(0, 0); },
   'task-toggle': el => {
     const t = S.tasks.find(x => x.id === el.dataset.id);
     if (!t) return refresh();
@@ -2765,7 +2767,7 @@ const forms = {
   async newpass(f) {
     const { error } = await sb.auth.updateUser({ password: f.pass.value });
     if (error) { toast(authError(error)); return; }
-    S.recovery = false;
+    S.recovery = false; try { sessionStorage.removeItem('maison-recovery'); } catch {}
     toast('Mot de passe changé. Sur l’app installée, connecte-toi avec ce nouveau mot de passe.');
     refresh();
   },
@@ -2955,13 +2957,15 @@ async function boot() {
   if ('serviceWorker' in navigator) {
     // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
     let had = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing()) location.reload(); had = true; });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing() && !S.recovery && !/type=recovery/.test(location.hash)) location.reload(); had = true; });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
   }
   // Lien « mot de passe oublié » : on le repère dans l'adresse avant que la connexion ne la lise.
   // (L'événement PASSWORD_RECOVERY part pendant getSession(), avant que l'écoute ci-dessous existe.)
-  const fromRecovery = /type=recovery/.test(location.hash + location.search);
+  // Gardé aussi pour l'onglet : si la page se recharge (nouvelle version de l'app), l'adresse a perdu le lien.
+  if (/type=recovery/.test(location.hash + location.search)) { try { sessionStorage.setItem('maison-recovery', String(Date.now())); } catch {} }
+  const fromRecovery = (() => { try { return Date.now() - Number(sessionStorage.getItem('maison-recovery') || 0) < 3600000; } catch { return false; } })();
   const { createClient } = await import('./vendor/supabase-js-2.49.4.js');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   api = tracked(remoteApi(sb));
