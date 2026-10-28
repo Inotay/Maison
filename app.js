@@ -998,7 +998,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v97</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v98</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1742,7 +1742,7 @@ function viewRecettes() {
     ${freshCard()}
     ${menuCard()}
     <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
-    <div class="rgroup"><p class="chip-label">Envie <span class="rg-hint">plusieurs possibles</span></p><div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}</div></div>
+    <div class="rgroup"><p class="chip-label">Envie <span class="rg-hint">plusieurs possibles</span></p><div class="chips rchips r4">${types.map(([k, l]) => chip('rtype', k, l)).join('')}</div></div>
     <div class="rgroup"><p class="chip-label">Cuisine <span class="rg-hint">une seule</span></p><div class="chips rchips">${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div></div>
     <p class="rcount" id="rcount">${rcountHtml(list.length)}</p>
     <ul class="list rlist" id="rlist">${rList(list)}</ul>`;

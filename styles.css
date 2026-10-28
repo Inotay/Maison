@@ -897,9 +897,11 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .gear-row.ok .gear-name { color: var(--muted); }
 .gear-st { font-size: 13px; color: var(--muted); font-weight: 800; }
 
-/* Filtres recettes : deux groupes qui passent à la ligne, rien de caché hors écran */
+/* Filtres recettes : grille régulière, colonnes égales alignées sur les bords de la page */
 .rgroup { margin: var(--s2) 0 0; }
 .rgroup .chip-label { margin: 0 0 6px; }
 .rg-hint { text-transform: none; letter-spacing: 0; font-weight: 700; opacity: .75; margin-left: 4px; }
-.rgroup .rchips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; gap: 8px; }
-.rgroup .rchips button { padding: 8px 14px; min-height: 40px; font-size: 15px; }
+.rgroup .rchips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow: visible; margin: 0; padding: 0; }
+.rgroup .rchips.r4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rgroup .rchips button { width: 100%; min-width: 0; min-height: 40px; padding: 6px 2px; font-size: clamp(12px, 3.7vw, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.rgroup + .rcount { margin-top: var(--s2); }
