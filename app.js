@@ -998,7 +998,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v96</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v97</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1732,7 +1732,7 @@ function viewRecettes() {
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
   const list = rFiltered();
-  const chip = (group, k, l) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${S[group] === k}">${esc(l)}</button>`;
+  const chip = (group, k, l) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${rOn(group, k)}">${esc(l)}</button>`;
   const types = [['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
   const ti = RTIME.indexOf(Number(S.rtime) || 0);
   const nf = [S.rtime, S.rcuisine, S.rtype].filter(Boolean).length;
@@ -1742,21 +1742,25 @@ function viewRecettes() {
     ${freshCard()}
     ${menuCard()}
     <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
-    <div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}<span class="rsep" aria-hidden="true"></span>${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div>
+    <div class="rgroup"><p class="chip-label">Envie <span class="rg-hint">plusieurs possibles</span></p><div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}</div></div>
+    <div class="rgroup"><p class="chip-label">Cuisine <span class="rg-hint">une seule</span></p><div class="chips rchips">${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div></div>
     <p class="rcount" id="rcount">${rcountHtml(list.length)}</p>
     <ul class="list rlist" id="rlist">${rList(list)}</ul>`;
 }
 // Jauge du temps : 0 = peu importe, sinon « prêt en … max ».
 const RTIME = [0, 10, 15, 20, 30, 45, 60, 90];
 const rtimeText = m => { m = Number(m) || 0; return !m ? 'peu importe' : m < 60 ? `${m} min max` : m === 60 ? '1 h max' : '1 h 30 max'; };
+// Envies cumulables (flemme + végé…), une seule cuisine à la fois.
+const rTypes = () => String(S.rtype || '').split(',').filter(Boolean);
+const rOn = (g, k) => g === 'rtype' ? rTypes().includes(k) : S[g] === k;
 function rFiltered() {
   const q = norm(S.rq || '');
-  const t = S.rtime;
+  const t = S.rtime, types = rTypes(), vg = types.includes('vege');
   return RECETTES.filter(r => (!S.rcuisine || r.cuisine === S.rcuisine)
-    && (!S.rtype || r.tags.includes(S.rtype) || (S.rtype === 'vege' && vegeOf(r)))
+    && types.every(k => r.tags.includes(k) || (k === 'vege' && vegeOf(r)))
     && (!t || r.min <= Number(t))
     && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))
-    .sort((a, b) => (S.rtype === 'vege' ? (b.tags.includes('vege') - a.tags.includes('vege')) : 0) || (t || S.rtype === 'flemme' ? a.min - b.min : 0));
+    .sort((a, b) => (vg ? (b.tags.includes('vege') - a.tags.includes('vege')) : 0) || (t || types.includes('flemme') ? a.min - b.min : 0));
 }
 function rList(list) {
   if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
@@ -1774,7 +1778,7 @@ function rSearch(v) {
   if (f && f.getBoundingClientRect().top < 0) window.scrollTo({ top: window.scrollY + f.getBoundingClientRect().top - 12 });
 }
 function rSyncFilters() {
-  document.querySelectorAll('[data-action="r-filter"]').forEach(b => b.setAttribute('aria-pressed', S[b.dataset.g] === b.dataset.k));
+  document.querySelectorAll('[data-action="r-filter"]').forEach(b => b.setAttribute('aria-pressed', rOn(b.dataset.g, b.dataset.k)));
   const r = document.getElementById('rtime'); if (r) { const i = Math.max(0, RTIME.indexOf(Number(S.rtime) || 0)); r.value = i; r.style.setProperty('--p', `${i / (RTIME.length - 1) * 100}%`); }
   const o = document.getElementById('rtime-txt'); if (o) o.textContent = rtimeText(S.rtime);
 }
@@ -2005,7 +2009,10 @@ const actions = {
 
   'r-open': el => { S.recette = el.dataset.id; render(); window.scrollTo(0, 0); },
   'r-back': () => { S.recette = null; render(); },
-  'r-filter': el => { S[el.dataset.g] = S[el.dataset.g] === el.dataset.k ? '' : el.dataset.k; haptic(1); rSyncFilters(); rSearch(S.rq); },
+  'r-filter': el => { const g = el.dataset.g, k = el.dataset.k;
+    if (g === 'rtype') { const t = rTypes(); S.rtype = (t.includes(k) ? t.filter(x => x !== k) : [...t, k]).join(','); }
+    else S[g] = S[g] === k ? '' : k;
+    haptic(1); rSyncFilters(); rSearch(S.rq); },
   'r-reset': () => { S.rtime = S.rcuisine = S.rtype = ''; haptic(1); rSyncFilters(); rSearch(S.rq); },
   'r-cook': el => { S.cook = { id: el.dataset.id, step: 0, full: false }; render(); window.scrollTo(0, 0); },
   'r-cook-stop': () => { S.cook = null; render(); },

@@ -896,3 +896,10 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .gear-row.no .gear-name { color: var(--rouge); }
 .gear-row.ok .gear-name { color: var(--muted); }
 .gear-st { font-size: 13px; color: var(--muted); font-weight: 800; }
+
+/* Filtres recettes : deux groupes qui passent à la ligne, rien de caché hors écran */
+.rgroup { margin: var(--s2) 0 0; }
+.rgroup .chip-label { margin: 0 0 6px; }
+.rg-hint { text-transform: none; letter-spacing: 0; font-weight: 700; opacity: .75; margin-left: 4px; }
+.rgroup .rchips { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; gap: 8px; }
+.rgroup .rchips button { padding: 8px 14px; min-height: 40px; font-size: 15px; }
