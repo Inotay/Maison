@@ -297,3 +297,6 @@ alter table public.chores add column if not exists rank integer;
 create table if not exists public.user_tips (email text primary key default lower(auth.jwt() ->> 'email'), seen jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now());
 alter table public.user_tips enable row level security;
 create policy own_row on public.user_tips for all to authenticated using ((select is_member()) and email = lower((select auth.jwt()) ->> 'email')) with check ((select is_member()) and email = lower((select auth.jwt()) ->> 'email'));
+
+-- Courses à deux : qui a pris l'article.
+alter table public.shopping add column if not exists checked_by text, add column if not exists checked_at timestamptz;

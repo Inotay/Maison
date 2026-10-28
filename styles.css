@@ -993,3 +993,11 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 .tour-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
 .tour-dots span.on { background: var(--accent); width: 18px; border-radius: 4px; }
 @media (prefers-reduced-motion: reduce) { #tour, .tour-card { transition: none; } }
+
+/* Courses à deux */
+.duo { display: flex; gap: 10px; align-items: flex-start; margin: var(--s2) 0; padding: 10px 12px; border-radius: var(--r-in); background: var(--surface); border: 2px solid var(--accent); }
+.duo p { margin: 0; font-size: 14px; line-height: 1.4; }
+.duo-dot { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #4CB860; box-shadow: 0 0 0 4px rgba(76,184,96,.25); animation: duo 1.6s ease-in-out infinite; }
+@keyframes duo { 50% { box-shadow: 0 0 0 7px rgba(76,184,96,.08); } }
+@media (prefers-reduced-motion: reduce) { .duo-dot { animation: none; } }
+.other-cart .item { opacity: .8; }

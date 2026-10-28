@@ -561,6 +561,7 @@ async function loadAll() {
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }) });
   await ensureDechets();
   notifyNew();
+  duoNotice();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans, pantry: S.pantry }));
 }
 
@@ -1178,6 +1179,40 @@ function guideHint() {
   return `<div class="guide-hint"><span>Première fois ici ? Le <b>?</b> t’explique tout ce qu’on peut faire sur cette page.</span><button class="btn small" data-action="guide-page">Voir</button><button class="link" data-action="guide-hint-off" aria-label="Fermer">Non merci</button></div>`;
 }
 
+// Courses à deux --------------------------------------------------------------
+// Chacun coche ce qu'il prend : c'est synchronisé en direct, on voit qui a pris quoi, et chacun
+// termine son propre panier (« Courses faites » ne prend que ce que tu as coché).
+const myCart = () => S.shopping.filter(s => s.checked && (!s.checked_by || s.checked_by === S.me));
+S.presence = {};      // où est l'autre : { email: shopMode }
+let presenceCh = null;
+function presenceTrack() { try { presenceCh?.track({ email: S.me, shop: S.shopMode || null, at: Date.now() }); } catch {} }
+function presenceJoin() {
+  if (DEMO || !sb || presenceCh || !S.me) return;
+  presenceCh = sb.channel('maison-courses', { config: { presence: { key: S.me } } });
+  presenceCh.on('presence', { event: 'sync' }, () => {
+    const st = presenceCh.presenceState(); const next = {};
+    for (const [k, metas] of Object.entries(st)) if (k !== S.me) { const m = metas[metas.length - 1]; if (m?.shop) next[k] = m.shop; }
+    const changed = JSON.stringify(next) !== JSON.stringify(S.presence);
+    S.presence = next; if (changed && S.view === 'courses') render();
+  }).subscribe(status => { if (status === 'SUBSCRIBED') presenceTrack(); });
+}
+function duoBanner(mode) {
+  const o = other(); const where = o && S.presence[o];
+  if (!where) return '';
+  const label = SHOPS.find(x => x[0] === where)?.[1] || 'en courses';
+  return `<div class="duo"><span class="duo-dot" aria-hidden="true"></span><p><b>${esc(nameOf(o))} fait les courses aussi</b> (${esc(label)}). Ce que chacun coche passe dans son panier et disparaît de la liste de l’autre.${mode && mode !== where ? '' : ''}</p></div>`;
+}
+// Ce que l'autre vient de prendre, quand on est soi-même au magasin.
+let lastChecked = null;
+function duoNotice() {
+  const now = new Map(S.shopping.filter(s => s.checked && s.checked_by && s.checked_by !== S.me).map(s => [s.id, s]));
+  if (lastChecked && S.shopMode) {
+    const fresh = [...now.values()].filter(s => !lastChecked.has(s.id));
+    if (fresh.length) { toast(`${nameOf(fresh[0].checked_by)} a pris : ${fresh.slice(0, 3).map(s => shopLabel(s.label)).join(', ')}${fresh.length > 3 ? '…' : ''}`); haptic(1); }
+  }
+  lastChecked = new Set(now.keys());
+}
+
 const FOLD_ON = new WeakSet();
 function render() {
   if (drag) return;   // pas pendant un déplacement au doigt
@@ -1359,7 +1394,7 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v110</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v111</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1809,7 +1844,7 @@ function viewCourses() {
   const mode = SHOPS.find(x => x[0] === S.shopMode) ? S.shopMode : null;
   const todoAll = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
   const todo = mode ? todoAll.filter(s => shopsOf(s).includes(mode)) : todoAll;
-  const cart = S.shopping.filter(s => s.checked);
+  const cart = myCart(), cartOther = S.shopping.filter(s => s.checked && !cart.includes(s));
   const modeLabel = mode ? SHOPS.find(x => x[0] === mode)[1] : '';
   const item = s => S.edit?.id === s.id ? `<li class="item editing">${editShop(s)}</li>` : `<li class="item"><button class="tick" id="tick-${s.id}" role="checkbox" aria-checked="${s.checked}" aria-label="${esc(s.label)}" data-action="shop-toggle" data-id="${s.id}"></button>
     ${iconBtn('shopping', s)}<div class="item-main"><div class="item-title">${esc(shopLabel(s.label))}</div>${shopMeta(s)}</div>
@@ -1823,11 +1858,13 @@ function viewCourses() {
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter un article" autocomplete="off" enterkeyhint="done" required></div>
       <button class="btn" type="submit">Ajouter</button>
     </form>
+    ${duoBanner(mode)}
     <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" class="shop-chip" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${shopIc(k, 'chip-ic')}${esc(l)}</button>`).join('')}</div></div>
     <div class="shop">${mode
       ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
       : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
-    ${cart.length ? `<h2>Dans le panier <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
+    ${cart.length ? `<h2>${cartOther.length ? 'Dans ton panier' : 'Dans le panier'} <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
+    ${cartOther.length ? `<h2>Dans le panier de ${esc(nameOf(other()))} <span class="count">${cartOther.length}</span></h2><ul class="list other-cart">${cartOther.map(item).join('')}</ul>` : ''}
     ${mode ? `<div class="form-actions"><button class="btn ghost" data-action="shop-mode" data-shop="${mode}">Je ressors</button><button class="btn" data-action="shop-done" ${cart.length ? '' : 'disabled'}>Courses faites</button></div>`
       : cart.length ? `<div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
 }
@@ -1937,7 +1974,8 @@ const pourList = s => String(s.pour || '').split('|').map(x => x.trim()).filter(
 function shopMeta(s) {
   const bits = [];
   const p = pourList(s); if (p.length) bits.push(`Pour : ${p.join(', ')}`);
-  if (s.added_by !== S.me) bits.push(`Ajouté par ${nameOf(s.added_by)}`);
+  if (s.checked && s.checked_by) bits.push(s.checked_by === S.me ? 'Pris par toi' : `Pris par ${nameOf(s.checked_by)}`);
+  else if (s.added_by !== S.me) bits.push(`Ajouté par ${nameOf(s.added_by)}`);
   return bits.length ? `<div class="item-meta${p.length ? ' pour' : ''}">${esc(bits.join(' · '))}</div>` : '';
 }
 // Au menu : recettes dont on a mis les ingrédients sur la liste, jusqu'à ce qu'on les cuisine.
@@ -2580,30 +2618,30 @@ const actions = {
 
   'shop-toggle': el => {
     const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return refresh();
-    if (s.checked) { run(() => api.update('shopping', { id: s.id }, { checked: false }), null, s.id); return; }
+    if (s.checked) { run(() => api.update('shopping', { id: s.id }, { checked: false, checked_by: null, checked_at: null }), null, s.id); return; }
     meow();
     const last = !S.shopping.some(x => !x.checked && x.id !== s.id), first = !todayHasWin();
     haptic(last ? 'heavy' : 'light');
     ring(el); burst(isAzami(s) ? 'paws' : 'sparkle', el, isAzami(s) ? 6 : 9);
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
-    undoable(s.label, [{ t: 'shopping', id: s.id, row: { checked: false } }], async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
+    undoable(s.label, [{ t: 'shopping', id: s.id, row: { checked: false, checked_by: null, checked_at: null } }], async () => { await api.update('shopping', { id: s.id }, { checked: true, checked_by: S.me, checked_at: new Date().toISOString() }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
       .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || ''), reaction: 'courses_completees' }); if (first) streakCheer(3000); } });
   },
   'shop-clear': el => actions['shop-done'](el),   // même chemin que « Courses faites » : historique + ticket de caisse
-  'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); render(); },
+  'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); presenceTrack(); render(); },
   // Courses faites : ce qui est dans le panier sort de la liste, chaque article est gardé en mémoire (pour les pré-listes), et c'est une réussite.
   'shop-done': el => {
-    const cart = S.shopping.filter(s => s.checked); if (!cart.length) return;
+    const cart = myCart(); if (!cart.length) return;
     const where = SHOPS.find(x => x[0] === S.shopMode)?.[1] || 'Courses';
     haptic('heavy'); sfx('big'); burst('confetti', el, 26);
     const first = !todayHasWin();
     undoable('Courses faites', cart.map(s => ({ t: 'shopping', gone: true, row: { ...s } })), async () => {
       for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
       await stockFresh(cart);
-      await api.remove('shopping', { checked: true });
+      for (const s of cart) await api.remove('shopping', { id: s.id });
       await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
-    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600);
+    }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); presenceTrack(); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600);
       setTimeout(() => openTicket({ where, n: cart.length }), first ? 5200 : 2300); });
   },
   // Fiche après les courses : combien, qui a payé → dépense partagée moitié-moitié, avec sa petite pluie de pièces.
@@ -2915,7 +2953,7 @@ async function boot() {
       .subscribe(status => { if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('realtime', status); });
   };
   const unlisten = () => { if (channel) { sb.removeChannel(channel); channel = null; } };
-  if (S.me) listen();
+  if (S.me) { listen(); presenceJoin(); }
 
   sb.auth.onAuthStateChange((evt, sess) => {
     if (evt === 'PASSWORD_RECOVERY') { S.recovery = true; S.me = sess?.user?.email?.toLowerCase() || S.me; render(); return; }
@@ -2923,7 +2961,7 @@ async function boot() {
     if (evt === 'SIGNED_OUT') unlisten();
     if (email === S.me) return;
     S.me = email;
-    if (S.me) { listen(); refresh(); } else render();
+    if (S.me) { listen(); presenceJoin(); refresh(); } else render();
   });
 }
 
