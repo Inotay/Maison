@@ -5,8 +5,8 @@
 
 // Actions disponibles par personne (fichiers icons/people/<personne>/<action>.webp).
 export const PACKS = {
-  yatoni: ["portrait", "ordinateur", "musique", "nouilles", "courses", "cuisine", "nettoyer", "lessive", "aspirateur", "colis", "lire", "jeux", "tablette", "muscu", "velo", "rando", "verre", "bisou", "bain", "dormir"],
-  mariana: ["portrait", "ordinateur", "lire", "cafe", "courses", "cuisine", "nettoyer", "linge", "lessive", "plantes", "meditation", "maquillage", "note", "travail", "etirements", "rando", "verre", "bisou", "bain", "dormir"],
+  yatoni: ["portrait", "ordinateur", "musique", "nouilles", "courses", "cuisine", "nettoyer", "lessive", "aspirateur", "colis", "lire", "jeux", "tablette", "muscu", "velo", "rando", "verre", "bisou", "bain", "dormir", "vaisselle_main"],
+  mariana: ["portrait", "ordinateur", "lire", "cafe", "courses", "cuisine", "nettoyer", "linge", "lessive", "plantes", "meditation", "maquillage", "note", "travail", "etirements", "rando", "verre", "bisou", "bain", "dormir", "vaisselle_main"],
 };
 
 export const ACTION_LABEL = {
@@ -37,12 +37,14 @@ export const ACTION_LABEL = {
   'maquillage': 'Maquillage',
   'note': 'Écrire un mot',
   'travail': 'Travailler',
-  'etirements': 'Étirements'
+  'etirements': 'Étirements',
+  'vaisselle_main': 'Vaisselle à la main'
 };
 
 // Thème reconnu → action illustrée. Les thèmes absents gardent leur icône générique.
 const THEME_TO_ACTION = {
   courses: 'courses',
+  vaisselle: 'vaisselle_main',   // à la main ; le lave-vaisselle (machine) garde son icône
   lessive: 'lessive', etendre: 'lessive',
   repassage: 'linge', textile: 'linge',
   menage: 'nettoyer', poussiere: 'nettoyer', grandmenage: 'nettoyer', sols: 'nettoyer', salledebain: 'nettoyer', lavabo: 'nettoyer', fenetres: 'nettoyer', cuisine: 'nettoyer', toilettes: 'nettoyer', douche: 'nettoyer',
