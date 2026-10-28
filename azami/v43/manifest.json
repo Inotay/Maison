@@ -1,0 +1,33 @@
+{
+  "version": "V4.3-essai-phase1",
+  "fps": 12,
+  "reference_pose": "original V4.1 repos frame neutre",
+  "animations": [
+    {
+      "id": "repos",
+      "titre": "Repos — acting dessin par dessin",
+      "description": "Azami passe de la pose assise au loaf, tend une oreille, s’endort en boule et reprend sa pose neutre.",
+      "duree_secondes": 12.0,
+      "boucle": true,
+      "fps": 12,
+      "raccord_neutre": true,
+      "fichiers": {
+        "anime": "azami/v41/azami_v41_repos_anime.svg",
+        "statique": "azami/v41/statiques/azami_v41_repos_statique.svg"
+      }
+    },
+    {
+      "id": "caresse_1",
+      "titre": "Caresse — contact et écrasement",
+      "description": "Azami anticipe, pousse la joue contre une main invisible, se comprime et revient au neutre.",
+      "duree_secondes": 2.5,
+      "boucle": false,
+      "fps": 12,
+      "raccord_neutre": true,
+      "fichiers": {
+        "anime": "azami/reactions/caresse_1_anime.svg",
+        "statique": "azami/reactions/statiques/caresse_1_statique.svg"
+      }
+    }
+  ]
+}
