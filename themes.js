@@ -55,7 +55,7 @@ export const THEMES = [
   { id: 'tomate', icon: '🍅', kw: 'tomate:3 tomates:3' },
   { id: 'oignon', icon: '🧅', kw: 'oignon:3 oignons:3' },
   { id: 'champignon', icon: '🍄', kw: 'champignon:3 champignons:3 bolet:3 bolets:3 chanterelle:3 chanterelles:3 truffe:3' },
-  { id: 'patate', icon: '🥔', kw: 'patate:3 patates:3 pomme de terre:3 pommes de terre:3 frites:3 gratin:2' },
+  { id: 'patate', icon: '🥔', kw: 'patate:3 patates:3 pomme de terre:3 pommes de terre:3 frites:3 gratin:2 pommes de terre:6 pomme de terre:6 patates:4 grenailles:4' },
   { id: 'herbes', icon: '🌿', kw: 'herbes:3 aneth:3 estragon:3 herbes aromatiques:3' },
   // Planche 7 (fruits, herbes, épices) : un objet par icône.
   { id: 'abricot', icon: '🍑', kw: 'abricot:4 abricots:4 abricots secs:4' },
@@ -151,7 +151,7 @@ export const THEMES = [
   { id: 'poisson', icon: '🐟', kw: 'poisson:3 filet de perche:3 filets de perche:3 perche:3 fera:3 féra:3 poissonnerie:3 hareng:3 dorade:3 bar:1 sole:3 omble:3 brochet:3' },
   { id: 'fruitsdemer', icon: '🦐', kw: 'crevette:3 crevettes:3 moules:3 calamar:3 calamars:3 fruits de mer:3 huitres:3 huîtres:3 homard:3 crabe:3 langoustine:3 saint jacques:3 gambas:3 poulpe:3' },
   { id: 'sushi', icon: '🍣', kw: 'sushi:3 sushis:3 maki:3 makis:3 sashimi:3 nigiri:3 chirashi:3 temaki:3 onigiri:3' },
-  { id: 'pates', icon: '🍝', kw: 'pates:3 pâtes:3 spaghetti:3 spaghettis:3 tagliatelle:3 tagliatelles:3 linguine:3 fettuccine:3 carbonara:3 bolognaise:3 pesto:2 pates longues:3' },
+  { id: 'pates', icon: '🍝', kw: 'pates:3 pâtes:3 spaghetti:3 spaghettis:3 tagliatelle:3 tagliatelles:3 linguine:3 fettuccine:3 carbonara:3 bolognaise:3 pesto:2 pates longues:3 pates:5 pâtes:5 spaghetti:4 tagliatelles:4 macaronis:4 penne:4 fusilli:4 linguine:4' },
   { id: 'riz', icon: '🍚', kw: 'riz:3 riz basmati:3 riz thai:3 riz jasmin:3 riz complet:3 risotto:3 paella:3 riz rond:3 arborio:3' },
   { id: 'cereales', icon: '🌾', kw: 'cereales:2 céréales:2 boulgour:3 orge:3 epeautre:3 épeautre:3 sarrasin:3 millet:3 son:1 corn flakes:3 cornflakes:3' },
   // Planche 1 (féculents et céréales) : un objet par icône.
@@ -207,7 +207,7 @@ export const THEMES = [
   { id: 'pate_gyoza', icon: '🥟', kw: 'feuilles a gyoza:4 feuilles à gyoza:4 pate a gyoza:4 pâte à gyoza:4 feuilles de gyoza:4 wonton:4 pate a raviolis chinois:4' },
   { id: 'feuilles_riz', icon: '🌯', kw: 'feuilles de riz:4 galettes de riz pour rouleaux:4 rouleaux de printemps:4 papier de riz:4' },
   { id: 'pate_filo', icon: '🥮', kw: 'pate filo:4 pâte filo:4 filo:4 phyllo:4 brick:4 feuilles de brick:4' },
-  { id: 'pate_charcuterie', icon: '🥩', kw: 'terrine:4 rillettes:4 pate de campagne:4 pâté de campagne:4 pate en croute:4 pâté en croûte:4 foie gras:3' },
+  { id: 'pate_charcuterie', icon: '🥩', kw: 'terrine:4 rillettes:4 pate de campagne:4 pâté de campagne:4 pate en croute:4 pâté en croûte:4 foie gras:3 pate:4 pâté:5 terrine:4' },
   { id: 'ramen', icon: '🍜', kw: 'ramen:4 ramens:4 nouilles instantanees:4 nouilles instantanées:4 shin ramyun:4' },
   { id: 'udon', icon: '🍜', kw: 'udon:4 udons:4' },
   { id: 'soba', icon: '🍜', kw: 'soba:4 nouilles de sarrasin:4' },

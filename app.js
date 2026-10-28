@@ -1,10 +1,10 @@
 // Maison : l'app du foyer.
 // Sans configuration Supabase, l'app tourne en mode démo (données locales).
 
-import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK, PARENT } from './themes.js';
+import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK, PARENT, IMG as THEME_IMG } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
-import { RECETTES, CUISINES, TAGS, qty } from './recettes.js';
+import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v86</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v87</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1564,9 +1564,37 @@ function menuCard() {
   if (!S.plans?.length) return '';
   const todoFor = t => S.shopping.filter(x => !x.checked && pourList(x).includes(t)).length;
   return `<h2 class="first">Au menu</h2><ul class="list menu">${S.plans.map(p => { const n = todoFor(p.title); const r = RID(p.recipe);
-    return `<li class="item"><div class="item-main" data-action="r-open" data-id="${esc(p.recipe)}" role="button" tabindex="0"><div class="item-title">${esc(p.title)}</div><div class="item-meta">Pour ${p.persons} · ${n ? `${pl(n, 'article', 'articles')} à acheter` : 'Tout est là'}${p.created_by && p.created_by !== S.me ? ` · prévu par ${esc(nameOf(p.created_by))}` : ''}</div></div>
+    return `<li class="item">${r ? rThumb(r) : ''}<div class="item-main" data-action="r-open" data-id="${esc(p.recipe)}" role="button" tabindex="0"><div class="item-title">${esc(p.title)}</div><div class="item-meta">Pour ${p.persons} · ${n ? `${pl(n, 'article', 'articles')} à acheter` : 'Tout est là'}${p.created_by && p.created_by !== S.me ? ` · prévu par ${esc(nameOf(p.created_by))}` : ''}</div></div>
       ${r ? `<button class="btn small" data-action="plan-cook" data-id="${p.id}">Cuisiner</button>` : ''}<button class="more" aria-label="Options" aria-expanded="${S.open === p.id}" data-action="more" data-id="${p.id}">⋯</button>
       ${S.open === p.id ? `<div class="item-actions"><button class="btn ghost small" data-action="plan-remove" data-id="${p.id}">Retirer du menu</button>${n ? `<button class="btn ghost small" data-action="plan-remove" data-id="${p.id}" data-shop="1">Retirer avec ses ${pl(n, 'article', 'articles')}</button>` : ''}</div>` : ''}</li>`; }).join('')}</ul>`;
+}
+
+// Illustrations des recettes : une image principale (le plat) et les ingrédients qui la caractérisent.
+const RSTAPLE = new Set(['sel', 'poivre', 'huile_tournesol', 'huile_olive', 'huile', 'eau', 'sucre', 'epices', 'bouillon', 'farine', 'vinaigre', 'beurre', 'ail', 'oignon']);
+const imgOf = s => { const r = classify(s); return r && THEME_IMG.has(r.id) ? r.id : null; };
+const rArtCache = {};
+function rArt(r) {
+  if (rArtCache[r.id]) return rArtCache[r.id];
+  const hero = HERO[r.id] || imgOf(r.titre);
+  const ings = r.ing.map(x => imgOf(x.n));
+  const key = [...new Set(ings.filter(x => x && !RSTAPLE.has(x) && x !== hero))].slice(0, 3);
+  return (rArtCache[r.id] = { hero, ings, key });
+}
+const tImg = (id, cls) => id ? `<img class="${cls}" src="icons/themes/${id}.webp" alt="" loading="lazy" decoding="async">` : '';
+const rThumb = r => { const a = rArt(r); return `<span class="rart" aria-hidden="true">${tImg(a.hero, 'rhero')}${a.key.slice(0, 2).map(k => tImg(k, 'rmini')).join('')}</span>`; };
+function rPlate(r) {
+  const a = rArt(r);
+  return `<div class="rplate" aria-hidden="true">${a.key.map((k, i) => tImg(k, `rp-ing rp${i}`)).join('')}${tImg(a.hero, 'rp-hero')}</div>`;
+}
+// Ingrédients cités dans une étape (pour les montrer au-dessus du texte).
+function stepIngs(r, text) {
+  const t = ' ' + norm(text) + ' '; const a = rArt(r); const out = [];
+  r.ing.forEach((x, j) => {
+    const words = norm(x.n).split(' ').filter(w => w.length >= 3 && !['de', 'des', 'du', 'la', 'le', 'les', 'en', 'au', 'aux', 'pour', 'sec', 'frais', 'cuit'].includes(w));
+    const hit = words.some(w => t.includes(' ' + w) || t.includes(' ' + w.replace(/s$/, '')));
+    if (hit && a.ings[j] && !out.includes(a.ings[j])) out.push(a.ings[j]);
+  });
+  return out.slice(0, 5);
 }
 
 // Recettes --------------------------------------------------------------------
@@ -1603,7 +1631,7 @@ function rFiltered() {
 }
 function rList(list) {
   if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
-  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0"><div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('');
+  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0">${rThumb(r)}<div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('');
 }
 const rcountHtml = n => `${pl(n, 'recette', 'recettes')}${S.rtime || S.rcuisine || S.rtype ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}`;
 // Filtre ou recherche : seule la liste change, le reste de la page reste où il est.
@@ -1624,10 +1652,11 @@ function rSyncFilters() {
 function viewRecette(r) {
   const n = S.persons || 2;
   return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
+    ${rPlate(r)}
     <p class="rdesc">${esc(r.desc)}</p>
     <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
     <h2>Ingrédients <span class="muted">pour ${n}</span></h2>
-    <ul class="list ring">${r.ing.map(x => `<li><b>${esc(qty(x, n))}</b> ${esc(x.n)}</li>`).join('')}</ul>
+    <ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, n))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul>
     <h2>Recette</h2>
     <ol class="rsteps">${r.etapes.map(e => `<li>${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>`;
 }
@@ -1636,11 +1665,11 @@ function viewCuisiner() {
   const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>`;
   if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>
     <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
-  return head + `<div class="rstep"><div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>${timerBtns(r.etapes[k], r.titre)}
+  return head + `<div class="rstep">${(() => { const ic = stepIngs(r, r.etapes[k]); return ic.length ? `<div class="rstep-ings" aria-hidden="true">${ic.map(i => tImg(i, 'rs-ic')).join('')}</div>` : ''; })()}<div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>${timerBtns(r.etapes[k], r.titre)}
       <div class="dots-inline" aria-hidden="true">${r.etapes.map((_, j) => `<span class="dot ${j < k ? 'dot-ok' : j === k ? 'now' : 'off'}"></span>`).join('')}</div></div>
     <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C\'est prêt !' : 'Suivant'}</button></div>
     <div class="form-actions"><button class="link" data-action="r-cook-full">Lire la recette en entier</button></div>
-    <details class="fold mt" data-fold="r-ing"><summary>Ingrédients</summary><ul class="list ring">${r.ing.map(x => `<li><b>${esc(qty(x, S.persons || 2))}</b> ${esc(x.n)}</li>`).join('')}</ul></details>`;
+    <details class="fold mt" data-fold="r-ing"><summary>Ingrédients</summary><ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, S.persons || 2))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul></details>`;
 }
 // Feuille « rajouter à la liste » : nombre de personnes, puis on coche ce qu'on a déjà.
 function openPanier(id) {
@@ -1654,7 +1683,7 @@ function openPanier(id) {
       <p class="ticket-title">${esc(r.titre)}</p>
       <div class="persons"><button type="button" class="btn ghost small" data-p="-1" aria-label="Moins">−</button><span><b>${n}</b> ${n > 1 ? 'personnes' : 'personne'}</span><button type="button" class="btn ghost small" data-p="1" aria-label="Plus">+</button></div>
       <p class="ticket-sub">Coche ce que tu as déjà à la maison.</p>
-      <ul class="list ring check">${r.ing.map((x, j) => { const dup = inList.has(norm(x.n)); const on = S.panier.have.has(j) || dup; return `<li><button type="button" class="tick" role="checkbox" aria-checked="${on}" data-j="${j}" aria-label="${esc(x.n)}"></button><span class="${on ? 'have' : ''}"><b>${esc(qty(x, n))}</b> ${esc(x.n)}${dup ? ' <em>déjà sur la liste</em>' : ''}</span></li>`; }).join('')}</ul>
+      <ul class="list ring check">${r.ing.map((x, j) => { const dup = inList.has(norm(x.n)); const on = S.panier.have.has(j) || dup; return `<li><button type="button" class="tick" role="checkbox" aria-checked="${on}" data-j="${j}" aria-label="${esc(x.n)}"></button>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<span class="${on ? 'have' : ''}"><b>${esc(qty(x, n))}</b> ${esc(x.n)}${dup ? ' <em>déjà sur la liste</em>' : ''}</span></li>`; }).join('')}</ul>
       <div class="form-actions"><button class="btn ghost" data-action="ticket-skip">Annuler</button><button class="btn" data-action="r-panier-ok">Ajouter ce qui manque</button></div></div>`;
     box.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { S.persons = Math.min(12, Math.max(1, n + Number(b.dataset.p))); safeSet('maison-persons', String(S.persons)); haptic(1); draw(); }));
     box.querySelectorAll('[data-j]').forEach(b => b.addEventListener('click', () => { const j = Number(b.dataset.j); S.panier.have.has(j) ? S.panier.have.delete(j) : S.panier.have.add(j); haptic(1); draw(); }));
