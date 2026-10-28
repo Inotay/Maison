@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v87</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v88</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1081,7 +1081,7 @@ function viewAgenda() {
       <div class="form-actions"><button type="button" class="btn ghost small" data-action="ev-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter au calendrier</button></div>
     </form>` : `<button class="btn" data-action="ev-form" data-show="1">+ Ajouter un événement</button>`}
     <button class="link house-toggle" data-action="agenda-house" aria-pressed="${S.agendaHouse !== false}">${S.agendaHouse !== false ? 'Masquer' : 'Afficher'} le ménage et les choses à faire</button>
-    ${blocks || '<p class="empty">Rien de prévu dans les trois prochains mois.</p>'}
+    ${blocks || emptyArt('vide_agenda', 'Rien de prévu dans les trois prochains mois.')}
     <details class="fold" data-fold="ag-settings"><summary>Connexion</summary><p class="hint">Relié à ${esc(A.calendar)} via ${esc(A.apple_id || 'iCloud')}${A.set_by ? `, par ${esc(nameOf(A.set_by))}` : ''}. L'app ne lit que ce calendrier.</p><button class="link" data-action="agenda-forget">Déconnecter le calendrier</button></details>`;
 }
 function editEvent(e) {
@@ -1137,7 +1137,7 @@ function viewTasks() {
     </li>`;
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
-    ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : '<p class="empty">Plus rien à faire. Profitez-en.</p>'}
+    ${open.length ? `<ul class="list">${open.map(item).join('')}</ul>` : emptyArt('vide_taches', 'Plus rien à faire. Profitez-en.')}
     ${fresh.length ? `<h2 class="list-head done-head">Fait aujourd'hui <span class="count">${fresh.length}</span></h2><ul class="list">${fresh.map(item).join('')}</ul>` : ''}
     <form class="form add" data-form="task">
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
@@ -1403,7 +1403,9 @@ const SHOPS = [
   ['tech', 'Électronique', 'Digitec, Interdiscount, Fust'],
   ['autre', 'Divers', 'cadeaux, commandes, le reste'],
 ];
-const SHOP_ICON = { super: 'rayon_super', asie: 'rayon_asie', maison: 'rayon_maison', pharma: 'rayon_pharma', azami: 'rayon_azami', tech: 'rayon_tech', autre: 'cadeau' };
+// Illustration au-dessus d'un état vide.
+const emptyArt = (id, txt) => `<div class="empty-art"><img src="icons/themes/${id}.webp" alt="" width="120" height="120" decoding="async"><p class="empty">${txt}</p></div>`;
+const SHOP_ICON = { super: 'rayon_super', asie: 'rayon_asie', maison: 'rayon_maison', pharma: 'rayon_pharma', azami: 'rayon_azami', tech: 'rayon_tech', autre: 'rayon_divers' };
 const shopIc = (k, cls = 'shop-ic') => SHOP_ICON[k] ? `<img class="${cls}" src="icons/themes/${SHOP_ICON[k]}.webp" alt="" width="40" height="40" decoding="async">` : '';
 const SHOP_OF_THEME = {
   asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie', riz_sushi: 'asie,super', panko: 'asie,super', tofu: 'asie,super', tempeh: 'asie', sauce_soja: 'asie,super', miso: 'asie', mirin: 'asie', pate_gyoza: 'asie', feuilles_riz: 'asie', ramen: 'asie,super', udon: 'asie', soba: 'asie', nouilles_riz: 'asie,super', vermicelles: 'asie',
@@ -1446,7 +1448,7 @@ function viewCourses() {
     <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" class="shop-chip" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${shopIc(k, 'chip-ic')}${esc(l)}</button>`).join('')}</div></div>
     <div class="shop">${mode
       ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
-      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : '<p class="empty">Rien à acheter. Ajoute un article quand il manque quelque chose.</p>')}
+      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
     ${cart.length ? `<h2>Dans le panier <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
     ${mode ? `<div class="form-actions"><button class="btn ghost" data-action="shop-mode" data-shop="${mode}">Je ressors</button><button class="btn" data-action="shop-done" ${cart.length ? '' : 'disabled'}>Courses faites</button></div>`
       : cart.length ? `<div class="form-actions"><button class="btn ghost" data-action="shop-clear">Vider le panier</button></div>` : ''}</div>`;
@@ -1790,7 +1792,7 @@ function viewCare() {
   };
 
   return `<h2 class="first">Ta boîte aux lettres</h2>
-    ${unread.length ? `<div class="letters">${unread.map(letter).join('')}</div>` : '<p class="empty">Aucun mot en attente.</p>'}
+    ${unread.length ? `<div class="letters">${unread.map(letter).join('')}</div>` : emptyArt('vide_care', 'Aucun mot en attente.')}
     ${read.length ? `<details class="fold" data-fold="read" ${read.some(c => c.id === S.openLetter) ? 'open' : ''}><summary>Mots déjà lus (${read.length})</summary><div class="letters">${read.map(letter).join('')}</div></details>` : ''}
 
     <h2>Écrire à ${esc(nameOf(o))}</h2>
