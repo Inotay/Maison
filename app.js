@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v76</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v77</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1274,10 +1274,15 @@ function seqRow(c) {
   const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
   const actions = S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>` : '';
   const title = q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
-  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline">${dots}</span>${esc(meta)}</div></div>
+  // L'image suit l'étape en cours (sauf si on a choisi une icône à la main).
+  const stepIcon = (!c.icon || c.icon === `t:${q.icon}`) && s.phase !== 'start' ? (STEP_ICONS[c.sorte] || {})[`${s.phase}:${q.steps[s.i]?.key}`] : null;
+  return `<li class="dech-row">${iconBtn('chores', stepIcon ? { ...c, icon: `t:${stepIcon}` } : c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline">${dots}</span>${esc(meta)}</div></div>
     <div class="item-trail">${btn}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
     ${iconPicker('chores', c)}${actions}</li>`;
 }
+const STEP_ICONS = {
+  lessive: { 'timer:lavage': 'lessive_lancer', 'next:sechage': 'linge_mouille', 'timer:sechage': 'seche_linge', 'next:ranger': 'plier' },
+};
 // Ligne d'une corvée ordinaire placée dans une carte groupée (la vaisselle à la main).
 function plainRow(c) {
   if (S.edit?.id === c.id) return `<li class="dech-row editing">${editChore(c)}</li>`;
