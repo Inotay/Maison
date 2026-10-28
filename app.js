@@ -998,7 +998,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v98</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v99</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1286,7 +1286,7 @@ function seqRow(c) {
   }
   const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
   const st0 = q.steps[s.i];
-  const adjust = S.adjust === c.id && s.phase === 'timer' ? `<div class="item-actions seq-adjust"><div class="chips">${[-10, -5, 5, 10].map(d => `<button type="button" data-action="seq-shift" data-id="${c.id}" data-key="${st0.key}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} min</button>`).join('')}</div><p class="hint">${esc(st0.doing)} : ${seqMinutes(c, st0)} min. Gardé pour les prochaines fois.</p></div>` : '';
+  const adjust = S.adjust === c.id && s.phase === 'timer' ? `<div class="item-actions seq-adjust"><div class="chips">${[-10, -5, 5, 10].map(d => `<button type="button" data-action="seq-shift" data-id="${c.id}" data-key="${st0.key}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} min</button>`).join('')}</div><p class="hint">${esc(st0.doing)} : ${seqMinutes(c, st0)} min. Gardé pour les prochaines fois, chez vous deux.</p></div>` : '';
   const actions = adjust || S.open === c.id ? adjust + (S.open !== c.id ? '' : `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>`) : '';
   const title = q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
   // L'image suit l'étape en cours (sauf si on a choisi une icône à la main).
