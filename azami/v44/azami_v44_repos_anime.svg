@@ -59,13 +59,13 @@
     <g id="ear-left"><path d="M130 178 Q102 124 89 110 Q78 99 81 127 L92 206Z" fill="#39201E"/><path d="M112 175 Q98 145 92 135 L98 181Z" fill="#F2A5AF"/></g>
     <g id="ear-right"><path d="M206 177 Q219 129 239 108 Q250 100 248 131 L253 196Z" fill="#39201E"/><path d="M220 174 Q235 146 241 133 L242 176Z" fill="#F2A5AF"/></g>
     <ellipse cx="176" cy="220" rx="85" ry="87" fill="#F4DBB4"/>
-    <path d="M107 220 Q110 184 147 181 Q166 179 174 182 Q194 175 213 183 Q245 190 244 226 Q241 276 179 280 Q114 280 107 237 Q106 229 107 220Z" fill="#39201E"/>
+    <path d="M107 220 Q110 184 147 181 Q166 179 174 182 Q194 175 213 183 Q245 190 244 226 Q241 276 179 280 Q114 280 107 237 Q106 229 107 220Z" fill="#5A3A31"/>
     <g id="blush"><ellipse cx="124" cy="246" rx="13" ry="7.5" fill="#F48FA0" opacity=".55"/><ellipse cx="230" cy="246" rx="13" ry="7.5" fill="#F48FA0" opacity=".55"/></g>
     <g id="eye-l" class="eye"><g transform="translate(146 211)">
-      <ellipse rx="23" ry="26" fill="#FFF2D9"/><g id="pupils-l"><ellipse rx="21" ry="24" fill="#70C3ED"/><ellipse cx="1" cy="3" rx="14" ry="17" fill="#123855"/>
+      <g id="pupils-l"><ellipse rx="23" ry="26" fill="#78C8F0"/><ellipse cx="1" cy="4" rx="16" ry="19" fill="#163C5C"/>
       <ellipse cx="0" cy="12" rx="12" ry="6" fill="#4E9FCF" opacity=".55"/><circle cx="-6" cy="-9" r="8" fill="#FFFFFF"/><circle cx="8" cy="8" r="3.6" fill="#FFFFFF"/><circle cx="-11" cy="5" r="1.8" fill="#FFFFFF" opacity=".9"/></g></g></g>
     <g id="eye-r" class="eye"><g transform="translate(207 211)">
-      <ellipse rx="23" ry="26" fill="#FFF2D9"/><g id="pupils-r"><ellipse rx="21" ry="24" fill="#70C3ED"/><ellipse cx="1" cy="3" rx="14" ry="17" fill="#123855"/>
+      <g id="pupils-r"><ellipse rx="23" ry="26" fill="#78C8F0"/><ellipse cx="1" cy="4" rx="16" ry="19" fill="#163C5C"/>
       <ellipse cx="0" cy="12" rx="12" ry="6" fill="#4E9FCF" opacity=".55"/><circle cx="-6" cy="-9" r="8" fill="#FFFFFF"/><circle cx="8" cy="8" r="3.6" fill="#FFFFFF"/><circle cx="-11" cy="5" r="1.8" fill="#FFFFFF" opacity=".9"/></g></g></g>
     <g id="eyes-blink" opacity="0"><path d="M126 213 Q146 219 166 213 M187 213 Q207 219 228 213" stroke="#FFF2D9" stroke-width="7" stroke-linecap="round" fill="none"/></g>
     <g id="eyes-happy" opacity="0"><path d="M127 218 Q146 194 165 218 M188 218 Q207 194 226 218" stroke="#FFF2D9" stroke-width="7.5" stroke-linecap="round" fill="none"/></g>
