@@ -905,3 +905,18 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .rgroup .rchips.r4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .rgroup .rchips button { width: 100%; min-width: 0; min-height: 40px; padding: 6px 2px; font-size: clamp(12px, 3.7vw, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .rgroup + .rcount { margin-top: var(--s2); }
+
+/* Annuler la dernière action, en haut à droite */
+#undo { position: fixed; z-index: 10000; top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px; display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px 8px 10px; max-width: min(70vw, 280px); border: 2px solid var(--accent-edge, #C8951E); border-radius: 14px; background: var(--accent); color: var(--accent-text);
+  box-shadow: 0 3px 0 var(--accent-edge, #C8951E), 0 8px 20px rgba(0,0,0,.18); font: inherit; text-align: left; cursor: pointer;
+  opacity: 0; transform: translateY(-16px) scale(.9); pointer-events: none; transition: opacity .2s, transform .3s cubic-bezier(.34, 1.56, .64, 1); }
+#undo.on { opacity: 1; transform: none; pointer-events: auto; }
+#undo:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--accent-edge, #C8951E); }
+#undo .undo-ic { font-size: 22px; font-weight: 900; line-height: 1; }
+#undo .undo-txt { display: grid; line-height: 1.15; min-width: 0; }
+#undo b { font-size: 15px; font-weight: 900; }
+#undo small { font-size: 12px; font-weight: 700; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (prefers-reduced-motion: reduce) { #undo { transition: opacity .2s; transform: none; } }
+.dech-btn.cycle .cyc-k { display: block; font-size: 10px; line-height: 1; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; opacity: .75; margin-bottom: 1px; }
+.dech-btn.cycle { flex-direction: column; line-height: 1.1; }

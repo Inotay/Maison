@@ -666,6 +666,36 @@ async function runAgenda(fn, okMsg) {
 }
 
 // Journal des réussites : chaque chose faite y reste pour toujours.
+
+// Annuler (comme Ctrl+Z) : après « fait », un bouton « Annuler » reste quelques secondes en haut à droite.
+// On garde l'état d'avant des lignes modifiées, et on note ce qui a été ajouté pendant l'action pour l'enlever.
+let CAPTURE = null, UNDO = null;
+const tracked = a => ({ ...a, async insert(t, row) { const r = await a.insert(t, row); if (CAPTURE && r?.id) CAPTURE.push([t, r.id]); return r; } });
+function undoable(label, before, fn, okMsg, key) {
+  const cap = [];
+  return run(async () => { CAPTURE = cap; try { await fn(); } finally { CAPTURE = null; } }, okMsg, key)
+    .then(ok => { if (ok) offerUndo(label, before, cap); return ok; });
+}
+function offerUndo(label, before, cap) {
+  UNDO = { label, before, cap };
+  let b = document.getElementById('undo');
+  if (!b) { b = document.createElement('button'); b.id = 'undo'; b.type = 'button'; b.addEventListener('click', doUndo); document.body.appendChild(b); }
+  b.innerHTML = `<span class="undo-ic" aria-hidden="true">↶</span><span class="undo-txt"><b>Annuler</b><small>${esc(label)}</small></span>`;
+  b.setAttribute('aria-label', `Annuler : ${label}`);
+  requestAnimationFrame(() => b.classList.add('on'));
+  clearTimeout(offerUndo.t); offerUndo.t = setTimeout(hideUndo, 10000);
+}
+function hideUndo() { UNDO = null; document.getElementById('undo')?.classList.remove('on'); }
+function doUndo() {
+  const u = UNDO; if (!u) return; hideUndo(); haptic(1);
+  document.getElementById('cele')?.remove();
+  run(async () => {
+    for (const [t, id] of [...u.cap].reverse()) await api.remove(t, { id }).catch(e => console.warn('annuler', t, e));
+    for (const b of u.before) { if (b.gone) await api.insert(b.t, b.row); else await api.update(b.t, { id: b.id }, b.row); }
+  }, `Annulé : ${u.label}`);
+}
+document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && UNDO && !typing()) { e.preventDefault(); doUndo(); } });
+
 function win(kind, title, weight = 1, icon = null) {
   return api.insert('wins', { kind, title: title || null, done_by: S.me, done_at: new Date().toISOString(), weight, icon }).catch(e => console.warn('win', e));
 }
@@ -831,6 +861,59 @@ function viewOffline() {
     <button class="link" data-action="logout">Se déconnecter</button></section>`;
 }
 
+
+// Mise à jour de l'écran sans tout reconstruire : on garde les éléments déjà affichés (images comprises)
+// et on ne change que ce qui diffère. Évite que les icônes clignotent à chaque actualisation.
+const nodeKey = n => n.nodeType === 1 ? (n.id || n.dataset?.id || n.dataset?.fold || n.dataset?.view || '') : '';
+function sameNode(a, b) {
+  if (a.nodeType !== b.nodeType || a.nodeName !== b.nodeName) return false;
+  return a.nodeType !== 1 || nodeKey(a) === nodeKey(b);
+}
+function morphAttrs(a, b) {
+  for (const { name } of [...a.attributes]) {
+    if (!b.hasAttribute(name) && !(name === 'open' && a.nodeName === 'DETAILS')) a.removeAttribute(name);
+  }
+  for (const { name, value } of [...b.attributes]) {
+    if (name === 'open' && a.nodeName === 'DETAILS') continue;
+    if (a.getAttribute(name) !== value) a.setAttribute(name, value);
+  }
+  if (a.nodeName === 'INPUT' || a.nodeName === 'TEXTAREA' || a.nodeName === 'SELECT') {
+    if (a.type === 'checkbox' || a.type === 'radio') { if (a.checked !== b.checked) a.checked = b.checked; }
+    else if (document.activeElement !== a && a.value !== b.value) a.value = b.value;
+  }
+}
+function morphNode(a, b) {
+  if (a.nodeType !== 1) { if (a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+  morphAttrs(a, b);
+  if (a.nodeName === 'TEXTAREA') return;
+  morphChildren(a, b);
+}
+function morphChildren(from, to) {
+  let a = from.firstChild, b = to.firstChild;
+  while (b) {
+    const nb = b.nextSibling;
+    // Azami déjà posé : on garde la même image si la scène n'a pas changé.
+    if (a && b.nodeType === 1 && b.classList.contains('azami-slot') && a.nodeName === 'IMG' && a === azamiImgs[b.dataset.scene]) { a.alt = b.dataset.alt || ''; a = a.nextSibling; b = nb; continue; }
+    if (!a) { from.appendChild(b); b = nb; continue; }
+    if (sameNode(a, b)) { morphNode(a, b); a = a.nextSibling; b = nb; continue; }
+    // Liste où un élément a été ajouté ou retiré : on cherche plus loin la même ligne.
+    const k = nodeKey(b);
+    if (k) {
+      let f = a.nextSibling; while (f && !(f.nodeType === 1 && f.nodeName === b.nodeName && nodeKey(f) === k)) f = f.nextSibling;
+      if (f) { from.insertBefore(f, a); morphNode(f, b); b = nb; continue; }
+    }
+    from.insertBefore(b, a); b = nb;
+    // l'ancien nœud sera réutilisé plus loin s'il correspond, sinon retiré à la fin
+  }
+  while (a) { const n = a.nextSibling; if (!(a.nodeType === 1 && a.classList.contains('hap'))) from.removeChild(a); a = n; }
+}
+function morph(root, html) {
+  const tpl = document.createElement('template'); tpl.innerHTML = html;
+  if (!root.firstChild) { root.appendChild(tpl.content); return; }
+  morphChildren(root, tpl.content);
+}
+
+const FOLD_ON = new WeakSet();
 function render() {
   if (!S.ready) { $app.innerHTML = ''; return; }
   if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); return; }
@@ -850,13 +933,14 @@ function render() {
   applyTheme();
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
-  $app.innerHTML = demoBar() + (views[S.view] || viewMaison)() + timersBar() + nav();
+  if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
+  morph($app, demoBar() + (views[S.view] || viewMaison)() + timersBar() + nav());
   placeAzami();
   maybeCoucou();
   armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
-  $app.querySelectorAll('details.dech-card[data-fold]').forEach(d => d.addEventListener('toggle', e => { S.folds[d.dataset.fold] = e.target.open; safeSet('maison-folds', JSON.stringify(S.folds)); }));
+  $app.querySelectorAll('details.dech-card[data-fold]').forEach(d => FOLD_ON.has(d) || (FOLD_ON.add(d), d.addEventListener('toggle', e => { S.folds[d.dataset.fold] = e.target.open; safeSet('maison-folds', JSON.stringify(S.folds)); })));
   if (S.popId) { const id = S.popId; S.popId = null; const row = (document.getElementById('tick-' + id) || document.getElementById('done-' + id))?.closest('.item, .chore'); pop(row); wiggle(row); }
   const wb = document.querySelector('.wins-big b');
   if (wb) { const to = Number(wb.textContent); if (S.weekShown != null && S.weekShown !== to) { wb.textContent = S.weekShown; countUp(wb, to); wiggle(wb.closest('.wins')); } S.weekShown = to; }
@@ -998,7 +1082,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v99</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v100</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1277,8 +1361,8 @@ function seqRow(c) {
     meta = st.due ? (st.late ? cap(st.label) : 'À lancer') : `${cap(st.label)}${c.last_done_by && !q.personal ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
     btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${esc(q.steps[0].btn)}${st.due ? '' : ' ✓'}</button>`;
   } else if (s.phase === 'timer') {
-    meta = `${q.steps[s.i].doing}, prêt dans ${s.left} min`;
-    btn = `<button type="button" class="dech-btn cycle" data-action="seq-adjust" data-id="${c.id}" aria-expanded="${S.adjust === c.id}" aria-label="Prêt à ${esc(hhmm(s.ready))}, changer la durée">${esc(hhmm(s.ready))}</button>`;
+    meta = `Depuis ${hhmm(new Date(c.started_at).getTime())} · encore ${s.left} min`;
+    btn = `<button type="button" class="dech-btn cycle" data-action="seq-adjust" data-id="${c.id}" aria-expanded="${S.adjust === c.id}" aria-label="Fini vers ${esc(hhmm(s.ready))}, changer la durée"><small class="cyc-k">fin</small>${esc(hhmm(s.ready))}</button>`;
   } else {
     const nx = q.steps[s.i];
     meta = nx.meta || `Prêt : ${nx.btn.toLowerCase()}`;
@@ -1968,7 +2052,7 @@ const actions = {
     const x = S.pantry.find(p => p.id === el.dataset.id); if (!x) return;
     x.status = el.dataset.s; S.pantry = S.pantry.filter(p => p !== x); haptic(1);
     if (el.dataset.s === 'mange') { sfx('tick'); pop(el.closest('li')); }
-    run(() => api.update('pantry', { id: x.id }, { status: el.dataset.s }), el.dataset.s === 'mange' ? 'Bien joué' : null);
+    undoable(`${x.label} ${el.dataset.s === 'mange' ? 'mangé' : 'jeté'}`, [{ t: 'pantry', id: x.id, row: { status: null } }], () => api.update('pantry', { id: x.id }, { status: el.dataset.s }), el.dataset.s === 'mange' ? 'Bien joué' : null);
   },
 
   'seq-adjust': el => { S.adjust = S.adjust === el.dataset.id ? null : el.dataset.id; haptic(1); render(); },
@@ -2058,13 +2142,13 @@ const actions = {
     const i = Number(el.dataset.i); const st = q.steps[i];
     if (st.minutes) {
       haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(c, st)} min`);
-      run(() => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c\'est prêt.' : 'C\'est parti.');
+      undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }], () => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c\'est prêt.' : 'C\'est parti.');
       return;
     }
     meow(); haptic('heavy'); sfx('big'); el.classList.add('did'); el.textContent = '✓';
     burst('confetti', el, 24); floatUp(el, '+1');
     const first = !todayHasWin();
-    run(async () => {
+    undoable(q.done, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null } }], async () => {
       await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: S.me });
       await api.insert('chore_log', { chore_id: c.id, title: q.done, weight: 1 });
       await win('chore', q.done, 1, c.icon);
@@ -2097,7 +2181,7 @@ const actions = {
     ring(el); floatUp(el); burst(isAzami(t) ? 'paws' : 'sparkle', el, 12);
     sfx(last ? 'big' : 'done');
     S.popId = t.id;
-    run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, last ? null : praise('task'), t.id)
+    undoable(t.title, [{ t: 'tasks', id: t.id, row: { done: false, done_at: null } }], async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, last ? null : praise('task'), t.id)
       .then(ok => { if (!ok) return; azamiJump(); if (last) celebrate({ title: 'Tout est fait !', sub: praise('all'), badge: variantBadge('tasks', t, S.me), reaction: 'objectif_commun' }); else react('tache_cochee', document.getElementById(`tick-${t.id}`)); if (first) streakCheer(last ? 3000 : 400); });
   },
   'task-assign': el => {
@@ -2156,7 +2240,7 @@ const actions = {
     floatUp(el, c.weight === 3 ? '+3' : c.weight === 1 ? '+1' : '+2');
     burst(isAzami(c) ? 'paws' : 'confetti', el, isAzami(c) ? 10 : 26);
     S.popId = c.id;
-    run(async () => {
+    undoable(c.title, [{ t: 'chores', id: c.id, row: { last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null, turn: c.turn || null } }], async () => {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
@@ -2181,7 +2265,7 @@ const actions = {
     ring(el); burst(isAzami(s) ? 'paws' : 'sparkle', el, isAzami(s) ? 6 : 9);
     sfx(last ? 'big' : 'tick');
     S.popId = s.id;
-    run(async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
+    undoable(s.label, [{ t: 'shopping', id: s.id, row: { checked: false } }], async () => { await api.update('shopping', { id: s.id }, { checked: true }); if (last) await win('shop', `Courses : ${S.shopping.length} articles`, 1); }, null, s.id)
       .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || ''), reaction: 'courses_completees' }); if (first) streakCheer(3000); } });
   },
   'shop-clear': el => actions['shop-done'](el),   // même chemin que « Courses faites » : historique + ticket de caisse
@@ -2192,7 +2276,7 @@ const actions = {
     const where = SHOPS.find(x => x[0] === S.shopMode)?.[1] || 'Courses';
     haptic('heavy'); sfx('big'); burst('confetti', el, 26);
     const first = !todayHasWin();
-    run(async () => {
+    undoable('Courses faites', cart.map(s => ({ t: 'shopping', gone: true, row: { ...s } })), async () => {
       for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
       await stockFresh(cart);
       await api.remove('shopping', { checked: true });
@@ -2272,7 +2356,7 @@ const actions = {
   },
 
   'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l'app comme ${nameOf(S.me)}`); },
-  'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = demoApi(); await refresh(); },
+  'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = tracked(demoApi()); await refresh(); },
 };
 
 const forms = {
@@ -2473,7 +2557,7 @@ setInterval(() => {
 
 async function boot() {
   if (DEMO) {
-    api = demoApi();
+    api = tracked(demoApi());
     const members = await api.list('members');
     S.me = safeGet('maison-demo-me') || members[0].email;
     S.ready = true;
@@ -2489,7 +2573,7 @@ async function boot() {
   }
   const { createClient } = await import('./vendor/supabase-js-2.49.4.js');
   sb = createClient(CFG.supabaseUrl, CFG.supabaseKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-  api = remoteApi(sb);
+  api = tracked(remoteApi(sb));
 
   const { data: { session } } = await sb.auth.getSession();
   S.me = session?.user?.email?.toLowerCase() || null;

@@ -188,7 +188,15 @@ Deno.serve(async (req) => {
       if (!member) return json({ error: "Pas membre de la maison." }, 401);
       return json({ publicKey: (await vapid(db)).publicKey });
     }
-    if (action === "run") return json({ ...(await run(db)), frais: await fresh(db) });
+    if (action === "run") {
+      // Heure suisse fixe toute l'année : le planificateur appelle aux deux heures UTC possibles
+      // (heure d'été / d'hiver) avec l'heure locale voulue, et seule la bonne passe.
+      if (body.heure !== undefined) {
+        const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", hour: "numeric", hour12: false }).format(new Date())) % 24;
+        if (h !== Number(body.heure)) return json({ skipped: `il est ${h} h à Zurich` });
+      }
+      return json({ ...(await run(db)), frais: await fresh(db) });
+    }
     if (action === "minuteurs") return json(await minuteurs(db));
     return json({ error: "Action inconnue." }, 400);
   } catch (e) {
