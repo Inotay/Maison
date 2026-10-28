@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Essai Azami V4.3</title>
+<title>Essai Azami V4.3 et V4.4</title>
 <link rel="stylesheet" href="styles.css">
 <style>
   /* Page d'essai hors production : les deux prototypes V4.3 (dessin par dessin) comparés à la V4.1 intégrée. */
@@ -33,8 +33,8 @@
 </head>
 <body>
 <main class="essai">
-  <h1>Essai Azami V4.3</h1>
-  <p class="hint">Deux prototypes dessinés image par image, hors production : rien n'est changé dans Maison. Fluidité de la page : <span class="fps" id="fps">mesure…</span></p>
+  <h1>Essai Azami</h1>
+  <p class="hint">V4.4 : le dessin V4.1 avec un mouvement continu, vif et rebondi, et des yeux kawaii. V4.3 : dessins image par image. Hors production : rien n'est changé dans Maison. Fluidité de la page : <span class="fps" id="fps">mesure…</span></p>
   <p class="hint"><label><input type="checkbox" id="static"> Forcer la version statique (comme « Réduire les animations »)</label></p>
 
   <h2>Repos (12 s, boucle)</h2>
@@ -57,7 +57,8 @@
   </div>
 
   <h2>Comme dans l'app</h2>
-  <p class="hint">Touche Azami : la caresse V4.3 se joue à la place de la scène Repos V4.3, puis la scène reprend. C'est ici qu'on voit si le raccord saute.</p>
+  <p class="hint">Touche Azami : la caresse se joue à la place de la scène Repos, puis la scène reprend. C'est ici qu'on voit si le raccord saute.</p>
+  <div class="row" id="tap-ver"></div>
   <div class="head pane ciel"><h3>Maison</h3><button data-tap aria-label="Toucher Azami"><img data-k="tap" alt=""></button></div>
   <div class="head pane brun" style="margin-top:10px"><h3>Maison</h3><button data-tap aria-label="Toucher Azami"><img data-k="tap" alt=""></button></div>
 
@@ -65,31 +66,37 @@
 </main>
 <script>
   const FILES = {
-    repos: { v43: ['azami/v43/azami_v43_repos_anime.svg', 'azami/v43/statiques/azami_v43_repos_statique.svg'], v41: ['azami/v41/azami_v41_repos_anime.svg', 'azami/v41/statiques/azami_v41_repos_statique.svg'] },
-    caresse: { v43: ['azami/v43/caresse_1_anime.svg', 'azami/v43/statiques/caresse_1_statique.svg'], v41: ['azami/reactions/caresse_1_anime.svg', 'azami/reactions/statiques/caresse_1_statique.svg'] },
+    repos: { v44: ['azami/v44/azami_v44_repos_anime.svg', 'azami/v44/statiques/azami_v44_repos_statique.svg'], v43: ['azami/v43/azami_v43_repos_anime.svg', 'azami/v43/statiques/azami_v43_repos_statique.svg'], v41: ['azami/v41/azami_v41_repos_anime.svg', 'azami/v41/statiques/azami_v41_repos_statique.svg'] },
+    caresse: { v44: ['azami/v44/caresse_1_anime.svg', 'azami/v44/statiques/caresse_1_statique.svg'], v43: ['azami/v43/caresse_1_anime.svg', 'azami/v43/statiques/caresse_1_statique.svg'], v41: ['azami/reactions/caresse_1_anime.svg', 'azami/reactions/statiques/caresse_1_statique.svg'] },
   };
-  const pick = { repos: 'v43', caresse: 'v43' };
+  const pick = { repos: 'v44', caresse: 'v44', tap: 'v44' };
   const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches || document.getElementById('static').checked;
   const src = (k, v = pick[k]) => { const [a, s] = FILES[k][v]; return reduced() ? s : `${a}?${Date.now()}`; };
   const imgs = k => document.querySelectorAll(`img[data-k="${k}"]`);
   function verRow(id, k) {
     const el = document.getElementById(id);
-    el.innerHTML = [['v43', 'V4.3 · dessiné'], ['v41', 'V4.1 · actuel']].map(([v, l]) => `<button data-v="${v}" class="${pick[k] === v ? 'on' : ''}">${l}</button>`).join('');
+    el.innerHTML = [['v44', 'V4.4 · nouveau'], ['v43', 'V4.3 · dessiné'], ['v41', 'V4.1 · actuel']].map(([v, l]) => `<button data-v="${v}" class="${pick[k] === v ? 'on' : ''}">${l}</button>`).join('');
     el.onclick = e => { const b = e.target.closest('button'); if (!b) return; pick[k] = b.dataset.v; verRow(id, k); show(k); };
   }
+  function tapRow() {
+    const el = document.getElementById('tap-ver');
+    el.innerHTML = [['v44', 'V4.4 · nouveau'], ['v43', 'V4.3 · dessiné']].map(([v, l]) => `<button data-v="${v}" class="${pick.tap === v ? 'on' : ''}">${l}</button>`).join('');
+    el.onclick = e => { const b = e.target.closest('button'); if (!b) return; pick.tap = b.dataset.v; tapRow(); showTap(); };
+  }
   function show(k) { const s = src(k); imgs(k).forEach(i => { i.src = s; }); }
-  function showTap() { const s = reduced() ? FILES.repos.v43[1] : `${FILES.repos.v43[0]}?${Date.now()}`; imgs('tap').forEach(i => { i.src = s; delete i.dataset.busy; }); }
-  // Préchargement : la caresse est prête avant le premier toucher.
-  new Image().src = FILES.caresse.v43[0];
+  function showTap() { const v = pick.tap; const s = reduced() ? FILES.repos[v][1] : `${FILES.repos[v][0]}?${Date.now()}`; imgs('tap').forEach(i => { i.src = s; delete i.dataset.busy; }); }
+  // Préchargement : les caresses sont prêtes avant le premier toucher.
+  for (const v of ['v44', 'v43']) new Image().src = FILES.caresse[v][0];
   document.querySelectorAll('[data-tap]').forEach(btn => btn.addEventListener('click', () => {
     const img = btn.querySelector('img'); if (img.dataset.busy) return;
     img.dataset.busy = '1';
-    img.src = reduced() ? FILES.caresse.v43[1] : `${FILES.caresse.v43[0]}?${Date.now()}`;
-    setTimeout(() => { img.src = reduced() ? FILES.repos.v43[1] : `${FILES.repos.v43[0]}?${Date.now()}`; delete img.dataset.busy; }, 2500);
+    const v = pick.tap;
+    img.src = reduced() ? FILES.caresse[v][1] : `${FILES.caresse[v][0]}?${Date.now()}`;
+    setTimeout(() => { img.src = reduced() ? FILES.repos[v][1] : `${FILES.repos[v][0]}?${Date.now()}`; delete img.dataset.busy; }, 2500);
   }));
   document.getElementById('replay').addEventListener('click', () => show('caresse'));
   document.getElementById('static').addEventListener('change', () => { show('repos'); show('caresse'); showTap(); });
-  verRow('repos-ver', 'repos'); verRow('car-ver', 'caresse');
+  verRow('repos-ver', 'repos'); verRow('car-ver', 'caresse'); tapRow();
   show('repos'); show('caresse'); showTap();
   let n = 0, t0 = performance.now();
   (function tick() { n++; const t = performance.now(); if (t - t0 >= 1000) { document.getElementById('fps').textContent = `${Math.round(n * 1000 / (t - t0))} i/s`; n = 0; t0 = t; } requestAnimationFrame(tick); })();
