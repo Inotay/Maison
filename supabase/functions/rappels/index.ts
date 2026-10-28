@@ -56,14 +56,15 @@ async function run(db: ReturnType<typeof admin>) {
   const now = new Date(), today = zurich(now);
   const [{ data: members }, { data: chores }, { data: tasks }, { data: subs }] = await Promise.all([
     db.from("members").select("email, name"),
-    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at"),
-    db.from("tasks").select("id, title, assignee, due_on, done, notified_at"),
+    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at, snooze_until"),
+    db.from("tasks").select("id, title, assignee, due_on, done, notified_at, snooze_until"),
     db.from("push_subscriptions").select("endpoint, email, sub"),
   ]);
   const emails = (members ?? []).map((m: { email: string }) => m.email);
   const items: Item[] = [];
   for (const c of chores ?? []) {
     if (c.notified_at && zurich(new Date(c.notified_at)) === today) continue;
+    if (c.snooze_until && c.snooze_until >= today) continue;   // repoussée en mode calme
     // Jamais faite : on compte depuis sa création n'est pas possible ici, on la considère due aujourd'hui (pas de rappel avant 2 jours de retard réel).
     const due = c.last_done_at ? new Date(new Date(c.last_done_at).getTime() + Number(c.every_days) * DAY) : null;
     const late = due ? daysBetween(zurich(due), today) : 0;
@@ -72,6 +73,7 @@ async function run(db: ReturnType<typeof admin>) {
   }
   for (const t of tasks ?? []) {
     if (t.done || !t.due_on) continue;
+    if (t.snooze_until && t.snooze_until >= today) continue;
     if (t.notified_at && zurich(new Date(t.notified_at)) === today) continue;
     const late = daysBetween(String(t.due_on), today);
     if (late >= 1) items.push({ kind: "task", id: t.id, title: t.title, who: t.assignee ?? null, late });
@@ -85,8 +87,10 @@ async function run(db: ReturnType<typeof admin>) {
     const mine = items.filter(i => !i.who || i.who === email);
     if (!mine.length) continue;
     const list = mine.sort((a, b) => b.late - a.late).slice(0, 4).map(i => `${i.title} (${i.late} j)`).join(", ");
-    const title = mine.length === 1 ? "Une chose attend" : `${mine.length} choses attendent`;
-    const payload = JSON.stringify({ title, body: list, tag: "maison-rappel", url: mine[0].kind === "task" ? "./?v=maison" : "./?v=menage" });
+    // Beaucoup de retard : un message qui rassure plutôt qu'une liste qui écrase.
+    const lots = mine.length >= 5;
+    const title = lots ? "On respire" : mine.length === 1 ? "Une chose attend" : `${mine.length} choses attendent`;
+    const payload = JSON.stringify({ title, body: lots ? "Beaucoup de choses attendent. Pas de panique : ouvre l'app, elle te dit par quoi commencer." : list, tag: "maison-rappel", url: lots ? "./?v=maison" : mine[0].kind === "task" ? "./?v=maison" : "./?v=menage" });
     for (const s of (subs ?? []).filter((s: { email: string }) => s.email === email)) {
       try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600 }); sent++; }
       catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", email, (e as Error).message); }
@@ -173,6 +177,32 @@ async function fresh(db: ReturnType<typeof admin>) {
   return { sent, items: due.length };
 }
 
+// Demande d'aide entre vous deux : notification à l'autre (nouvelle demande) ou à qui l'a demandée (réponse).
+async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
+  const { data: h } = await db.from("help_requests").select("*").eq("id", id).maybeSingle();
+  if (!h || (h.from_email !== me && h.to_email !== me)) return { error: "Demande introuvable." };
+  const { data: members } = await db.from("members").select("email, name");
+  const name = (e: string) => (members ?? []).find((m: { email: string }) => m.email === e)?.name || e.split("@")[0];
+  const ASK: Record<string, string> = { remplacer: "Tu peux le faire à ma place ?", ensemble: "On le fait ensemble ?", souffler: "J'ai besoin de souffler. Tu peux prendre le relais ?" };
+  const ANS: Record<string, string> = { pris: "s'en occupe", ensemble: "est d'accord pour le faire ensemble", non: "ne peut pas tout de suite" };
+  const to = h.status ? h.from_email : h.to_email;
+  const payload = h.status
+    ? JSON.stringify({ title: `${name(h.to_email)} ${ANS[h.status] || "a répondu"}`, body: h.label || "Ta demande d'aide", tag: `aide-${h.id}`, url: "./?v=maison" })
+    : JSON.stringify({ title: `${name(h.from_email)} demande un coup de main`, body: [h.label, ASK[h.ask] || ASK.remplacer].filter(Boolean).join(" · "), tag: `aide-${h.id}`, url: "./?v=maison" });
+  const { data: subs } = await db.from("push_subscriptions").select("endpoint, email, sub").eq("email", to);
+  if (!(subs ?? []).length) return { sent: 0 };
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  let sent = 0; const dead: string[] = [];
+  for (const s of subs ?? []) {
+    try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600, urgency: "high" }); sent++; }
+    catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  await db.from("help_requests").update({ notified_at: new Date().toISOString() }).eq("id", h.id);
+  return { sent };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin();
@@ -198,6 +228,13 @@ Deno.serve(async (req) => {
       return json({ ...(await run(db)), frais: await fresh(db) });
     }
     if (action === "minuteurs") return json(await minuteurs(db));
+    if (action === "aide") {
+      const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+      const me = (user?.email ?? "").toLowerCase();
+      const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+      if (!member) return json({ error: "Pas membre de la maison." }, 401);
+      return json(await aide(db, me, String(body.id ?? "")));
+    }
     return json({ error: "Action inconnue." }, 400);
   } catch (e) {
     console.error(e);

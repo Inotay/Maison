@@ -104,7 +104,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [], gear: {},
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [], gear: {}, help: [], calmSkip: [], helpSeen: new Set(),
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
@@ -544,17 +544,17 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))) });
   await ensureDechets();
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans, pantry: S.pantry }));
@@ -824,6 +824,149 @@ function choreStatus(c) {
   return { d, label: -d === 1 ? 'attend depuis hier' : `attend depuis ${pl(-d, 'jour', 'jours')}`, due: true, late: true };
 }
 
+
+// Mode calme ----------------------------------------------------------------------
+// Quand trop de choses sont en retard, l'app passe d'elle-même en « une chose à la fois » :
+// ce qui est vital d'abord, puis l'important, le reste peut attendre. On en sort quand plus rien
+// de vital ou d'important n'attend et qu'il reste au plus 2 choses en retard.
+const PRIO = { vital: 0, important: 1, normal: 2, later: 3 };
+const PRIO_LABEL = { vital: 'Vitale', important: 'Importante', normal: 'Normale', later: 'Peut attendre' };
+const VITAL_THEMES = { azami: ['litiere', 'croquettes', 'patee', 'gamelle', 'fontaine', 'veto', 'vaccinchat', 'antipuces', 'vermifuge'], sante: ['pharmacie', 'ordonnance', 'paracetamol', 'ibuprofene'], payer: ['facture', 'facture_qr', 'ebill', 'impots', 'lamal', 'serafe', 'fiduciaire', 'urgent'] };
+const IMPORTANT_THEMES = ['poubelle', 'dechets', 'vaisselle', 'lavevaisselle', 'lessive', 'courses', 'medecin', 'sante', 'rdv', 'orp', 'travail', 'admin', 'identite', 'passeport', 'gerance', 'banque', 'virement', 'courrier', 'recommande'];
+const themeChain = label => { const r = classify(label || '', S.hints); const out = []; let id = r && r.id !== 'hint' ? r.id : null; while (id && out.length < 4) { out.push(id); id = PARENT[id]; } return out; };
+// Priorité d'un élément : choisie à la main, sinon devinée (et la raison, pour rassurer).
+function prioOf(kind, row) {
+  const late = kind === 'task' ? row.due_on && row.due_on < isoDate(new Date()) : choreStatus(row).late;
+  if (row.priority) return { p: row.priority, why: row.priority === 'vital' ? 'vitale' : row.priority === 'important' ? (late ? 'date passée' : 'importante') : row.priority === 'later' ? 'peut attendre' : '' };
+  const chain = themeChain(row.title);
+  if (isAzami(row) && (chain.some(t => VITAL_THEMES.azami.includes(t)) || /liti[eè]re|croquette|p[aâ]t[eé]e|gamelle|eau|v[eé]to|m[eé]dic/i.test(row.title))) return { p: 'vital', why: 'pour Azami' };
+  if (chain.some(t => VITAL_THEMES.azami.includes(t))) return { p: 'vital', why: 'pour Azami' };
+  if (chain.some(t => VITAL_THEMES.sante.includes(t))) return { p: 'vital', why: 'santé' };
+  if (chain.some(t => VITAL_THEMES.payer.includes(t))) return { p: 'vital', why: 'à payer ou à rendre' };
+  if (kind === 'chore' && row.sorte && SORTES.some(x => x.id === row.sorte)) return descente(SORTES.find(x => x.id === row.sorte), row).possible ? { p: 'important', why: 'ça déborde vite' } : { p: 'later', why: 'pas le bon jour pour descendre' };
+  if (kind === 'task' && late) return { p: 'important', why: 'date passée' };
+  if (chain.some(t => IMPORTANT_THEMES.includes(t))) return { p: 'important', why: 'importante' };
+  return { p: 'normal', why: (row.weight || 2) === 1 ? 'rapide' : '' };
+}
+const snoozed = row => row.snooze_until && row.snooze_until >= isoDate(new Date());
+// Ce qui attend pour moi (ou pour nous deux), avec sa priorité et son retard en jours.
+function myPending() {
+  const today = isoDate(new Date()), out = [];
+  for (const c of S.chores) {
+    if (snoozed(c)) continue;
+    const q = seqOf(c);
+    if (q ? (q.personal ? c.turn !== S.me : false) : (c.turn && c.turn !== S.me)) continue;
+    if (q && c.started_at) continue;              // machine en route : rien à faire pour l'instant
+    const st = choreStatus(c); if (!st.due) continue;
+    const pr = prioOf('chore', c);
+    out.push({ kind: 'chore', row: c, late: st.late ? -st.d : 0, ...pr });
+  }
+  for (const t of S.tasks) {
+    if (t.done || snoozed(t) || (t.assignee && t.assignee !== S.me)) continue;
+    if (!t.due_on || t.due_on > today) { if (!t.priority || PRIO[t.priority] > 1) continue; }
+    const pr = prioOf('task', t);
+    out.push({ kind: 'task', row: t, late: t.due_on && t.due_on < today ? -dayDiff(new Date(t.due_on + 'T12:00'), new Date()) : 0, ...pr });
+  }
+  return out.sort((a, b) => PRIO[a.p] - PRIO[b.p] || (S.calmSkip.indexOf(a.row.id) - S.calmSkip.indexOf(b.row.id)) || b.late - a.late || (a.row.weight || 2) - (b.row.weight || 2));
+}
+// État de surcharge : on entre à 5 retards (ou 3 dont un de plus d'une semaine), on sort quand plus rien
+// de vital ou d'important n'est en retard et qu'il en reste au plus 2.
+function overload(list = myPending()) {
+  const late = list.filter(x => x.late > 0);
+  const urgent = late.filter(x => PRIO[x.p] <= 1);
+  const sum = late.reduce((a, x) => a + Math.min(x.late, 14), 0);
+  const enter = late.length >= 5 || (late.length >= 3 && late.some(x => x.late >= 7)) || sum >= 25;
+  const canExit = urgent.length === 0 && late.length <= 2;
+  return { late, urgent, enter, canExit };
+}
+const calmKey = () => `maison-calme-${S.me}`;
+function calmState() { try { return JSON.parse(safeGet(calmKey()) || 'null') || {}; } catch { return {}; } }
+function setCalm(st) { safeSet(calmKey(), JSON.stringify(st)); }
+// Entrée et sortie automatiques. « Revenir à la vue normale » coupe l'entrée automatique jusqu'au lendemain.
+function calmCheck() {
+  const st = calmState(), o = overload(), today = isoDate(new Date());
+  if (!st.on && o.enter && st.offDay !== today) { setCalm({ on: true, auto: true, since: Date.now(), start: o.late.length }); return 'enter'; }
+  // Sortie automatique. Entré à la main : seulement quand plus rien de vital ou d'important n'attend du tout.
+  const nothingUrgent = myPending().every(x => PRIO[x.p] > 1);
+  if (st.on && o.canExit && (st.auto || nothingUrgent)) { setCalm({ on: false, exitedAt: Date.now(), offDay: st.offDay }); return 'exit'; }
+  return null;
+}
+const PRIO_CHOICES = [['auto', 'Auto'], ['vital', 'Vitale'], ['important', 'Importante'], ['normal', 'Normale'], ['later', 'Peut attendre']];
+const PRIO_TAG = { vital: 'Vital', important: 'Important', normal: '', later: 'Peut attendre' };
+function calmBtn(x) {
+  const r = x.row;
+  if (x.kind === 'task') return `<button class="btn calm-do" data-action="task-toggle" data-id="${r.id}">C'est fait</button>`;
+  const q = seqOf(r);
+  if (q) return `<button class="btn calm-do" data-action="seq-step" data-id="${r.id}" data-i="0">${esc(q.steps[0].btn)}</button>`;
+  return `<button class="btn calm-do" id="done-${r.id}" data-action="chore-done" data-id="${r.id}">C'est fait</button>`;
+}
+const calmLate = x => x.late > 0 ? (x.late === 1 ? 'attend depuis hier' : `attend depuis ${x.late} jours`) : x.kind === 'task' && x.row.due_on ? relDay(x.row.due_on) : "aujourd'hui";
+const calmTitle = x => x.kind === 'chore' && /^vaisselle$/i.test(x.row.title.trim()) ? 'Vaisselle à la main' : x.row.title;
+function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
+function calmSection() {
+  const list = myPending(), o = overload(list), st = calmState();
+  const todo0 = list.filter(x => x.p !== 'later');
+  const todo = [...todo0.filter(x => !helpPending(x)), ...todo0.filter(x => helpPending(x))];   // ce qui est demandé à l'autre passe après
+  const first = todo[0], next = todo.slice(1, 3), rest = [...todo.slice(3), ...list.filter(x => x.p === 'later')];
+  const doneToday = S.wins.filter(w => w.done_by === S.me && isoDate(new Date(w.done_at)) === isoDate(new Date()) && w.kind !== 'shop').length;
+  const vitals = todo.filter(x => x.p === 'vital').length, imps = todo.filter(x => x.p === 'important').length;
+  const sub = !first ? 'Plus rien d’urgent. Tu peux souffler.'
+    : vitals ? 'Commence par ce qui compte vraiment. Le reste peut attendre, ce n’est pas grave.'
+    : imps ? 'Le vital est fait. Encore l’important, et tu pourras lever le pied.'
+    : 'Le plus important est fait. Tu peux t’arrêter là, ou continuer doucement.';
+  const o2 = other();
+  const row = (x, big) => {
+    const tag = PRIO_TAG[x.p], h = helpPending(x);
+    const why = [tag, x.why].filter(Boolean).join(' · ');
+    return `<div class="calm-item ${big ? 'big' : ''} p-${x.p}">${iconBtn(x.kind === 'task' ? 'tasks' : 'chores', x.row)}
+      <div class="item-main"><div class="item-title">${esc(calmTitle(x))}</div>
+      <div class="item-meta">${why ? `<span class="calm-tag">${esc(why)}</span> ` : ''}${esc(calmLate(x))}${h ? ` · <b>demandé à ${esc(nameOf(h.to_email))}</b>` : ''}</div></div>
+      ${big ? '' : calmBtn(x)}
+      ${big ? `<div class="calm-actions">${calmBtn(x)}${o2 ? `<button class="btn ghost" data-action="help-open" data-kind="${x.kind}" data-id="${x.row.id}">Demander à ${esc(nameOf(o2))}</button>` : ''}<button class="link" data-action="calm-skip" data-id="${x.row.id}">Pas maintenant</button></div>` : ''}</div>`;
+  };
+  const exitGoal = o.canExit ? '' : `<p class="calm-goal">Le mode calme s’arrête tout seul quand plus rien de vital ou d’important n’est en retard (encore ${o.urgent.length}) et qu’il reste 2 retards au plus (il y en a ${o.late.length}).${st.start ? ` <span class="calm-bar" style="--p:${Math.max(4, Math.min(100, Math.round((1 - o.late.length / Math.max(st.start, o.late.length)) * 100)))}%"></span>` : ''}</p>`;
+  return `<section class="calm" aria-label="Mode calme">
+    <div class="calm-head"><p class="calm-kicker">Mode calme</p>${doneToday ? `<p class="calm-done">Fait aujourd'hui : <b>${doneToday}</b></p>` : ''}</div>
+    <h2 class="calm-title">${first ? 'Une chose à la fois.' : 'On souffle.'}</h2>
+    <p class="calm-sub">${esc(sub)}</p>
+    ${first ? `<p class="chip-label">Commence par ça</p>${row(first, true)}` : ''}
+    ${next.length ? `<p class="chip-label">Ensuite</p>${next.map(x => row(x)).join('')}` : ''}
+    ${rest.length ? `<details class="calm-rest" data-fold="calm-rest"><summary>Le reste peut attendre (${rest.length})</summary>${rest.map(x => row(x)).join('')}
+      ${rest.some(x => x.p !== 'vital') ? `<button class="btn ghost small" data-action="calm-snooze">Repousser tout ça de 3 jours</button>` : ''}</details>` : ''}
+    ${exitGoal}
+    <div class="calm-foot">${o2 ? `<button class="btn ghost small" data-action="help-open" data-kind="" data-id="">J'ai besoin de souffler</button>` : ''}<button class="link" data-action="calm-off">Revenir à la vue normale</button></div>
+  </section>`;
+}
+// Demandes d'aide reçues (et réponses à mes demandes) : en haut de la page Maison.
+function helpCards() {
+  const ask = { remplacer: 'Tu peux le faire à ma place ?', ensemble: 'On le fait ensemble ?', souffler: 'J’ai besoin de souffler un peu. Tu peux prendre le relais ?' };
+  const inbox = S.help.filter(h => h.to_email === S.me && !h.status && Date.now() - new Date(h.created_at).getTime() < 3 * DAY);
+  const answers = S.help.filter(h => h.from_email === S.me && h.status && h.answered_at && Date.now() - new Date(h.answered_at).getTime() < 12 * 3600000 && !S.helpSeen.has(h.id));
+  const ANS = { pris: 's’en occupe', ensemble: 'est d’accord pour le faire ensemble', non: 'ne peut pas tout de suite' };
+  return inbox.map(h => `<section class="help-card"><p class="calm-kicker">${esc(nameOf(h.from_email))} demande un coup de main</p>
+      ${h.label ? `<p class="help-what">${esc(h.label)}</p>` : ''}<p class="help-ask">${esc(ask[h.ask] || ask.remplacer)}</p>
+      <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="${h.ask === 'ensemble' ? 'ensemble' : 'pris'}">${h.ask === 'ensemble' ? 'OK, ensemble' : h.ask === 'souffler' ? 'J’arrive' : 'Je m’en occupe'}</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Pas maintenant</button></div></section>`).join('')
+    + answers.map(h => `<section class="help-card answer ${h.status}"><p><b>${esc(nameOf(h.to_email))}</b> ${ANS[h.status]}${h.label ? ` : ${esc(h.label)}` : ''}.</p><button class="link" data-action="help-seen" data-id="${h.id}">OK</button></section>`).join('');
+}
+function openHelp(kind, id) {
+  const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
+  const o = other(); if (!o) return;
+  const label = row ? (/^vaisselle$/i.test(row.title.trim()) ? 'Vaisselle à la main' : row.title) : '';
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  const opts = row ? [['remplacer', 'Tu peux le faire à ma place ?'], ['ensemble', 'On le fait ensemble ?']] : [['souffler', 'J’ai besoin de souffler, tu peux prendre le relais ?']];
+  box.innerHTML = `<div class="ticket-card help-sheet" role="dialog" aria-label="Demander de l'aide"><p class="ticket-title">Demander à ${esc(nameOf(o))}</p>${label ? `<p class="ticket-sub">${esc(label)}</p>` : ''}
+    <div class="help-opts">${opts.map(([k, l]) => `<button class="btn ${k === opts[0][0] ? '' : 'ghost'}" data-action="help-send" data-kind="${kind || ''}" data-id="${id || ''}" data-ask="${k}">${esc(l)}</button>`).join('')}</div>
+    <p class="hint">${esc(nameOf(o))} reçoit une notification et peut répondre en un geste.</p>
+    <div class="form-actions"><button class="btn ghost small" data-action="ticket-skip">Annuler</button></div></div>`;
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
+}
+async function pingHelp(id) {
+  if (DEMO || !sb) return;
+  try { await sb.functions.invoke('rappels', { body: { action: 'aide', id } }); } catch (e) { console.warn('aide', e); }
+}
+
 // Rendu ----------------------------------------------------------------------
 
 const ICONS = {
@@ -1037,6 +1180,10 @@ function winsCard() {
 
 function viewMaison() {
   const [hello, scene] = greeting();
+  const cc = calmCheck();
+  if (cc === 'exit') { S.calmExit = true; setTimeout(() => celebrate({ title: 'Mode calme terminé', sub: 'Plus rien d’urgent. Respirez.', level: 'small', reaction: 'objectif_commun' }), 300); }
+  const calm = calmState().on;
+  const calmExit = !calm && S.calmExit;
   const date = new Date().toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const myChores = S.chores.filter(c => c.turn === S.me && choreStatus(c).due);
@@ -1061,9 +1208,12 @@ function viewMaison() {
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
+    ${helpCards()}
+    ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num ${String(num).length > 7 ? 'small' : ''}">${esc(num)}</span></button>`).join('')}</div>
-    ${winsCard()}
+    <p class="calm-link"><button class="link" data-action="calm-on">Trop de choses ? Une chose à la fois</button></p>
+    ${winsCard()}`}
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire${S.tasks.filter(t => !t.done).length ? ` · ${S.tasks.filter(t => !t.done).length}` : ''}</button>
       <button data-action="maison-tab" data-tab="agenda" aria-pressed="${S.maisonTab === 'agenda'}">Agenda</button>
@@ -1082,7 +1232,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v102</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v103</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1257,6 +1407,7 @@ function editTask(t) {
   return `<form class="form edit" data-form="edit-task" data-id="${t.id}">
     <label class="sr" for="et-title">Titre</label><input class="field" id="et-title" name="title" value="${esc(t.title)}" required>
     ${chipGroup('edit-who', who, cur, 'Pour qui')}
+    ${chipGroup('edit-prio', PRIO_CHOICES, t.priority || 'auto', 'Priorité')}
     <div class="row mt">
       <div class="grow"><label class="chip-label" for="et-due">Date</label><input class="field" id="et-due" name="due" type="date" value="${esc(t.due_on || '')}"></div>
       <div class="w-110"><label class="chip-label" for="et-time">Heure</label><input class="field" id="et-time" name="time" type="time" value="${esc(t.due_time ? String(t.due_time).slice(0, 5) : '')}"></div>
@@ -1276,6 +1427,7 @@ function editChore(c) {
     <label class="sr" for="ec-title">Nom</label><input class="field" id="ec-title" name="title" value="${esc(c.title)}" required>
     ${chipGroup('edit-freq', FREQS.map(([n, l]) => [String(n), l]), String(c.every_days), 'Fréquence')}
     ${chipGroup('edit-weight', WEIGHTS, String(c.weight || 2), 'Effort')}
+    ${chipGroup('edit-prio', PRIO_CHOICES, c.priority || 'auto', 'Priorité')}
     ${c.sorte ? '' : chipGroup('edit-who', [['tour', 'À tour de rôle'], ['any', 'Qui veut'], ...who.map(([e, l]) => [e, `Toujours ${l === 'Moi' ? 'moi' : l}`])], c.fixed ? (c.turn || 'any') : 'tour', 'Qui')}
     ${!c.sorte && chipVal('edit-who', c.fixed ? (c.turn || 'any') : 'tour') === 'tour' ? chipGroup('edit-turn', who, c.turn || S.me, 'À qui le tour') : ''}
     ${seqOf(c) ? seqOf(c).steps.filter(s => s.minutes).map(s => `<div class="row mt"><div class="grow"><label class="chip-label" for="ec-min-${s.key}">${esc(s.doing)} : durée en minutes</label><input class="field" id="ec-min-${s.key}" name="min_${s.key}" type="number" inputmode="numeric" min="1" max="600" value="${seqMinutes(c, s)}"></div></div>`).join('') : ''}
@@ -2033,6 +2185,43 @@ function viewCare() {
 
 const actions = {
 
+  'calm-on': () => { const o = overload(); setCalm({ on: true, auto: false, since: Date.now(), start: o.late.length }); S.calmExit = false; haptic(1); render(); window.scrollTo(0, 0); },
+  'calm-off': () => { setCalm({ on: false, offDay: isoDate(new Date()) }); haptic(1); render(); },
+  'calm-exit-seen': () => { S.calmExit = false; render(); },
+  'calm-skip': el => { S.calmSkip = [...S.calmSkip.filter(x => x !== el.dataset.id), el.dataset.id]; haptic(1); render(); },
+  'calm-snooze': () => {
+    const list = myPending().filter(x => x.p !== 'later' ? false : true);
+    const todo = myPending().filter(x => x.p !== 'later');
+    const rest = [...todo.slice(3), ...list].filter(x => x.p !== 'vital');
+    if (!rest.length) return;
+    const until = isoDate(new Date(Date.now() + 3 * DAY));
+    undoable(`${pl(rest.length, 'chose repoussée', 'choses repoussées')}`, rest.map(x => ({ t: x.kind === 'task' ? 'tasks' : 'chores', id: x.row.id, row: { snooze_until: x.row.snooze_until || null } })),
+      async () => { for (const x of rest) await api.update(x.kind === 'task' ? 'tasks' : 'chores', { id: x.row.id }, { snooze_until: until }); }, 'Repoussé de 3 jours. On s’en occupe plus tard.');
+  },
+  'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
+  'help-send': el => {
+    const kind = el.dataset.kind || null, id = el.dataset.id || null;
+    const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
+    const label = row ? (/^vaisselle$/i.test(row.title.trim()) ? 'Vaisselle à la main' : row.title) : null;
+    closeTicket(); haptic('medium');
+    run(async () => { const r = await api.insert('help_requests', { from_email: S.me, to_email: other(), item_kind: kind, item_id: id, label, ask: el.dataset.ask }); await pingHelp(r?.id); },
+      `Demandé à ${nameOf(other())}. Tu n’es pas seul·e.`);
+  },
+  'help-answer': el => {
+    const h = S.help.find(x => x.id === el.dataset.id); if (!h) return;
+    const status = el.dataset.s; haptic(status === 'non' ? 1 : 'medium');
+    run(async () => {
+      await api.update('help_requests', { id: h.id }, { status, answered_at: new Date().toISOString() });
+      // « Je m'en occupe » : la chose passe à moi.
+      if (status === 'pris' && h.item_id) {
+        if (h.item_kind === 'task') await api.update('tasks', { id: h.item_id }, { assignee: S.me });
+        if (h.item_kind === 'chore') { const c = S.chores.find(x => x.id === h.item_id); if (c && !seqOf(c)?.personal) await api.update('chores', { id: h.item_id }, { turn: S.me }); }
+      }
+      await pingHelp(h.id);
+    }, status === 'non' ? 'Réponse envoyée.' : status === 'ensemble' ? 'Vous le ferez ensemble.' : 'Merci, c’est noté pour toi.');
+  },
+  'help-seen': el => { S.helpSeen.add(el.dataset.id); render(); },
+
   gloss: el => openGloss(el.dataset.k),
   'gear-set': el => { const has = el.dataset.has === '1'; S.gear[el.dataset.id] = has; haptic(1); render(); api.upsert('kitchen_gear', { id: el.dataset.id, has, updated_by: S.me }).catch(e => console.warn('matériel', e)); },
 
@@ -2435,7 +2624,7 @@ const forms = {
     const title = f.title.value.trim(); if (!title) return toast('Le titre est vide');
     const w = chipVal('edit-who', 'nous');
     const old = S.tasks.find(t => t.id === f.dataset.id);
-    const patch = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, due_time: f.time.value || null };
+    const patch = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, due_time: f.time.value || null, priority: chipVal('edit-prio', old?.priority || 'auto') === 'auto' ? null : chipVal('edit-prio', old?.priority || 'auto') };
     if (old && old.title !== title && !S.hints[norm(title)]) patch.icon = iconFor(title, 'task', S.hints);
     S.edit = null;
     run(() => api.update('tasks', { id: f.dataset.id }, patch), 'Modifié');
@@ -2450,7 +2639,7 @@ const forms = {
     const title = f.title.value.trim(); if (!title) return toast('Le nom est vide');
     const c0 = S.chores.find(x => x.id === f.dataset.id) || {};
     const w = c0.sorte ? 'any' : chipVal('edit-who', c0.fixed ? (c0.turn || 'any') : 'tour');
-    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: c0.sorte ? (c0.turn || null) : w === 'tour' ? chipVal('edit-turn', c0.turn || S.me) : w === 'any' ? null : w, icon: c0.sorte ? c0.icon : iconFor(title, 'chore', S.hints) };
+    const patch = { title, every_days: Number(chipVal('edit-freq', '7')), weight: Number(chipVal('edit-weight', '2')), fixed: w !== 'tour', turn: c0.sorte ? (c0.turn || null) : w === 'tour' ? chipVal('edit-turn', c0.turn || S.me) : w === 'any' ? null : w, icon: c0.sorte ? c0.icon : iconFor(title, 'chore', S.hints), priority: chipVal('edit-prio', c0.priority || 'auto') === 'auto' ? null : chipVal('edit-prio', c0.priority || 'auto') };
     if (f.last.value) patch.last_done_at = new Date(f.last.value + 'T12:00').toISOString();
     let minutes = null;
     if (seqOf(c0)) { minutes = {}; for (const s of seqOf(c0).steps) if (s.minutes && f[`min_${s.key}`]?.value) minutes[s.key] = Number(f[`min_${s.key}`].value); patch.title = c0.title; }
