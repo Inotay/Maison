@@ -963,7 +963,7 @@ function openHelp(kind, id) {
   box.innerHTML = `<div class="ticket-card help-sheet" role="dialog" aria-label="Demander de l'aide"><p class="ticket-title">Demander à ${esc(nameOf(o))}</p>${label ? `<p class="ticket-sub">${esc(label)}</p>` : ''}
     <div class="help-opts">${opts.map(([k, l]) => `<button class="btn ${k === opts[0][0] ? '' : 'ghost'}" data-action="help-send" data-kind="${kind || ''}" data-id="${id || ''}" data-ask="${k}">${esc(l)}</button>`).join('')}</div>
     <p class="hint">${esc(nameOf(o))} reçoit une notification et peut répondre en un geste.</p>
-    <div class="form-actions"><button class="btn ghost small" data-action="ticket-skip">Annuler</button></div></div>`;
+    <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Annuler</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
 }
@@ -1166,7 +1166,7 @@ function openGuidePage(k = guideKey()) {
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card guide-card" role="dialog" aria-label="${esc(g.title)}"><p class="ticket-title">${esc(g.title)}</p>
     <dl class="guide-list">${g.items.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>
-    <div class="form-actions"><button class="btn ghost small" data-action="guide-tour">Revoir la visite</button><button class="btn" data-action="ticket-skip">Compris</button></div></div>`;
+    <div class="form-actions"><button class="btn ghost small" data-action="guide-tour">Revoir la visite</button><button class="btn" data-action="sheet-close">Compris</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   tipSave('page:' + k); render();
@@ -1359,7 +1359,7 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v108</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v109</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2056,7 +2056,7 @@ function openGloss(key) {
   const g = GLOSS.find(x => x[0] === key); if (!g) return;
   const old = document.getElementById('ticket'); if (old) old.remove();
   const box = document.createElement('div'); box.id = 'ticket';
-  box.innerHTML = `<div class="ticket-card gloss-card" role="dialog" aria-label="${esc(g[2])}"><p class="ticket-title">${esc(g[2])}</p><p class="gloss-txt">${esc(g[3])}</p><div class="form-actions"><button class="btn" data-action="ticket-skip">Compris</button></div></div>`;
+  box.innerHTML = `<div class="ticket-card gloss-card" role="dialog" aria-label="${esc(g[2])}"><p class="ticket-title">${esc(g[2])}</p><p class="gloss-txt">${esc(g[3])}</p><div class="form-actions"><button class="btn" data-action="sheet-close">Compris</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
 }
@@ -2183,7 +2183,7 @@ function openPanier(id) {
       <div class="persons"><button type="button" class="btn ghost small" data-p="-1" aria-label="Moins">−</button><span><b>${n}</b> ${n > 1 ? 'personnes' : 'personne'}</span><button type="button" class="btn ghost small" data-p="1" aria-label="Plus">+</button></div>
       <p class="ticket-sub">Coche ce que tu as déjà à la maison.</p>
       <ul class="list ring check">${r.ing.map((x, j) => { const dup = inList.has(norm(x.n)); const on = S.panier.have.has(j) || dup; return `<li><button type="button" class="tick" role="checkbox" aria-checked="${on}" data-j="${j}" aria-label="${esc(x.n)}"></button>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<span class="${on ? 'have' : ''}"><b>${esc(qty(x, n))}</b> ${esc(x.n)}${dup ? ' <em>déjà sur la liste</em>' : ''}</span></li>`; }).join('')}</ul>
-      <div class="form-actions"><button class="btn ghost" data-action="ticket-skip">Annuler</button><button class="btn" data-action="r-panier-ok">Ajouter ce qui manque</button></div></div>`;
+      <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-action="r-panier-ok">Ajouter ce qui manque</button></div></div>`;
     box.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { S.persons = Math.min(12, Math.max(1, n + Number(b.dataset.p))); safeSet('maison-persons', String(S.persons)); haptic(1); draw(); }));
     box.querySelectorAll('[data-j]').forEach(b => b.addEventListener('click', () => { const j = Number(b.dataset.j); S.panier.have.has(j) ? S.panier.have.delete(j) : S.panier.have.add(j); haptic(1); draw(); }));
   };
@@ -2609,6 +2609,7 @@ const actions = {
   // Fiche après les courses : combien, qui a payé → dépense partagée moitié-moitié, avec sa petite pluie de pièces.
   'ticket-pay': el => { S.ticket.payer = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-pay"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); },
   'ticket-perso-who': el => { S.ticket.persoWho = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-perso-who"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); const t = document.getElementById('ticket-perso-txt'); if (t) t.textContent = el.dataset.who === S.ticket.payer ? 'Ce montant est retiré du partage.' : `${nameOf(el.dataset.who)} devra ce montant en entier.`; },
+  'sheet-close': () => closeTicket(),   // fermer une fenêtre (lexique, guide, aide…) sans message
   'ticket-skip': () => { closeTicket(); toast('Pas noté. Tu peux l\'ajouter dans Argent.'); },
   'ticket-ok': el => {
     const f = document.getElementById('ticket-amount');
