@@ -5,6 +5,7 @@ import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLB
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
 import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
+import { SHELF, dueText } from './fraicheur.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -102,7 +103,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [],
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [],
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
@@ -542,20 +543,20 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status) });
   await ensureDechets();
   notifyNew();
-  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans }));
+  if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans, pantry: S.pantry }));
 }
 
 // Les quatre sortes de déchets existent toujours comme corvées (sans tour, liées au calendrier de ramassage).
@@ -611,7 +612,7 @@ function loadSnapshot() {
   try {
     const snap = JSON.parse(safeGet('maison-snapshot') || 'null');
     if (!snap || snap.me !== S.me) return false;
-    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, plans: snap.plans || [], wins: (snap.wins || []).filter(w => w.kind !== 'achat'), care: [], snapshotAt: snap.at });
+    Object.assign(S, { members: snap.members, tasks: snap.tasks, chores: snap.chores, choreLog: snap.choreLog, expenses: snap.expenses, shopping: snap.shopping, board: snap.board, plans: snap.plans || [], pantry: snap.pantry || [], wins: (snap.wins || []).filter(w => w.kind !== 'achat'), care: [], snapshotAt: snap.at });
     return true;
   } catch { return false; }
 }
@@ -996,7 +997,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v91</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v92</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1612,6 +1613,42 @@ function stepIngs(r, text) {
   return out.slice(0, 5);
 }
 
+// Frais ----------------------------------------------------------------------
+// À l'achat, chaque produit frais reçoit une date estimée ; deux jours avant, l'app prévient.
+const DAYMS = 86400000;
+function freshTheme(label, icon) {
+  const r = classify(shopLabel(label), S.hints);
+  const ids = [r?.id, icon?.startsWith('t:') ? icon.slice(2) : null].filter(Boolean);
+  for (const id of ids) { if (SHELF[id]) return id; if (SHELF[PARENT[id]]) return PARENT[id]; }
+  return null;
+}
+async function stockFresh(items) {
+  for (const s of items) {
+    const theme = freshTheme(s.label, s.icon); if (!theme) continue;
+    const row = { label: shopLabel(s.label).replace(/\s*\(.*\)$/, ''), icon: s.icon || `t:${theme}`, theme, expires_on: isoDate(new Date(Date.now() + SHELF[theme] * DAYMS)), created_by: S.me };
+    try { const r = await api.insert('pantry', row); S.pantry.push(r || row); } catch (e) { console.warn('frigo', e); }
+  }
+}
+const daysLeft = x => Math.round((new Date(x.expires_on + 'T12:00').getTime() - new Date(isoDate(new Date()) + 'T12:00').getTime()) / DAYMS);
+const soonItems = () => S.pantry.filter(x => !x.status && daysLeft(x) <= 2).sort((a, b) => daysLeft(a) - daysLeft(b));
+// Recettes qui utilisent le plus de ce qui va périmer.
+function rescueRecipes(items, n = 4) {
+  const themes = new Set(items.map(x => x.theme));
+  return RECETTES.map(r => { const hit = new Set(rArt(r).ings.filter(t => t && (themes.has(t) || themes.has(PARENT[t])))); return { r, n: hit.size }; })
+    .filter(x => x.n).sort((a, b) => b.n - a.n || a.r.min - b.r.min).slice(0, n).map(x => x.r);
+}
+function freshCard() {
+  const soon = soonItems(); const all = S.pantry.filter(x => !x.status).sort((a, b) => daysLeft(a) - daysLeft(b));
+  if (!all.length) return '';
+  const row = x => { const d = daysLeft(x); return `<li class="fresh-item ${d < 0 ? 'late' : d <= 1 ? 'urgent' : ''}">${tImg(x.theme, 'fresh-ic')}<div class="item-main"><div class="item-title">${esc(x.label)}</div><div class="item-meta">${esc(dueText(d))}</div></div>
+    <button class="btn small" data-action="fresh-set" data-id="${x.id}" data-s="mange" aria-label="${esc(x.label)} : mangé">Mangé</button><button class="more" data-action="fresh-set" data-id="${x.id}" data-s="jete" aria-label="${esc(x.label)} : jeté">✕</button></li>`; };
+  const ideas = soon.length ? rescueRecipes(soon) : [];
+  const later = all.filter(x => daysLeft(x) > 2);
+  return `${soon.length ? `<h2 class="first">À finir vite</h2><div class="fresh-card"><ul class="fresh-list">${soon.map(row).join('')}</ul>
+      ${ideas.length ? `<p class="chip-label fresh-ideas">Pour les finir</p><ul class="list rlist">${rList(ideas)}</ul>` : ''}</div>` : ''}
+    ${later.length ? `<details class="fold fresh-fold" data-fold="frigo"><summary>Au frigo (${later.length})</summary><ul class="fresh-list">${later.map(row).join('')}</ul></details>` : ''}`;
+}
+
 // Recettes --------------------------------------------------------------------
 const RID = id => RECETTES.find(r => r.id === id);
 const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') && 'végé'].filter(Boolean).join(' · ');
@@ -1626,6 +1663,7 @@ function viewRecettes() {
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
+    ${freshCard()}
     ${menuCard()}
     <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
     <div class="chips rchips">${types.map(([k, l]) => chip('rtype', k, l)).join('')}<span class="rsep" aria-hidden="true"></span>${Object.entries(CUISINES).map(([k, l]) => chip('rcuisine', k, l)).join('')}</div>
@@ -1829,6 +1867,13 @@ function viewCare() {
 
 const actions = {
 
+  'fresh-set': el => {
+    const x = S.pantry.find(p => p.id === el.dataset.id); if (!x) return;
+    x.status = el.dataset.s; S.pantry = S.pantry.filter(p => p !== x); haptic(1);
+    if (el.dataset.s === 'mange') { sfx('tick'); pop(el.closest('li')); }
+    run(() => api.update('pantry', { id: x.id }, { status: el.dataset.s }), el.dataset.s === 'mange' ? 'Bien joué' : null);
+  },
+
   'seq-adjust': el => { S.adjust = S.adjust === el.dataset.id ? null : el.dataset.id; haptic(1); render(); },
   'seq-shift': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
@@ -1877,6 +1922,7 @@ const actions = {
   'r-prev': () => { S.cook.step = Math.max(0, S.cook.step - 1); render(); },
   'r-done': () => { const r = RID(S.cook.id); const plan = S.plans.find(p => p.id === S.cook.plan) || S.plans.find(p => p.recipe === r.id); S.cook = null; S.recette = null;
     if (plan) { S.plans = S.plans.filter(p => p !== plan); api.remove('meal_plans', { id: plan.id }).catch(e => console.warn('menu', e)); }
+    { const used = new Set(rArt(r).ings.filter(Boolean)); for (const x of S.pantry.filter(p => !p.status && (used.has(p.theme) || [...used].some(t => PARENT[t] === p.theme)))) { x.status = 'mange'; api.update('pantry', { id: x.id }, { status: 'mange' }).catch(() => {}); } S.pantry = S.pantry.filter(p => !p.status); }
     render(); azamiJump(); win('cuisine', r.titre, 1, 'cuisine'); celebrate({ title: 'Bon appétit !', sub: r.titre, level: 'small', reaction: 'fete_reussites' }); },
   'r-panier': el => openPanier(el.dataset.id),
   'r-panier-ok': () => {
@@ -2048,6 +2094,7 @@ const actions = {
     const first = !todayHasWin();
     run(async () => {
       for (const s of cart) await win('achat', s.label, 0, [S.shopMode, s.icon].filter(Boolean).join('|'));
+      await stockFresh(cart);
       await api.remove('shopping', { checked: true });
       await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
     }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600);

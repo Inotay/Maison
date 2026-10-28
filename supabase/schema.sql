@@ -257,3 +257,24 @@ create table if not exists public.kitchen_timers (
 alter table public.kitchen_timers enable row level security;
 -- create policy kitchen_timers_own on public.kitchen_timers for all to authenticated
 --   using (public.is_member() and owner = public.me()) with check (public.is_member() and owner = public.me());
+
+-- Frais : produits frais achetés, avec date estimée ; l'app et les rappels préviennent deux jours avant.
+create table if not exists public.pantry (
+  id uuid primary key default gen_random_uuid(),
+  label text not null, icon text, theme text,
+  bought_at timestamptz not null default now(),
+  expires_on date not null,
+  status text,            -- null = au frigo ; 'mange' ; 'jete'
+  notified_at timestamptz,
+  created_by text not null default public.me(),
+  created_at timestamptz not null default now()
+);
+alter table public.pantry enable row level security;
+-- Menu : recettes prévues jusqu'à ce qu'on les cuisine ; shopping.pour note la recette d'un article.
+create table if not exists public.meal_plans (
+  id uuid primary key default gen_random_uuid(),
+  recipe text not null, title text not null, persons int not null default 2,
+  created_by text not null default public.me(), created_at timestamptz not null default now()
+);
+alter table public.meal_plans enable row level security;
+alter table public.shopping add column if not exists pour text;

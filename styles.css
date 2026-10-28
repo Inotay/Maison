@@ -849,3 +849,18 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .seq-adjust { flex-direction: column; align-items: stretch; }
 .seq-adjust .chips { justify-content: center; margin: 0; }
 .seq-adjust .hint { text-align: center; margin: 6px 0 0; }
+
+/* Frais : à finir vite */
+.fresh-card { background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); box-shadow: 0 3px 0 var(--shadow); padding: var(--s2) var(--s3) var(--s3); }
+.fresh-list { list-style: none; margin: 0; padding: 0; }
+.fresh-item { display: flex; align-items: center; gap: var(--s2); padding: 8px 0; border-bottom: 1px solid var(--line); }
+.fresh-item:last-child { border-bottom: 0; }
+.fresh-item .fresh-ic { width: 40px; height: 40px; flex: none; }
+.fresh-item .item-title { font-size: 16px; }
+.fresh-item.urgent .item-meta { color: var(--gold-text, var(--text)); font-weight: 800; }
+.fresh-item.late .item-meta { color: var(--rouge); font-weight: 800; }
+.fresh-item .btn.small { flex: none; }
+.fresh-ideas { margin: var(--s3) 0 var(--s2); }
+.fresh-card .rlist .rcard { box-shadow: none; }
+.fresh-fold { margin-top: var(--s2); }
+.fresh-fold .fresh-list { background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); padding: 0 var(--s3); margin-top: var(--s2); }

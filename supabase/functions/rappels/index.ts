@@ -2,7 +2,6 @@
 // Lancée par le planificateur deux fois par jour (action « run »), et appelée par l'app pour
 // obtenir la clé publique VAPID (action « vapid »). Les clés sont générées ici au premier appel
 // et gardées dans app_secrets, une table sans règle d'accès pour les comptes de l'app.
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -151,6 +150,29 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   return { sent, items: due.length + (kt ?? []).length };
 }
 
+// Frais : ce qui périme dans les deux jours (une seule notification par aliment, jamais le jour de l'achat).
+async function fresh(db: ReturnType<typeof admin>) {
+  const now = new Date(), today = zurich(now), limit = zurich(new Date(now.getTime() + 2 * DAY));
+  const { data: rows } = await db.from("pantry").select("id, label, expires_on, bought_at").is("status", null).is("notified_at", null).lte("expires_on", limit);
+  const due = (rows ?? []).filter((r: { bought_at: string }) => zurich(new Date(r.bought_at)) !== today)
+    .sort((a: { expires_on: string }, b: { expires_on: string }) => a.expires_on.localeCompare(b.expires_on));
+  if (!due.length) return { sent: 0, items: 0 };
+  const { data: subs } = await db.from("push_subscriptions").select("endpoint, email, sub");
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  const names = due.slice(0, 5).map((r: { label: string }) => r.label).join(", ") + (due.length > 5 ? "…" : "");
+  const title = due.length === 1 ? `${due[0].label} : à finir bientôt` : `${due.length} aliments à finir bientôt`;
+  const payload = JSON.stringify({ title, body: `${names}. Des idées de recettes pour les finir dans l'app.`, tag: "maison-frais", url: "./?v=recettes" });
+  let sent = 0; const dead: string[] = [];
+  for (const s of subs ?? []) {
+    try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600 }); sent++; }
+    catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  await db.from("pantry").update({ notified_at: now.toISOString() }).in("id", due.map((r: { id: string }) => r.id));
+  return { sent, items: due.length };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin();
@@ -166,7 +188,7 @@ Deno.serve(async (req) => {
       if (!member) return json({ error: "Pas membre de la maison." }, 401);
       return json({ publicKey: (await vapid(db)).publicKey });
     }
-    if (action === "run") return json(await run(db));
+    if (action === "run") return json({ ...(await run(db)), frais: await fresh(db) });
     if (action === "minuteurs") return json(await minuteurs(db));
     return json({ error: "Action inconnue." }, 400);
   } catch (e) {
