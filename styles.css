@@ -820,13 +820,17 @@ h2 .muted { color: var(--muted); font-weight: 800; text-transform: none; letter-
 .rart .rmini:nth-child(3) { left: 0; }
 .menu .rart { width: 52px; height: 50px; }
 .menu .rart .rhero { width: 42px; height: 42px; }
-.rplate { position: relative; height: 150px; margin: 0 0 var(--s3); }
-.rplate::before { content: ""; position: absolute; left: 50%; top: 50%; width: 150px; height: 150px; transform: translate(-50%, -50%); border-radius: 50%; background: var(--surface); border: 2px solid var(--line); box-shadow: 0 3px 0 var(--shadow); }
-.rplate .rp-hero { position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; transform: translate(-50%, -50%); }
-.rplate .rp-ing { position: absolute; width: 58px; height: 58px; top: 50%; }
-.rplate .rp0 { left: calc(50% - 128px); transform: translateY(-70%) rotate(-8deg); }
-.rplate .rp1 { left: calc(50% + 70px); transform: translateY(-70%) rotate(8deg); }
-.rplate .rp2 { left: calc(50% + 62px); transform: translateY(12%) rotate(-6deg); width: 50px; height: 50px; }
+.rplate { position: relative; width: 168px; height: 168px; margin: 0 auto var(--s3); border-radius: 50%; background: var(--surface); border: 2px solid var(--line); box-shadow: 0 3px 0 var(--shadow); overflow: hidden; }
+.rplate .rp-hero { position: absolute; left: 50%; top: 14px; width: 96px; height: 96px; transform: translateX(-50%); }
+.rplate .rp-ing { position: absolute; top: 104px; width: 44px; height: 44px; }
+.rplate .rp0 { left: 22px; transform: rotate(-8deg); }
+.rplate .rp1 { left: 61px; top: 112px; }
+.rplate .rp2 { left: 100px; transform: rotate(8deg); }
+.rplate:has(.rp-ing:nth-of-type(1)):not(:has(.rp1)) .rp0 { left: 61px; }
+.rplate:has(.rp1):not(:has(.rp2)) .rp0 { left: 38px; }
+.rplate:has(.rp1):not(:has(.rp2)) .rp1 { left: 84px; top: 106px; }
+.rplate:not(:has(.rp-ing)) .rp-hero { top: 50%; transform: translate(-50%, -50%); width: 112px; height: 112px; }
+.rcta { grid-template-columns: 1fr; }
 .ring .ring-ic { flex: none; width: 30px; height: 30px; margin: -4px -4px -4px -6px; }
 .ring b { min-width: 64px; }
 .rstep-ings { display: flex; justify-content: center; gap: 4px; margin: -6px 0 var(--s2); }

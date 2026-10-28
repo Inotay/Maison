@@ -1,5 +1,5 @@
 // Maison : service worker. L'app s'ouvre sans réseau (lecture) et reçoit des notifications.
-const VERSION = 'maison-v89';
+const VERSION = 'maison-v90';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './themes.js', './fx.js', './people.js', './dechets.js', './recettes.js', './config.js', './manifest.webmanifest', './vendor/supabase-js-2.49.4.js',
   './azami/v41/azami_v41_etirement_anime.svg', './azami/v41/azami_v41_jeu_anime.svg', './azami/v41/azami_v41_toilette_anime.svg', './azami/v41/azami_v41_marche_anime.svg', './azami/v41/azami_v41_miaulement_anime.svg', './azami/v41/azami_v41_repos_anime.svg', './azami/azami_menage_anime.svg', './azami/azami_courses_anime.svg', './azami/azami_argent_anime.svg', './azami/azami_care_anime.svg', './azami/azami_reussite_anime.svg', './azami/reactions/tache_cochee_anime.svg', './azami/reactions/corvee_terminee_anime.svg', './azami/reactions/courses_completees_anime.svg', './azami/reactions/comptes_equilibres_anime.svg', './azami/reactions/mot_envoye_anime.svg', './azami/reactions/objectif_commun_anime.svg', './azami/reactions/surprise_coucou_anime.svg', './azami/reactions/fete_reussites_anime.svg',
   './icons/icon-192.png', './icons/icon-512.png',
