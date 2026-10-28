@@ -7,6 +7,7 @@ import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dec
 import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
 import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
+import { TOUR, PAGE as GUIDE } from './guide.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -105,7 +106,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [], gear: {}, help: [], calmSkip: [], helpSeen: new Set(),
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [], gear: {}, help: [], tips: null, calmSkip: [], helpSeen: new Set(),
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
@@ -547,17 +548,17 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help, tipRows] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }) });
   await ensureDechets();
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans, pantry: S.pantry }));
@@ -1130,6 +1131,53 @@ document.addEventListener('pointercancel', () => { clearTimeout(pressT); pressT 
 document.addEventListener('touchmove', e => { if (drag) e.preventDefault(); }, { passive: false });
 document.addEventListener('contextmenu', e => { if (drag || (pressT && sortItem(e.target))) e.preventDefault(); });
 
+// Guide ------------------------------------------------------------------------
+// Tour d'accueil la première fois (gardé par compte, donc pas répété sur un autre téléphone),
+// et le petit « ? » de chaque page qui réexplique tout ce qu'on peut y faire.
+const tipSeen = k => !S.tips || S.tips.all || S.tips[k];
+function tipSave(k, v = true) {
+  if (!S.tips) return;
+  S.tips = { ...S.tips, [k]: v };
+  api.upsert('user_tips', { email: S.me, seen: S.tips, updated_at: new Date().toISOString() }).catch(e => console.warn('guide', e));
+}
+const guideKey = () => S.view === 'recettes' ? (S.cook ? 'cook' : S.recette ? 'fiche' : 'recettes') : S.view;
+const guideBtn = () => GUIDE[guideKey()] ? `<button type="button" class="guide-q" data-action="guide-page" aria-label="Comment ça marche ici ?">?</button>` : '';
+function openTour(i = 0) {
+  const st = TOUR[i]; if (!st) return;
+  let box = document.getElementById('tour');
+  if (!box) { box = document.createElement('div'); box.id = 'tour'; document.body.appendChild(box); box.addEventListener('click', e => { const b = e.target.closest('[data-tour]'); if (!b) return; const a = b.dataset.tour; if (a === 'next') openTour(i2(box) + 1); else if (a === 'prev') openTour(i2(box) - 1); else if (a === 'notif') { actions.notif?.(); closeTour(); } else closeTour(); }); }
+  box.dataset.i = i;
+  const last = i === TOUR.length - 1;
+  box.innerHTML = `<div class="tour-card" role="dialog" aria-modal="true" aria-label="${esc(st.title)}">
+    <img class="tour-azami" src="${azamiSrc(st.scene)}" alt="" width="150" height="150">
+    <p class="tour-step">${i + 1} / ${TOUR.length}</p>
+    <h2 class="tour-title">${esc(st.title)}</h2>
+    <ul class="tour-points">${st.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+    ${st.notif && !DEMO && !notifOn() ? `<button class="btn ghost" data-tour="notif">Activer les notifications</button>` : ''}
+    <div class="tour-actions">${i ? '<button class="btn ghost" data-tour="prev">Retour</button>' : '<button class="link" data-tour="skip">Passer le guide</button>'}<button class="btn" data-tour="${last ? 'end' : 'next'}">${last ? 'C’est parti' : 'Suivant'}</button></div>
+    <div class="tour-dots" aria-hidden="true">${TOUR.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div></div>`;
+  requestAnimationFrame(() => box.classList.add('on')); haptic(1);
+}
+const i2 = box => Number(box.dataset.i) || 0;
+function closeTour() { const b = document.getElementById('tour'); if (!b) return; b.classList.remove('on'); setTimeout(() => b.remove(), 250); tipSave('tour'); }
+function openGuidePage(k = guideKey()) {
+  const g = GUIDE[k]; if (!g) return;
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = `<div class="ticket-card guide-card" role="dialog" aria-label="${esc(g.title)}"><p class="ticket-title">${esc(g.title)}</p>
+    <dl class="guide-list">${g.items.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>
+    <div class="form-actions"><button class="btn ghost small" data-action="guide-tour">Revoir la visite</button><button class="btn" data-action="ticket-skip">Compris</button></div></div>`;
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
+  tipSave('page:' + k); render();
+}
+// Première visite d'une page : une bulle discrète propose l'explication (une seule fois).
+function guideHint() {
+  const k = guideKey();
+  if (!GUIDE[k] || tipSeen('page:' + k) || !tipSeen('tour')) return '';
+  return `<div class="guide-hint"><span>Première fois ici ? Le <b>?</b> t’explique tout ce qu’on peut faire sur cette page.</span><button class="btn small" data-action="guide-page">Voir</button><button class="link" data-action="guide-hint-off" aria-label="Fermer">Non merci</button></div>`;
+}
+
 const FOLD_ON = new WeakSet();
 function render() {
   if (drag) return;   // pas pendant un déplacement au doigt
@@ -1152,10 +1200,12 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  morph($app, demoBar() + (views[S.view] || viewMaison)() + timersBar() + nav());
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${guideHint()}`);
+  morph($app, demoBar() + page + timersBar() + nav());
   placeAzami();
   maybeCoucou();
   afvCheck();
+  if (!tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
@@ -1308,7 +1358,8 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v107</span></div>`;
+    <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v108</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2261,6 +2312,11 @@ function viewCare() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
+
+  'guide-page': () => openGuidePage(),
+  'guide-tour': () => { closeTicket(); openTour(0); },
+  'guide-hint-off': () => { tipSave('page:' + guideKey()); render(); },
+  'guide-reset': () => { S.tips = {}; tipSave('tour', false); openTour(0); },
 
   'calm-on': () => { const o = overload(); setCalm({ on: true, auto: false, since: Date.now(), start: o.late.length }); S.calmExit = false; haptic(1); render(); window.scrollTo(0, 0); },
   'calm-off': () => { setCalm({ on: false, offDay: isoDate(new Date()) }); haptic(1); render(); },
