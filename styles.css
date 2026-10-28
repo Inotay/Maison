@@ -876,3 +876,23 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .vege-toggle .vt-dot::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-2); box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
 .vege-toggle[aria-pressed="true"] .vt-dot { background: #58C06A; }
 .vege-toggle[aria-pressed="true"] .vt-dot::after { transform: translateX(16px); }
+
+/* Étapes : quantités, lexique, ingrédients de l'étape */
+.sq { color: var(--num); font-weight: 900; white-space: nowrap; }
+.gl { border: 0; padding: 0; margin: 0; background: none; font: inherit; color: inherit; text-decoration: underline dotted 2px; text-underline-offset: 4px; text-decoration-color: var(--accent-edge, #C8951E); cursor: help; }
+.step-need { list-style: none; margin: 0 0 var(--s3); padding: var(--s2) var(--s3); background: var(--surface-2); border-radius: var(--r-in); display: grid; gap: 4px; text-align: left; font-size: 15px; }
+.step-need li { display: flex; align-items: center; gap: 8px; }
+.step-need .sn-ic { width: 28px; height: 28px; flex: none; }
+.step-need b { min-width: 56px; color: var(--num); }
+.gloss-card { text-align: left; }
+.gloss-card .ticket-title { text-align: left; }
+.gloss-txt { font-size: 17px; line-height: 1.5; margin: var(--s2) 0 0; }
+.unit-hint { margin: -6px 0 var(--s2); font-size: 13px; }
+/* Matériel */
+.gear-box { margin: 0 0 var(--s3); padding: var(--s2) var(--s3); background: var(--surface); border: 2px solid var(--line); border-radius: var(--r-in); }
+.gear-box .chip-label { margin: 2px 0 6px; }
+.gear-row { display: flex; align-items: center; gap: var(--s2); padding: 6px 0; flex-wrap: wrap; }
+.gear-row .gear-name { flex: 1 1 140px; font-weight: 800; }
+.gear-row.no .gear-name { color: var(--rouge); }
+.gear-row.ok .gear-name { color: var(--muted); }
+.gear-st { font-size: 13px; color: var(--muted); font-weight: 800; }

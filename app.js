@@ -6,6 +6,7 @@ import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor,
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
 import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
 import { SHELF, dueText } from './fraicheur.js';
+import { GLOSS, GEAR } from './cuisine.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -103,7 +104,7 @@ const S = {
   ready: false,
   me: null,            // e-mail de la personne connectée
   members: [],
-  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [],
+  tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], wins: [], plans: [], pantry: [], gear: {},
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
@@ -353,7 +354,7 @@ function demoApi() {
     },
     async update(t, m, patch) { (db[t] || []).forEach(r => { if (matches(r, m)) Object.assign(r, patch); }); save(); },
     async upsert(t, row) {
-      const key = t === 'icon_hints' ? 'word' : t === 'push_subscriptions' ? 'endpoint' : 'email';
+      const key = t === 'icon_hints' ? 'word' : t === 'push_subscriptions' ? 'endpoint' : t === 'kitchen_gear' ? 'id' : 'email';
       const r = key === 'email' ? { ...row, email: row.email || S.me } : { ...row };
       db[t] = (db[t] || []).filter(x => x[key] !== r[key]); db[t].push(r); save();
     },
@@ -543,17 +544,17 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])) });
   await ensureDechets();
   notifyNew();
   if (!DEMO) safeSet('maison-snapshot', JSON.stringify({ me: S.me, at: Date.now(), members, tasks, chores: S.chores, choreLog, expenses, shopping, board, wins, plans, pantry: S.pantry }));
@@ -997,7 +998,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v94</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v95</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1652,6 +1653,48 @@ function freshCard() {
     ${later.length ? `<details class="fold fresh-fold" data-fold="frigo"><summary>Au frigo (${later.length})</summary><ul class="fresh-list">${later.map(row).join('')}</ul></details>` : ''}`;
 }
 
+// Étapes : marqueurs {i:N} (quantité + ingrédient) et {q:N} (quantité seule), adaptés au nombre de personnes ;
+// mots techniques touchables (lexique). Le texte brut sert aux minuteurs.
+const stepPlain = (r, text, n = S.persons || 2) => String(text).replace(/\{([iq]):(\d+)\}/g, (_, k, j) => { const x = r.ing[Number(j)]; if (!x) return ''; return k === 'i' ? `${qty(x, n)} ${x.n}` : qty(x, n); });
+function stepHtml(r, text, n = S.persons || 2) {
+  const parts = String(text).split(/(\{[iq]:\d+\})/);
+  const seen = new Set(); let count = 0;
+  const gloss = seg => {
+    let html = esc(seg);
+    for (const [key, re, , ] of GLOSS) {
+      if (seen.has(key) || count >= 4) continue;
+      const m = seg.match(re); if (!m) continue;
+      const e = esc(m[0]); const idx = html.indexOf(e); if (idx < 0) continue;
+      html = html.slice(0, idx) + `<button type="button" class="gl" data-action="gloss" data-k="${key}">${e}</button>` + html.slice(idx + e.length);
+      seen.add(key); count++;
+    }
+    return html;
+  };
+  return parts.map(p => { const m = p.match(/^\{([iq]):(\d+)\}$/); if (!m) return gloss(p); const x = r.ing[Number(m[2])]; if (!x) return '';
+    return m[1] === 'i' ? `<b class="sq">${esc(qty(x, n))}</b> ${esc(x.n)}` : `<b class="sq">${esc(qty(x, n))}</b>`; }).join('');
+}
+// Ingrédients d'une étape : ceux des marqueurs, sinon ceux dont le nom apparaît.
+function stepIngList(r, text) {
+  const idx = [...String(text).matchAll(/\{[iq]:(\d+)\}/g)].map(m => Number(m[1])).filter(j => r.ing[j]);
+  return [...new Set(idx)];
+}
+// Matériel particulier nécessaire pour une recette (et pas encore confirmé comme présent à la maison).
+const gearCache = {};
+function gearOf(r) {
+  const k = r.id; if (gearCache[k]) return gearCache[k];
+  const text = [r.titre, ...r.ing.map(x => x.n), ...r.etapes.map(e => stepPlain(r, e))].join(' \n ');
+  return (gearCache[k] = GEAR.filter(([, , re]) => re.test(text)).map(([id, nom]) => ({ id, nom })));
+}
+const gearMissing = r => gearOf(r).filter(g => S.gear[g.id] !== true);
+function openGloss(key) {
+  const g = GLOSS.find(x => x[0] === key); if (!g) return;
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = `<div class="ticket-card gloss-card" role="dialog" aria-label="${esc(g[2])}"><p class="ticket-title">${esc(g[2])}</p><p class="gloss-txt">${esc(g[3])}</p><div class="form-actions"><button class="btn" data-action="ticket-skip">Compris</button></div></div>`;
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
+}
+
 // Recettes --------------------------------------------------------------------
 const RID0 = id => RECETTES.find(r => r.id === id);
 // Version végé : on remplace viande et poisson par un équivalent (le réglage est gardé sur ce téléphone).
@@ -1682,7 +1725,7 @@ function vegeOf(r) {
 const VEGE_ON = () => safeGet('maison-vege') === '1';
 const RID = id => { const base = String(id).replace(/~v$/, ''); const r = RID0(base); return (VEGE_ON() || String(id).endsWith('~v')) && vegeOf(r) ? vegeOf(r) : r; };
 const rDur = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`;
-const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') ? 'végé' : vegeOf(r) && 'végé possible'].filter(Boolean).join(' · ');
+const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') ? 'végé' : vegeOf(r) && 'végé possible', ...gearMissing(r).map(g => `⚠ ${g.nom.split(' (')[0].toLowerCase()}`)].filter(Boolean).join(' · ');
 function viewRecettes() {
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
@@ -1738,19 +1781,20 @@ function viewRecette(r) {
   return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>
     ${rPlate(r)}
     <p class="rdesc">${esc(r.desc)}</p>
+    ${gearOf(r).length ? `<div class="gear-box"><p class="chip-label">Matériel particulier</p>${gearOf(r).map(g => `<div class="gear-row ${S.gear[g.id] === true ? 'ok' : S.gear[g.id] === false ? 'no' : ''}"><span class="gear-name">${S.gear[g.id] === true ? '✓' : '⚠'} ${esc(g.nom)}</span>${S.gear[g.id] === true ? '<span class="gear-st">On l’a</span>' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="1">On l’a</button>${S.gear[g.id] === false ? '' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="0">Pas chez nous</button>`}`}</div>`).join('')}</div>` : ''}
     ${r.base || vegeOf(r) ? `<button type="button" class="vege-toggle" data-action="r-vege" aria-pressed="${!!r.base}"><span class="vt-dot"></span>Version végé${r.base ? ' : viande et poisson remplacés' : ''}</button>` : ''}
     <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
-    <h2>Ingrédients <span class="muted">pour ${n}</span></h2>
+    <h2>Ingrédients <span class="muted">pour ${n}</span></h2><p class="hint unit-hint">c. à s. = grande cuillère (à soupe) · c. à c. = petite cuillère (à café)</p>
     <ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, n))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul>
     <h2>Recette</h2>
-    <ol class="rsteps">${r.etapes.map(e => `<li>${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>`;
+    <ol class="rsteps">${r.etapes.map(e => `<li>${stepHtml(r, e)}${timerBtns(stepPlain(r, e), r.titre)}</li>`).join('')}</ol>`;
 }
 function viewCuisiner() {
   const r = RID(S.cook.id), k = S.cook.step, last = k >= r.etapes.length - 1;
   const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_toilette', 'Azami en cuisine')}</button></header>`;
-  if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${esc(e)}${timerBtns(e, r.titre)}</li>`).join('')}</ol>
+  if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${stepHtml(r, e)}${timerBtns(stepPlain(r, e), r.titre)}</li>`).join('')}</ol>
     <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
-  return head + `<div class="rstep">${(() => { const ic = stepIngs(r, r.etapes[k]); return ic.length ? `<div class="rstep-ings" aria-hidden="true">${ic.map(i => tImg(i, 'rs-ic')).join('')}</div>` : ''; })()}<div class="rstep-n">${k + 1}</div><p class="rstep-txt">${esc(r.etapes[k])}</p>${timerBtns(r.etapes[k], r.titre)}
+  return head + `<div class="rstep">${(() => { const ic = stepIngs(r, stepPlain(r, r.etapes[k])); return ic.length ? `<div class="rstep-ings" aria-hidden="true">${ic.map(i => tImg(i, 'rs-ic')).join('')}</div>` : ''; })()}<div class="rstep-n">${k + 1}</div><p class="rstep-txt">${stepHtml(r, r.etapes[k])}</p>${(() => { const li = stepIngList(r, r.etapes[k]); return li.length ? `<ul class="step-need">${li.map(j => `<li>${tImg(rArt(r).ings[j], 'sn-ic')}<b>${esc(qty(r.ing[j], S.persons || 2))}</b> ${esc(r.ing[j].n)}</li>`).join('')}</ul>` : ''; })()}${timerBtns(stepPlain(r, r.etapes[k]), r.titre)}
       <div class="dots-inline" aria-hidden="true">${r.etapes.map((_, j) => `<span class="dot ${j < k ? 'dot-ok' : j === k ? 'now' : 'off'}"></span>`).join('')}</div></div>
     <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C\'est prêt !' : 'Suivant'}</button></div>
     <div class="form-actions"><button class="link" data-action="r-cook-full">Lire la recette en entier</button></div>
@@ -1898,6 +1942,9 @@ function viewCare() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
+
+  gloss: el => openGloss(el.dataset.k),
+  'gear-set': el => { const has = el.dataset.has === '1'; S.gear[el.dataset.id] = has; haptic(1); render(); api.upsert('kitchen_gear', { id: el.dataset.id, has, updated_by: S.me }).catch(e => console.warn('matériel', e)); },
 
   'r-vege': () => { safeSet('maison-vege', VEGE_ON() ? '0' : '1'); haptic(1); render(); },
 
