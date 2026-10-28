@@ -985,7 +985,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v75</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v76</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1406,6 +1406,7 @@ const SHOP_OF_THEME = {
   pharmacie: 'pharma', premierssoins: 'pharma', malade: 'pharma', beaute: 'pharma', rasage: 'pharma', dents: 'pharma', regles: 'pharma', intime: 'pharma',
   // ce qu'on trouve à plusieurs endroits
   menage: 'super,maison', plumeau: 'super,maison', aspirateur: 'super,maison', poubelle: 'super,maison', lessive: 'super,maison', vaisselle: 'super,maison', papiertoilette: 'super,maison', hygiene: 'super,pharma', cuisine: 'super,maison', machinecafe: 'super,maison', frigo: 'super,maison',
+  bouilloire: 'maison,tech', grille_pain: 'maison,tech', cuiseur_riz: 'maison,tech,asie', mixeur: 'maison,tech', micro_ondes: 'maison,tech', plaque_teppan: 'maison,tech', poele: 'maison,super',
   cables: 'tech', piles: 'tech,super', telephone: 'tech', ordinateur: 'tech', audio: 'tech', tv: 'tech', photo: 'tech', jeux: 'tech', electricite: 'tech,maison', internet_sites: 'tech', telecom: 'tech',
   cadeau: 'autre', anniversaire: 'autre', noel: 'autre', amis: 'autre', famille: 'autre', fete: 'autre', mariage: 'autre',
   litiere: 'azami,super', croquettes: 'azami,super', patee: 'azami,super', friandises: 'azami,super',
