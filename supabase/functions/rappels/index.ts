@@ -228,6 +228,24 @@ Deno.serve(async (req) => {
       return json({ ...(await run(db)), frais: await fresh(db) });
     }
     if (action === "minuteurs") return json(await minuteurs(db));
+    if (action === "test") {
+      // Notification d'essai, envoyée seulement aux appareils de la personne qui la demande.
+      const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+      const me = (user?.email ?? "").toLowerCase();
+      const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+      if (!member) return json({ error: "Pas membre de la maison." }, 401);
+      const { data: subs } = await db.from("push_subscriptions").select("endpoint, sub").eq("email", me);
+      if (!(subs ?? []).length) return json({ sent: 0, devices: 0 });
+      const keys = await vapid(db);
+      webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+      let sent = 0; const dead: string[] = [];
+      for (const s of subs ?? []) {
+        try { await webpush.sendNotification(s.sub, JSON.stringify({ title: "Maison", body: "Les notifications marchent sur ce téléphone.", tag: "maison-test", url: "./" }), { TTL: 600, urgency: "high" }); sent++; }
+        catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+      }
+      if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+      return json({ sent, devices: (subs ?? []).length, dead: dead.length });
+    }
     if (action === "aide") {
       const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
       const me = (user?.email ?? "").toLowerCase();

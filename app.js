@@ -1394,10 +1394,10 @@ function viewMaison() {
     <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
-    ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
+    ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Activées</span><button class="btn ghost small" data-action="notif-test">Tester</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v113</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v114</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2557,6 +2557,15 @@ const actions = {
 
   retry: () => refresh(),
   notif: () => enableNotifications(),
+  'notif-test': async () => {
+    haptic(1); toast('Envoi d’une notification d’essai…');
+    await subscribePush();
+    const { data, error } = await sb.functions.invoke('rappels', { body: { action: 'test' } });
+    if (error) { toast('Le serveur de notifications ne répond pas. Réessaie dans un instant.'); console.warn(error); return; }
+    if (!data?.devices) toast('Ce téléphone n’est pas encore inscrit. Sur iPhone, ouvre Maison depuis l’écran d’accueil (pas Safari), puis réactive les notifications.');
+    else if (!data.sent) toast('L’inscription de ce téléphone a expiré. Réactive les notifications.');
+    else toast('Envoyée ! Elle arrive dans quelques secondes (verrouille le téléphone pour bien la voir).');
+  },
   'cancel-recovery': () => { S.recovery = false; try { sessionStorage.removeItem('maison-recovery'); } catch {} S.login.step = 'login'; refresh(); },
   'change-pass': () => { S.recovery = true; S.login.step = 'newpass'; render(); window.scrollTo(0, 0); },
   'task-toggle': el => {
