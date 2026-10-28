@@ -87,10 +87,11 @@ function placeAzami() {
     slot.replaceWith(img);
   });
 }
+// Toutes les scènes d'Azami sont chargées et décodées dès l'ouverture : changer de page ne les recharge plus.
 function preloadAzami() {
-  const now = greeting(new Date().getHours()).scene;
-  azamiImg(now);
-  setTimeout(() => SCENES.forEach(azamiImg), 1500);
+  const warm = sc => { const img = azamiImg(sc); img.decode?.().catch(() => {}); };
+  warm(greeting(new Date().getHours())[1]);
+  setTimeout(() => SCENES.forEach(warm), 800);
 }
 
 const CFG = window.MAISON_CONFIG || {};
@@ -1253,7 +1254,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v105</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v106</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2771,7 +2772,7 @@ async function boot() {
     api = tracked(demoApi());
     const members = await api.list('members');
     S.me = safeGet('maison-demo-me') || members[0].email;
-    S.ready = true;
+    S.ready = true; preloadAzami();
     await refresh();
     return;
   }
@@ -2788,7 +2789,7 @@ async function boot() {
 
   const { data: { session } } = await sb.auth.getSession();
   S.me = session?.user?.email?.toLowerCase() || null;
-  S.ready = true;
+  S.ready = true; preloadAzami();
   if (S.me) await refresh(); else render();
 
   let channel = null;

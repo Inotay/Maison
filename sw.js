@@ -1,5 +1,5 @@
 // Maison : service worker. L'app s'ouvre sans réseau (lecture) et reçoit des notifications.
-const VERSION = 'maison-v105';
+const VERSION = 'maison-v106';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './themes.js', './fx.js', './people.js', './dechets.js', './recettes.js', './fraicheur.js', './cuisine.js', './etapes.js', './config.js', './manifest.webmanifest', './vendor/supabase-js-2.49.4.js',
   './azami/v41/azami_v41_etirement_anime.svg', './azami/v41/azami_v41_jeu_anime.svg', './azami/v41/azami_v41_toilette_anime.svg', './azami/v41/azami_v41_marche_anime.svg', './azami/v41/azami_v41_miaulement_anime.svg', './azami/v41/azami_v41_repos_anime.svg', './azami/v41/azami_v41_menage_anime.svg', './azami/v41/azami_v41_courses_anime.svg', './azami/v41/azami_v41_argent_anime.svg', './azami/v41/azami_v41_care_anime.svg', './azami/v41/azami_v41_reussite_anime.svg', './azami/v41/azami_v41_cuisine_anime.svg', './azami/reactions/annuler_anime.svg', './azami/reactions/minuteur_fini_anime.svg', './azami/reactions/machine_lancee_anime.svg', './azami/reactions/recette_reussie_anime.svg', './azami/reactions/a_finir_vite_anime.svg', './azami/reactions/caresse_1_anime.svg', './azami/reactions/caresse_2_anime.svg', './azami/reactions/caresse_3_anime.svg', './azami/reactions/tache_cochee_anime.svg', './azami/reactions/corvee_terminee_anime.svg', './azami/reactions/courses_completees_anime.svg', './azami/reactions/comptes_equilibres_anime.svg', './azami/reactions/mot_envoye_anime.svg', './azami/reactions/objectif_commun_anime.svg', './azami/reactions/surprise_coucou_anime.svg', './azami/reactions/fete_reussites_anime.svg',
   './icons/icon-192.png', './icons/icon-512.png',
@@ -13,7 +13,8 @@ const THEME_ICONS = ['abonnement', 'abricot', 'adaptateur', 'admin', 'adoucissan
 const PEOPLE_ICONS = ['./icons/people/yatoni/portrait.webp', './icons/people/yatoni/ordinateur.webp', './icons/people/yatoni/musique.webp', './icons/people/yatoni/nouilles.webp', './icons/people/yatoni/courses.webp', './icons/people/yatoni/cuisine.webp', './icons/people/yatoni/nettoyer.webp', './icons/people/yatoni/lessive.webp', './icons/people/yatoni/aspirateur.webp', './icons/people/yatoni/colis.webp', './icons/people/yatoni/lire.webp', './icons/people/yatoni/jeux.webp', './icons/people/yatoni/tablette.webp', './icons/people/yatoni/muscu.webp', './icons/people/yatoni/velo.webp', './icons/people/yatoni/rando.webp', './icons/people/yatoni/verre.webp', './icons/people/yatoni/bisou.webp', './icons/people/yatoni/bain.webp', './icons/people/yatoni/dormir.webp', './icons/people/yatoni/vaisselle_main.webp', './icons/people/mariana/portrait.webp', './icons/people/mariana/ordinateur.webp', './icons/people/mariana/lire.webp', './icons/people/mariana/cafe.webp', './icons/people/mariana/courses.webp', './icons/people/mariana/cuisine.webp', './icons/people/mariana/nettoyer.webp', './icons/people/mariana/linge.webp', './icons/people/mariana/lessive.webp', './icons/people/mariana/plantes.webp', './icons/people/mariana/meditation.webp', './icons/people/mariana/maquillage.webp', './icons/people/mariana/note.webp', './icons/people/mariana/travail.webp', './icons/people/mariana/etirements.webp', './icons/people/mariana/rando.webp', './icons/people/mariana/verre.webp', './icons/people/mariana/bisou.webp', './icons/people/mariana/bain.webp', './icons/people/mariana/dormir.webp', './icons/people/mariana/vaisselle_main.webp'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL).then(() => c.addAll(THEME_ICONS.concat(PEOPLE_ICONS)).catch(() => {}))).then(() => self.skipWaiting()));
+  const fresh = list => list.map(u => new Request(u, { cache: 'reload' }));   // pas la copie de 10 min de GitHub Pages
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(fresh(SHELL)).then(() => c.addAll(fresh(THEME_ICONS.concat(PEOPLE_ICONS))).catch(() => {}))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -27,6 +28,18 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.hostname.endsWith('supabase.co')) return;
   if (url.origin !== location.origin) return;
+  // Images, Azami, polices, sons : servis tout de suite depuis le cache, mis à jour en arrière-plan
+  // (chaque nouvelle version de l'app les recharge de toute façon à l'installation).
+  if (/\/(icons|azami|fonts|sounds|vendor)\//.test(url.pathname)) {
+    const key = url.origin + url.pathname;
+    e.respondWith(caches.open(VERSION).then(async c => {
+      const hit = await c.match(key);
+      const net = fetch(key, { cache: 'no-cache', credentials: 'same-origin' }).then(res => { if (res.ok) c.put(key, res.clone()); return res; });
+      if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
+      return net.catch(() => Response.error());
+    }));
+    return;
+  }
   // Toujours revalider auprès du serveur (GitHub Pages garde sinon une copie 10 minutes) :
   // la nouvelle version arrive dès qu'elle est publiée.
   e.respondWith(
