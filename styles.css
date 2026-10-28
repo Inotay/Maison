@@ -553,6 +553,11 @@ body[data-time="nuit"] .item-meta .effect.pos { color: var(--jaune); }
 /* Connexion ------------------------------------------------------------- */
 
 .login { min-height: 80dvh; display: grid; align-content: center; gap: 0; }
+.login-az .azami { width: 150px; height: 166px; margin: 0 0 -6px -14px; }
+.boot { min-height: 80dvh; display: grid; place-items: center; }
+.boot img { width: 180px; height: 180px; opacity: 0; animation: boot-in .3s ease .35s forwards; }   /* pas de flash si le chargement est rapide */
+@keyframes boot-in { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .boot img { animation: none; opacity: 1; } }
 .login h1 { font-size: clamp(54px, 18vw, 84px); margin-bottom: 18px; }
 .login p { color: var(--muted); margin: 0 0 22px; max-width: 32ch; }
 .login .btn { margin-top: 18px; width: 100%; }

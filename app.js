@@ -11,30 +11,28 @@ import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
-// Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
-// une scène par page, six accueils selon l'heure, « reussite » jouée une fois quand quelque chose est fait.
-// Accueil : rig articulé V4.1 (Azami sans accessoire) choisi selon l'heure. Les autres pages gardent la V3,
-// dont les accessoires (balai, panier, pièce, lettre) n'existent pas encore en V4.1.
+// Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
+// Une scène par page, six accueils selon l'heure, « calme » en mode calme, connexion, hors ligne et chargement.
 function greeting(h = new Date().getHours()) {
-  if (h >= 22 || h < 5) return ['Bonne nuit', 'v41_repos'];
-  if (h < 9) return ['Bonjour', 'v41_etirement'];
-  if (h < 11) return ['Bonne matinée', 'v41_jeu'];
-  if (h < 14) return ['Bon midi', 'v41_toilette'];
-  if (h < 18) return ['Bonne après-midi', 'v41_marche'];
-  return ['Bonsoir', 'v41_miaulement'];
+  if (h >= 22 || h < 5) return ['Bonne nuit', 'v44_repos'];
+  if (h < 9) return ['Bonjour', 'v44_etirement'];
+  if (h < 11) return ['Bonne matinée', 'v44_jeu'];
+  if (h < 14) return ['Bon midi', 'v44_toilette'];
+  if (h < 18) return ['Bonne après-midi', 'v44_marche'];
+  return ['Bonsoir', 'v44_miaulement'];
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
 // à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
-const SCENES = ['v41_etirement', 'v41_jeu', 'v41_toilette', 'v41_marche', 'v41_miaulement', 'v41_repos', 'v41_menage', 'v41_courses', 'v41_argent', 'v41_care', 'v41_cuisine', 'v41_reussite'];
+const SCENES = ['v44_etirement', 'v44_jeu', 'v44_toilette', 'v44_marche', 'v44_miaulement', 'v44_repos', 'v44_menage', 'v44_courses', 'v44_argent', 'v44_care', 'v44_cuisine', 'v44_reussite', 'v44_calme'];
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const azamiSrc = scene => scene.startsWith('v41_')
-  ? `azami/v41/${reducedMotion() ? 'statiques/' : ''}azami_${scene}_${reducedMotion() ? 'statique' : 'anime'}.svg`
+const azamiSrc = scene => scene.startsWith('v44_')
+  ? `azami/v44/${reducedMotion() ? 'statiques/' : ''}azami_${scene}_${reducedMotion() ? 'statique' : 'anime'}.svg`
   : `azami/azami_${scene}_anime.svg`;
 const azamiImgs = {};
 function azamiImg(scene) {
   if (!azamiImgs[scene]) {
     const img = new Image(512, 512);
-    img.className = `azami ${scene.startsWith('v41_') ? 'v41' : ''}`; img.decoding = 'sync'; img.src = azamiSrc(scene);
+    img.className = `azami ${scene.startsWith('v44_') ? 'v44' : ''}`; img.decoding = 'sync'; img.src = azamiSrc(scene);
     azamiImgs[scene] = img;
   }
   return azamiImgs[scene];
@@ -1005,8 +1003,10 @@ function demoBar() {
   return `<div class="demo"><span>Démo : données sur cet appareil</span><button class="link" data-action="demo-swap">Voir comme ${esc(nameOf(other()))}</button></div>`;
 }
 
+// En-tête des écrans sans compte : Azami devant la porte (connexion) ou endormie près de la box (hors ligne).
+const loginHd = (scene = 'v44_connexion', alt = 'Azami attend devant la porte') => `<div class="login-az">${azami(scene, alt)}</div><h1>Maison</h1>`;
 function viewOffline() {
-  return `<section class="login"><h1>Maison</h1>
+  return `<section class="login">${loginHd('v44_hors_ligne', 'Azami somnole en attendant le réseau')}
     <p>Impossible de joindre la maison pour le moment. Vérifie la connexion, puis réessaie.</p>
     <button class="btn" data-action="retry">Réessayer</button>
     <button class="link" data-action="logout">Se déconnecter</button></section>`;
@@ -1070,8 +1070,17 @@ function caresse(img) {
   if (!img || img.dataset.caresse) return;
   let n; do { n = 1 + Math.floor(Math.random() * 3); } while (n === lastCaresse); lastCaresse = n;
   const back = img.src; img.dataset.caresse = '1';
-  img.src = reducedMotion() ? `azami/reactions/statiques/caresse_${n}_statique.svg` : `azami/reactions/caresse_${n}_anime.svg?${Date.now()}`;
+  img.src = reducedMotion() ? `azami/v44/reactions/statiques/caresse_${n}_statique.svg` : `azami/v44/reactions/caresse_${n}_anime.svg?${Date.now()}`;
   setTimeout(() => { img.src = back; delete img.dataset.caresse; }, 2500);
+}
+// Ma demande d'aide a été prise par l'autre : Azami le montre une fois par réponse.
+function helpAnswerCheck() {
+  if (S.view !== 'maison' || !S.me || !S.help?.length) return;
+  const seen = new Set((safeGet('maison-aide-vue') || '').split(',').filter(Boolean));
+  const fresh = S.help.filter(h => h.from_email === S.me && (h.status === 'pris' || h.status === 'ensemble') && h.answered_at && !S.helpSeen.has(h.id) && !seen.has(h.id) && Date.now() - new Date(h.answered_at).getTime() < 12 * 3600000);
+  if (!fresh.length) return;
+  fresh.forEach(h => seen.add(h.id)); safeSet('maison-aide-vue', [...seen].slice(-30).join(','));
+  setTimeout(() => react('pris_par_l_autre', document.querySelector('.help-card.answer') || document.querySelector('.hd .azami')), 700);
 }
 // Aliments à finir vite : Azami le signale une fois par jour en ouvrant les recettes.
 function afvCheck() {
@@ -1118,6 +1127,7 @@ function dragEnd() {
   order.forEach((r, i) => { if (i <= upTo && r.rank !== i) { changes.push([r.id, r.rank ?? null, i]); r.rank = i; } });
   render(); haptic('medium');
   if (!changes.length) return;
+  react('deplacer', box.querySelector(`[data-sid="${el.dataset.sid}"]`) || el);
   undoable('ordre déplacé', changes.map(([id, rank]) => ({ t, id, row: { rank } })), async () => { for (const [id, , rank] of changes) await api.update(t, { id }, { rank }); }, null, 'sort');
 }
 document.addEventListener('pointerdown', e => {
@@ -1216,13 +1226,15 @@ function duoNotice() {
 }
 
 const FOLD_ON = new WeakSet();
+// Écran de chargement : Azami suit sa pelote (le même que dans index.html, avant que le script tourne).
+const BOOT = '<div class="boot" role="status" aria-label="Chargement"><picture><source srcset="azami/v44/statiques/azami_v44_chargement_statique.svg" media="(prefers-reduced-motion: reduce)"><img src="azami/v44/azami_v44_chargement_anime.svg" alt="" width="180" height="180"></picture></div>';
 function render() {
   if (drag) return;   // pas pendant un déplacement au doigt
-  if (!S.ready) { $app.innerHTML = ''; return; }
-  if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); return; }
+  if (!S.ready) { if (!$app.querySelector('.boot')) $app.innerHTML = BOOT; return; }
+  if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); placeAzami(); return; }
   if (S.offline && S.view === 'nuit') S.view = 'maison';
   if (S.recovery) S.login.step = 'newpass';
-  if (!S.me || S.recovery) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); return; }
+  if (!S.me || S.recovery) { document.body.dataset.time = 'jour'; $app.innerHTML = viewLogin(); placeAzami(); return; }
   if (!S.members.some(m => m.email === S.me)) { $app.innerHTML = viewNotMember(); return; }
 
   // garder ce qui est en cours de saisie
@@ -1242,6 +1254,7 @@ function render() {
   placeAzami();
   maybeCoucou();
   afvCheck();
+  helpAnswerCheck();
   if (!tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app);
 
@@ -1267,12 +1280,12 @@ function render() {
 function viewLogin() {
   const step = S.login.step;
   if (step === 'sent') {
-    return `<section class="login"><h1>Maison</h1>
+    return `<section class="login">${loginHd()}
       <p>${esc(S.login.note)}</p>
       <button class="btn ghost" data-action="login-mode" data-mode="login">Retour à la connexion</button></section>`;
   }
   if (step === 'newpass') {
-    return `<section class="login"><h1>Maison</h1>
+    return `<section class="login">${loginHd()}
       <p>Choisis un nouveau mot de passe, au moins 8 caractères.</p>
       <form data-form="newpass">
         <label class="sr" for="pass">Nouveau mot de passe</label>
@@ -1283,7 +1296,7 @@ function viewLogin() {
   }
   const signup = step === 'signup';
   return `<section class="login">
-    <h1>Maison</h1>
+    ${loginHd()}
     <p>${signup ? 'Première fois ici : choisis ton mot de passe. Tu recevras un e-mail pour confirmer ton adresse.' : 'Connecte-toi avec ton adresse e-mail et ton mot de passe.'}</p>
     <form data-form="${signup ? 'signup' : 'login'}">
       <label class="sr" for="email">Adresse e-mail</label>
@@ -1300,7 +1313,7 @@ function viewLogin() {
 }
 
 function viewNotMember() {
-  return `<section class="login"><h1>Maison</h1>
+  return `<section class="login">${loginHd()}
     <p>L'adresse ${esc(S.me)} n'est pas membre de cette maison. Ajoute-la dans la table « members » de Supabase, ou connecte-toi avec une autre adresse.</p>
     <button class="btn ghost" data-action="logout">Se déconnecter</button></section>`;
 }
@@ -1342,10 +1355,11 @@ function winsCard() {
 }
 
 function viewMaison() {
-  const [hello, scene] = greeting();
+  let [hello, scene] = greeting();
   const cc = calmCheck();
-  if (cc === 'exit') { S.calmExit = true; setTimeout(() => celebrate({ title: 'Mode calme terminé', sub: 'Plus rien d’urgent. Respirez.', level: 'small', reaction: 'objectif_commun' }), 300); }
+  if (cc === 'exit') { S.calmExit = true; setTimeout(() => celebrate({ title: 'Mode calme terminé', sub: 'Plus rien d’urgent. Respirez.', level: 'small', reaction: 'calme_termine' }), 300); }
   const calm = calmState().on;
+  if (calm) scene = 'v44_calme';
   const calmExit = !calm && S.calmExit;
   const date = new Date().toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -1397,7 +1411,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v115</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v116</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1773,7 +1787,7 @@ function viewMenage() {
   const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
-  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_menage', 'Azami passe le balai')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_menage', 'Azami passe le balai')}</button></header>
     <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores" data-sort="chores">${chores.map(c => {
@@ -1877,7 +1891,7 @@ function viewCourses() {
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
       <div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopsOf(s).includes(k)}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
-  return `<header class="hd row"><div><p class="hd-kicker">${mode ? `Je suis : ${esc(modeLabel)}` : todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_courses', 'Azami fouille le panier')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${mode ? `Je suis : ${esc(modeLabel)}` : todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
       <input class="field" id="shop-label" data-keep name="label" placeholder="Ajouter un article" autocomplete="off" enterkeyhint="done" required></div>
@@ -2165,7 +2179,7 @@ function viewRecettes() {
   const types = [['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
   const ti = RTIME.indexOf(Number(S.rtime) || 0);
   const nf = [S.rtime, S.rcuisine, S.rtype].filter(Boolean).length;
-  return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_cuisine', 'Azami en cuisine')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
     ${freshCard()}
@@ -2213,7 +2227,7 @@ function rSyncFilters() {
 }
 function viewRecette(r) {
   const n = S.persons || 2;
-  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_cuisine', 'Azami en cuisine')}</button></header>
+  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
     ${rPlate(r)}
     <p class="rdesc">${esc(r.desc)}</p>
     ${gearOf(r).length ? `<div class="gear-box"><p class="chip-label">Matériel particulier</p>${gearOf(r).map(g => `<div class="gear-row ${S.gear[g.id] === true ? 'ok' : S.gear[g.id] === false ? 'no' : ''}"><span class="gear-name">${S.gear[g.id] === true ? '✓' : '⚠'} ${esc(g.nom)}</span>${S.gear[g.id] === true ? '<span class="gear-st">On l’a</span>' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="1">On l’a</button>${S.gear[g.id] === false ? '' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="0">Pas chez nous</button>`}`}</div>`).join('')}</div>` : ''}
@@ -2226,7 +2240,7 @@ function viewRecette(r) {
 }
 function viewCuisiner() {
   const r = RID(S.cook.id), k = S.cook.step, last = k >= r.etapes.length - 1;
-  const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_cuisine', 'Azami en cuisine')}</button></header>`;
+  const head = `<header class="hd row"><div><button class="link back" data-action="r-cook-stop">‹ ${esc(r.titre)}</button><p class="hd-kicker">${S.cook.full ? 'Recette entière' : `Étape ${k + 1} sur ${r.etapes.length}`}</p><h1>On cuisine</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>`;
   if (S.cook.full) return head + `<ol class="rsteps big">${r.etapes.map((e, j) => `<li class="${j === k ? 'now' : ''}">${stepHtml(r, e)}${timerBtns(stepPlain(r, e), r.titre)}</li>`).join('')}</ol>
     <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
   return head + `<div class="rstep">${(() => { const ic = stepIngs(r, stepPlain(r, r.etapes[k])); return ic.length ? `<div class="rstep-ings" aria-hidden="true">${ic.map(i => tImg(i, 'rs-ic')).join('')}</div>` : ''; })()}<div class="rstep-n">${k + 1}</div><p class="rstep-txt">${stepHtml(r, r.etapes[k])}</p>${(() => { const li = stepIngList(r, r.etapes[k]); return li.length ? `<ul class="step-need">${li.map(j => `<li>${tImg(rArt(r).ings[j], 'sn-ic')}<b>${esc(qty(r.ing[j], S.persons || 2))}</b> ${esc(r.ing[j].n)}</li>`).join('')}</ul>` : ''; })()}${timerBtns(stepPlain(r, r.etapes[k]), r.titre)}
@@ -2307,7 +2321,7 @@ function viewArgent() {
   const monthHtml = entries.slice(0, 6).map(monthBlock).join('') + (entries.length > 6
     ? `<details class="fold" data-fold="old-months"><summary>Mois précédents (${entries.length - 6})</summary>${entries.slice(6).map(monthBlock).join('')}</details>` : '');
 
-  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_argent', 'Azami fait sauter une pièce')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Dépenses partagées</p><h1>Argent</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_argent', 'Azami fait sauter une pièce')}</button></header>
     ${balanceCard()}
 
     <form class="form" data-form="expense">
@@ -2333,7 +2347,7 @@ function viewArgent() {
 // Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Care</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v41_care', 'Azami tient une enveloppe')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Care</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
@@ -2403,7 +2417,7 @@ const actions = {
     const label = row ? (/^vaisselle$/i.test(row.title.trim()) ? 'Vaisselle à la main' : row.title) : null;
     closeTicket(); haptic('medium');
     run(async () => { const r = await api.insert('help_requests', { from_email: S.me, to_email: other(), item_kind: kind, item_id: id, label, ask: el.dataset.ask }); await pingHelp(r?.id); },
-      `Demandé à ${nameOf(other())}. Tu n’es pas seul·e.`);
+      `Demandé à ${nameOf(other())}. Tu n’es pas seul·e.`).then(ok => { if (ok) react('coup_de_main', document.querySelector('.hd .azami')); });
   },
   'help-answer': el => {
     const h = S.help.find(x => x.id === el.dataset.id); if (!h) return;
@@ -2416,7 +2430,7 @@ const actions = {
         if (h.item_kind === 'chore') { const c = S.chores.find(x => x.id === h.item_id); if (c && !seqOf(c)?.personal) await api.update('chores', { id: h.item_id }, { turn: S.me }); }
       }
       await pingHelp(h.id);
-    }, status === 'non' ? 'Réponse envoyée.' : status === 'ensemble' ? 'Vous le ferez ensemble.' : 'Merci, c’est noté pour toi.');
+    }, status === 'non' ? 'Réponse envoyée.' : status === 'ensemble' ? 'Vous le ferez ensemble.' : 'Merci, c’est noté pour toi.').then(ok => { if (ok && status !== 'non') react('aide_acceptee', document.querySelector('.hd .azami')); });
   },
   'help-seen': el => { S.helpSeen.add(el.dataset.id); render(); },
 
@@ -2489,7 +2503,7 @@ const actions = {
   'r-cook-stop': () => { S.cook = null; render(); },
   'r-cook-full': () => { S.cook.full = true; render(); },
   'r-cook-steps': () => { S.cook.full = false; render(); },
-  'r-next': () => { S.cook.step++; haptic(1); render(); window.scrollTo(0, 0); },
+  'r-next': () => { S.cook.step++; haptic(1); render(); window.scrollTo(0, 0); react('etape_suivante', document.querySelector('.hd .azami')); },
   'r-prev': () => { S.cook.step = Math.max(0, S.cook.step - 1); render(); },
   'r-done': () => { const r = RID(S.cook.id); const plan = S.plans.find(p => p.id === S.cook.plan) || S.plans.find(p => p.recipe === (r.base || r.id) || p.recipe === r.id); S.cook = null; S.recette = null;
     if (plan) { S.plans = S.plans.filter(p => p !== plan); api.remove('meal_plans', { id: plan.id }).catch(e => console.warn('menu', e)); }
@@ -2632,7 +2646,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);

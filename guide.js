@@ -3,40 +3,40 @@
 
 // Tour d'accueil : une carte par page, puis les gestes cachés.
 export const TOUR = [
-  { scene: 'v41_jeu', title: 'Bienvenue dans Maison', points: [
+  { scene: 'v44_jeu', title: 'Bienvenue dans Maison', points: [
     'C’est l’app de la maison, pour vous deux : les corvées, les choses à faire, les recettes, les courses, l’argent et des petits mots.',
     'Tout est partagé en direct : ce que tu coches, Yatoni le voit tout de suite, et l’inverse.',
     'Ce guide dure une minute. Tu peux le passer, et le revoir quand tu veux.',
   ] },
-  { scene: 'v41_etirement', title: 'Maison : ta page d’accueil', points: [
+  { scene: 'v44_etirement', title: 'Maison : ta page d’accueil', points: [
     'En haut, un résumé : tes corvées, les choses à faire, l’argent, les déchets, les courses et le prochain rendez-vous. Touche une case pour aller à la bonne page.',
     'Dessous, trois onglets : À faire, Agenda (vos rendez-vous et ce qui tombe dans la semaine) et Tableau (les infos de la maison : un code, un rappel, un rendez-vous).',
     'Pour ajouter une chose à faire, écris-la, choisis pour qui (toi, Yatoni ou vous deux) et, si tu veux, une date.',
   ] },
-  { scene: 'v41_menage', title: 'Ménage : les corvées tournent', points: [
+  { scene: 'v44_menage', title: 'Ménage : les corvées tournent', points: [
     'Quand tu appuies sur « Fait », la corvée est notée et c’est au tour de Yatoni la prochaine fois. Certaines corvées sont toujours pour la même personne, ou pour « qui veut ».',
     'Les déchets indiquent quand on peut descendre la poubelle, le papier, le verre ou le compost, selon les jours de ramassage.',
     'Lave-vaisselle et lessive : appuie sur « Lancer », l’app compte le temps et te prévient quand c’est fini.',
   ] },
-  { scene: 'v41_cuisine', title: 'Recettes : on te prend par la main', points: [
+  { scene: 'v44_cuisine', title: 'Recettes : on te prend par la main', points: [
     'Plus de 250 recettes simples. Filtre par envie (Flemme, Végé, Réconfort, Sucré : tu peux en cocher plusieurs), par cuisine et par temps avec la jauge « Prêt en ».',
     'Dans une recette, choisis le nombre de personnes : toutes les quantités suivent. « Faire la recette » te guide étape par étape, avec les quantités et des minuteurs.',
     '« Rajouter les aliments à la liste » met ce qu’il faut dans les courses, et la recette reste « Au menu » pour plus tard.',
   ] },
-  { scene: 'v41_courses', title: 'Courses : la liste qui se range seule', points: [
+  { scene: 'v44_courses', title: 'Courses : la liste qui se range seule', points: [
     'Écris un article : son icône et son rayon sont trouvés tout seuls.',
     'Au magasin, choisis où tu es (Supermarché, Épicerie asiatique, Maison & brico…) pour ne voir que ce qu’il y a à prendre là.',
     'Coche ce qui va dans le panier. À la fin, « Courses faites » vide le panier et te propose de noter le montant payé et le partage.',
   ] },
-  { scene: 'v41_argent', title: 'Argent : qui doit quoi', points: [
+  { scene: 'v44_argent', title: 'Argent : qui doit quoi', points: [
     'Note une dépense : le montant, pour quoi, qui a payé. Par défaut c’est moitié-moitié ; tu peux aussi dire que c’était une avance pour l’autre.',
     'En haut, l’app calcule qui doit combien à qui. Quand vous remboursez, un bouton remet les comptes à zéro.',
   ] },
-  { scene: 'v41_care', title: 'Care : rien que pour vous deux', points: [
+  { scene: 'v44_care', title: 'Care : rien que pour vous deux', points: [
     'Une boîte aux lettres pour vous deux : un merci, un besoin, un poids, une envie, de la tendresse. Ton mot arrive fermé dans la boîte de Yatoni.',
     'Tu peux cocher « J’aimerais qu’on en parle », et « Aide pour formuler » t’aide à trouver les mots.',
   ] },
-  { scene: 'v41_miaulement', title: 'Les gestes cachés', points: [
+  { scene: 'v44_miaulement', title: 'Les gestes cachés', points: [
     'Fait par erreur ? Un bouton « Annuler » apparaît en haut à droite pendant quelques secondes : il remet tout comme avant.',
     'Appuie longtemps sur une chose à faire ou une corvée, puis glisse-la : tu choisis l’ordre de la liste, Yatoni voit le même.',
     'Touche l’icône d’une ligne pour en choisir une autre : l’app retient ton choix pour les fois suivantes.',
@@ -44,7 +44,7 @@ export const TOUR = [
     'Trop de choses en retard ? Le mode calme te montre une seule chose à la fois, et tu peux demander un coup de main à Yatoni.',
     'Touche Azami : elle adore les caresses.',
   ] },
-  { scene: 'v41_repos', title: 'Si tu oublies', points: [
+  { scene: 'v44_guide', title: 'Si tu oublies', points: [
     'Le petit « ? » en haut de chaque page réexplique tout ce qu’on peut faire sur cette page.',
     'Et « Revoir le guide », tout en bas de la page Maison, relance cette visite.',
   ], notif: true },
