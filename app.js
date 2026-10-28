@@ -8,6 +8,7 @@ import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
 import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
+import { aisleOf } from './rayons.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami : pack d'animations V3 Motion (azami/*.svg, vectoriel, transparent, thèmes bleu et brun),
@@ -47,7 +48,7 @@ function maybeCoucou() {
   coucouDone = true;
   if (Math.random() < 1 / 12) { safeSet('maison-coucou', today); setTimeout(() => react('surprise_coucou', document.querySelector('.hd .azami')), 900); }
 }
-function openTicket({ where, n }) {
+function openTicket({ where, n, missing = '' }) {
   if (DEMO && !S.me) return;
   S.ticket = { where, n, payer: S.me, share: 50, persoWho: S.me };
   const old = document.getElementById('ticket'); if (old) old.remove();
@@ -56,6 +57,7 @@ function openTicket({ where, n }) {
     <img class="ticket-icon" src="icons/themes/recu.webp" alt="">
     <p class="ticket-title">C'était combien ?</p>
     <p class="ticket-sub">${esc(where)} · ${pl(n, 'article', 'articles')}. Ça part directement dans les dépenses.</p>
+    ${missing ? `<p class="ticket-miss">⚠ Il manque encore pour le menu : ${esc(missing)}. C'est resté sur la liste.</p>` : ''}
     <div class="row"><div class="grow"><label class="sr" for="ticket-amount">Montant</label><input class="field amount-input big" id="ticket-amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></div><span class="ticket-cur">CHF</span></div>
     <p class="chip-label">Qui a payé ?</p>
     <div class="chips">${S.members.map(m => `<button type="button" data-action="ticket-pay" data-who="${esc(m.email)}" aria-pressed="${m.email === S.me}">${esc(m.email === S.me ? 'Moi' : m.name)}</button>`).join('')}</div>
@@ -1394,7 +1396,7 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v111</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v112</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1840,6 +1842,28 @@ function guessShop(label) { const r = classify(label, S.hints); return (r && (SH
 // Un article peut être dans plusieurs rayons (« super,maison ») : il apparaît dans chaque groupe.
 const shopsOf = s => { const v = String(s.shop || '').split(',').filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
 
+// Rayons : la liste suit le tour du magasin (fruits et légumes d'abord, surgelés à la fin…).
+const shopTheme = s => (String(s.icon || '').startsWith('t:') ? s.icon.slice(2) : null) || classify(s.label, S.hints)?.id || null;
+const aisleFor = (shop, s) => aisleOf(shop, shopTheme(s), PARENT);
+// Article inconnu : au supermarché, avec l'épicerie ; un objet connu mais hors rayons alimentaires, à la fin.
+const aisleRank = (shop, s) => { const a = aisleFor(shop, s); return a ? a[0] : shop === 'super' && !shopTheme(s) ? 5.5 : 99; };
+const byAisle = (shop, list) => [...list].sort((a, b) => aisleRank(shop, a) - aisleRank(shop, b) || a.created_at.localeCompare(b.created_at));
+// Ce qui manque encore pour les recettes au menu (articles pas encore pris).
+function menuMissing() {
+  return (S.plans || []).map(p => ({ p, items: S.shopping.filter(x => !x.checked && pourList(x).includes(p.title)) })).filter(x => x.items.length);
+}
+const menuMissText = list => list.map(({ p, items }) => `${p.title} : ${items.slice(0, 4).map(x => shopLabel(x.label)).join(', ')}${items.length > 4 ? '…' : ''}`).join(' · ');
+
+function aisleGroups(shop, list, item) {
+  const groups = []; let cur = null;
+  for (const s of byAisle(shop, list)) {
+    const a = aisleFor(shop, s); const label = a ? a[1] : aisleRank(shop, s) === 5.5 ? 'Épicerie' : 'Autres';
+    if (!cur || cur.label !== label) { cur = { label, items: [] }; groups.push(cur); }
+    cur.items.push(s);
+  }
+  return groups.map(g => `<h3 class="aisle">${esc(g.label)}</h3><ul class="list">${g.items.map(item).join('')}</ul>`).join('');
+}
+
 function viewCourses() {
   const mode = SHOPS.find(x => x[0] === S.shopMode) ? S.shopMode : null;
   const todoAll = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -1859,10 +1883,11 @@ function viewCourses() {
       <button class="btn" type="submit">Ajouter</button>
     </form>
     ${duoBanner(mode)}
+    ${(() => { const mm = menuMissing(); return mm.length ? `<div class="menu-miss"><b>Pour le menu</b> ${mm.map(({ p, items }) => `<span>${esc(p.title)} <em>${pl(items.length, 'à prendre', 'à prendre')}</em></span>`).join('')}</div>` : ''; })()}
     <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" class="shop-chip" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${shopIc(k, 'chip-ic')}${esc(l)}</button>`).join('')}</div></div>
     <div class="shop">${mode
-      ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2><ul class="list">${todo.map(item).join('')}</ul>` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
-      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = todo.filter(s => shopsOf(s).includes(k)); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
+      ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2>${aisleGroups(mode, todo, item)}` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
+      : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = byAisle(k, todo.filter(s => shopsOf(s).includes(k))); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
     ${cart.length ? `<h2>${cartOther.length ? 'Dans ton panier' : 'Dans le panier'} <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
     ${cartOther.length ? `<h2>Dans le panier de ${esc(nameOf(other()))} <span class="count">${cartOther.length}</span></h2><ul class="list other-cart">${cartOther.map(item).join('')}</ul>` : ''}
     ${mode ? `<div class="form-actions"><button class="btn ghost" data-action="shop-mode" data-shop="${mode}">Je ressors</button><button class="btn" data-action="shop-done" ${cart.length ? '' : 'disabled'}>Courses faites</button></div>`
@@ -1981,9 +2006,10 @@ function shopMeta(s) {
 // Au menu : recettes dont on a mis les ingrédients sur la liste, jusqu'à ce qu'on les cuisine.
 function menuCard() {
   if (!S.plans?.length) return '';
-  const todoFor = t => S.shopping.filter(x => !x.checked && pourList(x).includes(t)).length;
+  const missFor = t => S.shopping.filter(x => !x.checked && pourList(x).includes(t));
+  const todoFor = t => missFor(t).length;
   return `<h2 class="first">Au menu</h2><ul class="list menu">${S.plans.map(p => { const n = todoFor(p.title); const r = RID(p.recipe);
-    return `<li class="item">${r ? rThumb(r) : ''}<div class="item-main" data-action="r-open" data-id="${esc(p.recipe)}" role="button" tabindex="0"><div class="item-title">${esc(p.title)}</div><div class="item-meta">Pour ${p.persons} · ${n ? `${pl(n, 'article', 'articles')} à acheter` : 'Tout est là'}${p.created_by && p.created_by !== S.me ? ` · prévu par ${esc(nameOf(p.created_by))}` : ''}</div></div>
+    return `<li class="item ${n ? 'missing' : ''}">${r ? rThumb(r) : ''}<div class="item-main" data-action="r-open" data-id="${esc(p.recipe)}" role="button" tabindex="0"><div class="item-title">${esc(p.title)}</div><div class="item-meta">Pour ${p.persons}${p.created_by && p.created_by !== S.me ? ` · prévu par ${esc(nameOf(p.created_by))}` : ''}</div>${n ? `<div class="menu-need">⚠ Il manque encore ${esc(missFor(p.title).map(x => shopLabel(x.label)).slice(0, 5).join(', '))}${n > 5 ? '…' : ''}</div>` : '<div class="menu-ok">✓ Tout est acheté</div>'}</div>
       ${r ? `<button class="btn small" data-action="plan-cook" data-id="${p.id}">Cuisiner</button>` : ''}<button class="more" aria-label="Options" aria-expanded="${S.open === p.id}" data-action="more" data-id="${p.id}">⋯</button>
       ${S.open === p.id ? `<div class="item-actions"><button class="btn ghost small" data-action="plan-remove" data-id="${p.id}">Retirer du menu</button>${n ? `<button class="btn ghost small" data-action="plan-remove" data-id="${p.id}" data-shop="1">Retirer avec ses ${pl(n, 'article', 'articles')}</button>` : ''}</div>` : ''}</li>`; }).join('')}</ul>`;
 }
@@ -2642,7 +2668,8 @@ const actions = {
       for (const s of cart) await api.remove('shopping', { id: s.id });
       await win('shop', `${where} : ${pl(cart.length, 'article', 'articles')}`, 1, 't:courses');
     }).then(ok => { if (!ok) return; S.shopMode = null; safeSet('maison-shop-mode', ''); presenceTrack(); render(); azamiJump(); celebrate({ title: praise('shop'), sub: `${pl(cart.length, 'article acheté', 'articles achetés')}`, level: 'small', badge: variantBadge('shopping', { label: 'courses' }, S.me), reaction: 'courses_completees' }); if (first) streakCheer(2600);
-      setTimeout(() => openTicket({ where, n: cart.length }), first ? 5200 : 2300); });
+      const mm = menuMissing().map(x => ({ ...x, items: x.items.filter(i => !i.checked) })).filter(x => x.items.length);
+      setTimeout(() => openTicket({ where, n: cart.length, missing: mm.length ? menuMissText(mm) : '' }), first ? 5200 : 2300); });
   },
   // Fiche après les courses : combien, qui a payé → dépense partagée moitié-moitié, avec sa petite pluie de pièces.
   'ticket-pay': el => { S.ticket.payer = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-pay"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); },

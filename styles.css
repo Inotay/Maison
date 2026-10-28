@@ -1001,3 +1001,12 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 @keyframes duo { 50% { box-shadow: 0 0 0 7px rgba(76,184,96,.08); } }
 @media (prefers-reduced-motion: reduce) { .duo-dot { animation: none; } }
 .other-cart .item { opacity: .8; }
+
+/* Rayons et menu incomplet */
+.shop h3.aisle { margin: var(--s3) 0 6px; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.menu-miss { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; margin: var(--s2) 0; padding: 8px 12px; border-radius: var(--r-in); background: var(--surface); border-left: 4px solid var(--accent); font-size: 14px; }
+.menu-miss em { font-style: normal; color: var(--muted); font-weight: 800; }
+.menu-need { margin-top: 3px; font-size: 13px; font-weight: 800; color: var(--rouge); line-height: 1.35; }
+.menu-ok { margin-top: 3px; font-size: 13px; font-weight: 800; color: #3E9B52; }
+.menu .item.missing { box-shadow: inset 4px 0 0 var(--rouge), 0 4px 0 var(--line); }
+.ticket-miss { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: #FFF1E0; color: #8A4B12; font-weight: 800; font-size: 14px; text-align: left; }

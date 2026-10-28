@@ -105,7 +105,9 @@ export const PAGE = {
   ] },
   courses: { title: 'La page Courses', items: [
     ['Ajouter', 'Écris l’article : l’icône et le rayon sont trouvés tout seuls. Si la recette l’a ajouté, tu vois « Pour : » avec le nom du plat.'],
-    ['Je suis au magasin', 'Touche l’endroit où tu es (Supermarché, Épicerie asiatique, Maison & brico…) : seuls les articles à prendre là restent. « Je ressors » pour revenir à toute la liste.'],
+    ['Je suis au magasin', 'Touche l’endroit où tu es (Supermarché, Épicerie asiatique, Maison & brico…) : seuls les articles à prendre là restent, rangés dans l’ordre du tour du magasin (fruits et légumes d’abord, surgelés à la fin). « Je ressors » pour revenir à toute la liste.'],
+    ['À deux', 'Si Yatoni est aussi au magasin, un bandeau le signale. Ce que chacun coche va dans son propre panier et disparaît de la liste de l’autre.'],
+    ['Pour le menu', 'Un encadré rappelle ce qu’il reste à prendre pour les recettes prévues. Si tu termines sans tout avoir, le ticket te le signale.'],
     ['Panier', 'Coche un article quand il est dans le panier. Un deuxième toucher le remet dans la liste.'],
     ['Courses faites', 'Vide le panier, garde les articles en mémoire et te propose un ticket : le montant payé et comment le partager. Ça va directement dans Argent.'],
     ['Produits frais', 'Après les courses, l’app estime quand les produits frais périment (selon Aldi, Coop ou Migros) et te prévient deux jours avant.'],
