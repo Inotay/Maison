@@ -864,3 +864,9 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .fresh-card .rlist .rcard { box-shadow: none; }
 .fresh-fold { margin-top: var(--s2); }
 .fresh-fold .fresh-list { background: var(--surface); border: 2px solid var(--line); border-radius: var(--r); padding: 0 var(--s3); margin-top: var(--s2); }
+
+.fresh-date { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.fresh-date .item-meta { margin: 0; min-width: 0; }
+.fd-btn { flex: none; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface-2); color: var(--text); font-weight: 900; font-size: 15px; line-height: 1; display: grid; place-items: center; padding: 0; }
+.fresh-ok { width: 40px; padding: 0; font-size: 18px; }
+.fresh-date .item-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

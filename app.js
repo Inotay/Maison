@@ -997,7 +997,7 @@ function viewMaison() {
       <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v92</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v93</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1622,10 +1622,13 @@ function freshTheme(label, icon) {
   for (const id of ids) { if (SHELF[id]) return id; if (SHELF[PARENT[id]]) return PARENT[id]; }
   return null;
 }
+// Durée apprise : quand on corrige une date, on retient l'écart pour ce type de produit (sur cet appareil).
+const shelfLearn = () => { try { return JSON.parse(safeGet('maison-shelf') || '{}'); } catch { return {}; } };
+const shelfDays = theme => Math.max(1, shelfLearn()[theme] ?? SHELF[theme]);
 async function stockFresh(items) {
   for (const s of items) {
     const theme = freshTheme(s.label, s.icon); if (!theme) continue;
-    const row = { label: shopLabel(s.label).replace(/\s*\(.*\)$/, ''), icon: s.icon || `t:${theme}`, theme, expires_on: isoDate(new Date(Date.now() + SHELF[theme] * DAYMS)), created_by: S.me };
+    const row = { label: shopLabel(s.label).replace(/\s*\(.*\)$/, ''), icon: s.icon || `t:${theme}`, theme, expires_on: isoDate(new Date(Date.now() + shelfDays(theme) * DAYMS)), created_by: S.me };
     try { const r = await api.insert('pantry', row); S.pantry.push(r || row); } catch (e) { console.warn('frigo', e); }
   }
 }
@@ -1640,8 +1643,8 @@ function rescueRecipes(items, n = 4) {
 function freshCard() {
   const soon = soonItems(); const all = S.pantry.filter(x => !x.status).sort((a, b) => daysLeft(a) - daysLeft(b));
   if (!all.length) return '';
-  const row = x => { const d = daysLeft(x); return `<li class="fresh-item ${d < 0 ? 'late' : d <= 1 ? 'urgent' : ''}">${tImg(x.theme, 'fresh-ic')}<div class="item-main"><div class="item-title">${esc(x.label)}</div><div class="item-meta">${esc(dueText(d))}</div></div>
-    <button class="btn small" data-action="fresh-set" data-id="${x.id}" data-s="mange" aria-label="${esc(x.label)} : mangé">Mangé</button><button class="more" data-action="fresh-set" data-id="${x.id}" data-s="jete" aria-label="${esc(x.label)} : jeté">✕</button></li>`; };
+  const row = x => { const d = daysLeft(x); return `<li class="fresh-item ${d < 0 ? 'late' : d <= 1 ? 'urgent' : ''}">${tImg(x.theme, 'fresh-ic')}<div class="item-main"><div class="item-title">${esc(x.label)}</div><div class="fresh-date"><button type="button" class="fd-btn" data-action="fresh-shift" data-id="${x.id}" data-d="-1" aria-label="Un jour de moins">−</button><span class="item-meta">${esc(dueText(d))}</span><button type="button" class="fd-btn" data-action="fresh-shift" data-id="${x.id}" data-d="1" aria-label="Un jour de plus">+</button></div></div>
+    <button class="btn small fresh-ok" data-action="fresh-set" data-id="${x.id}" data-s="mange" aria-label="${esc(x.label)} : mangé">✓</button><button class="more" data-action="fresh-set" data-id="${x.id}" data-s="jete" aria-label="${esc(x.label)} : jeté">✕</button></li>`; };
   const ideas = soon.length ? rescueRecipes(soon) : [];
   const later = all.filter(x => daysLeft(x) > 2);
   return `${soon.length ? `<h2 class="first">À finir vite</h2><div class="fresh-card"><ul class="fresh-list">${soon.map(row).join('')}</ul>
@@ -1866,6 +1869,16 @@ function viewCare() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
+
+  'fresh-shift': el => {
+    const x = S.pantry.find(p => p.id === el.dataset.id); if (!x) return;
+    const d = new Date(x.expires_on + 'T12:00'); d.setDate(d.getDate() + Number(el.dataset.d)); x.expires_on = isoDate(d);
+    // on retient la durée corrigée pour ce type de produit
+    const total = Math.round((d.getTime() - new Date(isoDate(new Date(x.bought_at || Date.now())) + 'T12:00').getTime()) / DAYMS);
+    if (x.theme && total >= 1) { const l = shelfLearn(); l[x.theme] = total; safeSet('maison-shelf', JSON.stringify(l)); }
+    haptic(1); render();
+    clearTimeout(actions.freshT); actions.freshT = setTimeout(() => api.update('pantry', { id: x.id }, { expires_on: x.expires_on, notified_at: null }).catch(e => console.warn('frigo', e)), 600);
+  },
 
   'fresh-set': el => {
     const x = S.pantry.find(p => p.id === el.dataset.id); if (!x) return;
