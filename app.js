@@ -991,7 +991,7 @@ const nudgeMenu = (kind, row) => { const o = nudgeWho(kind, row); return o ? `<b
 let popList = [], popExpanded = false, popHeld = false;
 function popEvents() {
   const out = [], now = Date.now();
-  const itemIcon = h => { const r = helpRow(h); return r ? iconHtml(displayIcon(h.item_kind === 'task' ? 'tasks' : 'chores', r)) : '<img class="ticon" src="icons/themes/care_besoin.webp" alt="" width="34" height="34">'; };
+  const itemIcon = h => { const r = helpRow(h); return r ? iconHtml(displayIcon(h.item_kind === 'task' ? 'tasks' : 'chores', r)) : iconHtml(h.ask === 'souffler' ? 't:care_besoin' : 't:rappel'); };
   for (const h of helpInbox()) out.push({ id: 'h' + h.id, at: h.created_at, icon: itemIcon(h), title: h.ask === 'rappel' ? `${nameOf(h.from_email)} te fait penser à` : `${nameOf(h.from_email)} demande un coup de main`, body: h.ask === 'rappel' ? (h.label || 'Une chose à faire') : [h.label, HELP_ASK[h.ask]].filter(Boolean).join(' · '), go: { view: 'maison', el: `help-${h.id}` } });
   for (const h of helpAnswers()) out.push({ id: 'a' + h.id, at: h.answered_at, icon: itemIcon(h), title: `${nameOf(h.to_email)} ${helpAnsText(h)}`, body: h.label || (h.ask === 'rappel' ? 'Ton rappel' : 'Ta demande d’aide'), go: { view: 'maison', el: `help-${h.id}` } });
   if (S.view !== 'nuit') for (const c of S.care.filter(c => c.recipient === S.me && !c.read_at && now - new Date(c.created_at).getTime() < 3 * DAY)) {
@@ -1019,9 +1019,23 @@ async function loadInbox() {
 const VIEW_OF = u => { try { return new URL(u || './', location.href).searchParams.get('v') || 'maison'; } catch { return 'maison'; } };
 // Identifiant stable (le même qu'elle vienne de la boîte du service worker ou du centre de notifications).
 const pushId = n => { let h = 0; for (const ch of `${n.tag}|${n.title}|${n.body}`) h = (h * 31 + ch.charCodeAt(0)) | 0; return `p${n.tag || 'maison'}-${(h >>> 0).toString(36)}`; };
+// Icône selon le contexte : la corvée concernée, le minuteur, le frigo…
+function pushIcon(n) {
+  const tag = n.tag || '';
+  const seq = tag.startsWith('maison-seq-') && S.chores.find(c => c.id === tag.slice(11));
+  if (seq) return iconHtml(displayIcon('chores', seq));
+  if (tag === 'maison-rappel') {
+    const first = (n.body || '').split(/ \(|,/)[0].trim();
+    const c = S.chores.find(x => x.title === first), t = !c && S.tasks.find(x => x.title === first);
+    if (c) return iconHtml(displayIcon('chores', c));
+    if (t) return iconHtml(displayIcon('tasks', t));
+  }
+  const k = tag.startsWith('timer-') ? 'alarme' : tag === 'maison-frais' ? 'frigo' : /lave-vaisselle/i.test(n.title || '') ? 'lavevaisselle' : /lessive/i.test(n.title || '') ? 'lessive' : 'rappel';
+  return iconHtml('t:' + k);
+}
 function pushEvents() {
   return pushInbox.filter(n => n && n.at && Date.now() - n.at < DAY && !/^(aide|rappel)-/.test(n.tag || ''))   // demandes et rappels : déjà montrés par leur carte
-    .map(n => ({ id: pushId(n), at: new Date(n.at).toISOString(), icon: '<img class="ticon" src="icons/icon-192.png" alt="" width="34" height="34">', title: n.title || 'Maison', body: n.body || '', go: { view: ['maison', 'menage', 'recettes', 'courses', 'argent', 'nuit'].includes(VIEW_OF(n.url)) ? VIEW_OF(n.url) : 'maison' } }));
+    .map(n => ({ id: pushId(n), at: new Date(n.at).toISOString(), icon: pushIcon(n), title: n.title || 'Maison', body: n.body || '', go: { view: ['maison', 'menage', 'recettes', 'courses', 'argent', 'nuit'].includes(VIEW_OF(n.url)) ? VIEW_OF(n.url) : 'maison' } }));
 }
 let inboxLoaded = false;
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) setTimeout(loadInbox, 600); });
@@ -1543,7 +1557,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v120</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v121</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
