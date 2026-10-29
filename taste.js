@@ -46,7 +46,8 @@ export function signal(f, email) {
   let w = 0;
   if (r) w = (r - 3) * 1.25 + (r === 3 ? .15 : 0);
   else if (v === 'oui') w = 1;
-  else if (v === 'non') w = -.8;
+  else if (v === 'non') w = -.35;      // bof : pas intéressé, indifférent
+  else if (v === 'beurk') w = -1.6;   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
   return w;
 }

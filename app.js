@@ -2195,7 +2195,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v163</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v164</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3307,7 +3307,7 @@ function cineCompromis() {
   for (const f of L.theirs) if (!fMatch(f) && !fVotes(f)[S.me] && !fSeen(f, S.me)) out.push({ f, pour: S.me, s: T.score(t.me, f), why: `De la liste de ${nameOf(o)}` });
   for (const f of S.films) {
     if (f.status === 'vu' || fMatch(f)) continue;
-    for (const [a, b] of [[S.me, o], [o, S.me]]) if (fSeen(f, a) && !fSeen(f, b) && ((f.ratings?.[a]?.note || 0) >= 4 || (f.coeur || []).includes(a)) && fVotes(f)[b] !== 'non')
+    for (const [a, b] of [[S.me, o], [o, S.me]]) if (fSeen(f, a) && !fSeen(f, b) && ((f.ratings?.[a]?.note || 0) >= 4 || (f.coeur || []).includes(a)) && !['non', 'beurk'].includes(fVotes(f)[b]))
       out.push({ f, pour: b, s: T.score(t.by[b], f) + .5, why: `${a === S.me ? 'Tu l’as' : `${nameOf(a)} l’a`} adoré` });
   }
   const seen = new Set();
@@ -3324,7 +3324,7 @@ function fWhereShort(f) {
 function cineTile(f, space = 'moi') {
   const v = fVotes(f), o = other(), w = fWhereShort(f);
   const badge = fMatch(f) ? '<i class="tbadge match" title="Vous en avez envie tous les deux">💞</i>'
-    : space === 'autre' ? (v[S.me] === 'non' ? '<i class="tbadge dim">Bof pour toi</i>' : fSeen(f, S.me) ? '<i class="tbadge dim">Déjà vu</i>' : '<i class="tbadge ask">Moi aussi ?</i>')
+    : space === 'autre' ? (v[S.me] === 'beurk' ? '<i class="tbadge dim">Non pour toi</i>' : v[S.me] === 'non' ? '<i class="tbadge dim">Bof pour toi</i>' : fSeen(f, S.me) ? '<i class="tbadge dim">Déjà vu</i>' : '<i class="tbadge ask">Moi aussi ?</i>')
     : space === 'moi' && o && fSeen(f, S.me) ? '<i class="tbadge">Vu · à montrer</i>' : '';
   const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : f.runtime ? rDur(f.runtime) : ''].filter(Boolean).join(' · ');
   return `<li><button type="button" class="ftile" data-action="cine-open" data-id="${f.id}" aria-label="${esc(f.title)}">
@@ -3467,7 +3467,7 @@ async function filmEnrich(f) {
 // même un « bof » sert, il apprend à Azami ce qu'on n'aime pas.
 async function filmVote(item, vote, enrich = true, seenNote = 0) {
   const k = fkey(item), ex = S.films.find(f => fkey(f) === k);
-  const label = `${item.title} : ${seenNote ? 'noté' : vote === 'oui' ? 'envie' : 'bof'}`;
+  const label = `${item.title} : ${seenNote ? 'noté' : vote === 'oui' ? 'envie' : vote === 'beurk' ? 'non' : 'bof'}`;
   if (ex) {
     const back = filmBefore(ex, ['votes', 'seen', 'ratings']);
     const patch = vote ? { votes: { ...fVotes(ex), [S.me]: vote } } : {};
@@ -3502,8 +3502,8 @@ async function deckOpen(mood = '') {
   box.innerHTML = `<div class="deck-top"><button class="link" data-d="close">Fermer</button><b class="cinder-logo">🔥 Cinder</b><span class="deck-n"></span></div>
     <div class="deck-moods">${MOODS.map(([k, l]) => `<button data-mood="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
     <div class="deck-stack"><p class="hint">Azami mélange les cartes…</p></div>
-    <div class="deck-btns"><button class="deck-no" data-d="non" aria-label="Bof"><span>✕</span><small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu"><span>👁</span><small>Vu</small></button><button class="deck-yes" data-d="oui" aria-label="J'ai envie"><span>♥</span><small>Envie</small></button></div>
-    <p class="deck-hint">Glisse à droite si tu as envie, à gauche si c’est bof, vers le haut si tu l’as déjà vu.</p>`;
+    <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas"><span>✕</span><small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé"><span>😐</span><small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu"><span>👁</span><small>Vu</small></button><button class="deck-yes" data-d="oui" aria-label="J'ai envie"><span>♥</span><small>Envie</small></button></div>
+    <p class="deck-hint">→ envie · ← bof · ↓ non, j’aime pas · ↑ déjà vu</p>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   box.addEventListener('click', e => {
     const n = e.target.closest('[data-note]'); if (n) { deckSeen(Number(n.dataset.note)); return; }
@@ -3553,7 +3553,7 @@ function deckDraw() {
     return `<div class="dcard ${cls}">${fPoster(f, 'dposter')}<div class="dinfo"><b>${esc(f.title)}</b><span>${esc(sub)}</span>
       <div class="dtags">${f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${f.note ? `<em class="dtag note">★ ${String(f.note).replace('.', ',')}</em>` : ''}</div>
       ${why.length ? `<ul class="dwhy">${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}
-      <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
+      <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
   };
   st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (theirs && !deck.asking ? `<p class="dtheirs">Dans la liste de ${esc(nameOf(o))} 🤫</p>` : '');
   if (deck.asking) { deckAskSeen(true); return; }
@@ -3561,11 +3561,14 @@ function deckDraw() {
   let x0 = null, y0 = 0, dx = 0, dy = 0;
   el.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; dx = dy = 0; el.setPointerCapture(e.pointerId); el.style.transition = 'none'; });
   el.addEventListener('pointermove', e => { if (x0 == null) return; dx = e.clientX - x0; dy = e.clientY - y0; el.style.transform = `translate(${dx}px, ${Math.min(0, dy)}px) rotate(${dx / 18}deg)`;
-    const up = dy < -60 && Math.abs(dy) > Math.abs(dx); el.classList.toggle('lean-vu', up); el.classList.toggle('lean-oui', !up && dx > 50); el.classList.toggle('lean-non', !up && dx < -50); });
+    const vert = Math.abs(dy) > Math.abs(dx), up = vert && dy < -60, down = vert && dy > 60;
+    el.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx / 18}deg)`;
+    el.classList.toggle('lean-vu', up); el.classList.toggle('lean-beurk', down); el.classList.toggle('lean-oui', !vert && dx > 50); el.classList.toggle('lean-non', !vert && dx < -50); });
   const end = () => { if (x0 == null) return; x0 = null; el.style.transition = '';
     if (dy < -90 && Math.abs(dy) > Math.abs(dx)) { el.style.transform = ''; el.classList.remove('lean-vu'); deckAskSeen(); }
+    else if (dy > 90 && Math.abs(dy) > Math.abs(dx)) deckVote('beurk');
     else if (Math.abs(dx) > 90) deckVote(dx > 0 ? 'oui' : 'non');
-    else { el.style.transform = ''; el.classList.remove('lean-oui', 'lean-non', 'lean-vu'); } };
+    else { el.style.transform = ''; el.classList.remove('lean-oui', 'lean-non', 'lean-vu', 'lean-beurk'); } };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 }
 // Déjà vu : une note rapide, qui en dit long (surtout quand on n'a pas aimé).
@@ -3595,8 +3598,8 @@ function deckUndoOffer(f) {
 async function deckVote(v) {
   const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
   const el = deck.box.querySelector('.dcard.top');
-  if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = `translateX(${v === 'oui' ? 480 : -480}px) rotate(${v === 'oui' ? 24 : -24}deg)`; el.style.opacity = '0'; }
-  haptic(v === 'oui' ? 'medium' : 1); if (v === 'oui') sfx('tick');
+  if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = v === 'beurk' ? 'translateY(560px) rotate(6deg)' : `translateX(${v === 'oui' ? 480 : -480}px) rotate(${v === 'oui' ? 24 : -24}deg)`; el.style.opacity = '0'; }
+  haptic(v === 'oui' ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (v === 'oui') sfx('tick');
   deck.i++; setTimeout(deckDraw, 220);
   try {
     const saved = await filmVote(f, v, v === 'oui');

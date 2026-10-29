@@ -1603,3 +1603,12 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .fwhy span.for { color: #A6F0BE; }
 .fwhy span.for::before { content: '💞 '; }
 .deck-btns .deck-seen { width: 58px; height: 58px; }
+.deck-btns { gap: 12px; }
+.deck-btns .deck-no, .deck-btns .deck-yes { width: 66px; height: 66px; }
+.deck-btns .deck-bof { width: 54px; height: 54px; font-size: 22px; background: #3A2840; color: #E8DCE6; border: 3px solid #FBF3E9; border-radius: 50%; cursor: pointer; }
+.deck-btns .deck-seen { width: 54px; height: 54px; }
+.deck-no { color: #FF5C6A; }
+.dstamp.non { color: #E8DCE6; }
+.dstamp.beurk { left: 50%; top: auto; bottom: 40%; transform: translateX(-50%) rotate(8deg); color: #FF5C6A; }
+.dcard.lean-beurk .dstamp.beurk { opacity: 1; }
+.deck-hint { letter-spacing: .01em; }
