@@ -907,7 +907,7 @@ function calmBtn(x) {
 }
 const calmLate = x => x.late > 0 ? (x.late === 1 ? 'attend depuis hier' : `attend depuis ${x.late} jours`) : x.kind === 'task' && x.row.due_on ? relDay(x.row.due_on) : "aujourd'hui";
 const calmTitle = x => x.kind === 'chore' && /^vaisselle$/i.test(x.row.title.trim()) ? 'Vaisselle à la main' : x.row.title;
-function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && h.ask !== 'rappel' && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
+function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && !isRappel(h) && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
 function calmSection() {
   const list = myPending(), o = overload(list), st = calmState();
   const todo0 = list.filter(x => x.p !== 'later');
@@ -946,6 +946,9 @@ function calmSection() {
 const HELP_ASK = { remplacer: 'Tu peux le faire à ma place ?', ensemble: 'On le fait ensemble ?', souffler: 'J’ai besoin de souffler un peu. Tu peux prendre le relais ?' };
 const HELP_ANS = { pris: 's’en occupe', ensemble: 'est d’accord pour le faire ensemble', non: 'ne peut pas tout de suite' };
 const RAPPEL_ANS = { pris: 's’en occupe', non: 'le fera un peu plus tard' };
+const PENSER_ANS = { pris: 's’en occupe', ensemble: 'propose de le faire ensemble', non: 'y pensera un peu plus tard' };
+// Rappel simple (« tu peux penser à… ») ou rappel pour vous deux (« il faudrait qu'on y pense »).
+const isRappel = h => h.ask === 'rappel' || h.ask === 'penser';
 const helpRow = h => h.item_kind === 'task' ? S.tasks.find(x => x.id === h.item_id) : h.item_kind === 'chore' ? S.chores.find(x => x.id === h.item_id) : null;
 // Un rappel n'a plus lieu d'être quand la chose a été faite après son envoi.
 function helpItemDone(h) {
@@ -954,15 +957,19 @@ function helpItemDone(h) {
   return h.item_kind === 'task' ? !!r.done : !!(r.last_done_at && new Date(r.last_done_at) > new Date(h.created_at));
 }
 function helpInbox() {
-  const list = S.help.filter(h => h.to_email === S.me && !h.status && Date.now() - new Date(h.created_at).getTime() < 3 * DAY && !(h.ask === 'rappel' && helpItemDone(h)))
+  const list = S.help.filter(h => h.to_email === S.me && !h.status && Date.now() - new Date(h.created_at).getTime() < 3 * DAY && !(isRappel(h) && helpItemDone(h)))
     .sort((x, y) => y.created_at.localeCompare(x.created_at));
   // Plusieurs rappels pour la même chose : on n'en montre qu'un, le plus récent.
-  return list.filter((h, i) => h.ask !== 'rappel' || list.findIndex(x => x.ask === 'rappel' && x.item_id === h.item_id) === i);
+  return list.filter((h, i) => !isRappel(h) || list.findIndex(x => isRappel(x) && x.item_id === h.item_id) === i);
 }
 const helpAnswers = () => S.help.filter(h => h.from_email === S.me && h.status && h.answered_at && Date.now() - new Date(h.answered_at).getTime() < 12 * 3600000 && !S.helpSeen.has(h.id));
-const helpAnsText = h => (h.ask === 'rappel' ? RAPPEL_ANS : HELP_ANS)[h.status] || 'a répondu';
+const helpAnsText = h => (h.ask === 'penser' ? PENSER_ANS : h.ask === 'rappel' ? RAPPEL_ANS : HELP_ANS)[h.status] || 'a répondu';
 function helpCards() {
-  return helpInbox().map(h => h.ask === 'rappel'
+  return helpInbox().map(h => h.ask === 'penser'
+    ? `<section class="help-card rappel" id="help-${h.id}"><p class="calm-kicker">${esc(nameOf(h.from_email))} : il faudrait qu’on pense à</p>
+      <p class="help-what">${esc(h.label || 'Une chose à faire')}</p>
+      <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="pris">Je m’en occupe</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="ensemble">On le fait ensemble</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Plus tard</button></div></section>`
+    : h.ask === 'rappel'
     ? `<section class="help-card rappel" id="help-${h.id}"><p class="calm-kicker">${esc(nameOf(h.from_email))} te fait penser à</p>
       <p class="help-what">${esc(h.label || 'Une chose à faire')}</p>
       <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="pris">J’y vais</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Plus tard</button></div></section>`
@@ -975,14 +982,17 @@ function helpCards() {
 // Rappeler à l'autre : un geste pour lui faire penser à une chose qui est à son tour (notification sur son téléphone).
 const BELL = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3.5a5 5 0 0 0-5 5v2.9c0 .9-.3 1.8-.9 2.5L5 15.3h14l-1.1-1.4a4 4 0 0 1-.9-2.5V8.5a5 5 0 0 0-5-5Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 18.2a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 const BELL_OK = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2 8.8-9.2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const nudgeOf = id => S.help.find(h => h.ask === 'rappel' && h.item_id === id && h.from_email === S.me && !h.status && !helpItemDone(h) && Date.now() - new Date(h.created_at).getTime() < 12 * 3600000);
-const nudgeWho = (kind, row) => { const o = other(); const w = kind === 'chore' ? row.turn : row.assignee; return o && w === o ? o : null; };
+const nudgeOf = id => S.help.find(h => isRappel(h) && h.item_id === id && h.from_email === S.me && !h.status && !helpItemDone(h) && Date.now() - new Date(h.created_at).getTime() < 12 * 3600000);
+// Une tâche pour vous deux : pas « tu dois le faire », plutôt « il faudrait qu'on y pense ».
+const nudgeShared = (kind, row) => kind === 'task' && !row.assignee && !row.done;
+const nudgeWho = (kind, row) => { const o = other(); if (!o) return null; if (nudgeShared(kind, row)) return o; const w = kind === 'chore' ? row.turn : row.assignee; return w === o ? o : null; };
 function nudgeBtn(kind, row, due) {
-  const o = nudgeWho(kind, row); if (!o || !due) return '';
+  const o = nudgeWho(kind, row), shared = nudgeShared(kind, row); if (!o || (!due && !shared)) return '';
   const n = nudgeOf(row.id);
-  return `<button class="nudge ${n ? 'sent' : ''}" data-action="nudge" data-kind="${kind}" data-id="${row.id}" aria-label="${n ? `Rappel envoyé à ${esc(nameOf(o))} ${esc(ago(n.created_at))}` : `Rappeler à ${esc(nameOf(o))}`}">${n ? `${BELL_OK}<span>Rappelé</span>` : `${BELL}<span>Rappeler</span>`}</button>`;
+  const label = n ? `Rappel envoyé à ${esc(nameOf(o))} ${esc(ago(n.created_at))}` : shared ? `Faire penser ${esc(nameOf(o))} à cette tâche pour vous deux` : `Rappeler à ${esc(nameOf(o))}`;
+  return `<button class="nudge ${n ? 'sent' : ''}" data-action="nudge" data-kind="${kind}" data-id="${row.id}" aria-label="${label}">${n ? `${BELL_OK}<span>Rappelé</span>` : `${BELL}<span>${shared ? 'On y pense ?' : 'Rappeler'}</span>`}</button>`;
 }
-const nudgeMenu = (kind, row) => { const o = nudgeWho(kind, row); return o ? `<button class="btn ghost small" data-action="nudge" data-kind="${kind}" data-id="${row.id}">Rappeler à ${esc(nameOf(o))}</button>` : ''; };
+const nudgeMenu = (kind, row) => { const o = nudgeWho(kind, row); return o ? `<button class="btn ghost small" data-action="nudge" data-kind="${kind}" data-id="${row.id}">${nudgeShared(kind, row) ? `On y pense ? Envoyer à ${esc(nameOf(o))}` : `Rappeler à ${esc(nameOf(o))}`}</button>` : ''; };
 
 // Petites notifications dans l'app : à l'ouverture et en direct (rappel, demande d'aide, réponse, petit mot).
 // Elles restent quelques secondes en haut ; un toucher ouvre le détail.
@@ -991,8 +1001,8 @@ let popList = [], popExpanded = false, popHeld = false;
 function popEvents() {
   const out = [], now = Date.now();
   const itemIcon = h => { const r = helpRow(h); return r ? iconHtml(displayIcon(h.item_kind === 'task' ? 'tasks' : 'chores', r)) : iconHtml(h.ask === 'souffler' ? 't:care_besoin' : 't:rappel'); };
-  for (const h of helpInbox()) out.push({ id: 'h' + h.id, at: h.created_at, icon: itemIcon(h), title: h.ask === 'rappel' ? `${nameOf(h.from_email)} te fait penser à` : `${nameOf(h.from_email)} demande un coup de main`, body: h.ask === 'rappel' ? (h.label || 'Une chose à faire') : [h.label, HELP_ASK[h.ask]].filter(Boolean).join(' · '), go: { view: 'maison', el: `help-${h.id}` } });
-  for (const h of helpAnswers()) out.push({ id: 'a' + h.id, at: h.answered_at, icon: itemIcon(h), title: `${nameOf(h.to_email)} ${helpAnsText(h)}`, body: h.label || (h.ask === 'rappel' ? 'Ton rappel' : 'Ta demande d’aide'), go: { view: 'maison', el: `help-${h.id}` } });
+  for (const h of helpInbox()) out.push({ id: 'h' + h.id, at: h.created_at, icon: itemIcon(h), title: h.ask === 'penser' ? `${nameOf(h.from_email)} : il faudrait qu’on y pense` : h.ask === 'rappel' ? `${nameOf(h.from_email)} te fait penser à` : `${nameOf(h.from_email)} demande un coup de main`, body: isRappel(h) ? (h.label || 'Une chose à faire') : [h.label, HELP_ASK[h.ask]].filter(Boolean).join(' · '), go: { view: 'maison', el: `help-${h.id}` } });
+  for (const h of helpAnswers()) out.push({ id: 'a' + h.id, at: h.answered_at, icon: itemIcon(h), title: `${nameOf(h.to_email)} ${helpAnsText(h)}`, body: h.label || (isRappel(h) ? 'Ton rappel' : 'Ta demande d’aide'), go: { view: 'maison', el: `help-${h.id}` } });
   if (S.view !== 'nuit') for (const c of S.care.filter(c => c.recipient === S.me && !c.read_at && now - new Date(c.created_at).getTime() < 3 * DAY)) {
     const k = ['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(c.kind) ? c.kind : 'merci';
     out.push({ id: 'c' + c.id, at: c.created_at, icon: `<img class="ticon" src="icons/themes/care_${k}.webp" alt="" width="34" height="34">`, title: `${careKind(c.kind) || 'Un mot'} de ${nameOf(c.author)}`, body: 'Touche pour l’ouvrir', go: { view: 'nuit', letter: c.id } });
@@ -1951,7 +1961,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v140</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v141</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2961,8 +2971,9 @@ const actions = {
     if (n && Date.now() - new Date(n.created_at).getTime() < 3600000) { haptic(1); toast(`Déjà rappelé ${ago(n.created_at)}. ${nameOf(o)} a reçu la notification.`); return; }
     const label = /^vaisselle$/i.test(row.title.trim()) ? 'Vaisselle à la main' : row.title;
     haptic('medium'); S.open = null;
-    run(async () => { const r = await api.insert('help_requests', { from_email: S.me, to_email: o, item_kind: kind, item_id: id, label, ask: 'rappel' }); await pingHelp(r?.id); },
-      `Rappel envoyé à ${nameOf(o)}.`, 'nudge-' + id);
+    const shared = nudgeShared(kind, row);
+    run(async () => { const r = await api.insert('help_requests', { from_email: S.me, to_email: o, item_kind: kind, item_id: id, label, ask: shared ? 'penser' : 'rappel' }); await pingHelp(r?.id); },
+      shared ? `C’est envoyé : ${nameOf(o)} va y penser avec toi.` : `Rappel envoyé à ${nameOf(o)}.`, 'nudge-' + id);
   },
   'help-send': el => {
     const kind = el.dataset.kind || null, id = el.dataset.id || null;
