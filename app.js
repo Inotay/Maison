@@ -28,7 +28,7 @@ function greeting(h = new Date().getHours()) {
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
 // à chaque rendu (jamais recréée), pour qu'elle apparaisse tout de suite.
-const SCENES = ['v44_etirement', 'v44_jeu', 'v44_toilette', 'v44_marche', 'v44_miaulement', 'v44_repos', 'v44_menage', 'v44_courses', 'v44_argent', 'v44_care', 'v44_cuisine', 'v44_reussite', 'v44_calme'];
+const SCENES = ['v44_cine', 'v44_collection', 'v44_etirement', 'v44_jeu', 'v44_toilette', 'v44_marche', 'v44_miaulement', 'v44_repos', 'v44_menage', 'v44_courses', 'v44_argent', 'v44_care', 'v44_cuisine', 'v44_reussite', 'v44_calme'];
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const azamiSrc = scene => scene.startsWith('v44_')
   ? `azami/v44/${reducedMotion() ? 'statiques/' : ''}azami_${scene}_${reducedMotion() ? 'statique' : 'anime'}.svg`
@@ -1487,7 +1487,6 @@ function carnetSection() {
   const locked = Array.from({ length: lockedN }, (_, i) => `<li style="--i:${shown.length + i}"><button type="button" class="ccard locked" data-action="carnet-locked"><span class="ccard-q" aria-hidden="true">?</span><span class="ccard-txt">À découvrir</span></button></li>`).join('');
   return `<section class="carnet-box" id="carnet">
     <div class="carnet-head">
-      <img class="carnet-az" src="${azamiSrc('v44_visite_ecoute')}" alt="" width="512" height="512">
       <div class="carnet-title"><h2>Le carnet d’Azami</h2><p>${n ? `<b>${n}</b> ${n > 1 ? 'visites découvertes' : 'visite découverte'} à deux, sur ${total}` : 'Ce qu’Azami vous raconte se range ici, pour vous deux.'}</p></div>
       <div class="carnet-ring" style="--p:${pct}" aria-label="${pct} %"><span>${pct}<small>%</small></span></div>
     </div>
@@ -2195,7 +2194,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v161</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v162</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3188,7 +3187,7 @@ function viewArgent() {
 // Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Loisirs</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_care', 'Azami tient une enveloppe')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Loisirs</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${(S.loisirTab || 'cine') === 'cine' ? azami('v44_cine', 'Azami en lunettes 3D avec son pop-corn') : S.loisirTab === 'carnet' ? azami('v44_collection', 'Azami feuillette son album de cartes') : azami('v44_care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
@@ -3222,7 +3221,7 @@ const fVotes = f => f.votes || {};
 const fWanted = f => Object.values(fVotes(f)).includes('oui');
 const fMatch = f => S.members.length >= 2 && S.members.every(m => fVotes(f)[m.email] === 'oui');
 const fMeta = f => [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.runtime ? rDur(f.runtime) : 'Film'), (f.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ');
-const POSTER_W = { fposter: 'w185', sposter: 'w92', iposter: 'w185' };
+const POSTER_W = { fposter: 'w185', sposter: 'w92', iposter: 'w185', tposter: 'w342' };
 const posterSrc = (u, cls) => POSTER_W[cls] ? String(u).replace('/t/p/w342/', `/t/p/${POSTER_W[cls]}/`) : u;
 const fPoster = (f, cls = 'fposter') => f.poster ? `<img class="${cls}" src="${esc(posterSrc(f.poster, cls))}" alt="" ${cls === 'fposter' || cls === 'iposter' ? 'loading="lazy"' : ''} decoding="async" referrerpolicy="no-referrer" data-poster>` : `<span class="${cls} noposter" aria-hidden="true">${f.media === 'tv' ? '📺' : '🎬'}</span>`;
 const fProv = f => (f.providers || []).filter(p => p.kind !== 'location').slice(0, 3).map(p => p.name);
@@ -3273,6 +3272,22 @@ function cineLists() {
   const vus = S.films.filter(f => f.status === 'vu').sort((a, b) => String(b.seen_at || '').localeCompare(String(a.seen_at || '')));
   return { aVoir, enCours, vus };
 }
+function fWhereShort(f) {
+  const w = fWhere(f);
+  if (w.salles.length) return ['salle', '🎟 Au ciné'];
+  if (w.chez.length) return ['chez', '✓ ' + w.chez[0].replace(/ Plus$/, '+')];
+  if (w.loc.length) return ['loc', 'Location'];
+  return null;
+}
+// L'affiche d'abord : une grille comme à l'entrée d'un cinéma.
+function cineTile(f) {
+  const v = fVotes(f), o = other(), w = fWhereShort(f);
+  const badge = fMatch(f) ? '<i class="tbadge match" title="Vous en avez envie tous les deux">💞</i>' : o && v[o] === 'oui' && !v[S.me] ? `<i class="tbadge">♥ ${esc(nameOf(o))}</i>` : '';
+  const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : f.runtime ? rDur(f.runtime) : ''].filter(Boolean).join(' · ');
+  return `<li><button type="button" class="ftile" data-action="cine-open" data-id="${f.id}" aria-label="${esc(f.title)}">
+    <span class="ftile-p">${fPoster(f, 'tposter')}${badge}${w ? `<i class="twhere ${w[0]}">${esc(w[1])}</i>` : ''}</span>
+    <b>${esc(f.title)}</b><small>${esc(sub)}</small></button></li>`;
+}
 function cineCard(f) {
   const v = fVotes(f), o = other();
   const badge = fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && v[o] === 'oui' && !v[S.me] ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : '';
@@ -3280,8 +3295,8 @@ function cineCard(f) {
   const rate = f.status === 'vu' ? S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<span class="frate">${esc(m.email === S.me ? 'Toi' : nameOf(m.email))} ${'♥'.repeat(f.ratings[m.email].note)}</span>`).join('') : '';
   return `<li><div class="fcard" data-action="cine-open" data-id="${f.id}" role="button" tabindex="0">${fPoster(f)}<div class="fbody">
     <b class="ftitle">${esc(f.title)}</b><span class="fmeta">${esc(fMeta(f))}</span>
-    ${badge}${fWhereLine(f)}
-    ${f.status === 'vu' ? `<span class="fmeta">${f.seen_at ? `Vu le ${esc(fmtDay(f.seen_at))}` : 'Déjà vu'}</span>${rate ? `<span class="frates">${rate}</span>` : ''}` : ''}
+    ${f.status === 'vu' ? '' : badge + fWhereLine(f)}
+    ${f.status === 'vu' ? `<span class="fstub">${f.seen_at ? `Vu le ${esc(fmtDay(f.seen_at))}` : 'Déjà vu'}</span>${rate ? `<span class="frates">${rate}</span>` : `<span class="fmeta">Pas encore noté</span>`}${S.members.filter(m => f.ratings?.[m.email]?.mot).slice(0, 1).map(m => `<i class="fmot">« ${esc(f.ratings[m.email].mot)} »</i>`).join('')}` : ''}
     ${fProg(f) ? `<span class="fprog"><b>${fProg(f)}</b><button type="button" class="btn small" data-action="cine-ep" data-id="${f.id}">+1 épisode</button></span>` : ''}</div></div></li>`;
 }
 function cineSection() {
@@ -3292,16 +3307,17 @@ function cineSection() {
   if (!S.cineIdeasAsked) { cineIdeas(); filmsResolve(); }
   if (!S.salles && !loadSalles.p) loadSalles();
   return `<section class="cine" id="cine">
-    <div class="cine-head"><h2 class="first"><img class="h2-ic" src="icons/themes/popcorn.webp" alt="" width="30" height="30"> Ciné à deux</h2></div>
-    <div class="cine-cta"><button class="btn" data-action="cine-deck">🔥 Match à deux</button><button class="btn ghost" data-action="cine-soir">🎲 On regarde quoi ?</button></div>
-    <div class="cine-add"><label class="sr" for="cine-q">Ajouter un film ou une série</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Ajouter un film, une série… ou coller un lien" autocomplete="off" enterkeyhint="search">
+    <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>Ciné à deux</h2>
+      <p>${[L.aVoir.length ? `${L.aVoir.length} à voir` : '', L.aVoir.filter(fMatch).length ? `${L.aVoir.filter(fMatch).length} 💞` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
+    <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck"><span aria-hidden="true">💞</span> Match à deux</button><button class="btn cta-soir" data-action="cine-soir"><span aria-hidden="true">🎲</span> Ce soir ?</button></div>
+    <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Un film, une série, un lien…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
     <div class="seg cine-tabs" role="group" aria-label="Liste">
       <button data-action="cine-tab" data-t="a_voir" aria-pressed="${t === 'a_voir'}">À voir${L.aVoir.length ? ` · ${L.aVoir.length}` : ''}</button>
       <button data-action="cine-tab" data-t="en_cours" aria-pressed="${t === 'en_cours'}">En cours${L.enCours.length ? ` · ${L.enCours.length}` : ''}</button>
       <button data-action="cine-tab" data-t="vu" aria-pressed="${t === 'vu'}">Vus${L.vus.length ? ` · ${L.vus.length}` : ''}</button>
       <button data-action="cine-tab" data-t="salles" aria-pressed="${t === 'salles'}">🎟 À l’affiche</button></div>
-    ${t === 'salles' ? cineSallesHtml() : list.length ? `<ul class="cine-list">${list.map(cineCard).join('')}</ul>` : `<p class="hint cine-empty">${empty}</p>`}
+    ${t === 'salles' ? cineSallesHtml() : !list.length ? `<p class="hint cine-empty">${empty}</p>` : t === 'a_voir' ? `<ul class="cine-grid">${list.map(cineTile).join('')}</ul>` : `<ul class="cine-list ${t === 'vu' ? 'journal' : ''}">${list.map(cineCard).join('')}</ul>`}
     ${cineCoeurs()}
     ${S.cineIdeas?.length ? `<div class="chip-row"><p class="chip-label">Les idées d’Azami</p><button class="link small" data-action="cine-ideas-more" aria-label="D’autres idées">↻ D’autres</button></div><div class="cine-ideas">${S.cineIdeas.slice(0, 10).map((f, i) => `<button type="button" class="idea" data-action="cine-idea" data-i="${i}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.dispo ? '<small class="ichez">✓ chez vous</small>' : f.cinema ? '<small class="ichez">🎟 au ciné</small>' : ''}<b aria-hidden="true">+</b></button>`).join('')}</div>` : ''}
     ${cineGouts()}
@@ -3448,11 +3464,11 @@ async function cineOpen(id) {
       : f.status === 'en_cours' ? `${f.media === 'tv' ? `<button class="btn" data-action="cine-ep" data-id="${f.id}">+1 épisode (${fProg(f)})</button>` : ''}<button class="btn ${f.media === 'tv' ? 'ghost' : ''}" data-action="cine-seen" data-id="${f.id}">${f.media === 'tv' ? 'Série finie' : 'On l’a vu'}</button>`
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
       : `<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Changer ma note</button>`;
-    const heart = `<button class="btn ghost small fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}">${(f.coeur || []).includes(S.me) ? '♥ Un de mes coups de cœur' : '♡ Coup de cœur'}</button>`;
+    const heart = `<button class="fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}" aria-label="${(f.coeur || []).includes(S.me) ? 'Retirer de mes coups de cœur' : 'Mettre dans mes coups de cœur'}"><span aria-hidden="true">${(f.coeur || []).includes(S.me) ? '♥' : '♡'}</span><small>Coup de cœur</small></button>`;
     const rates = S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> <span class="hearts">${'♥'.repeat(f.ratings[m.email].note)}${'♡'.repeat(5 - f.ratings[m.email].note)}</span>${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
     document.getElementById('ticket')?.remove();
     const box = document.createElement('div'); box.id = 'ticket';
-    box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}">
+    box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}">${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
       <div class="fsheet-top">${fPoster(f, 'bposter')}<div><p class="ticket-title">${esc(f.title)}</p><p class="ticket-sub">${esc(fMeta(f))}</p>${f.director ? `<p class="ticket-sub">${f.media === 'tv' ? 'Créée par' : 'De'} ${esc(f.director)}</p>` : ''}
         ${fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && v[o] === 'oui' ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
       ${f.overview ? `<p class="fsyn">${esc(f.overview)}</p>` : ''}
@@ -3461,7 +3477,7 @@ async function cineOpen(id) {
       ${f.trailer ? `<p><a class="link" href="${esc(f.trailer)}" target="_blank" rel="noopener">▶ Voir la bande-annonce</a></p>` : ''}
       ${rates ? `<ul class="frates-big">${rates}</ul>` : ''}
       ${(f.coeur || []).filter(e => e !== S.me).length ? `<p class="fbadge">♥ Coup de cœur de ${esc(nameOf(f.coeur.find(e => e !== S.me)))}</p>` : ''}
-      <div class="form-actions fsheet-acts">${acts}</div><div class="form-actions">${heart}</div>
+      <div class="form-actions fsheet-acts">${acts}${heart}</div>
       <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Fermer</button><button class="link" data-action="cine-del" data-id="${f.id}">Retirer de la liste</button></div></div>`;
     box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
     document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
@@ -3481,7 +3497,7 @@ function cineRate(id) {
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   const draw = () => {
-    box.innerHTML = `<div class="ticket-card" role="dialog" aria-label="Alors ?"><p class="ticket-title">Alors, ${esc(f.title)} ?</p><p class="ticket-sub">Ta note et un petit mot, pour votre journal à deux.</p>
+    box.innerHTML = `<div class="ticket-card fsheet frate-sheet" role="dialog" aria-label="Alors ?">${fPoster(f, 'rateposter')}<p class="ticket-title">Alors, ${esc(f.title)} ?</p><p class="ticket-sub">Ta note et un petit mot, pour votre journal à deux.</p>
       <div class="hearts-pick">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} sur 5" aria-pressed="${n <= note}">${n <= note ? '♥' : '♡'}</button>`).join('')}</div>
       <textarea class="area" id="f-mot" placeholder="Un petit mot (facultatif) : la scène préférée, ce qui t’a fait rire…">${esc(mine.mot || '')}</textarea>
       <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-r="ok" ${note ? '' : 'disabled'}>Enregistrer</button></div></div>`;

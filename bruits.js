@@ -89,11 +89,15 @@ export const ENTREE = {
   v44_argent: [['tchiing', 0]],
   v44_courses: [['froisse', 0, .35]],
   v44_care: [['papier', 0], ['carillon', .12]],
+  v44_cine: [['pop', 0], ['pop', .14]],
+  v44_collection: [['papier', 0], ['carillon', .12]],
 };
 
 // Les bruitages calés sur chaque scène (secondes depuis le début de l'animation, un seul tour de boucle).
 const strokes = [0, 1, 2, 3, 4, 5].map(k => ['balai', .85 + k * .5]);
 export const CUES = {
+  v44_cine: [['pop', .95], ['pop', 1.5], ['pop', 2.4], ['gloup', 3.08], ['tapote', 3.25], ['tapote', 3.5], ['tapote', 3.75], ['pop', 4.65], ['m:chirp', 6.7], ['eclat', 6.78], ['pop', 8.8]],
+  v44_collection: [['tourne', 1.75], ['papier', 1.8], ['carillon', 2.65], ['eclat', 3.1], ['eclat', 3.7], ['saut', 5.0], ['atterrit', 5.2], ['tourne', 5.95], ['papier', 6.0]],
   // accueil (les noms « m:… » sont des miaulements de miaous.js)
   v44_etirement: [['m:baille', 2.25], ['m:mrrr', 4.75], ['secoue', 6.7]],
   v44_jeu: [...[0, 1, 2, 3].map(k => ['patte', 2.05 + k * .42]), ['saut', 3.37], ['balle', 3.52], ['atterrit', 3.71], ['roulade', 3.6], ['m:chirp', 4.35]],
@@ -113,7 +117,7 @@ export const CUES = {
 // Programme une liste de bruitages à partir de l'instant t0 (temps de l'AudioContext). Renvoie le bus,
 // à déconnecter pour tout couper.
 // Durée d'un tour de chaque scène (les bruitages repartent à chaque tour, comme l'animation).
-export const DUREE = { v44_etirement: 12, v44_jeu: 12, v44_toilette: 12, v44_marche: 12, v44_miaulement: 12, v44_repos: 12, v44_calme: 12, v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12 };
+export const DUREE = { v44_etirement: 12, v44_jeu: 12, v44_toilette: 12, v44_marche: 12, v44_miaulement: 12, v44_repos: 12, v44_calme: 12, v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12, v44_cine: 12, v44_collection: 12 };
 
 export function schedule(c, list, t0, vol = 1, meow = null, bus = null) {
   if (!bus) { bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination); }

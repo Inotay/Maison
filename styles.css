@@ -1428,3 +1428,121 @@ html[data-theme="brun"] .fwhere.salle { color: #FFB3BA; }
 .srows.hot .srow { border-color: #E7505A; background: #FFF1F2; }
 html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .sgroup summary small { color: var(--muted); font-weight: 600; }
+
+/* Ciné à deux : une petite salle obscure ------------------------------------------------------- */
+.cine {
+  --text: #FBF3E9; --muted: #C9B7C6; --surface: #2E1F33; --surface-2: #3A2840; --line: #54395B; --shadow: #140C17;
+  --accent: #F7C948; --accent-edge: #B88A16; --accent-text: #2A1C15;
+  color: var(--text); background: radial-gradient(120% 60% at 50% -10%, #5A2A44 0%, #2A1A2E 55%, #1D1220 100%);
+  border: 3px solid #120A14; box-shadow: 0 5px 0 #120A14; border-radius: 24px; padding: 0 14px 16px; overflow: hidden;
+}
+.cine .hint, .cine .chip-label { color: var(--muted); }
+.cine-marquee { position: relative; margin: 0 -14px 14px; padding: 22px 16px 14px; text-align: center;
+  background: linear-gradient(180deg, #E7505A, #B8323F); border-bottom: 3px solid #120A14; box-shadow: inset 0 -6px 0 rgba(0,0,0,.18); }
+.cine-marquee h2 { margin: 0; color: #FFF6E5; font-size: 26px; font-weight: 900; letter-spacing: .02em; text-transform: none; text-shadow: 0 3px 0 #7E1A25; }
+.cine-marquee p { margin: 4px 0 0; color: #FFE1D6; font-size: 13px; font-weight: 800; }
+.cine-marquee .bulbs { position: absolute; left: 10px; right: 10px; top: 7px; height: 8px;
+  background: radial-gradient(circle, #FFF3B0 0 3px, transparent 3.5px) 0 0 / 16px 8px repeat-x; filter: drop-shadow(0 0 3px #FFD35A); animation: bulbs 1.6s steps(2) infinite; }
+@keyframes bulbs { 50% { background-position: 8px 0; } }
+@media (prefers-reduced-motion: reduce) { .cine-marquee .bulbs { animation: none; } }
+.cine-cta { gap: 10px; margin: 0 0 12px; }
+.cine-cta .btn { height: 52px; font-size: 15.5px; border-radius: 16px; }
+.cine-cta .cta-match { --edge: #8E1E2A; background: #E7505A; color: #fff; box-shadow: 0 4px 0 #8E1E2A; }
+.cine-cta .cta-soir { --edge: var(--accent-edge); background: var(--accent); color: var(--accent-text); box-shadow: 0 4px 0 var(--accent-edge); }
+.cine-add { position: relative; }
+.cine-add .field { background: #3A2840; color: var(--text); border-color: #54395B; padding-left: 42px; border-radius: 14px; }
+.cine-add .field::placeholder { color: #A893A6; }
+.cine-add .field:focus { border-color: var(--accent); }
+.cine-loupe { position: absolute; left: 14px; top: 14px; color: #A893A6; pointer-events: none; }
+.cine-found button { background: #3A2840; border-color: #54395B; color: var(--text); }
+.cine-tabs { background: #241828; border-color: #3E2A44; margin: 14px 0 12px; }
+.cine-tabs button { color: #C9B7C6; }
+.cine-tabs button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); box-shadow: 0 3px 0 var(--accent-edge); }
+
+/* la grille d'affiches */
+.cine-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 10px; }
+.ftile { width: 100%; padding: 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; display: grid; gap: 4px; }
+.ftile-p { position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 12px; overflow: hidden; border: 2.5px solid #120A14; box-shadow: 0 4px 0 #120A14; background: #3A2840; transition: transform .15s; }
+.ftile:active .ftile-p { transform: translateY(3px); box-shadow: 0 1px 0 #120A14; }
+.tposter { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tposter.noposter { display: grid; place-items: center; font-size: 30px; background: linear-gradient(160deg, #4A3350, #241828); }
+.ftile b { font-size: 13px; font-weight: 800; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ftile small { font-size: 11.5px; color: var(--muted); font-weight: 700; margin-top: -2px; }
+.tbadge { position: absolute; top: 6px; left: 6px; font-style: normal; font-size: 11px; font-weight: 900; padding: 2px 7px; border-radius: 999px; background: rgba(20,10,22,.78); color: #FFD7DC; border: 1.5px solid #E7505A; }
+.tbadge.match { background: #E7505A; color: #fff; border-color: #fff; font-size: 13px; padding: 1px 6px; }
+.twhere { position: absolute; left: 0; right: 0; bottom: 0; font-style: normal; font-size: 10.5px; font-weight: 900; padding: 14px 6px 5px; color: #fff;
+  background: linear-gradient(transparent, rgba(10,6,12,.88)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.twhere.chez { color: #A6F0BE; }
+.twhere.salle { color: #FFC0C6; }
+.twhere.loc { color: #E8DCE6; }
+
+/* séries en cours et journal des vus : sur des cartes sombres */
+.cine .fcard { background: #33233A; border-color: #4A3350; box-shadow: 0 3px 0 #140C17; color: var(--text); }
+.cine .fposter { border-color: #120A14; }
+.cine .fwhere.chez { color: #A6F0BE; }
+.cine .fwhere.salle { color: #FFC0C6; }
+.cine .fprog { gap: 10px; }
+.cine .fprog b { background: #F7C948; color: #2A1C15; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+.cine .fbadge { background: rgba(231,80,90,.18); color: #FFD7DC; }
+.cine .fbadge.match { background: #E7505A; color: #fff; }
+.journal .fcard { position: relative; border-style: dashed; }
+.fstub { align-self: flex-start; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #2A1C15; background: #F7C948; padding: 2px 8px; border-radius: 6px; }
+.cine .frate { color: #FF8C97; }
+.fmot { font-size: 13px; color: #E8DCE6; line-height: 1.35; }
+
+/* rangées d'affiches (coups de cœur, idées) */
+.cine .idea { color: var(--text); width: 96px; }
+.cine .iposter { width: 96px; height: 144px; border-color: #120A14; box-shadow: 0 3px 0 #120A14; }
+.cine .iposter.noposter { background: linear-gradient(160deg, #4A3350, #241828); }
+.cine .ichez { color: #A6F0BE; }
+.cine .idea b { border-color: #120A14; }
+.cine .chip-row { margin-top: 18px; }
+.cine > .chip-label { margin-top: 18px; }
+
+/* abonnements, goûts, salles */
+.cine .fold > summary { color: var(--text); }
+.cine .chips button { background: #3A2840; border-color: #54395B; color: var(--text); }
+.cine .chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.cine .gout { background: #3A2840; border-color: #54395B; }
+.cine .gout-add .field { background: #3A2840; color: var(--text); border-color: #54395B; }
+.cine .srow { background: #33233A; border-color: #4A3350; }
+.cine .srows.hot .srow { background: #4A2233; border-color: #E7505A; }
+.cine .btn.ghost { background: #3A2840; border-color: #54395B; color: var(--text); --edge: #140C17; }
+.cine-cta .btn { min-width: 0; padding: 0 8px; font-size: 14.5px; white-space: nowrap; }
+.cine .link { color: var(--accent); text-decoration-color: rgba(247,201,72,.5); }
+.idea span.noposter { display: grid; place-items: center; font-size: 34px; -webkit-line-clamp: unset; }
+
+/* fiche d'un film : la salle s'éteint */
+.ticket-card.fsheet { --text: #FBF3E9; --muted: #C9B7C6; --surface-2: #3A2840; --line: #54395B; position: relative; overflow-x: hidden;
+  background: #221626; color: var(--text); border-color: #120A14; }
+.fsheet > * { position: relative; }
+.fsheet .fsheet-bg { position: absolute; left: -20px; right: -20px; top: -20px; height: 260px; background-size: cover; background-position: center 20%;
+  filter: blur(18px) saturate(1.3) brightness(.55); opacity: .9; -webkit-mask-image: linear-gradient(#000 40%, transparent); mask-image: linear-gradient(#000 40%, transparent); pointer-events: none; }
+.fsheet .ticket-title { color: #FFF6E5; font-size: 24px; }
+.fsheet .ticket-sub { color: #E3D3DF; }
+.fsheet .bposter { border-color: #120A14; box-shadow: 0 6px 0 #120A14, 0 10px 30px rgba(0,0,0,.4); }
+.fsheet .chip-label { color: #C9B7C6; }
+.fsheet .fsyn { color: #F2E6EE; }
+.fsheet .fp { background: #3A2840; border-color: #54395B; color: var(--text); }
+.fsheet .fp.chez { background: #1F4A33; border-color: #3FA46A; color: #DDF8E6; }
+.fsheet .fp small { color: #C9B7C6; }
+.fsheet .fp.chez small { color: #A6F0BE; }
+.fsheet .fsalle { background: #4A2233; color: #FFE1E4; border-color: #E7505A; }
+.fsheet .frates-big li { background: #33233A; border-color: #4A3350; }
+.fsheet .link { color: #F7C948; }
+.fsheet .btn.ghost { background: #3A2840; border-color: #54395B; color: var(--text); --edge: #140C17; }
+.fsheet .fbadge { background: rgba(231,80,90,.2); color: #FFD7DC; }
+.fsheet .fbadge.match { background: #E7505A; color: #fff; }
+.fsheet .hint { color: #C9B7C6; }
+.fsheet-acts { align-items: center; }
+.fheart { display: grid; justify-items: center; gap: 0; width: 66px; padding: 4px 0; border: 0; background: none; color: #FF8C97; font: inherit; cursor: pointer; }
+.fheart span { font-size: 30px; line-height: 1; transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+.fheart[aria-pressed="true"] span { transform: scale(1.15); }
+.fheart small { font-size: 10.5px; font-weight: 800; color: #C9B7C6; }
+.frate-sheet { text-align: center; }
+.rateposter { width: 96px; height: 144px; border-radius: 12px; object-fit: cover; border: 3px solid #120A14; box-shadow: 0 5px 0 #120A14; margin: 0 auto 8px; display: block; }
+.rateposter.noposter { display: grid; place-items: center; font-size: 34px; background: linear-gradient(160deg, #4A3350, #241828); }
+.frate-sheet .area { background: #3A2840; color: var(--text); border-color: #54395B; }
+.frate-sheet .area::placeholder { color: #A893A6; }
+.fsheet [data-action="cine-del"] { color: #C9B7C6; }
+.fheart { width: 80px; } .fheart small { white-space: nowrap; }
