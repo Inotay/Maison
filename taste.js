@@ -39,6 +39,20 @@ export function feats(f) {
   // le studio (Ghibli, A24…) dit beaucoup ; la saga, juste un peu (chaque film d'une saga reste jugé pour lui-même)
   for (const c of t.co || []) add(m, 's:' + c.id, 1.2, c.name, 'studio');
   if (t.col) add(m, 'col:' + t.col.id, .6, t.col.name, 'saga');
+  // presse et public (MDBList) : pas une note de qualité, mais où se place le film entre critique, public et cinéphiles
+  const P = f.presse;
+  if (P && !P.aucune) {
+    const cc = P.mc != null && (P.mcN || 0) >= 7 ? +P.mc : P.rt != null && (P.rtN || 0) >= 20 ? +P.rt : null;
+    const pubs = [P.imdb != null && (P.imdbN || 0) >= 1000 ? P.imdb * 10 : null, P.pop, P.tr].filter(x => x != null).map(Number);
+    const pub = pubs.length ? pubs.reduce((x, y) => x + y, 0) / pubs.length : null;
+    const lb = P.lb != null && (P.lbN || 0) >= 500 ? +P.lb : null;
+    if (cc != null) { const b = cc >= 85 ? 'top' : cc >= 70 ? 'bon' : cc >= 50 ? 'moyen' : 'bas'; add(m, 'cc:' + b, .5, b === 'top' ? 'les films adorés par la critique' : b === 'bas' ? 'les films que la critique n’aime pas' : '', 'presse'); }
+    if (cc != null && pub != null) { const g = cc - pub; if (g >= 12) add(m, 'gap:critique', .7, 'les films que la critique préfère au public', 'presse'); else if (g <= -12) add(m, 'gap:public', .7, 'les films que le public préfère à la critique', 'presse'); }
+    if (lb != null && P.imdb != null) { const c = lb * 20 - P.imdb * 10; if (c >= 4) add(m, 'cin:plus', .7, 'les chouchous des cinéphiles (Letterboxd)', 'presse'); else if (c <= -6) add(m, 'cin:moins', .7, 'les films plus grand public que cinéphiles', 'presse'); }
+    if (lb != null) { if (lb >= 4) add(m, 'lb:top', .5, 'les films très bien notés sur Letterboxd', 'presse'); else if (lb < 3.2) add(m, 'lb:bas', .5, '', 'presse'); }
+    if (P.oscar) add(m, 'aw:oscar', .3, 'les films oscarisés', 'presse');
+    if ((P.prix || 0) >= 25) add(m, 'aw:prime', .4, 'les films très primés', 'presse');
+  }
   // films et séries ne se jugent pas pareil : le genre compte aussi « dans les séries » ou « dans les films »
   add(m, 'm:' + f.media, .8, f.media === 'tv' ? 'les séries' : 'les films', 'media');
   for (const g of f.gids || []) { const id = TV2M[g] || g; if (GENRES[id]) add(m, `gm:${id}:${f.media}`, .35, '', 'gm'); }
@@ -77,7 +91,7 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
 const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || ''); return at ? Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5))) : 1; };
 // Deux questions différentes : « est-ce que ça m'attire ? » (la curiosité, ce que Cinder demande) et « est-ce que
 // je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
-export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9 };   // réglés sur vos avis (v172)
+export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1 };   // réglés sur vos avis (v172)
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
@@ -104,6 +118,11 @@ export function rarity(list) {
 }
 
 // manual : les réglages à la main { boost: {clé: libellé}, ban: {clé: libellé} } ; sig : pour le couple.
+// La note « qualité » d'un film, du point de vue le plus proche de chacun : on apprend sur tes notes quel public
+// te ressemble (Letterboxd, IMDb, presse, TMDB) et à quel point tu suis l'avis des cinéphiles plutôt que du grand public.
+const SRC = { lb: p => p?.lb != null && (p.lbN || 0) >= 300 ? p.lb * 2 : null, imdb: p => p?.imdb != null && (p.imdbN || 0) >= 500 ? +p.imdb : null,
+  presse: p => p?.mc != null && (p.mcN || 0) >= 7 ? p.mc / 10 : p?.rt != null && (p.rtN || 0) >= 20 ? p.rt / 10 : null, public: p => p?.pop != null ? p.pop / 10 : null };
+export const quality = (f, src = 'tmdb') => (src !== 'tmdb' && SRC[src]?.(f.presse)) ?? (SRC.lb(f.presse) ?? SRC.imdb(f.presse) ?? (f.note || null));
 // Un « bof » juge l'histoire et l'affiche, pas l'équipe : il pèse peu sur les réalisateurs, acteurs et studios
 // (on peut ne pas être curieux d'un film d'un cinéaste qu'on adore par ailleurs).
 const PEOPLE = new Set(['dir', 'crea', 'wri', 'comp', 'dop', 'cast', 'studio']);
@@ -115,7 +134,7 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
     const w = sig(f, email, now, st), c = solo ? curiosity(f, email, now, st) : 0; if (!w && !c) continue;
     n++; (w || c) > 0 ? pos++ : neg++;
     const bof = solo && !f.ratings?.[email]?.note && f.votes?.[email] === 'non';
-    if (f.note && f.ratings?.[email]?.note) xs.push([f.note - 6.8, w]);
+    if (f.ratings?.[email]?.note) xs.push([f, w]);
     for (const [k, fw, label, kind] of feats(f)) {
       const damp = bof && PEOPLE.has(kind) ? .35 : 1;
       if (w) { P.set(k, (P.get(k) || 0) + w * damp * fw * idf(k)); N.set(k, (N.get(k) || 0) + 1); }
@@ -129,23 +148,30 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
   for (const k of Object.keys(manual.boost || {})) Pn.set(k, Math.max(0, Pn.get(k) || 0) + 2.5);
   for (const k of Object.keys(manual.ban || {})) Pn.set(k, -6);
   // ton rapport à la note du public (TMDB) : appris sur tes propres notes, au lieu d'un bonus fixe
-  let beta = .25;
-  if (xs.length >= 15) { const mx = xs.reduce((a, [x]) => a + x, 0) / xs.length, my = xs.reduce((a, [, y]) => a + y, 0) / xs.length;
-    const cov = xs.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0), vx = xs.reduce((a, [x]) => a + (x - mx) ** 2, 0);
-    if (vx > 0) beta = Math.max(-.15, Math.min(.45, (cov / vx) * .5)); }
+  // quel public te ressemble le plus (la meilleure corrélation avec tes notes), et avec quelle force
+  let beta = .5, src = 'tmdb', corr = 0;
+  if (xs.length >= 15) for (const k of ['tmdb', 'lb', 'imdb', 'presse', 'public']) {
+    const pts = xs.map(([f, y]) => [k === 'tmdb' ? f.note : SRC[k](f.presse), y]).filter(([x]) => x != null);
+    if (pts.length < 15) continue;
+    const mx = pts.reduce((a, [x]) => a + x, 0) / pts.length, my = pts.reduce((a, [, y]) => a + y, 0) / pts.length;
+    let c = 0, vx = 0, vy = 0; for (const [x, y] of pts) { c += (x - mx) * (y - my); vx += (x - mx) ** 2; vy += (y - my) ** 2; }
+    const r = vx && vy ? c / Math.sqrt(vx * vy) : 0;
+    if (r > corr + .03 || k === 'tmdb') { corr = Math.max(corr, r); src = k; beta = Math.max(-.2, Math.min(1.5, c / vx)); }
+  }
   for (const k of Object.keys(manual.boost || {})) Cn.set(k, Math.max(0, Cn.get(k) || 0) + 2.5);
   for (const k of Object.keys(manual.ban || {})) Cn.set(k, -6);
-  return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, st };
+  return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, src, corr, st };
 }
 
 // Le score d'un film pour quelqu'un : ses traits pondérés par le profil, la qualité (note TMDB), et un bonus
 // quand plusieurs films que vous aimez le recommandent (le plus proche d'un « ceux qui aiment ça ont adoré »).
 // mix : 0 = seulement « vais-je l'aimer ? », 1 = seulement « est-ce que ça m'attire ? ».
 export function score(prof, f, mix = W.mix) {
-  const extra = (f.note ? (f.note - 6.8) * (prof?.beta ?? .25) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0);
+  // la qualité vue par le public qui te ressemble compte beaucoup pour « vais-je l'aimer ? », moins pour « ça m'attire ? »
+  const useC = prof?.Cn?.size ? mix : 0, q = quality(f, prof?.src);
+  const extra = (q ? (q - 6.8) * (prof?.beta ?? .5) * ((1 - useC) * W.qA + useC * W.qC) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0);
   if (!prof || (!prof.n && !prof.ban?.size)) return extra;
   let a = 0, c = 0, norm = 0, banned = false;
-  const useC = prof.Cn?.size ? mix : 0;
   for (const [k, fw] of feats(f)) { const w = fw * prof.idf(k); norm += w * w; a += w * (prof.Pn.get(k) || 0); if (useC) c += w * (prof.Cn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
   const s = norm ? ((1 - useC) * a + useC * c) / Math.sqrt(norm) : 0;
   const conf = Math.min(1, prof.n / 25);
@@ -181,7 +207,7 @@ const KIND_TXT = { dir: n => `De ${n}`, crea: n => `Créée par ${n}`, wri: n =>
 // Pourquoi Azami le propose : les deux traits qui comptent le plus, avec un film aimé en exemple.
 export function why(prof, f, max = 2) {
   if (!prof?.n) return [];
-  const GEN = new Set(['genre', 'lang', 'dec', 'bo', 'rt']);
+  const GEN = new Set(['genre', 'lang', 'dec', 'bo', 'rt', 'presse']);
   const parts = feats(f).map(([k, fw, label, kind]) => [k, fw * prof.idf(k) * (prof.Pn.get(k) || 0), label, kind]).filter(x => x[2] && x[1] > (GEN.has(x[3]) ? .6 : .25)).sort((a, b) => b[1] - a[1]);
   const out = [], kinds = new Set();
   for (const [k, , label, kind] of parts) {

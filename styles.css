@@ -1784,3 +1784,14 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 /* Dans une rangée qui défile de côté, l'interrupteur haptique invisible attrapait le glissé du doigt (iOS) :
    on le laisse passer pour que la rangée défile. (v170) */
 .rchips input.hap, .carnet-tabs input.hap, .carnet-stickers input.hap, .cine-ideas input.hap { pointer-events: none; }
+
+/* notes presse et public (v173) */
+.fnotes { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 10px; }
+.fnotes span { display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 10px; border-radius: 12px; background: #2C1E31; border: 1.5px solid #54395B; color: #FBF3E9; line-height: 1; }
+.fnotes small { font-size: 11px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: #C9B7C6; }
+.fnotes b { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.fnotes i { font-style: normal; font-size: 11px; color: #C9B7C6; font-weight: 700; }
+.fnotes .osc { border-color: #8A6512; }
+.dm-body .fnotes { margin: 0; }
+.taste-pub { margin: 2px 0 8px; font-weight: 800; font-size: 14px; }
+.taste-pub small { display: block; font-weight: 700; font-size: 12px; color: var(--muted); }

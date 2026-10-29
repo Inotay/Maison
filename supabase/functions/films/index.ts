@@ -8,6 +8,7 @@ import webpush from "npm:web-push@3.6.7";
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const KEY = Deno.env.get("TMDB_KEY") ?? "";
+const MDB = Deno.env.get("MDBLIST_KEY") ?? "";
 const IMG = "https://image.tmdb.org/t/p/";
 type Item = { reco?: number; tmdb_id: number | null; media: "movie" | "tv"; title: string; original?: string; year: number | null; poster: string | null; overview: string; source: string; pop?: number; dispo?: boolean; cinema?: boolean; gids?: number[]; lang?: string; note?: number };
 
@@ -377,6 +378,53 @@ async function alertes(db: ReturnType<typeof createClient>) {
   return { alertes: fresh.length, envoyees: sent2 };
 }
 
+// Les notes de la presse et du public (MDBList : IMDb, Metacritic presse et spectateurs, Rotten Tomatoes critiques
+// et public, Letterboxd, Trakt, MyAnimeList, Roger Ebert) et les prix. Gardées 30 jours dans film_notes.
+// 1 000 demandes par jour au plus : on compte ce qui reste et on s'arrête avant.
+type Presse = Record<string, number | string>;
+let mdbLeft = 1000, mdbPause = 0;
+function compact(d: Record<string, any>): Presse | null {
+  if (!d || !Array.isArray(d.ratings)) return null;
+  const o: Presse = {};
+  const R = Object.fromEntries((d.ratings as Record<string, any>[]).map(r => [r.source, r]));
+  const put = (k: string, src: string, f: "value" | "score" = "value", nk = "") => { const r = R[src]; if (r?.[f] != null) { o[k] = Number(r[f]); if (nk && r.votes) o[nk] = Number(r.votes); } };
+  put("imdb", "imdb", "value", "imdbN"); put("mc", "metacritic", "value", "mcN"); put("mcu", "metacriticuser"); put("rt", "tomatoes", "value", "rtN");
+  put("pop", "popcorn"); if (o.pop == null) put("pop", "tomatoesaudience"); put("lb", "letterboxd", "value", "lbN"); put("tr", "trakt"); put("mal", "myanimelist"); put("eb", "rogerebert");
+  if (d.awards) { const a = String(d.awards); if (/Won \d+ Oscar/i.test(a)) o.oscar = 1; const w = a.match(/(\d+) wins?/i); if (w) o.prix = Number(w[1]); const n = a.match(/(\d+) nominations?/i); if (n) o.nomin = Number(n[1]); }
+  if (d.score) o.mdb = Number(d.score);
+  return Object.keys(o).length ? o : null;
+}
+// undefined : pas demandé (quota, pause) ; null : demandé, rien trouvé.
+async function presseOf(db: ReturnType<typeof createClient>, media: string, id: number, fetchNew: boolean | (() => boolean) = true): Promise<Presse | null | undefined> {
+  const cle = `${media}:${id}`;
+  const { data } = await db.from("film_notes").select("data, at").eq("cle", cle).maybeSingle();
+  if (data && Date.now() - Date.parse(data.at) < 30 * 864e5) return data.data as Presse | null;
+  if (!MDB || mdbLeft < 30 || Date.now() < mdbPause || !(typeof fetchNew === "function" ? fetchNew() : fetchNew)) return (data?.data as Presse) ?? undefined;
+  const r = await fetch(`https://api.mdblist.com/tmdb/${media === "tv" ? "show" : "movie"}/${id}?apikey=${MDB}`);
+  const left = Number(r.headers.get("x-ratelimit-remaining")); if (r.headers.has("x-ratelimit-remaining") && Number.isFinite(left)) mdbLeft = left;
+  if (r.status === 429) { const ra = Number(r.headers.get("retry-after")); mdbPause = Date.now() + (Number.isFinite(ra) && ra > 0 ? ra * 1000 : 60000); console.warn("mdblist 429", ra, (await r.text()).slice(0, 200)); return undefined; }
+  if (r.status >= 500) return undefined;
+  const p = r.ok ? compact(await r.json()) : null;
+  await db.from("film_notes").upsert({ cle, data: p, at: new Date().toISOString() });
+  return p;
+}
+async function presseBatch(db: ReturnType<typeof createClient>, n: number) {
+  if (!MDB) return { error: "Pas de clé MDBList." };
+  const { data } = await db.from("films").select("id, tmdb_id, media, votes, ratings").not("tmdb_id", "is", null).is("presse", null);
+  // d'abord ce qui apprend le plus : les films notés, puis les envies, puis le reste
+  const rank = (f: Record<string, any>) => (Object.keys(f.ratings ?? {}).length ? 0 : Object.values(f.votes ?? {}).some(wantsV) ? 1 : 2);
+  const todo = (data ?? []).sort((a, b) => rank(a) - rank(b)), batch = todo.slice(0, n);
+  let ok = 0, vide = 0, pas = 0;
+  for (const f of batch) {
+    if (Date.now() < mdbPause || mdbLeft < 30) break;
+    const p = await presseOf(db, f.media, f.tmdb_id);
+    if (p === undefined) { pas++; continue; }
+    await db.from("films").update({ presse: p ?? { aucune: 1 } }).eq("id", f.id); p ? ok++ : vide++;
+    await new Promise(r => setTimeout(r, 250));   // doucement : MDBList limite aussi le rythme
+  }
+  return { faits: ok, sans: vide, pas, reste: todo.length - ok - vide, quota: mdbLeft, pause: Math.max(0, Math.round((mdbPause - Date.now()) / 1000)) };
+}
+
 // Mettre à jour la fiche détaillée (traits) des films déjà enregistrés : ceux qui n'en ont pas, puis les anciennes
 // fiches sans studio ni saga. Ne renvoie que des compteurs ; à relancer jusqu'à « reste: 0 ».
 async function retraits(db: ReturnType<typeof createClient>, n: number) {
@@ -407,6 +455,7 @@ Deno.serve(async (req) => {
   if (body.action === "salles") { try { return json({ salles: await salles() }); } catch (e) { return json({ error: (e as Error).message }, 500); } }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   // le planificateur, une fois par jour : rien n'est renvoyé de privé, les notifications vont aux membres
+  if (body.action === "presse") { try { return json(await presseBatch(db, Math.min(120, Number(body.n) || 60))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   if (body.action === "retraits") { try { return json(await retraits(db, Math.min(80, Number(body.n) || 40))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   if (body.action === "alertes") { try { return json(await alertes(db)); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
@@ -423,7 +472,9 @@ Deno.serve(async (req) => {
     }
     if (action === "details") {
       if (!KEY || !body.tmdb_id) return json({ error: "Pas de détails sans TMDB." }, 400);
-      return json(await details(Number(body.tmdb_id), body.media === "tv" ? "tv" : "movie"));
+      const media = body.media === "tv" ? "tv" : "movie";
+      const [d, presse] = await Promise.all([details(Number(body.tmdb_id), media), presseOf(db, media, Number(body.tmdb_id)).catch(() => null)]);
+      return json({ ...d, presse });
     }
     if (action === "resolve") {
       if (!KEY) return json({ results: [] });
@@ -435,6 +486,9 @@ Deno.serve(async (req) => {
       const exclude = new Set(((body.exclude ?? []) as string[]).map(String));
       const np = KEY ? await nowPlaying() : new Set<number>();
       const res = (await deck(seeds, exclude, String(body.mood ?? ""), ((body.subs ?? []) as string[]).map(String), (body.prefs ?? {}) as Prefs)).map(x => ({ ...x, cinema: x.cinema || (x.media === "movie" && np.has(x.tmdb_id!)) }));
+      // notes presse et public : celles déjà en cache pour tous, et jusqu'à 12 nouvelles par pioche
+      let fresh = 0;
+      await pool(res.slice(0, 30), 3, async (x: Record<string, any>) => { const p = await presseOf(db, x.media, x.tmdb_id, () => fresh++ < 8).catch(() => null); if (p) x.presse = p; });
       return json({ results: res, tmdb: !!KEY });
     }
     return json({ error: "Action inconnue." }, 400);

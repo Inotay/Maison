@@ -305,3 +305,8 @@ alter table public.shopping add column if not exists checked_by text, add column
 create table if not exists public.azami_carnet (id text primary key, found_by text not null default lower(auth.jwt() ->> 'email'), found_at timestamptz not null default now());
 alter table public.azami_carnet enable row level security;
 create policy shared_all on public.azami_carnet for all to authenticated using ((select is_member())) with check ((select is_member()));
+
+-- v173 : notes presse et public (MDBList), en cache
+alter table public.films add column if not exists presse jsonb;
+create table if not exists public.film_notes (cle text primary key, data jsonb, at timestamptz not null default now());
+alter table public.film_notes enable row level security;

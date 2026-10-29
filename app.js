@@ -2349,7 +2349,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v172</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v173</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3360,7 +3360,8 @@ const FILM_DEMO = [
 ];
 // petite démo : des traits inventés mais plausibles, pour essayer le profil de goût sans réseau
 FILM_DEMO.forEach((f, i) => { f.gids = [[53, 18], [16, 14], [9648, 18], [53, 10749], [16, 28], [27, 18]][i]; f.lang = ['ko', 'ja', 'en', 'ko', 'ja', 'en'][i]; f.note = [8.5, 8.4, 8.3, 8.1, 8.6, 7.1][i];
-  f.traits = { dir: [{ id: 100 + i, name: f.director || 'Quelqu’un' }], cast: [], kw: [{ id: 900 + (i % 3), name: ['class', 'magic', 'dream'][i % 3] }], rt: f.runtime, bo: 'public' }; });
+  f.traits = { dir: [{ id: 100 + i, name: f.director || 'Quelqu’un' }], cast: [], kw: [{ id: 900 + (i % 3), name: ['class', 'magic', 'dream'][i % 3] }], rt: f.runtime, bo: 'public' };
+  f.presse = { mc: 70 + i * 4, mcN: 30, pop: 80 + i * 2, imdb: 7.6 + i / 10, imdbN: 50000, lb: 3.8 + i / 10, lbN: 9000, ...(i === 0 ? { oscar: 1 } : {}) }; });
 async function filmsCall(body) {
   if (DEMO) {
     const inList = new Set(myKeys());
@@ -3743,6 +3744,7 @@ function tasteCard(email) {
   return `<div class="taste"><p class="taste-t">Azami ${lvl} ${self ? 'tes goûts' : `les goûts de ${esc(nameOf(email))}`} <small>${p.n} avis</small></p>
     ${top.people.length ? `<p class="taste-k">Côté équipes</p><div class="tchips">${chips(top.people)}</div>` : ''}
     ${top.themes.length || top.genres.length || top.langs.length ? `<p class="taste-k">Ce qui ${self ? 'te' : 'lui'} plaît</p><div class="tchips">${chips([...top.genres, ...top.langs, ...top.themes].slice(0, 8))}</div>` : ''}
+    ${p.src && p.src !== 'tmdb' && p.corr > .2 ? `<p class="taste-k">${self ? 'Ton' : 'Son'} public le plus proche</p><p class="taste-pub">${({ lb: 'Les cinéphiles de Letterboxd', imdb: 'Le grand public d’IMDb', presse: 'La presse (Metacritic, Rotten Tomatoes)', public: 'Les spectateurs de Rotten Tomatoes' })[p.src]} <small>Entre la presse, le grand public et les cinéphiles, c’est leur avis qui ressemble le plus ${self ? 'au tien' : 'au sien'}.</small></p>` : ''}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
     ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
@@ -3831,7 +3833,7 @@ function cineSearch(q) {
 // Ajouter (ou voter) : on va chercher les détails (durée, où regarder, bande-annonce) une fois pour toutes.
 async function filmEnrich(f) {
   if (!f.tmdb_id || f.media === undefined) return f;
-  try { const d = await filmsCall({ action: 'details', tmdb_id: f.tmdb_id, media: f.media }); return { ...f, ...Object.fromEntries(Object.entries(d).filter(([k, v]) => v != null && [...(f.id ? [] : ['title']), 'original', 'year', 'poster', 'overview', 'runtime', 'seasons', 'genres', 'director', 'providers', 'trailer', 'gids', 'lang', 'note', 'traits'].includes(k))) }; }
+  try { const d = await filmsCall({ action: 'details', tmdb_id: f.tmdb_id, media: f.media }); return { ...f, ...Object.fromEntries(Object.entries(d).filter(([k, v]) => v != null && [...(f.id ? [] : ['title']), 'original', 'year', 'poster', 'overview', 'runtime', 'seasons', 'genres', 'director', 'providers', 'trailer', 'gids', 'lang', 'note', 'traits', 'presse'].includes(k))) }; }
   catch { return f; }
 }
 // Un avis sur un film (envie, bof, ou déjà vu avec une note). Le film entre dans la base s'il n'y est pas :
@@ -3844,6 +3846,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0) {
     const patch = vote ? { votes: { ...fVotes(ex), [S.me]: vote } } : {};
     if (seenNote) { patch.seen = { ...(ex.seen || {}), [S.me]: true }; patch.ratings = { ...(ex.ratings || {}), [S.me]: { ...(ex.ratings?.[S.me] || {}), note: seenNote } }; }
     if (!ex.traits && item.traits) Object.assign(patch, { traits: item.traits, gids: item.gids || ex.gids || [], lang: item.lang || ex.lang, note: item.note || ex.note });
+    if (!ex.presse && item.presse) patch.presse = item.presse;
     Object.assign(ex, patch); await api.update('films', { id: ex.id }, patch);
     filmVote.undo = [label, [back], []];
     return ex;
@@ -3851,7 +3854,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0) {
   const full = enrich ? await filmEnrich(item) : item;
   const row = { tmdb_id: full.tmdb_id || null, media: full.media === 'tv' ? 'tv' : 'movie', title: full.title, year: full.year || null, poster: full.poster || null, overview: full.overview || null,
     runtime: full.runtime || null, seasons: full.seasons || null, genres: full.genres || [], director: full.director || null, providers: full.providers || [], trailer: full.trailer || null, votes: vote ? { [S.me]: vote } : {}, status: 'a_voir', coeur: [], original: full.original || null, added_by: S.me,
-    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
+    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
   const r = await api.insert('films', row);
   const saved = { ...row, ...(r || {}), status: 'a_voir', created_at: new Date().toISOString() };
   S.films.push(saved); filmVote.undo = [label, [], saved.id ? [['films', saved.id]] : []]; return saved;
@@ -4005,6 +4008,19 @@ function deckInfo() {
     });
   }
 }
+// Les notes de la presse et du public, en une ligne de pastilles (Metacritic ou Rotten Tomatoes pour la presse).
+function presseRow(f) {
+  const P = f.presse; if (!P || P.aucune) return '';
+  const c = n => String(n).replace('.', ',');
+  const pills = [
+    P.mc != null ? ['Presse', `${Math.round(P.mc)}`, '/100', 'Metacritic'] : P.rt != null ? ['Presse', `${Math.round(P.rt)} %`, '', 'Rotten Tomatoes'] : null,
+    P.pop != null ? ['Public', `${Math.round(P.pop)} %`, '', 'Rotten Tomatoes, spectateurs'] : null,
+    P.imdb != null ? ['IMDb', c(P.imdb), '/10', ''] : null,
+    P.lb != null ? ['Letterboxd', c(P.lb), '/5', ''] : null,
+  ].filter(Boolean);
+  if (!pills.length) return '';
+  return `<div class="fnotes">${pills.map(([k, v, u, t]) => `<span${t ? ` title="${esc(t)}"` : ''}><small>${k}</small><b>${v}</b>${u ? `<i>${u}</i>` : ''}</span>`).join('')}${P.oscar ? '<span class="osc"><small>Prix</small><b>🏆</b><i>Oscar</i></span>' : (P.prix || 0) >= 10 ? `<span class="osc"><small>Prix</small><b>${P.prix}</b></span>` : ''}</div>`;
+}
 function deckInfoClose(now) {
   const m = deck?.box.querySelector('.dmore'); if (!m) return;
   if (now) { m.remove(); return; }
@@ -4026,6 +4042,7 @@ function deckInfoHtml(f) {
     <div class="dm-body">
       ${yt ? `<button type="button" class="dm-trailer" data-d="trailer" data-yt="${esc(yt)}" aria-label="Lire la bande-annonce"><img src="https://i.ytimg.com/vi/${esc(yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="dm-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="dm-tl">Bande-annonce</span></button>`
         : f._det === 'load' ? '<div class="dm-trailer wait"><span>Azami cherche la bande-annonce…</span></div>' : ''}
+      ${presseRow(f)}
       ${f.overview ? `<p class="dm-syn">${esc(f.overview)}</p>` : f._det === 'load' ? '' : '<p class="dm-syn muted">Pas encore de synopsis en français.</p>'}
       ${where ? `<p class="dm-where">${where}</p>` : ''}
       ${cred.length ? `<dl class="dm-cred">${cred.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
@@ -4095,6 +4112,7 @@ async function cineOpen(id) {
     box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}">${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
       <div class="fsheet-top">${fPoster(f, 'bposter')}<div><p class="ticket-title">${esc(f.title)}</p><p class="ticket-sub">${esc(fMeta(f))}</p>${f.director ? `<p class="ticket-sub">${f.media === 'tv' ? 'Créée par' : 'De'} ${esc(f.director)}</p>` : ''}
         ${fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
+      ${presseRow(f)}
       ${f.overview ? `<p class="fsyn">${esc(f.overview)}</p>` : ''}
       ${(() => { const tr = f.traits || {}, ppl = [...(tr.dir || []).map(p => [p, f.media === 'tv' ? 'création' : 'réalisation']), ...(tr.wri || []).slice(0, 1).map(p => [p, 'scénario']), ...(tr.comp || []).map(p => [p, 'musique']), ...(tr.dop || []).map(p => [p, 'image']), ...(tr.cast || []).slice(0, 3).map(p => [p, ''])];
         const seen = new Set(); const l = ppl.filter(([p]) => !seen.has(p.id) && seen.add(p.id));
@@ -4208,6 +4226,11 @@ async function filmsResolve() {
     if (gs.length) {
       const r = (await filmsCall({ action: 'resolve', items: gs.map(g => ({ title: g.seed_q, media: g.seed_media, year: g.seed_year })) }).catch(() => ({}))).results || [];
       gs.forEach((g, j) => { if (r[j]?.tmdb_id) { g.seed_tmdb = r[j].tmdb_id; api.update('gouts', { id: g.id }, { seed_tmdb: g.seed_tmdb }).catch(() => {}); } });
+    }
+    // les notes presse et public (MDBList) des films qui n'en ont pas encore : un petit lot à chaque passage
+    if (S.films.some(f => f.tmdb_id && !f.presse) && !(filmsResolve.quota < 150)) {
+      const r = await filmsCall({ action: 'presse', n: 40 }).catch(() => null);
+      if (r) { filmsResolve.quota = r.quota; if (r.faits || r.sans) { const rows = await api.list('films').catch(() => []); const by = new Map(rows.map(x => [x.id, x])); for (const f of S.films) if (!f.presse && by.get(f.id)?.presse) f.presse = by.get(f.id).presse; } }
     }
     // les traits qui nourrissent le goût (équipe, thèmes, durée, succès, public) : une fois pour toutes
     const bare = S.films.filter(f => f.tmdb_id && !f.traits);
