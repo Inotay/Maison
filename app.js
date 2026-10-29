@@ -2348,7 +2348,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v168</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v169</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3474,8 +3474,8 @@ function cineCompromis() {
 }
 function fWhereShort(f) {
   const w = fWhere(f);
-  if (w.salles.length) return ['salle', '🎟 Au ciné'];
-  if (w.chez.length) return ['chez', '✓ ' + w.chez[0].replace(/ Plus$/, '+')];
+  if (w.salles.length) return ['salle', 'Au ciné'];
+  if (w.chez.length) return ['chez', w.chez[0].replace(/ Plus$/, '+')];
   if (w.loc.length) return ['loc', 'Location'];
   return null;
 }
@@ -3485,7 +3485,7 @@ function cineTile(f, space = 'moi') {
   const badge = fMatch(f) ? '<i class="tbadge match" title="Vous en avez envie tous les deux">💞</i>'
     : space === 'autre' ? (v[S.me] === 'beurk' ? '<i class="tbadge dim">Non pour toi</i>' : v[S.me] === 'non' ? '<i class="tbadge dim">Bof pour toi</i>' : fSeen(f, S.me) ? '<i class="tbadge dim">Déjà vu</i>' : '<i class="tbadge ask">Moi aussi ?</i>')
     : space === 'moi' && o && fSeen(f, S.me) ? '<i class="tbadge">Vu · à montrer</i>' : '';
-  const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : f.runtime ? rDur(f.runtime) : ''].filter(Boolean).join(' · ');
+  const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.traits?.rt || f.runtime) ? rDur(f.traits?.rt || f.runtime) : ''].filter(Boolean).join(' · ');
   const star = S.members.some(m => v[m.email] === 'super') ? '<i class="tstar" title="Très envie">⭐</i>' : '';
   return `<li><button type="button" class="ftile" data-action="cine-open" data-id="${f.id}" aria-label="${esc(f.title)}">
     <span class="ftile-p">${fPoster(f, 'tposter')}${badge}${star}${w ? `<i class="twhere ${w[0]}">${esc(w[1])}</i>` : ''}</span>
@@ -3510,7 +3510,7 @@ function cineFilter(list, who) {
   const fl = S.cineF || '', so = S.cineS || 'envie', t = tastes(), p = who === 'nous' ? null : t.by[who === 'moi' ? S.me : other()];
   let l = list.filter(f => !fl || (fl === 'chez' ? fDispo(f) : fl === 'court' ? f.media === 'movie' && (f.runtime || f.traits?.rt || 999) <= 120 : fl === 'film' ? f.media === 'movie' : f.media === 'tv'));
   const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple) : 0);
-  const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.runtime || a.traits?.rt || 999) - (b.runtime || b.traits?.rt || 999) };
+  const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
   l = [...l].sort(by[so] || by.envie);
   return l;
 }

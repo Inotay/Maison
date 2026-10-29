@@ -1470,8 +1470,10 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .ftile small { font-size: 11.5px; color: var(--muted); font-weight: 700; margin-top: -2px; }
 .tbadge { position: absolute; top: 6px; left: 6px; font-style: normal; font-size: 11px; font-weight: 900; padding: 2px 7px; border-radius: 999px; background: rgba(20,10,22,.78); color: #FFD7DC; border: 1.5px solid #E7505A; }
 .tbadge.match { background: #E7505A; color: #fff; border-color: #fff; font-size: 13px; padding: 1px 6px; }
-.twhere { position: absolute; left: 0; right: 0; bottom: 0; font-style: normal; font-size: 10.5px; font-weight: 900; padding: 14px 6px 5px; color: #fff;
-  background: linear-gradient(transparent, rgba(10,6,12,.88)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* où le voir : une pastille lisible sur n'importe quelle affiche (v169) */
+.twhere { position: absolute; left: 6px; bottom: 6px; max-width: calc(100% - 12px); display: inline-flex; align-items: center; gap: 5px; font-style: normal; font-size: 11px; font-weight: 900; line-height: 1; padding: 5px 8px 5px 7px; border-radius: 999px; color: #fff;
+  background: rgba(16,9,18,.86); border: 1.5px solid rgba(250,243,232,.22); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.twhere::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
 .twhere.chez { color: #A6F0BE; }
 .twhere.salle { color: #FFC0C6; }
 .twhere.loc { color: #E8DCE6; }
@@ -1644,7 +1646,9 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .taste-meter p { margin: 0; font-size: 12.5px; color: #E8DCE6; line-height: 1.35; }
 .taste-meter b { display: inline-block; min-width: 44px; padding: 1px 6px; margin-right: 6px; border-radius: 8px; background: #F7C948; color: #2A1C15; font-weight: 900; text-align: center; }
 .cine-filt { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
-.cine-filt .chips.mini { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0; gap: 6px; }
+.cine-filt .chips.mini { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0; gap: 6px; padding: 2px 22px 4px 0; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); }
+.cine-filt .chips.mini::-webkit-scrollbar { display: none; }
+.cine-filt .cine-sortb { flex: none; }
 .chips.mini button { flex: none; padding: 5px 10px; font-size: 12.5px; min-height: 0; }
 .cine-sort select { width: auto; height: 34px; padding: 0 8px; font-size: 13px; background: #3A2840; color: #FBF3E9; border-color: #54395B; border-radius: 10px; }
 .cine-more { margin-top: 12px; }
