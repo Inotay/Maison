@@ -1266,3 +1266,17 @@ li.item.swipe-ok { background: var(--accent); }
 
 .push-card .push-steps { margin: 6px 0 4px; padding-left: 20px; font-size: 14px; line-height: 1.45; }
 .push-card .push-later { display: block; margin: 8px 0 0 auto; font-size: 13px; }
+
+/* « On mange quoi ce soir ? » */
+.roulette-btn { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 10px; margin: var(--s3) 0 var(--s2); padding: 8px 14px 8px 6px; border-radius: 18px; background: var(--surface-2); border: 2px solid var(--line); box-shadow: 0 4px 0 var(--line); color: var(--ink); }
+.roulette-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--line); }
+.roulette-btn img { width: 64px; height: 64px; flex: none; margin: -8px -4px -8px -4px; }
+.roulette-btn span:not(.roulette-cap) { flex: 1; display: grid; gap: 1px; }
+.roulette-btn b { font-size: 16px; }
+.roulette-btn small { font-size: 12.5px; color: var(--muted); }
+.roulette-cap { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2.5px solid #2A1C15; background: linear-gradient(180deg, #8CCB7E 50%, #FFFFFF 50%); box-shadow: inset 0 -1px 0 #2A1C15; animation: cap-wiggle 2.4s ease-in-out infinite; }
+.roulette .roulette-stage { min-height: 150px; }
+.roulette-card .rart { margin: 0 auto 4px; }
+.roulette-why { font-size: 12px; font-weight: 800; color: #3F7A36; background: #E6F4E0; border-radius: 999px; padding: 3px 9px; }
+.roulette-actions { justify-content: center; margin-top: 10px; }
+.roulette .link { display: block; margin: 8px auto 0; }

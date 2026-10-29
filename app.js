@@ -2140,7 +2140,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v155</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v156</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2816,6 +2816,55 @@ function rescueRecipes(items, n = 4) {
   return RECETTES.map(r => { const hit = new Set(rArt(r).ings.filter(t => t && (themes.has(t) || themes.has(PARENT[t])))); return { r, n: hit.size }; })
     .filter(x => x.n).sort((a, b) => b.n - a.n || a.r.min - b.r.min).slice(0, n).map(x => x.r);
 }
+// « On mange quoi ce soir ? » : la machine à capsules d'Azami tire une recette. Elle suit les filtres
+// choisis ; sans filtre, pas de gâteau ni de dessert. Ce qui va bientôt périmer pèse plus lourd.
+function rouletteBtn() {
+  return `<button type="button" class="roulette-btn" data-action="roulette"><img src="azami/v44/statiques/azami_v44_cuisine_statique.svg" alt="" width="512" height="512"><span><b>On mange quoi ce soir ?</b><small>Azami tire une recette au hasard pour vous</small></span><span class="roulette-cap" aria-hidden="true"></span></button>`;
+}
+let rouletteLast = [];
+function roulettePick() {
+  let pool = rFiltered();
+  if (!S.rtype && !S.rq) pool = pool.filter(r => !r.tags.includes('sucre'));
+  if (!pool.length) return null;
+  const themes = new Set(soonItems().map(x => x.theme));
+  const w = r => { const hit = rArt(r).ings.some(t => t && (themes.has(t) || themes.has(PARENT[t]))); return (hit ? 5 : 1) * (rouletteLast.includes(r.id) ? .05 : 1); };
+  const tot = pool.reduce((a, r) => a + w(r), 0); let x = Math.random() * tot;
+  for (const r of pool) { x -= w(r); if (x <= 0) return r; }
+  return pool[pool.length - 1];
+}
+function rouletteOpen() {
+  const old = document.getElementById('ticket'); if (old) old.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = `<div class="ticket-card roulette" role="dialog" aria-label="On mange quoi ce soir ?"><p class="ticket-title">On mange quoi ce soir ?</p><div class="roulette-stage"></div></div>`;
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  rouletteSpin(box);
+}
+function rouletteSpin(box) {
+  const r = roulettePick(); const stage = box.querySelector('.roulette-stage');
+  if (!r) { stage.innerHTML = '<p class="ticket-sub">Aucune recette avec ces filtres. Enlève un filtre et réessaie.</p><div class="form-actions"><button class="btn" data-action="sheet-close">OK</button></div>'; return; }
+  rouletteLast = [r.id, ...rouletteLast].slice(0, 6);
+  const k = KIND_COL.cuisine;
+  stage.innerHTML = `<div class="gacha r1" style="--k:${r.tags.includes('sucre') ? KIND_COL.mignon : k}"><button type="button" class="gacha-cap" aria-label="Ouvrir la capsule"><span class="cap-top"></span><span class="cap-bot"></span><span class="cap-shine"></span></button><p class="gacha-hint">Touche la capsule !</p></div>`;
+  if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['manivelle', 0], ['capsule', .55]], audioCtx.currentTime + .02, .5);
+  haptic('medium');
+  const open = () => {
+    const g = stage.querySelector('.gacha'); if (!g || g.classList.contains('open')) return;
+    g.classList.add('open'); haptic('heavy');
+    if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['pop_capsule', 0]], audioCtx.currentTime + .01, .55);
+    const themes = new Set(soonItems().map(x => x.theme));
+    const rescue = S.pantry.filter(x => !x.status && daysLeft(x) <= 2 && rArt(r).ings.some(t => t && (t === x.theme || PARENT[t] === x.theme)));
+    setTimeout(() => {
+      sfx('done');
+      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card" style="--k:${KIND_COL.cuisine}">${rThumb(r)}<b class="gacha-txt">${esc(r.titre)}</b><span class="gacha-count">${esc(rDur(r.min))} · ${esc(CUISINES[r.cuisine] || '')}</span>
+        ${rescue.length ? `<span class="roulette-why">Parfait pour finir ${esc(rescue.map(x => x.label).slice(0, 2).join(' et '))}</span>` : ''}</div>
+        <div class="form-actions roulette-actions"><button class="btn" data-action="roulette-go" data-id="${r.id}">On fait ça !</button><button class="btn ghost" data-action="roulette-again">Une autre</button></div>
+        <button class="link" data-action="r-panier" data-id="${r.id}">Ajouter ce qui manque à la liste</button>`);
+      burst('sparkle', g.querySelector('.gacha-card'), 12);
+    }, 380);
+  };
+  stage.querySelector('.gacha-cap').addEventListener('click', open);
+}
 function freshCard() {
   const soon = soonItems(); const all = S.pantry.filter(x => !x.status).sort((a, b) => daysLeft(a) - daysLeft(b));
   if (!all.length) return '';
@@ -2918,6 +2967,7 @@ function viewRecettes() {
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
     <div class="form row"><div class="grow"><label class="sr" for="rq">Chercher une recette</label>
       <input class="field" type="search" id="rq" data-keep value="${esc(S.rq)}" placeholder="Chercher : riz, poulet, oeufs…" autocomplete="off" enterkeyhint="search"></div></div>
+    ${rouletteBtn()}
     ${freshCard()}
     ${menuCard()}
     <div class="rtime"><label for="rtime">Prêt en</label><input type="range" id="rtime" min="0" max="${RTIME.length - 1}" step="1" value="${ti < 0 ? 0 : ti}" style="--p:${(ti < 0 ? 0 : ti) / (RTIME.length - 1) * 100}%"><output id="rtime-txt">${rtimeText(S.rtime)}</output></div>
@@ -3149,6 +3199,9 @@ const actions = {
   },
   'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
   'visite-replay': el => visitOpen(el.dataset.id, true),
+  roulette: () => { haptic(1); rouletteOpen(); },
+  'roulette-again': () => { const b = document.getElementById('ticket'); if (b) rouletteSpin(b); },
+  'roulette-go': el => { closeTicket(); S.recette = el.dataset.id; S.cook = null; render(); window.scrollTo(0, 0); },
   'carnet-kind': el => { S.carnetKind = el.dataset.k || ''; S.carnetMore = 0; haptic(1); sfx('tick'); render(); },
   'carnet-more': () => { S.carnetMore = (S.carnetMore || 0) + 1; haptic(1); render(); },
   'carnet-locked': el => { haptic(1); el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle'); toast('Pas encore découverte. Azami viendra la raconter un jour.'); },
