@@ -1,4 +1,3 @@
-import { ETAPES } from './etapes.js';
 import { GATEAUX } from './gateaux.js';
 // Recettes simples de la maison : occidentales, italiennes, japonaises, coréennes et quelques autres.
 // Quantités pour 2 personnes ; l'app les ajuste. u : g, ml, pc (pièce), cs (cuillère à soupe), cc (cuillère à café), pincée.
@@ -839,5 +838,11 @@ for (const g of GATEAUX) {
   RECETTES.push({ id: g.id, titre: g.titre, cuisine: g.cuisine, min: g.min, desc: g.desc, parts: g.parts, tags: g.tags, ing: g.ing.map(x => ({ ...x, f: 1 })), etapes: g.etapes });
   if (g.hero) HERO[g.id] = g.hero;
 }
-// Étapes détaillées pas à pas (remplacent les étapes courtes quand elles existent).
-for (const r of RECETTES) if (ETAPES[r.id]) r.etapes = ETAPES[r.id];
+// Étapes détaillées pas à pas (gros fichier) : chargées après le démarrage, ou au premier passage
+// sur Recettes. Elles remplacent les étapes courtes.
+let etapesP = null;
+export let ETAPES_OK = false;
+export const loadEtapes = () => etapesP ||= import('./etapes.js').then(({ ETAPES }) => {
+  for (const r of RECETTES) if (ETAPES[r.id]) r.etapes = ETAPES[r.id];
+  ETAPES_OK = true;
+}).catch(e => { etapesP = null; throw e; });

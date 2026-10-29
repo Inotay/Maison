@@ -4,12 +4,14 @@
 import { iconFor, ICONS as THEME_ICONS, norm, iconView, valueOf, classify, FALLBACK, PARENT, IMG as THEME_IMG } from './themes.js';
 import { PACKS, ACTION_LABEL, EXPENSE_ACTIONS, personKey, actionFor, variantFor, variantSrc, isVariant } from './people.js';
 import { SORTES, etat, descente, resume as dechetsResume, PRATIQUE } from './dechets.js';
-import { RECETTES, CUISINES, TAGS, qty, HERO } from './recettes.js';
+import { RECETTES, CUISINES, TAGS, qty, HERO, loadEtapes, ETAPES_OK } from './recettes.js';
 import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
-import { VISITES } from './visites.js';
+// Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
+let VISITES = [], visitesP = null;
+const loadVisites = () => visitesP ||= import('./visites.js').then(m => { VISITES = m.VISITES; }).catch(e => { visitesP = null; console.warn('visites', e); });
 import { playMeow, randomMeow, MEOW_KINDS, pick } from './miaous.js';
 import { schedule as scheduleBruits, ENTREE, CUES, DUREE, parle } from './bruits.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
@@ -92,6 +94,8 @@ function placeAzami() {
   });
 }
 // Toutes les scènes d'Azami sont chargées et décodées dès l'ouverture : changer de page ne les recharge plus.
+// Après le démarrage, en arrière-plan : les étapes des recettes et les visites d'Azami.
+setTimeout(() => { loadEtapes().then(() => { for (const c of [vegeCache, gearCache, rArtCache]) for (const k in c) delete c[k]; }).catch(() => {}); loadVisites(); }, 2500);
 function preloadAzami() {
   const warm = sc => { const img = azamiImg(sc); img.decode?.().catch(() => {}); };
   warm(greeting(new Date().getHours())[1]);
@@ -460,6 +464,22 @@ function vapidKey(b64) {
   return Uint8Array.from(raw, c => c.charCodeAt(0));
 }
 const notifOn = () => 'Notification' in window && Notification.permission === 'granted' && safeGet('maison-notif') === '1';
+// Bandeau sur l'accueil tant que ce téléphone ne reçoit pas les notifications (rappels de l'autre,
+// lave-vaisselle fini, aliments qui périment). Sur iPhone, il faut d'abord ouvrir l'app depuis l'icône.
+function pushCard() {
+  if (DEMO || !S.me || notifOn()) return '';
+  const later = Number(safeGet('maison-notif-later')) || 0; if (Date.now() - later < 3 * DAY) return '';
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent), installed = navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+  const o = other() ? nameOf(other()) : 'l’autre';
+  const why = `Pour recevoir les rappels de ${esc(o)}, la fin du lave-vaisselle et les aliments qui vont périmer.`;
+  let body;
+  if (ios && !installed) body = `<p class="help-what">Active les notifications</p><p class="help-ask">${why}</p>
+    <ol class="push-steps"><li>Dans Safari, touche <b>Partager</b> (le carré avec la flèche).</li><li>Choisis <b>Sur l’écran d’accueil</b>.</li><li>Ouvre Maison depuis la nouvelle icône : ce bandeau te proposera d’activer.</li></ol>`;
+  else if (!('Notification' in window)) return '';
+  else if (Notification.permission === 'denied') body = `<p class="help-what">Les notifications sont bloquées</p><p class="help-ask">${why} Pour les autoriser : Réglages du téléphone, Notifications, Maison, Autoriser.</p>`;
+  else body = `<p class="help-what">Active les notifications</p><p class="help-ask">${why}</p><div class="calm-actions"><button class="btn" data-action="notif">Activer</button></div>`;
+  return `<section class="help-card push-card"><p class="calm-kicker">Sur ce téléphone</p>${body}<button class="link push-later" data-action="notif-later">Plus tard</button></section>`;
+}
 
 function notifyNew() {
   const mine = S.care.filter(c => c.recipient === S.me && !c.read_at);
@@ -1168,6 +1188,7 @@ function effortPool(extra) {
 }
 function visitMaybe(kind, weight = 1, tries = 0) {
   if (!S.me) return;
+  if (!VISITES.length) { loadVisites().then(() => VISITES.length && visitMaybe(kind, weight, tries)); return; }
   if (azamiAway()) { if (tries < 8) setTimeout(() => visitMaybe(kind, weight, tries + 1), 15000); return; }
   if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { if (tries < 40) setTimeout(() => visitMaybe(kind, weight, tries + 1), 1500); return; }
   const st = visitState(); const today = isoDate(new Date());
@@ -1199,6 +1220,7 @@ function visitMaybe(kind, weight = 1, tries = 0) {
 }
 // L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
 function visitInvite(fresh) {
+  if (!VISITES.length) { loadVisites().then(() => VISITES.length && visitInvite(fresh)); return; }
   if (azamiAway()) return;
   const st = visitState(); const v = VISITES.find(x => x.id === st.pending);
   let el = document.getElementById('visite-invite');
@@ -1218,6 +1240,7 @@ function visitInvite(fresh) {
 }
 let visitCur = null;
 function visitOpen(id, replay = false) {
+  if (!VISITES.length) { loadVisites().then(() => VISITES.length && visitOpen(id, replay)); return; }
   const v = VISITES.find(x => x.id === id); if (!v) return;
   document.getElementById('visite-invite')?.remove();
   clearReaction(); popClose();
@@ -1403,6 +1426,7 @@ function visitClose() {
 // Pour essayer : ?azami=test ouvre tout de suite une visite au hasard (ou ?azami=devinette, secret, blague…).
 let visitTestDone = false;
 function visitTestHook() {
+  if (!VISITES.length) { loadVisites().then(() => VISITES.length && visitTestHook()); return; }
   if (visitTestDone || !S.me || !S.ready || document.getElementById('tour')) return;
   const q = new URLSearchParams(location.search).get('azami'); if (!q) return;
   visitTestDone = true;
@@ -1424,11 +1448,13 @@ const KIND_ICON = {
   cuisine: '<path d="M7.5 13.5Q4 13 4.5 10q.5-2.6 3.3-2.2Q8.5 5 12 5t4.2 2.8q2.8-.4 3.3 2.2.5 3-3 3.5z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/><path d="M7.5 13.5h9V18h-9z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/>',
 };
 const kindBadge = (k, cls = '') => `<span class="kbadge ${cls}" style="--k:${KIND_COL[k] || '#ccc'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="#2A1C15" stroke="#2A1C15">${KIND_ICON[k] || KIND_ICON.question}</svg></span>`;
-const PALIERS = [[5, 'Premiers ronrons', 'Azami vous fait confiance.'], [15, 'Petits confidents', 'Elle vous raconte ses histoires.'], [40, 'Meilleurs amis', 'Vous êtes son public préféré.'],
-  [80, 'Clan des moustaches', 'Vous parlez couramment le chat.'], [150, 'Famille Azami', 'Elle ne garde presque plus de secrets.'], [300, 'Légendes du canapé', 'On parlera de vous dans les coussins.'], [VISITES.length, 'Carnet complet', 'Vous avez tout entendu. Elle en est très fière.']];
+const PALIERS_ = () => [[5, 'Premiers ronrons', 'Azami vous fait confiance.'], [15, 'Petits confidents', 'Elle vous raconte ses histoires.'], [40, 'Meilleurs amis', 'Vous êtes son public préféré.'],
+  [80, 'Clan des moustaches', 'Vous parlez couramment le chat.'], [150, 'Famille Azami', 'Elle ne garde presque plus de secrets.'], [300, 'Légendes du canapé', 'On parlera de vous dans les coussins.'], [VISITES.length || 9999, 'Carnet complet', 'Vous avez tout entendu. Elle en est très fière.']];
+const PALIERS = { find: f => PALIERS_().find(f), map: f => PALIERS_().map(f), [Symbol.iterator]: () => PALIERS_()[Symbol.iterator]() };
 const carnetCount = () => VISITES.filter(v => carnetHas(v.id)).length;
 const fmtDay = iso => new Date(iso).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' });
 function carnetSection() {
+  if (!VISITES.length) { loadVisites().then(() => { if (VISITES.length && S.view === 'nuit') render(); }); return '<section class="carnet-box" id="carnet"><p class="hint">Le carnet d’Azami arrive…</p></section>'; }
   const total = VISITES.length, got = VISITES.filter(v => carnetHas(v.id)), n = got.length;
   const kinds = Object.keys(VISIT_KIND).map(k => [k, VISITES.filter(v => v.kind === k).length, got.filter(v => v.kind === k).length]).filter(x => x[1]);
   const sel = S.carnetKind || '';
@@ -2088,7 +2114,7 @@ function viewMaison() {
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
-    ${helpCards()}
+    ${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num ${String(num).length > 7 ? 'small' : ''}">${esc(num)}</span></button>`).join('')}</div>
@@ -2114,7 +2140,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v153</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v154</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2878,6 +2904,10 @@ const RID = id => { const base = String(id).replace(/~v$/, ''); const r = RID0(b
 const rDur = m => m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}`;
 const rMeta = r => [CUISINES[r.cuisine], r.tags.includes('flemme') && 'flemme', r.tags.includes('vege') ? 'végé' : vegeOf(r) && 'végé possible', ...gearMissing(r).map(g => `⚠ ${g.nom.split(' (')[0].toLowerCase()}`)].filter(Boolean).join(' · ');
 function viewRecettes() {
+  if (!ETAPES_OK) {   // étapes détaillées pas encore là : on les attend un instant (une seule fois)
+    loadEtapes().then(() => { for (const c of [vegeCache, gearCache, rArtCache]) for (const k in c) delete c[k]; if (S.view === 'recettes') render(); }).catch(() => {});
+    return `<header class="hd row"><div><p class="hd-kicker">Un instant</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header><p class="hint">Azami sort les livres de cuisine…</p>`;
+  }
   if (S.cook) return viewCuisiner();
   if (S.recette) return viewRecette(RID(S.recette));
   const list = rFiltered();
@@ -3296,6 +3326,7 @@ const actions = {
 
   retry: () => refresh(),
   notif: () => enableNotifications(),
+  'notif-later': () => { safeSet('maison-notif-later', String(Date.now())); haptic(1); render(); },
   'cancel-recovery': () => { S.recovery = false; try { sessionStorage.removeItem('maison-recovery'); } catch {} S.login.step = 'login'; refresh(); },
   'change-pass': () => { S.recovery = true; S.login.step = 'newpass'; render(); window.scrollTo(0, 0); },
   'task-toggle': el => {
@@ -3784,7 +3815,7 @@ async function boot() {
     let had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'push' && S.me) { scheduleRefresh(); loadInbox(); } });
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing() && !S.recovery && !/type=recovery/.test(location.hash)) location.reload(); had = true; });
-    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if ('Notification' in window && Notification.permission === 'granted') setTimeout(() => { if (S.me && !DEMO) { safeSet('maison-notif', '1'); subscribePush(); } }, 4000); }).catch(e => console.warn('sw', e));   // permission déjà donnée : on (ré)inscrit ce téléphone
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
   }
   // Lien « mot de passe oublié » : on le repère dans l'adresse avant que la connexion ne la lise.

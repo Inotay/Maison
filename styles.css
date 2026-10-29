@@ -1263,3 +1263,6 @@ li.item.swipe-ok { background: var(--accent); }
 @keyframes glow { 50% { opacity: .45; } }
 @keyframes card-pop { from { transform: scale(.3) rotateY(90deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .gacha-cap, .gacha-card, .cap-shine { animation: none !important; } }
+
+.push-card .push-steps { margin: 6px 0 4px; padding-left: 20px; font-size: 14px; line-height: 1.45; }
+.push-card .push-later { display: block; margin: 8px 0 0 auto; font-size: 13px; }
