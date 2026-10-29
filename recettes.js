@@ -1,4 +1,5 @@
 import { ETAPES } from './etapes.js';
+import { GATEAUX } from './gateaux.js';
 // Recettes simples de la maison : occidentales, italiennes, japonaises, coréennes et quelques autres.
 // Quantités pour 2 personnes ; l'app les ajuste. u : g, ml, pc (pièce), cs (cuillère à soupe), cc (cuillère à café), pincée.
 // cuisine : italie, france, suisse, japon, coree, asie, inde, mexique, monde. tags : vege, rapide, confort, sucre.
@@ -7,7 +8,7 @@ const R = (id, titre, cuisine, min, desc, ing, etapes, tags = []) => ({ id, titr
 const i = (n, q, u = '') => ({ n, q, u });
 
 export const CUISINES = { italie: 'Italien', france: 'Français', suisse: 'Suisse', japon: 'Japonais', coree: 'Coréen', asie: 'Asiatique', inde: 'Indien', mexique: 'Mexicain', monde: 'Monde' };
-export const TAGS = { vege: 'Végé', rapide: 'Rapide', confort: 'Réconfort', sucre: 'Sucré' };
+export const TAGS = { vege: 'Végé', rapide: 'Rapide', confort: 'Réconfort', sucre: 'Sucré', gateau: 'Gâteaux' };
 
 export const RECETTES = [
   // ITALIE --------------------------------------------------------------------
@@ -830,7 +831,13 @@ export function scale(q, persons, u) {
   return Math.round(v * 10) / 10;
 }
 export const UNITS = { g: 'g', ml: 'ml', l: 'l', kg: 'kg', pc: '', cs: 'c. à s.', cc: 'c. à c.', 'pincée': 'pincée' };
-export const qty = (ing, persons) => { const v = scale(ing.q, persons, ing.u); const u = UNITS[ing.u] ?? ing.u; return u ? `${v} ${u}` : `${v}`; };
+// Gâteaux : quantités pour un moule (ing.f), jamais multipliées par le nombre de personnes.
+export const qty = (ing, persons) => { const v = ing.f ? ing.q : scale(ing.q, persons, ing.u); const u = UNITS[ing.u] ?? ing.u; return u ? `${v} ${u}` : `${v}`; };
 
+// Gâteaux (gateaux.js) : quantités pour un moule entier, étapes déjà détaillées.
+for (const g of GATEAUX) {
+  RECETTES.push({ id: g.id, titre: g.titre, cuisine: g.cuisine, min: g.min, desc: g.desc, parts: g.parts, tags: g.tags, ing: g.ing.map(x => ({ ...x, f: 1 })), etapes: g.etapes });
+  if (g.hero) HERO[g.id] = g.hero;
+}
 // Étapes détaillées pas à pas (remplacent les étapes courtes quand elles existent).
 for (const r of RECETTES) if (ETAPES[r.id]) r.etapes = ETAPES[r.id];

@@ -2114,7 +2114,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v151</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v152</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2882,7 +2882,7 @@ function viewRecettes() {
   if (S.recette) return viewRecette(RID(S.recette));
   const list = rFiltered();
   const chip = (group, k, l) => `<button type="button" data-action="r-filter" data-g="${group}" data-k="${k}" aria-pressed="${rOn(group, k)}">${esc(l)}</button>`;
-  const types = [['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré']];
+  const types = [['flemme', 'Flemme'], ['vege', 'Végé'], ['confort', 'Réconfort'], ['sucre', 'Sucré'], ...(RECETTES.some(r => r.tags.includes('gateau')) ? [['gateau', 'Gâteaux']] : [])];
   const ti = RTIME.indexOf(Number(S.rtime) || 0);
   const nf = [S.rtime, S.rcuisine, S.rtype].filter(Boolean).length;
   return `<header class="hd row"><div><p class="hd-kicker">${RECETTES.length} idées simples</p><h1>Recettes</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
@@ -2939,7 +2939,7 @@ function viewRecette(r) {
     ${gearOf(r).length ? `<div class="gear-box"><p class="chip-label">Matériel particulier</p>${gearOf(r).map(g => `<div class="gear-row ${S.gear[g.id] === true ? 'ok' : S.gear[g.id] === false ? 'no' : ''}"><span class="gear-name">${S.gear[g.id] === true ? '✓' : '⚠'} ${esc(g.nom)}</span>${S.gear[g.id] === true ? '<span class="gear-st">On l’a</span>' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="1">On l’a</button>${S.gear[g.id] === false ? '' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="0">Pas chez nous</button>`}`}</div>`).join('')}</div>` : ''}
     ${r.base || vegeOf(r) ? `<button type="button" class="vege-toggle" data-action="r-vege" aria-pressed="${!!r.base}"><span class="vt-dot"></span>Version végé${r.base ? ' : viande et poisson remplacés' : ''}</button>` : ''}
     <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
-    <h2>Ingrédients <span class="muted">pour ${n}</span></h2><p class="hint unit-hint">c. à s. = grande cuillère (à soupe) · c. à c. = petite cuillère (à café)</p>
+    <h2>Ingrédients <span class="muted">${r.parts ? esc(r.parts) : `pour ${n}`}</span></h2><p class="hint unit-hint">c. à s. = grande cuillère (à soupe) · c. à c. = petite cuillère (à café)</p>
     <ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, n))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul>
     <h2>Recette</h2>
     <ol class="rsteps">${r.etapes.map(e => `<li>${stepHtml(r, e)}${timerBtns(stepPlain(r, e), r.titre)}</li>`).join('')}</ol>`;
@@ -2965,7 +2965,7 @@ function openPanier(id) {
     const inList = new Set(S.shopping.filter(s => !s.checked).map(s => norm(s.label.replace(/\s*\(.*\)$/, ''))));
     box.innerHTML = `<div class="ticket-card panier" role="dialog" aria-label="Ajouter à la liste">
       <p class="ticket-title">${esc(r.titre)}</p>
-      <div class="persons"><button type="button" class="btn ghost small" data-p="-1" aria-label="Moins">−</button><span><b>${n}</b> ${n > 1 ? 'personnes' : 'personne'}</span><button type="button" class="btn ghost small" data-p="1" aria-label="Plus">+</button></div>
+      ${r.parts ? `<p class="ticket-sub">${esc(cap(r.parts))}</p>` : `<div class="persons"><button type="button" class="btn ghost small" data-p="-1" aria-label="Moins">−</button><span><b>${n}</b> ${n > 1 ? 'personnes' : 'personne'}</span><button type="button" class="btn ghost small" data-p="1" aria-label="Plus">+</button></div>`}
       <p class="ticket-sub">Coche ce que tu as déjà à la maison.</p>
       <ul class="list ring check">${r.ing.map((x, j) => { const dup = inList.has(norm(x.n)); const on = S.panier.have.has(j) || dup; return `<li><button type="button" class="tick" role="checkbox" aria-checked="${on}" data-j="${j}" aria-label="${esc(x.n)}"></button>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<span class="${on ? 'have' : ''}"><b>${esc(qty(x, n))}</b> ${esc(x.n)}${dup ? ' <em>déjà sur la liste</em>' : ''}</span></li>`; }).join('')}</ul>
       <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-action="r-panier-ok">Ajouter ce qui manque</button></div></div>`;

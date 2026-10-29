@@ -972,7 +972,7 @@ button.dech-btn.cycle { border: 0; font: inherit; cursor: pointer; }
 .rgroup .chip-label { margin: 0 0 6px; }
 .rg-hint { text-transform: none; letter-spacing: 0; font-weight: 700; opacity: .75; margin-left: 4px; }
 .rgroup .rchips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow: visible; margin: 0; padding: 0; }
-.rgroup .rchips.r4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rgroup .rchips.r4 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rgroup .rchips button { width: 100%; min-width: 0; min-height: 40px; padding: 6px 2px; font-size: clamp(12px, 3.7vw, 15px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .rgroup + .rcount { margin-top: var(--s2); }
 
