@@ -2001,7 +2001,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v146</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v147</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3034,7 +3034,7 @@ const actions = {
       // « Je m'en occupe » : la chose passe à moi.
       if (status === 'pris' && h.item_id) {
         if (h.item_kind === 'task') await api.update('tasks', { id: h.item_id }, { assignee: S.me });
-        if (h.item_kind === 'chore') { const c = S.chores.find(x => x.id === h.item_id); if (c && !seqOf(c)?.personal) await api.update('chores', { id: h.item_id }, { turn: S.me }); }
+        if (h.item_kind === 'chore') { const c = S.chores.find(x => x.id === h.item_id); if (c && !seqOf(c)) await api.update('chores', { id: h.item_id }, { turn: S.me }); }   // le lave-vaisselle reste à vous deux (notification aux deux quand il est fini)
       }
       await pingHelp(h.id);
     }, status === 'non' ? 'Réponse envoyée.' : status === 'ensemble' ? 'Vous le ferez ensemble.' : 'Merci, c’est noté pour toi.').then(ok => { if (ok && status !== 'non') react('aide_acceptee', document.querySelector('.hd .azami')); });
