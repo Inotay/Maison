@@ -1174,13 +1174,15 @@ function visitMaybe(kind, weight = 1, tries = 0) {
   const pts = effortOf(kind, weight);
   if (st.pending) { visitInvite(); return; }
   const n = st.day === today ? st.n || 0 : 0;
-  if (n >= 3) return;
-  const lastV = visitLastShared(); if (lastV && Date.now() - new Date(lastV).getTime() < 40 * 60000) return;   // 40 min entre deux visites, chez l'un ou chez l'autre
+  // Un peu rare : 3 visites par jour au plus pour vous deux ensemble, et 1 h 30 entre deux, chez l'un ou chez l'autre.
+  const nShared = [...(S.carnetInfo?.keys() || [])].filter(k => k.startsWith(`~jour-${today}-`)).length;
+  if (nShared >= 3) return;
+  const lastV = visitLastShared(); if (lastV && Date.now() - new Date(lastV).getTime() < 90 * 60000) return;
   const doneToday = S.wins.filter(w => w.done_by === S.me && isoDate(new Date(w.done_at)) === today).length || 1;
-  const first = !st.last;
-  // une chance sur trois environ après une recette seule, presque sûr après une belle série à deux
+  const first = !st.last && !VISITES.some(v => carnetHas(v.id));   // la toute première fois, pour vous deux
+  // environ une chance sur cinq après une recette seule ; il faut une vraie série d'efforts à deux pour qu'elle vienne souvent
   const pool = effortPool({ kind, weight });
-  const p = first ? 1 : Math.min(.85, pool.pts / 12);
+  const p = first ? 1 : Math.min(.7, pool.pts / 18);
   if (!pts || Math.random() > p) return;
   const v = visitPick(doneToday, kind); if (!v) return;
   const now = new Date().toISOString();
@@ -1189,6 +1191,10 @@ function visitMaybe(kind, weight = 1, tries = 0) {
   if (!S.carnetInfo) S.carnetInfo = new Map();
   S.carnetInfo.set('~visite', { by: S.me, at: now });
   api.upsert('azami_carnet', { id: '~visite', found_by: S.me, found_at: now }).catch(e => console.warn('carnet', e));
+  const jour = `~jour-${today}-${nShared + 1}-${S.me}`;
+  S.carnetInfo.set(jour, { by: S.me, at: now });
+  api.upsert('azami_carnet', { id: jour, found_by: S.me, found_at: now }).catch(e => console.warn('carnet', e));
+  for (const k of [...S.carnetInfo.keys()]) if (k.startsWith('~jour-') && k.slice(6, 16) < isoDate(new Date(Date.now() - 2 * DAY))) { S.carnetInfo.delete(k); api.remove('azami_carnet', { id: k }).catch(() => {}); }
   visitInvite(true);
 }
 // L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
@@ -1233,6 +1239,7 @@ function visitOpen(id, replay = false) {
     if (!b) { if (visitCur?.typing) visitCur.skip = true; return; }
     if (b.dataset.v === 'choice') visitChoose(Number(b.dataset.i));
     if (b.dataset.v === 'close') visitClose();
+    if (b.dataset.v === 'gacha') gachaOpen(box);
     // « Merci Azami » : une petite récompense, un carillon qui monte et son petit brrrt content
     if (b.dataset.v === 'merci') { sfx('merci'); if (SOUNDS) setTimeout(() => meow(true, .32, 'trille'), 380); haptic('medium'); burst('hearts', b, 10); setTimeout(visitClose, 260); }
   });
@@ -1341,12 +1348,52 @@ function visitEnd() {
     visitSave({ ...visitState(), pending: null });
     const total = VISITES.length, got = carnetCount();
     const pal = isNew && PALIERS.find(p => before < p[0] && got >= p[0]);
-    note = `<p class="visite-note">${isNew ? `${kindBadge(v.kind, 'sm')}<b>Nouvelle carte dans votre carnet</b> · ${got} / ${total}` : `Déjà dans votre carnet · ${got} / ${total}`}</p>`
-      + (pal ? `<p class="visite-palier"><b>Nouveau palier : ${esc(pal[1])}</b> ${esc(pal[2])}</p>` : '');
-    if (isNew && v.kind === 'secret') burst('sparkle', box.querySelector('.visite-azami'), 16);
-    if (pal) { setTimeout(() => { sfx('big'); burst('confetti', box.querySelector('.visite-palier'), 30); haptic('heavy'); }, 400); }
+    if (isNew) {
+      // Effet gacha : une capsule tombe, gigote, et on l'ouvre pour découvrir la carte.
+      visitCur.gacha = { v, got, total, pal };
+      box.querySelector('.visite-foot').innerHTML = gachaHtml(v);
+      gachaDrop(box);
+      return;
+    }
+    note = `<p class="visite-note">Déjà dans votre carnet · ${got} / ${total}</p>`;
   }
   box.querySelector('.visite-foot').innerHTML = `${note}<div class="visite-choices"><button class="btn" data-v="merci">Merci Azami</button></div>`;
+}
+// Gacha : rareté selon la famille (les secrets sont les plus rares), couleur de capsule assortie.
+const RARETE = { blague: 1, mignon: 1, question: 1, devinette: 2, cuisine: 2, bravo: 2, secret: 3 };
+const RARE_NAME = ['', 'Commune', 'Peu commune', 'Secrète'];
+function gachaHtml(v) {
+  const r = RARETE[v.kind] || 1;
+  return `<div class="gacha r${r}" style="--k:${KIND_COL[v.kind]}">
+    <button type="button" class="gacha-cap" data-v="gacha" aria-label="Ouvrir la capsule"><span class="cap-top"></span><span class="cap-bot"></span><span class="cap-shine"></span></button>
+    <p class="gacha-hint">Une capsule pour votre carnet ! <b>Touche-la pour l’ouvrir.</b></p></div>`;
+}
+function gachaDrop(box) {
+  if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['manivelle', 0], ['capsule', .55]], audioCtx.currentTime + .02, .5);
+  setTimeout(() => haptic('medium'), 560);
+}
+function gachaOpen(box) {
+  const g = visitCur?.gacha; const el = box.querySelector('.gacha'); if (!g || !el || el.classList.contains('open')) return;
+  const { v, got, total, pal } = g, r = RARETE[v.kind] || 1;
+  el.classList.add('open'); haptic('heavy');
+  if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['pop_capsule', 0]], audioCtx.currentTime + .01, .55);
+  setTimeout(() => {
+    sfx(r >= 3 ? 'big' : r === 2 ? 'done' : 'merci');
+    el.insertAdjacentHTML('beforeend', `<div class="gacha-card" style="--k:${KIND_COL[v.kind]}">
+      <span class="gacha-stars" aria-label="${RARE_NAME[r]}">${'★'.repeat(r)}<small>${RARE_NAME[r]}</small></span>
+      ${kindBadge(v.kind)}<b class="gacha-kind">${esc(VISIT_KIND[v.kind] || '')}</b>
+      <span class="gacha-txt">${esc(visitText(turnsOf(v)[0].lines[0]))}</span>
+      <span class="gacha-count">Nouvelle carte · ${got} / ${total}</span></div>`);
+    const card = el.querySelector('.gacha-card');
+    burst(r >= 3 ? 'confetti' : 'sparkle', card, r >= 3 ? 34 : r === 2 ? 18 : 10);
+    if (r >= 3) setTimeout(() => meow(true, .4, 'chirp'), 500);
+    const foot = box.querySelector('.visite-foot');
+    setTimeout(() => {
+      if (pal) { foot.insertAdjacentHTML('beforeend', `<p class="visite-palier"><b>Nouveau palier : ${esc(pal[1])}</b> ${esc(pal[2])}</p>`); setTimeout(() => { sfx('big'); burst('confetti', foot.querySelector('.visite-palier'), 30); haptic('heavy'); }, 250); }
+      foot.insertAdjacentHTML('beforeend', `<div class="visite-choices"><button class="btn" data-v="merci">Merci Azami</button></div>`);
+      visitCur && box.querySelector('.visite-talk')?.follow?.();
+    }, 700);
+  }, 380);
 }
 function visitClose() {
   const box = document.getElementById('visite'); if (!box) return;
@@ -1410,7 +1457,7 @@ function carnetSection() {
     ${next ? `<div class="carnet-goal"><div class="carnet-goal-top"><span>Prochain palier : <b>${esc(next[1])}</b></span><span>${n} / ${next[0]}</span></div>
       <div class="carnet-bar" style="--p:${Math.round((n - prevAt) / Math.max(1, next[0] - prevAt) * 100)}%"><span></span></div>
       <p class="carnet-goal-sub">Encore ${next[0] - n} ${next[0] - n > 1 ? 'visites' : 'visite'} pour le débloquer.</p></div>` : '<p class="carnet-goal-sub">Carnet complet. Azami en ronronne encore.</p>'}
-    ${(() => { const pool = effortPool(), lvl = Math.min(5, Math.round(pool.pts / 12 * 5)); return `<div class="carnet-energy"><span class="ce-paws" aria-label="${lvl} sur 5">${[0, 1, 2, 3, 4].map(k => `<svg class="${k < lvl ? 'on' : ''}" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="15.5" rx="5" ry="4.2"/><circle cx="6.2" cy="10" r="2.2"/><circle cx="10" cy="6.6" r="2.2"/><circle cx="14" cy="6.6" r="2.2"/><circle cx="17.8" cy="10" r="2.2"/></svg>`).join('')}</span><p><b>Vos efforts à deux.</b> Tout ce que vous faites s’additionne : plus c’est plein, plus Azami a de chances de venir.${pool.both ? ' À deux, ça va plus vite.' : ''}</p></div>`; })()}
+    ${(() => { const pool = effortPool(), lvl = Math.min(5, Math.round(pool.pts / 18 * 5)); return `<div class="carnet-energy"><span class="ce-paws" aria-label="${lvl} sur 5">${[0, 1, 2, 3, 4].map(k => `<svg class="${k < lvl ? 'on' : ''}" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="15.5" rx="5" ry="4.2"/><circle cx="6.2" cy="10" r="2.2"/><circle cx="10" cy="6.6" r="2.2"/><circle cx="14" cy="6.6" r="2.2"/><circle cx="17.8" cy="10" r="2.2"/></svg>`).join('')}</span><p><b>Vos efforts à deux.</b> Tout ce que vous faites s’additionne : plus c’est plein, plus Azami a de chances de venir.${pool.both ? ' À deux, ça va plus vite.' : ''}</p></div>`; })()}
     <div class="carnet-stickers" role="list" aria-label="Paliers">${PALIERS.map(([at, name, txt]) => `<button type="button" role="listitem" class="sticker ${n >= at ? 'on' : ''}" data-action="carnet-palier" data-at="${at}" aria-label="${esc(name)} : ${n >= at ? 'débloqué' : `à ${at} visites`}"><span class="sticker-face">${n >= at ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5C5 15 3.5 11.5 5 8.6c1.4-2.7 5-2.8 7 .2 2-3 5.6-2.9 7-.2 1.5 2.9 0 6.4-7 10.9z" fill="#F48FA0" stroke="#2A1C15" stroke-width="1.8"/></svg>' : `<b>${at}</b>`}</span><span class="sticker-name">${esc(name)}</span></button>`).join('')}</div>
     <div class="carnet-tabs">
       <button type="button" data-action="carnet-kind" data-k="" aria-pressed="${!sel}">Tout <b>${n}/${total}</b></button>
@@ -2067,7 +2114,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v149</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v151</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

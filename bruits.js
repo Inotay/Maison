@@ -29,6 +29,11 @@ function metal(c, out, at, f, dur, vol) {
 }
 
 export const BRUITS = {
+  // gacha : la manivelle qui cliquette, la capsule qui tombe, puis qui s'ouvre
+  manivelle: (c, o, t) => { for (let i = 0; i < 6; i++) { hiss(c, o, t + i * .08, .025, { f: 2600 + i * 120, q: 3, vol: .12, shape: x => Math.pow(1 - x, 2) }); tone(c, o, t + i * .08, .03, { f: 900 + i * 40, vol: .03, type: 'square' }); } },
+  capsule: (c, o, t) => { tone(c, o, t, .12, { f: [300, 140], vol: .14 }); tone(c, o, t + .14, .08, { f: [260, 150], vol: .07 }); tone(c, o, t + .24, .05, { f: [240, 160], vol: .03 }); },
+  pop_capsule: (c, o, t) => { tone(c, o, t, .1, { f: [420, 1300], vol: .14 }); hiss(c, o, t, .08, { f: 3500, q: 1, vol: .06, shape: x => Math.pow(1 - x, 2) }); },
+
   // accueil : toilette, jeu, petite marche
   lechouille: (c, o, t) => { hiss(c, o, t, rnd(.07, .09), { f: [rnd(1800, 2200), rnd(3200, 3800)], q: 2.2, vol: .1, shape: x => Math.sin(Math.PI * x) }); tone(c, o, t + .01, .05, { f: [rnd(380, 450), rnd(650, 750)], vol: .03 }); },
   frotte: (c, o, t) => hiss(c, o, t, .32, { type: 'lowpass', f: 1400, q: .7, vol: .12, shape: (x, i) => Math.sin(Math.PI * x) * (.55 + .45 * Math.sin(i / 700)) }),
