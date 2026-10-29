@@ -58,25 +58,32 @@ function voice(c, out, t, { pts, dur, vol = .16, form = [2100, 1300, 750], q = 4
   return t + dur;
 }
 
-// Ronron : un souffle doux et continu, à peine pulsé (expiration puis inspiration), pas des coups réguliers.
+// Ronron : une vibration grave et régulière (vers 25 Hz, comme le larynx d'un chat), riche en harmoniques
+// pour s'entendre sur un téléphone, en deux souffles (expiration puis inspiration), avec un peu d'air.
 function purr(c, out, t, vol = .5) {
-  const sr = c.sampleRate, dur = rnd(1.6, 2.2), len = Math.floor(sr * dur), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
-  const breaths = [[0, .52, rnd(25, 27), 1], [.55, 1, rnd(21, 23), .6]];   // expiration plus forte, inspiration plus douce
-  let ph = 0, lp = 0;
-  for (let i = 0; i < len; i++) {
-    const x = i / len, b = x < .53 ? breaths[0] : breaths[1];
-    const local = (x - b[0]) / (b[1] - b[0]);
-    const shape = local < 0 || local > 1 ? 0 : Math.sin(Math.PI * local) ** .8;   // chaque souffle monte et redescend
-    ph += (b[2] * (1 + (Math.random() - .5) * .08)) / sr;                           // petit flottement, jamais métronomique
-    const pulse = .55 + .45 * Math.sin(2 * Math.PI * ph) ** 2;                     // modulation douce
-    lp += ((Math.random() * 2 - 1) - lp) * .08;                                     // bruit déjà adouci
-    d[i] = lp * pulse * shape * b[3];
-  }
-  const s = c.createBufferSource(), f = c.createBiquadFilter(), body = c.createBiquadFilter(), g = c.createGain();
-  s.buffer = buf; f.type = 'lowpass'; f.frequency.value = 700; f.Q.value = .5;
-  body.type = 'peaking'; body.frequency.value = 380; body.Q.value = .9; body.gain.value = 4;
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * .9, t + .15); g.gain.setValueAtTime(vol * .9, t + dur - .3); g.gain.linearRampToValueAtTime(0, t + dur);
-  s.connect(f); f.connect(body); body.connect(g); g.connect(out); s.start(t);
+  const dur = rnd(1.7, 2.3), split = dur * rnd(.5, .56);
+  const o = c.createOscillator(); o.type = 'sawtooth';
+  const f1 = rnd(24, 27), f2 = f1 * rnd(.84, .9);
+  o.frequency.setValueAtTime(f1, t); o.frequency.setValueAtTime(f1 * 1.02, t + split * .5);
+  o.frequency.setValueAtTime(f2, t + split); o.frequency.linearRampToValueAtTime(f2 * .97, t + dur);
+  const jit = c.createOscillator(), jg = c.createGain(); jit.frequency.value = rnd(3, 5); jg.gain.value = 1.2; jit.connect(jg); jg.connect(o.frequency);   // jamais métronomique
+  const hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), body = c.createBiquadFilter(), env = c.createGain();
+  hp.type = 'highpass'; hp.frequency.value = 70;
+  lp.type = 'lowpass'; lp.frequency.value = 560; lp.Q.value = .6;
+  body.type = 'peaking'; body.frequency.value = 240; body.Q.value = 1; body.gain.value = 6;
+  // deux souffles : l'expiration plus forte, un tout petit creux entre les deux
+  const v = vol * .28;
+  env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(v, t + .12); env.gain.setValueAtTime(v, t + split - .12);
+  env.gain.linearRampToValueAtTime(v * .25, t + split); env.gain.linearRampToValueAtTime(v * .65, t + split + .12);
+  env.gain.setValueAtTime(v * .65, t + dur - .2); env.gain.linearRampToValueAtTime(0, t + dur);
+  o.connect(hp); hp.connect(lp); lp.connect(body); body.connect(env); env.connect(out);
+  // un soupçon d'air, pulsé au même rythme
+  const len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) { const ph = (i / c.sampleRate) * (i / c.sampleRate < split ? f1 : f2) % 1; d[i] = (Math.random() * 2 - 1) * (.4 + .6 * Math.exp(-ph * 6)); }
+  const n = c.createBufferSource(), nf = c.createBiquadFilter(), ng = c.createGain();
+  n.buffer = buf; nf.type = 'bandpass'; nf.frequency.value = 700; nf.Q.value = .8; ng.gain.value = .12;
+  n.connect(nf); nf.connect(ng); ng.connect(env);
+  o.start(t); jit.start(t); n.start(t); o.stop(t + dur + .05); jit.stop(t + dur + .05);
   return t + dur;
 }
 
