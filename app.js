@@ -1004,13 +1004,23 @@ function popEvents() {
 // service worker : à l'ouverture, celles qu'on n'a pas touchées réapparaissent ici.
 let pushInbox = [];
 async function loadInbox() {
-  try { const c = await caches.open('maison-inbox'); const r = await c.match('./__inbox'); pushInbox = r ? await r.json() : []; } catch { pushInbox = []; }
+  let list = [];
+  try { const c = await caches.open('maison-inbox'); const r = await c.match('./__inbox'); list = r ? await r.json() : []; } catch { list = []; }
+  // Et celles encore visibles dans le centre de notifications du téléphone (même reçues avant cette version).
+  try {
+    const reg = swReg || await navigator.serviceWorker?.getRegistration();
+    const shown = reg?.getNotifications ? await reg.getNotifications() : [];
+    for (const n of shown) if (!list.some(x => x.tag === n.tag && x.title === n.title && x.body === n.body)) list.push({ tag: n.tag, title: n.title, body: n.body, url: n.data?.url, at: n.timestamp || Date.now() });
+  } catch { /* pas pris en charge */ }
+  pushInbox = list;
   popCheck();
 }
 const VIEW_OF = u => { try { return new URL(u || './', location.href).searchParams.get('v') || 'maison'; } catch { return 'maison'; } };
+// Identifiant stable (le même qu'elle vienne de la boîte du service worker ou du centre de notifications).
+const pushId = n => { let h = 0; for (const ch of `${n.tag}|${n.title}|${n.body}`) h = (h * 31 + ch.charCodeAt(0)) | 0; return `p${n.tag || 'maison'}-${(h >>> 0).toString(36)}`; };
 function pushEvents() {
   return pushInbox.filter(n => n && n.at && Date.now() - n.at < DAY && !/^(aide|rappel)-/.test(n.tag || ''))   // demandes et rappels : déjà montrés par leur carte
-    .map(n => ({ id: `p${n.tag || 'maison'}-${n.at}`, at: new Date(n.at).toISOString(), icon: '<img class="ticon" src="icons/icon-192.png" alt="" width="34" height="34">', title: n.title || 'Maison', body: n.body || '', go: { view: ['maison', 'menage', 'recettes', 'courses', 'argent', 'nuit'].includes(VIEW_OF(n.url)) ? VIEW_OF(n.url) : 'maison' } }));
+    .map(n => ({ id: pushId(n), at: new Date(n.at).toISOString(), icon: '<img class="ticon" src="icons/icon-192.png" alt="" width="34" height="34">', title: n.title || 'Maison', body: n.body || '', go: { view: ['maison', 'menage', 'recettes', 'courses', 'argent', 'nuit'].includes(VIEW_OF(n.url)) ? VIEW_OF(n.url) : 'maison' } }));
 }
 let inboxLoaded = false;
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) setTimeout(loadInbox, 600); });
@@ -1513,7 +1523,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v118</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v119</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
