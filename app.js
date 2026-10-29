@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v175</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v176</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3769,7 +3769,7 @@ function tasteCard(email) {
     ${top.people.length ? `<p class="taste-k">Côté équipes</p><div class="tchips">${chips(top.people)}</div>` : ''}
     ${top.themes.length || top.genres.length || top.langs.length ? `<p class="taste-k">Ce qui ${self ? 'te' : 'lui'} plaît</p><div class="tchips">${chips([...top.genres, ...top.langs, ...top.themes].slice(0, 8))}</div>` : ''}
     ${p.src && p.src !== 'tmdb' && p.corr > .2 ? `<p class="taste-k">${self ? 'Ton' : 'Son'} public le plus proche</p><p class="taste-pub">${({ lb: 'Les cinéphiles de Letterboxd', imdb: 'Le grand public d’IMDb', presse: 'La presse (Metacritic, Rotten Tomatoes)', public: 'Les spectateurs de Rotten Tomatoes' })[p.src]} <small>Entre la presse, le grand public et les cinéphiles, c’est leur avis qui ressemble le plus ${self ? 'au tien' : 'au sien'}.</small></p>` : ''}
-    ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.r > .25).slice(0, 3), lo = tw.filter(([, c]) => c.r < .1).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
+    ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.adj > .22).slice(0, 4), lo = tw.filter(([, c]) => c.adj < .08 && c.n >= 30).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
     ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
@@ -4074,10 +4074,10 @@ function tonsRow(f) {
 function critiquesRow(f) {
   const C = f.critiques; if (!C || C.aucune) return '';
   const tw = tastes().me?.critics || new Map();
-  const list = Object.entries(C).map(([o, v]) => [o, v, tw.get(o)?.r ?? null]).sort((a, b) => (b[2] ?? -2) - (a[2] ?? -2) || b[1] - a[1]);
+  const list = Object.entries(C).map(([o, v]) => [o, v, tw.get(o)?.adj ?? null]).sort((a, b) => (b[2] ?? -2) - (a[2] ?? -2) || b[1] - a[1]);
   const star = v => `${'★'.repeat(Math.floor(v))}${v % 1 ? '½' : ''}`;
-  return `<details class="fcrit"><summary><span>La presse</span><small>${list.length} ${list.length > 1 ? 'journaux' : 'journal'}${list.some(x => x[2] > .3) ? ' · tes jumeaux en premier' : ''}</small></summary>
-    <ul>${list.map(([o, v, r]) => `<li class="${r > .3 ? 'twin' : ''}"><span>${esc(o)}${r > .3 ? '<em>te ressemble</em>' : ''}</span><b aria-label="${String(v).replace('.', ',')} sur 5">${star(v)}<i>${'★'.repeat(5 - Math.ceil(v))}</i></b></li>`).join('')}</ul></details>`;
+  return `<details class="fcrit"><summary><span>La presse</span><small>${list.length} ${list.length > 1 ? 'journaux' : 'journal'}${list.some(x => x[2] > .22) ? ' · tes jumeaux en premier' : ''}</small></summary>
+    <ul>${list.map(([o, v, r]) => `<li class="${r > .22 ? 'twin' : ''}"><span>${esc(o)}${r > .22 ? '<em>te ressemble</em>' : ''}</span><b aria-label="${String(v).replace('.', ',')} sur 5">${star(v)}<i>${'★'.repeat(5 - Math.ceil(v))}</i></b></li>`).join('')}</ul></details>`;
 }
 function deckInfoClose(now) {
   const m = deck?.box.querySelector('.dmore'); if (!m) return;

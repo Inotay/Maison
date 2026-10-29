@@ -109,7 +109,7 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
 const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || ''); return at ? Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5))) : 1; };
 // Deux questions différentes : « est-ce que ça m'attire ? » (la curiosité, ce que Cinder demande) et « est-ce que
 // je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
-export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1, crA: 1, crC: .3 };   // réglés sur vos avis (v172)
+export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1, crA: 2, crC: .5 };   // réglés sur vos avis (v172)
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
@@ -196,7 +196,8 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
     if (pts.length < 8) continue;
     const mx = pts.reduce((a, [x]) => a + x, 0) / pts.length, my = pts.reduce((a, [, y]) => a + y, 0) / pts.length;
     let c = 0, vx = 0, vy = 0; for (const [x, y] of pts) { c += (x - mx) * (y - my); vx += (x - mx) ** 2; vy += (y - my) ** 2; }
-    if (vx && vy) critics.set(o, { r: c / Math.sqrt(vx * vy), mean: mx, n: pts.length });
+    // corrélation « prudente » : sur peu de films communs, une belle ressemblance peut être un hasard
+    if (vx && vy) { const r = c / Math.sqrt(vx * vy); critics.set(o, { r, adj: r * pts.length / (pts.length + 25), mean: mx, n: pts.length }); }
   }
   return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, src, corr, st, critics };
 }
@@ -207,10 +208,10 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
 export function critTerm(prof, f) {
   const C = f.critiques; if (!C || C.aucune || !prof?.critics?.size) return 0;
   let num = 0, den = 0;
-  for (const [o, v] of Object.entries(C)) { const c = prof.critics.get(o); if (!c || c.r <= .1) continue; const w = c.r * c.r * Math.min(1, c.n / 20); num += w * (v - c.mean); den += w; }
-  return den ? num / den * Math.min(1, den / .3) : 0;
+  for (const [o, v] of Object.entries(C)) { const c = prof.critics.get(o); if (!c || c.adj <= .08) continue; const w = c.adj * c.adj; num += w * (v - c.mean); den += w; }
+  return den ? num / den * Math.min(1, den / .15) : 0;
 }
-export const twins = prof => [...(prof?.critics || [])].filter(([, c]) => c.n >= 8).sort((a, b) => b[1].r - a[1].r);
+export const twins = prof => [...(prof?.critics || [])].filter(([, c]) => c.n >= 12).sort((a, b) => b[1].adj - a[1].adj);
 // mix : 0 = seulement « vais-je l'aimer ? », 1 = seulement « est-ce que ça m'attire ? ».
 export function score(prof, f, mix = W.mix) {
   // la qualité vue par le public qui te ressemble compte beaucoup pour « vais-je l'aimer ? », moins pour « ça m'attire ? »
