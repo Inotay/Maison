@@ -10,6 +10,7 @@ import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { VISITES } from './visites.js';
+import { playMeow, randomMeow, MEOW_KINDS } from './miaous.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -266,23 +267,18 @@ setInterval(() => {
   if (t - lastAmbient < 40000) return;
   if (Math.random() < 0.2) { lastAmbient = t; meow(true, .25); }
 }, 8000);
-function meow(force, volume = .6) {
+// Plusieurs miaulements (miaou, petit mew, mrrp ?, trille, long, ek ek, mrrrow sassy, ronron) : voir miaous.js.
+// Un vrai enregistrement sounds/azami_<type>.m4a remplace le son synthétique de ce type.
+const meowFiles = {};
+Object.keys(MEOW_KINDS).forEach(k => fetch(`sounds/azami_${k}.m4a`, { method: 'HEAD' }).then(r => { if (r.ok) meowFiles[k] = `sounds/azami_${k}.m4a`; }).catch(() => {}));
+function meow(force, volume = .6, kind = null) {
   if (!force && Math.random() > 0.18) return;
   try {
     if (!MEOWS && !force) return;
-    if (meowFile) { const a = new Audio(meowFile); a.volume = volume; a.play().catch(() => {}); return; }
-    const c = ctxAudio();
-    const t = c.currentTime;
-    const osc = c.createOscillator(), osc2 = c.createOscillator();
-    const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(), g = c.createGain();
-    osc.type = 'sawtooth'; osc2.type = 'triangle';
-    osc.frequency.setValueAtTime(520, t); osc.frequency.linearRampToValueAtTime(760, t + .18); osc.frequency.exponentialRampToValueAtTime(430, t + .62);
-    osc2.frequency.setValueAtTime(521, t); osc2.frequency.linearRampToValueAtTime(764, t + .18); osc2.frequency.exponentialRampToValueAtTime(433, t + .62);
-    f1.type = 'bandpass'; f1.Q.value = 5; f1.frequency.setValueAtTime(900, t); f1.frequency.linearRampToValueAtTime(1900, t + .2); f1.frequency.linearRampToValueAtTime(1100, t + .6);
-    f2.type = 'lowpass'; f2.frequency.value = 3200;
-    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16, t + .06); g.gain.setValueAtTime(.16, t + .4); g.gain.exponentialRampToValueAtTime(.001, t + .7);
-    osc.connect(f1); osc2.connect(f1); f1.connect(f2); f2.connect(g); g.connect(c.destination);
-    osc.start(t); osc2.start(t); osc.stop(t + .72); osc2.stop(t + .72);
+    const k = kind || randomMeow();
+    const file = meowFiles[k] || (!kind && meowFile);
+    if (file) { const a = new Audio(file); a.volume = volume; a.play().catch(() => {}); return; }
+    playMeow(ctxAudio(), k, volume);
   } catch {}
 }
 
@@ -1170,7 +1166,7 @@ function visitInvite(fresh) {
   el.setAttribute('aria-label', 'Azami a quelque chose à te dire');
   el.innerHTML = `<img src="${azamiSrc('v44_visite_appel')}" alt="" width="96" height="96"><span class="vi-bubble"><b>${rare ? 'Psst… un secret !' : quiz ? 'Je te lance un défi !' : `Psst… ${esc(visitText('{toi}'))} !`}</b><span>${rare ? 'Un secret rare, rien que pour toi' : quiz ? 'Trois devinettes. Tu oses ?' : 'J’ai un truc à te dire'}</span></span>`;
   requestAnimationFrame(() => el.classList.add('on'));
-  if (fresh) { haptic('heavy'); meow(true, .7); }
+  if (fresh) { haptic('heavy'); meow(true, .7, ['question', 'trille', 'chirp'][Math.floor(Math.random() * 3)]); }
 }
 let visitCur = null;
 function visitOpen(id, replay = false) {
@@ -1269,7 +1265,7 @@ function visitChoose(i) {
   setTimeout(() => {
     if (visitCur !== cur) return;
     visitImg('visite_' + mood);
-    if (mood === 'coeur') sfx('heart'); else if (mood === 'rire') meow(true, .5);
+    meow(true, .55, { rire: 'chirp', coeur: 'ronron', fier: 'long', malice: 'grogne', langue: 'mew' }[mood] || 'miaou');
     visitSay(c.reply, () => {
       cur.busy = false;
       cur.turn++;
@@ -1785,7 +1781,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v126</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v127</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3130,7 +3126,7 @@ const actions = {
   'care-delete': el => { if (confirm('Retirer ce mot de sa boîte ?')) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { meow(true); caresse(el.querySelector('img.azami')); },
+  meow: el => { meow(true, .6, Math.random() < .4 ? 'ronron' : null); caresse(el.querySelector('img.azami')); },
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
