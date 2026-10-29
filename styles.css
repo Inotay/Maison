@@ -1645,10 +1645,9 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .taste-meter { margin-top: 10px; display: grid; gap: 6px; }
 .taste-meter p { margin: 0; font-size: 12.5px; color: #E8DCE6; line-height: 1.35; }
 .taste-meter b { display: inline-block; min-width: 44px; padding: 1px 6px; margin-right: 6px; border-radius: 8px; background: #F7C948; color: #2A1C15; font-weight: 900; text-align: center; }
-.cine-filt { display: flex; gap: 8px; align-items: center; margin: 0 0 10px; }
-.cine-filt .chips.mini { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0; gap: 6px; padding: 2px 22px 4px 0; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); }
-.cine-filt .chips.mini::-webkit-scrollbar { display: none; }
-.cine-filt .cine-sortb { flex: none; }
+.cine-filt { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 12px; }
+.cine-filt .chips.mini { display: contents; }
+.cine-filt .cine-sortb { flex: none; margin-left: auto; }
 .chips.mini button { flex: none; padding: 5px 10px; font-size: 12.5px; min-height: 0; }
 .cine-sort select { width: auto; height: 34px; padding: 0 8px; font-size: 13px; background: #3A2840; color: #FBF3E9; border-color: #54395B; border-radius: 10px; }
 .cine-more { margin-top: 12px; }
@@ -1776,3 +1775,7 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .dm-links { display: flex; gap: 16px; flex-wrap: wrap; margin: 0; }
 .dm-links a { color: #F2C14E; font-weight: 800; font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .dmore { transition: none; } }
+
+/* Dans une rangée qui défile de côté, l'interrupteur haptique invisible attrapait le glissé du doigt (iOS) :
+   on le laisse passer pour que la rangée défile. (v170) */
+.rchips input.hap, .carnet-tabs input.hap, .carnet-stickers input.hap, .cine-ideas input.hap { pointer-events: none; }
