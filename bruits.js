@@ -1,0 +1,97 @@
+// Petits bruitages des scènes à accessoires (balai, casserole, pièces, sac, lettre), synthétisés en Web Audio.
+// Tout passe par un « bus » : on peut programmer une scène entière d'avance, et tout couper d'un coup
+// (bus.disconnect()) quand on change de page.
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function noiseBuf(c, dur, shape) {
+  const len = Math.max(1, Math.floor(c.sampleRate * dur)), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * shape(i / len, i);
+  return buf;
+}
+// Bruit filtré : type de filtre, fréquence (ou [début, fin]), Q, gain.
+function hiss(c, out, at, dur, { type = 'bandpass', f = 2000, q = 1, vol = .2, shape = x => Math.sin(Math.PI * x) }) {
+  const n = c.createBufferSource(), fl = c.createBiquadFilter(), g = c.createGain();
+  n.buffer = noiseBuf(c, dur, shape); fl.type = type; fl.Q.value = q;
+  if (Array.isArray(f)) { fl.frequency.setValueAtTime(f[0], at); fl.frequency.exponentialRampToValueAtTime(f[1], at + dur); } else fl.frequency.value = f;
+  g.gain.value = vol; n.connect(fl); fl.connect(g); g.connect(out); n.start(at);
+}
+// Note brève : fréquence (ou [début, fin]), durée, volume, forme d'onde.
+function tone(c, out, at, dur, { f = 440, vol = .1, type = 'sine', attack = .004 }) {
+  const o = c.createOscillator(), g = c.createGain(); o.type = type;
+  if (Array.isArray(f)) { o.frequency.setValueAtTime(f[0], at); o.frequency.exponentialRampToValueAtTime(f[1], at + dur); } else o.frequency.value = f;
+  g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + attack); g.gain.exponentialRampToValueAtTime(.0006, at + dur);
+  o.connect(g); g.connect(out); o.start(at); o.stop(at + dur + .02);
+}
+// Petit « ding » métallique : partiels inharmoniques, comme une pièce.
+function metal(c, out, at, f, dur, vol) {
+  [[1, 1], [2.76, .5], [5.4, .25], [8.9, .12]].forEach(([m, v]) => tone(c, out, at, dur * (1.1 - m / 12), { f: f * m * rnd(.995, 1.005), vol: vol * v, type: 'sine', attack: .002 }));
+}
+
+export const BRUITS = {
+  // balai : un « fchhh » qui glisse sur le sol
+  balai: (c, o, t) => hiss(c, o, t, rnd(.22, .3), { f: [rnd(2400, 2800), rnd(1200, 1500)], q: .9, vol: .17, shape: x => Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.3)), 1.5) }),
+  etincelle: (c, o, t) => { [2637, 3520, 4186].forEach((f, i) => tone(c, o, t + i * .06, .35, { f, vol: .035 })); hiss(c, o, t, .3, { type: 'highpass', f: 7000, vol: .03, shape: x => Math.pow(1 - x, 3) }); },
+  // casserole
+  touille: (c, o, t) => hiss(c, o, t, .5, { type: 'lowpass', f: [700, 380], q: 4, vol: .17, shape: (x, i) => Math.sin(Math.PI * x) * (.6 + .4 * Math.sin(i / 260)) }),
+  blop: (c, o, t) => { tone(c, o, t, .12, { f: [rnd(240, 280), rnd(780, 900)], vol: .13 }); tone(c, o, t + .02, .08, { f: [500, 1200], vol: .05, type: 'triangle' }); },
+  lape: (c, o, t) => { tone(c, o, t, .06, { f: [900, 1500], vol: .05 }); hiss(c, o, t, .06, { f: 3000, q: 2, vol: .05 }); },
+  // pièces
+  tapote: (c, o, t) => metal(c, o, t, 1900, .18, .05),
+  roule: (c, o, t) => { for (let i = 0; i < 9; i++) metal(c, o, t + i * .065 + rnd(0, .015), rnd(2300, 2600), .05, .03); hiss(c, o, t, .6, { f: 1800, q: 1.5, vol: .03 }); },
+  boum: (c, o, t) => { tone(c, o, t, .16, { f: [280, 120], vol: .13 }); hiss(c, o, t, .06, { type: 'lowpass', f: 900, vol: .08, shape: x => Math.pow(1 - x, 3) }); },
+  tchiing: (c, o, t) => { metal(c, o, t, 1568, .9, .065); metal(c, o, t + .09, 2093, 1.1, .06); hiss(c, o, t + .09, .5, { type: 'highpass', f: 6500, vol: .03, shape: x => Math.pow(1 - x, 3) }); },
+  tombe: (c, o, t) => tone(c, o, t, .45, { f: [2200, 900], vol: .02 }),
+  rebond: (c, o, t, v = 1) => metal(c, o, t, rnd(2400, 2700), .22, .06 * v),
+  tourne: (c, o, t) => {   // la pièce tourne sur la tranche : des petits clics de plus en plus rapprochés, puis à plat
+    let at = t, gap = .14;
+    for (let i = 0; i < 14 && at < t + 1.3; i++) { metal(c, o, at, rnd(2800, 3100), .06, .02 + i * .002); at += gap; gap *= .86; }
+    hiss(c, o, t, 1.3, { f: [1500, 3200], q: 3, vol: .02, shape: x => x });
+  },
+  aplat: (c, o, t) => { metal(c, o, t, 2350, .35, .07); tone(c, o, t, .05, { f: 3800, vol: .02 }); },
+  pose: (c, o, t) => tone(c, o, t, .1, { f: [340, 190], vol: .07 }),
+  // sac de courses : papier kraft qui froisse
+  froisse: (c, o, t, dur = .5) => {
+    for (let at = t; at < t + dur; at += rnd(.03, .07)) hiss(c, o, at, rnd(.02, .05), { f: rnd(2500, 5500), q: rnd(1, 3), vol: rnd(.07, .15), shape: x => Math.pow(1 - x, 2) });
+  },
+  renifle: (c, o, t) => hiss(c, o, t, .09, { f: [2500, 4200], q: 1.2, vol: .08 }),
+  pop: (c, o, t) => tone(c, o, t, .08, { f: [500, 1100], vol: .1 }),
+  gloup: (c, o, t) => { tone(c, o, t, .16, { f: [420, 130], vol: .16, type: 'triangle' }); tone(c, o, t + .12, .1, { f: [300, 520], vol: .05 }); },
+  ploc: (c, o, t) => { hiss(c, o, t, .1, { type: 'lowpass', f: 600, vol: .2, shape: x => Math.pow(1 - x, 3) }); tone(c, o, t, .08, { f: [160, 90], vol: .08 }); },
+  // lettre
+  papier: (c, o, t) => hiss(c, o, t, .14, { type: 'highpass', f: 2200, vol: .08, shape: x => Math.sin(Math.PI * x) * (.7 + .3 * Math.random()) }),
+  glisse: (c, o, t) => hiss(c, o, t, .25, { f: [1800, 3200], q: .8, vol: .07 }),
+  ouvre: (c, o, t) => { hiss(c, o, t, .1, { f: 3000, q: 1, vol: .06 }); tone(c, o, t + .04, .14, { f: [600, 1000], vol: .06 }); },
+  carillon: (c, o, t) => [1046.5, 1318.5, 1568, 2093].forEach((f, i) => tone(c, o, t + i * .09, .7, { f, vol: .05, type: 'triangle' })),
+  battement: (c, o, t) => { tone(c, o, t, .14, { f: [200, 110], vol: .12 }); tone(c, o, t + .16, .12, { f: [180, 100], vol: .09 }); },
+  eclat: (c, o, t) => { [1568, 2093, 2637, 3136, 2349].forEach((f, i) => tone(c, o, t + i * .045, .3, { f, vol: .035 })); hiss(c, o, t, .35, { type: 'highpass', f: 6000, vol: .03, shape: x => Math.pow(1 - x, 3) }); },
+};
+
+// Le petit son qu'on entend en arrivant sur une page, lié à son accessoire.
+export const ENTREE = {
+  v44_menage: [['balai', 0], ['balai', .28]],
+  v44_cuisine: [['blop', 0], ['blop', .16]],
+  v44_argent: [['tchiing', 0]],
+  v44_courses: [['froisse', 0, .35]],
+  v44_care: [['papier', 0], ['carillon', .12]],
+};
+
+// Les bruitages calés sur chaque scène (secondes depuis le début de l'animation, un seul tour de boucle).
+const strokes = [0, 1, 2, 3, 4, 5].map(k => ['balai', .85 + k * .5]);
+export const CUES = {
+  v44_menage: [...strokes, ['eternue', 5.5], ['etincelle', 7.3], ['etincelle', 8.1], ['balai', 9.45], ['balai', 9.95]],
+  v44_cuisine: [...[0, 1, 2, 3, 4].map(k => ['touille', .8 + k * .6]), ['lape', 4.82], ['lape', 5.24], ['blop', 6.84], ['boum', 7.32], ...[0, 1, 2].map(k => ['touille', 8.9 + k * .6]), ['carillon', 9.62]],
+  v44_argent: [['tapote', 1.32], ['roule', 2.34], ['boum', 2.96], ['tchiing', 3.64], ['tombe', 6.02], ['rebond', 6.5], ['rebond', 6.8, .6], ['rebond', 6.96, .3], ['tourne', 7.1], ['aplat', 8.58], ['pose', 8.9]],
+  v44_courses: [...[0, 1, 2, 3].map(k => ['renifle', .72 + k * .28]), ['froisse', 1.5, .5], ['froisse', 2.4, 1.7], ['pop', 4.22], ['gloup', 6.45], ['froisse', 8.1, 1.25], ['pop', 9.42], ['ploc', 10.75]],
+  v44_care: [['papier', 2.72], ['glisse', 3.45], ['ouvre', 4.6], ['carillon', 4.64], ['battement', 5.6], ['battement', 6.1], ['eclat', 6.95], ['papier', 8.9], ['papier', 9.8]],
+};
+
+// Programme une liste de bruitages à partir de l'instant t0 (temps de l'AudioContext). Renvoie le bus,
+// à déconnecter pour tout couper.
+export function schedule(c, list, t0, vol = 1, meow = null) {
+  const bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination);
+  for (const [kind, at, arg] of list) {
+    if (kind === 'eternue') { if (meow) meow(t0 + at); continue; }
+    const f = BRUITS[kind]; if (f) try { f(c, bus, t0 + at, arg); } catch {}
+  }
+  return bus;
+}

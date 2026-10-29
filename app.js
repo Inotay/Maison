@@ -11,6 +11,7 @@ import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { VISITES } from './visites.js';
 import { playMeow, randomMeow, MEOW_KINDS, pick } from './miaous.js';
+import { schedule as scheduleBruits, ENTREE, CUES } from './bruits.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -1453,12 +1454,45 @@ const reactSrc = id => reducedMotion() ? `azami/v44/reactions/statiques/${id}_st
 function playOnImg(img, id, ms, then) {
   if (!img) return;
   const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
+  // scène à accessoires : la même réaction, mais avec son balai, sa toque, sa tirelire…
+  if (sc && PROP_SCENES[sc] && PROP_REACTIONS.includes(id)) { id = `${PROP_SCENES[sc]}_${id}`; stopPropSounds(); }
   const back = sc ? azamiSrc(sc) : (img.dataset.back || img.src);
   if (!img.dataset.caresse) img.dataset.back = img.src;
   const tok = String(Math.random()); img.dataset.caresse = tok; img.src = reactSrc(id);
   setTimeout(() => { if (img.dataset.caresse !== tok) return; delete img.dataset.caresse; then ? then(back) : (img.src = back); }, ms);
 }
 const azamiAway = () => Date.now() < awayUntil;
+
+// Scènes à accessoires (balai, casserole, tirelire, sac, lettre). En arrivant sur la page, la scène repart
+// du début, on entend un petit son de son accessoire, puis les bruitages suivent l'animation pendant un tour.
+const PROP_SCENES = { v44_menage: 'menage', v44_cuisine: 'cuisine', v44_argent: 'argent', v44_courses: 'courses', v44_care: 'care' };
+const PROP_REACTIONS = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour'];
+let propRun = null, lastHdScene = null;
+function stopPropSounds() {
+  if (!propRun) return;
+  try { propRun.bus?.disconnect(); } catch {}
+  propRun.timers.forEach(clearTimeout); propRun = null;
+}
+function propEnter() {
+  const img = document.querySelector('.hd img.azami');
+  const sc = img ? Object.keys(azamiImgs).find(k => azamiImgs[k] === img) : null;
+  if (sc === lastHdScene) return;
+  lastHdScene = sc; stopPropSounds();
+  if (!sc || !PROP_SCENES[sc] || reducedMotion() || img.dataset.caresse || document.body.classList.contains('azami-away')) return;
+  const run = propRun = { timers: [], bus: null };
+  // Repartir du début : on charge la scène sous une nouvelle adresse, et on ne l'échange qu'une fois prête.
+  const url = `${azamiSrc(sc)}?t=${Date.now()}`, pre = new Image(512, 512); pre.src = url;
+  const go = () => {
+    if (propRun !== run || lastHdScene !== sc || img.dataset.caresse) return;
+    img.src = url;
+    if (!SOUNDS || document.hidden || !audioCtx || audioCtx.state !== 'running') return;
+    const c = audioCtx, t0 = c.currentTime + .03;
+    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run) meow(true, .45, 'eternue'); }, (at - c.currentTime) * 1000));
+    run.bus = scheduleBruits(c, [...ENTREE[sc], ...CUES[sc]], t0, .85, meowAt);
+  };
+  (pre.decode ? pre.decode() : Promise.resolve()).then(go, go);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) { stopPropSounds(); lastHdScene = null; } });
 function azamiWarn(img, inVisit) {
   angryLevel++; angryAt = Date.now();
   haptic('heavy'); meow(true, .7, angryLevel > 1 ? 'grogne' : pick(['grogne', 'mrrr']));
@@ -1720,6 +1754,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${guideHint()}`);
   morph($app, demoBar() + page + timersBar() + nav());
   placeAzami();
+  propEnter();
   maybeCoucou();
   afvCheck();
   helpAnswerCheck();
@@ -1882,7 +1917,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v135</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v136</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
