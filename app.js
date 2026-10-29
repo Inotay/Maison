@@ -557,7 +557,7 @@ async function loadAll() {
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])) });
   await ensureDechets();
   notifyNew();
   duoNotice();
@@ -1149,29 +1149,46 @@ function visitPick(doneToday, kind) {
   const list = from.length ? from : pool;
   return list[Math.floor(Math.random() * list.length)];
 }
-// Les visites récompensent l'effort, pas automatiquement mais à force : chaque chose faite ajoute des
-// points d'effort (cuisiner une recette compte beaucoup, une corvée lourde plus qu'une légère, cocher un
-// article presque rien). Plus on en a accumulé depuis la dernière visite, plus elle a de chances de venir.
+// Les visites récompensent l'effort, pas automatiquement mais à force, et c'est une mise en commun :
+// tout ce que vous faites tous les deux depuis la dernière visite d'Azami (chez l'un ou chez l'autre)
+// remplit la même réserve de points. Cuisiner une recette compte beaucoup, une corvée lourde plus
+// qu'une légère, cocher un article presque rien ; quand vous y avez mis tous les deux, ça va plus vite.
 const EFFORT = { cuisine: 4, shop: 2, settle: 1, task: 1, achat: 0 };
+const effortOf = (kind, weight) => kind === 'chore' ? Math.max(1, Number(weight) || 2) : (EFFORT[kind] ?? 1);
+// Dernière visite, pour vous deux : gardée dans le carnet commun (ligne « ~visite »).
+const visitLastShared = () => [S.carnetInfo?.get('~visite')?.at, visitState().last].filter(Boolean).sort().pop() || null;
+function effortPool(extra) {
+  const since = visitLastShared(), t0 = since ? new Date(since).getTime() : Date.now() - DAY;
+  const ws = S.wins.filter(w => new Date(w.done_at).getTime() > t0);
+  if (extra && !ws.some(w => w.done_by === S.me && w.kind === extra.kind && Date.now() - new Date(w.done_at).getTime() < 15000)) ws.push({ done_by: S.me, kind: extra.kind, weight: extra.weight });
+  const by = {}; let pts = 0;
+  for (const w of ws) { const p = effortOf(w.kind, w.weight); pts += p; by[w.done_by] = (by[w.done_by] || 0) + p; }
+  const both = Object.values(by).filter(p => p >= 1).length >= 2;
+  return { pts: both ? pts * 1.25 : pts, both };
+}
 function visitMaybe(kind, weight = 1, tries = 0) {
   if (!S.me) return;
-  if (azamiAway()) { if (tries < 8) setTimeout(() => visitMaybe(kind, 0, tries + 1), 15000); return; }
-  if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { if (tries < 40) setTimeout(() => visitMaybe(kind, 0, tries + 1), 1500); return; }
-  let st = visitState(); const today = isoDate(new Date());
-  // les points ne comptent qu'une fois (les nouvelles tentatives arrivent avec weight = 0)
-  const pts = tries ? 0 : kind === 'chore' ? Math.max(1, Number(weight) || 2) : (EFFORT[kind] ?? 1);
-  if (pts) { st = { ...st, effort: (st.effort || 0) + pts }; visitSave(st); }
+  if (azamiAway()) { if (tries < 8) setTimeout(() => visitMaybe(kind, weight, tries + 1), 15000); return; }
+  if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { if (tries < 40) setTimeout(() => visitMaybe(kind, weight, tries + 1), 1500); return; }
+  const st = visitState(); const today = isoDate(new Date());
+  const pts = effortOf(kind, weight);
   if (st.pending) { visitInvite(); return; }
   const n = st.day === today ? st.n || 0 : 0;
   if (n >= 3) return;
-  if (st.last && Date.now() - new Date(st.last).getTime() < 40 * 60000) return;
+  const lastV = visitLastShared(); if (lastV && Date.now() - new Date(lastV).getTime() < 40 * 60000) return;   // 40 min entre deux visites, chez l'un ou chez l'autre
   const doneToday = S.wins.filter(w => w.done_by === S.me && isoDate(new Date(w.done_at)) === today).length || 1;
   const first = !st.last;
-  // environ une chance sur trois après une recette, presque sûr après une belle série d'efforts
-  const p = first ? 1 : Math.min(.85, (st.effort || 0) / 12);
+  // une chance sur trois environ après une recette seule, presque sûr après une belle série à deux
+  const pool = effortPool({ kind, weight });
+  const p = first ? 1 : Math.min(.85, pool.pts / 12);
   if (!pts || Math.random() > p) return;
   const v = visitPick(doneToday, kind); if (!v) return;
-  visitSave({ ...st, effort: 0, pending: v.id, day: today, n: n + 1, last: new Date().toISOString() });
+  const now = new Date().toISOString();
+  visitSave({ ...st, pending: v.id, day: today, n: n + 1, last: now });
+  // la réserve commune repart de zéro, pour vous deux
+  if (!S.carnetInfo) S.carnetInfo = new Map();
+  S.carnetInfo.set('~visite', { by: S.me, at: now });
+  api.upsert('azami_carnet', { id: '~visite', found_by: S.me, found_at: now }).catch(e => console.warn('carnet', e));
   visitInvite(true);
 }
 // L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
@@ -1316,13 +1333,18 @@ function visitEnd() {
   let note = '';
   if (!replay) {
     const isNew = !carnetHas(v.id);
+    const before = carnetCount();
     if (!S.carnet) S.carnet = new Set();
+    if (!S.carnetInfo) S.carnetInfo = new Map();
     S.carnet.add(v.id);
-    if (isNew) api.insert('azami_carnet', { id: v.id, found_by: S.me }).catch(e => console.warn('carnet', e));
+    if (isNew) { S.carnetInfo.set(v.id, { by: S.me, at: new Date().toISOString() }); api.insert('azami_carnet', { id: v.id, found_by: S.me }).catch(e => console.warn('carnet', e)); }
     visitSave({ ...visitState(), pending: null });
-    const total = VISITES.length, got = VISITES.filter(x => carnetHas(x.id)).length;
-    note = `<p class="visite-note">${isNew ? `<b>Nouveau dans votre carnet</b> · ${got} / ${total}` : `Déjà dans votre carnet · ${got} / ${total}`}</p>`;
+    const total = VISITES.length, got = carnetCount();
+    const pal = isNew && PALIERS.find(p => before < p[0] && got >= p[0]);
+    note = `<p class="visite-note">${isNew ? `${kindBadge(v.kind, 'sm')}<b>Nouvelle carte dans votre carnet</b> · ${got} / ${total}` : `Déjà dans votre carnet · ${got} / ${total}`}</p>`
+      + (pal ? `<p class="visite-palier"><b>Nouveau palier : ${esc(pal[1])}</b> ${esc(pal[2])}</p>` : '');
     if (isNew && v.kind === 'secret') burst('sparkle', box.querySelector('.visite-azami'), 16);
+    if (pal) { setTimeout(() => { sfx('big'); burst('confetti', box.querySelector('.visite-palier'), 30); haptic('heavy'); }, 400); }
   }
   box.querySelector('.visite-foot').innerHTML = `${note}<div class="visite-choices"><button class="btn" data-v="merci">Merci Azami</button></div>`;
 }
@@ -1342,19 +1364,63 @@ function visitTestHook() {
   setTimeout(() => visitOpen(v.id, true), 600);
 }
 // Le carnet commun : tout ce qu'Azami vous a déjà dit, à vous deux, à relire ou à refaire écouter.
+// Notre carnet d'Azami : un album commun. Les visites découvertes deviennent des cartes à collectionner,
+// par famille (blagues, mots doux, devinettes, secrets…), avec des paliers à débloquer à deux.
+const KIND_COL = { blague: '#F7C948', mignon: '#F48FA0', question: '#78C8F0', bravo: '#F2A65A', secret: '#E9B43A', devinette: '#A89BE8', cuisine: '#8CCB7E' };
+const KIND_ICON = {
+  blague: '<path d="M7 10.5q2-2.4 4 0M13 10.5q2-2.4 4 0" fill="none" stroke-width="2.2" stroke-linecap="round"/><path d="M6.5 14h11q-1.2 5-5.5 5t-5.5-5z" stroke-width="1.8" stroke-linejoin="round" fill="#fff"/>',
+  mignon: '<path d="M12 19.5C5 15 3.5 11.5 5 8.6c1.4-2.7 5-2.8 7 .2 2-3 5.6-2.9 7-.2 1.5 2.9 0 6.4-7 10.9z" fill="#fff" stroke-width="2" stroke-linejoin="round"/>',
+  question: '<path d="M5 6.5h14a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5H11l-4 3.2V16.5H5A1.5 1.5 0 0 1 3.5 15V8A1.5 1.5 0 0 1 5 6.5z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/><circle cx="8.5" cy="11.5" r="1.2" stroke="none"/><circle cx="12" cy="11.5" r="1.2" stroke="none"/><circle cx="15.5" cy="11.5" r="1.2" stroke="none"/>',
+  bravo: '<path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.4 7.2 18.9l.9-5.4L4.2 9.7l5.4-.8z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/>',
+  secret: '<rect x="6" y="11" width="12" height="9" rx="2" fill="#fff" stroke-width="1.9"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11" fill="none" stroke-width="2"/><circle cx="12" cy="15.5" r="1.4" stroke="none"/>',
+  devinette: '<path d="M9 9.2Q9 6 12 6t3 3c0 2.2-3 2.4-3 4.8" fill="none" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.8" r="1.5" stroke="none"/>',
+  cuisine: '<path d="M7.5 13.5Q4 13 4.5 10q.5-2.6 3.3-2.2Q8.5 5 12 5t4.2 2.8q2.8-.4 3.3 2.2.5 3-3 3.5z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/><path d="M7.5 13.5h9V18h-9z" fill="#fff" stroke-width="1.9" stroke-linejoin="round"/>',
+};
+const kindBadge = (k, cls = '') => `<span class="kbadge ${cls}" style="--k:${KIND_COL[k] || '#ccc'}"><svg viewBox="0 0 24 24" aria-hidden="true" fill="#2A1C15" stroke="#2A1C15">${KIND_ICON[k] || KIND_ICON.question}</svg></span>`;
+const PALIERS = [[5, 'Premiers ronrons', 'Azami vous fait confiance.'], [15, 'Petits confidents', 'Elle vous raconte ses histoires.'], [40, 'Meilleurs amis', 'Vous êtes son public préféré.'],
+  [80, 'Clan des moustaches', 'Vous parlez couramment le chat.'], [150, 'Famille Azami', 'Elle ne garde presque plus de secrets.'], [300, 'Légendes du canapé', 'On parlera de vous dans les coussins.'], [VISITES.length, 'Carnet complet', 'Vous avez tout entendu. Elle en est très fière.']];
+const carnetCount = () => VISITES.filter(v => carnetHas(v.id)).length;
+const fmtDay = iso => new Date(iso).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' });
 function carnetSection() {
-  const total = VISITES.length;
-  const got = VISITES.filter(v => carnetHas(v.id));
-  const mine = got.filter(visitFor);   // celles qui se rejouent pour la personne qui regarde
-  const line = v => `<li><button class="carnet-item ${v.kind === 'secret' ? 'rare' : ''}" data-action="visite-replay" data-id="${v.id}"><span class="carnet-kind">${esc(VISIT_KIND[v.kind] || '')}</span><span class="carnet-txt">${esc(visitText(turnsOf(v)[0].lines[0]))}</span></button></li>`;
+  const total = VISITES.length, got = VISITES.filter(v => carnetHas(v.id)), n = got.length;
   const kinds = Object.keys(VISIT_KIND).map(k => [k, VISITES.filter(v => v.kind === k).length, got.filter(v => v.kind === k).length]).filter(x => x[1]);
-  return `<h2>Notre carnet d’Azami</h2>
-    <p class="hint">${got.length ? `Vous avez découvert ${got.length} visites sur ${total}, à vous deux. Azami vient parler de temps en temps, quand vous faites des choses : plus vous en faites dans la journée, plus elle a de chances de venir. Il y a des secrets rares.` : 'Azami vient parler de temps en temps, quand vous faites des choses dans la maison. Ce qu’elle vous dit se range ici, pour vous deux.'}</p>
-    <div class="carnet-bar" style="--p:${Math.round(got.length / Math.max(1, total) * 100)}%"><span></span></div>
-    <div class="carnet-kinds">${kinds.map(([k, n, g]) => `<span class="${k === 'secret' ? 'rare' : ''}">${esc(VISIT_KIND[k])} <b>${g}/${n}</b></span>`).join('')}</div>
-    ${mine.length ? `<details class="fold" data-fold="carnet"><summary>Relire (${mine.length})</summary><ul class="carnet">${mine.slice().reverse().map(line).join('')}</ul></details>` : ''}`;
+  const sel = S.carnetKind || '';
+  const next = PALIERS.find(p => n < p[0]), prevAt = [...PALIERS].reverse().find(p => n >= p[0])?.[0] || 0;
+  const pct = Math.round(n / Math.max(1, total) * 100);
+  const info = id => S.carnetInfo?.get(id);
+  // Les plus récentes d'abord ; celles qu'on ne peut pas rejouer (pour l'autre) restent visibles, sans le bouton.
+  const list = got.filter(v => !sel || v.kind === sel).sort((a, b) => String(info(b.id)?.at || '').localeCompare(String(info(a.id)?.at || '')));
+  const shown = list.slice(0, 12 + 12 * (S.carnetMore || 0));
+  const left = (sel ? VISITES.filter(v => v.kind === sel).length : total) - list.length;
+  const card = (v, i) => {
+    const x = info(v.id), fresh = x?.at && Date.now() - new Date(x.at).getTime() < DAY, mine = visitFor(v);
+    const who = x?.by ? (x.by === S.me ? 'toi' : nameOf(x.by)) : '';
+    return `<li style="--i:${i}"><button type="button" class="ccard ${v.kind === 'secret' ? 'rare' : ''}" style="--k:${KIND_COL[v.kind]}" ${mine ? `data-action="visite-replay" data-id="${v.id}"` : `data-action="carnet-other" data-id="${v.id}"`}>
+      ${fresh ? '<span class="ccard-new">Nouveau</span>' : ''}${kindBadge(v.kind)}<span class="ccard-txt">${esc(visitText(turnsOf(v)[0].lines[0]))}</span>
+      <span class="ccard-meta">${x?.at ? esc(fmtDay(x.at)) : ''}${who ? ` · racontée à ${esc(who)}` : ''}</span></button></li>`;
+  };
+  const lockedN = Math.min(left, shown.length < 12 ? Math.max(2, 4 - (shown.length % 2)) : 2);
+  const locked = Array.from({ length: lockedN }, (_, i) => `<li style="--i:${shown.length + i}"><button type="button" class="ccard locked" data-action="carnet-locked"><span class="ccard-q" aria-hidden="true">?</span><span class="ccard-txt">À découvrir</span></button></li>`).join('');
+  return `<section class="carnet-box" id="carnet">
+    <div class="carnet-head">
+      <img class="carnet-az" src="${azamiSrc('v44_visite_ecoute')}" alt="" width="512" height="512">
+      <div class="carnet-title"><h2>Notre carnet d’Azami</h2><p>${n ? `<b>${n}</b> ${n > 1 ? 'visites découvertes' : 'visite découverte'} à deux, sur ${total}` : 'Ce qu’Azami vous raconte se range ici, pour vous deux.'}</p></div>
+      <div class="carnet-ring" style="--p:${pct}" aria-label="${pct} %"><span>${pct}<small>%</small></span></div>
+    </div>
+    ${next ? `<div class="carnet-goal"><div class="carnet-goal-top"><span>Prochain palier : <b>${esc(next[1])}</b></span><span>${n} / ${next[0]}</span></div>
+      <div class="carnet-bar" style="--p:${Math.round((n - prevAt) / Math.max(1, next[0] - prevAt) * 100)}%"><span></span></div>
+      <p class="carnet-goal-sub">Encore ${next[0] - n} ${next[0] - n > 1 ? 'visites' : 'visite'} pour le débloquer.</p></div>` : '<p class="carnet-goal-sub">Carnet complet. Azami en ronronne encore.</p>'}
+    ${(() => { const pool = effortPool(), lvl = Math.min(5, Math.round(pool.pts / 12 * 5)); return `<div class="carnet-energy"><span class="ce-paws" aria-label="${lvl} sur 5">${[0, 1, 2, 3, 4].map(k => `<svg class="${k < lvl ? 'on' : ''}" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="15.5" rx="5" ry="4.2"/><circle cx="6.2" cy="10" r="2.2"/><circle cx="10" cy="6.6" r="2.2"/><circle cx="14" cy="6.6" r="2.2"/><circle cx="17.8" cy="10" r="2.2"/></svg>`).join('')}</span><p><b>Vos efforts à deux.</b> Tout ce que vous faites s’additionne : plus c’est plein, plus Azami a de chances de venir.${pool.both ? ' À deux, ça va plus vite.' : ''}</p></div>`; })()}
+    <div class="carnet-stickers" role="list" aria-label="Paliers">${PALIERS.map(([at, name, txt]) => `<button type="button" role="listitem" class="sticker ${n >= at ? 'on' : ''}" data-action="carnet-palier" data-at="${at}" aria-label="${esc(name)} : ${n >= at ? 'débloqué' : `à ${at} visites`}"><span class="sticker-face">${n >= at ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5C5 15 3.5 11.5 5 8.6c1.4-2.7 5-2.8 7 .2 2-3 5.6-2.9 7-.2 1.5 2.9 0 6.4-7 10.9z" fill="#F48FA0" stroke="#2A1C15" stroke-width="1.8"/></svg>' : `<b>${at}</b>`}</span><span class="sticker-name">${esc(name)}</span></button>`).join('')}</div>
+    <div class="carnet-tabs">
+      <button type="button" data-action="carnet-kind" data-k="" aria-pressed="${!sel}">Tout <b>${n}/${total}</b></button>
+      ${kinds.map(([k, t, g]) => `<button type="button" class="${k === 'secret' ? 'rare' : ''}" data-action="carnet-kind" data-k="${k}" aria-pressed="${sel === k}">${kindBadge(k, 'sm')}${esc(VISIT_KIND[k])} <b>${g}/${t}</b></button>`).join('')}
+    </div>
+    <ul class="carnet-grid">${shown.map(card).join('')}${locked}</ul>
+    ${list.length > shown.length ? `<button type="button" class="link carnet-more" data-action="carnet-more">Voir ${Math.min(12, list.length - shown.length)} de plus</button>` : ''}
+    ${left > lockedN ? `<p class="carnet-left">Encore ${left} ${sel ? `« ${esc(VISIT_KIND[sel].toLowerCase())} »` : 'visites'} à découvrir.</p>` : ''}
+  </section>`;
 }
-
 function openHelp(kind, id) {
   const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
   const o = other(); if (!o) return;
@@ -2001,7 +2067,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v147</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v149</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3006,6 +3072,11 @@ const actions = {
   },
   'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
   'visite-replay': el => visitOpen(el.dataset.id, true),
+  'carnet-kind': el => { S.carnetKind = el.dataset.k || ''; S.carnetMore = 0; haptic(1); sfx('tick'); render(); },
+  'carnet-more': () => { S.carnetMore = (S.carnetMore || 0) + 1; haptic(1); render(); },
+  'carnet-locked': el => { haptic(1); el.classList.remove('wiggle'); void el.offsetWidth; el.classList.add('wiggle'); toast('Pas encore découverte. Azami viendra la raconter un jour.'); },
+  'carnet-other': () => { haptic(1); toast(`Celle-ci, Azami l’a racontée à ${nameOf(other())}. Elle est dans votre carnet à deux.`); },
+  'carnet-palier': el => { const p = PALIERS.find(x => String(x[0]) === el.dataset.at); if (!p) return; const n = carnetCount(); haptic(1); toast(n >= p[0] ? `${p[1]} : ${p[2]}` : `${p[1]} : à ${p[0]} visites (encore ${p[0] - n}).`); },
   nudge: el => {
     const kind = el.dataset.kind, id = el.dataset.id;
     const row = kind === 'task' ? S.tasks.find(t => t.id === id) : S.chores.find(c => c.id === id);
