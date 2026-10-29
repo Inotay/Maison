@@ -1084,8 +1084,9 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 .visite-kind { margin: 0; text-align: center; font-size: 12px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .visite-card.rare .visite-kind { color: #A8770F; }
 .visite-x { all: unset; cursor: pointer; position: absolute; top: 6px; right: 8px; width: 40px; height: 40px; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: var(--muted); }
-.visite-azami { display: block; width: 180px; height: 180px; margin: -6px auto -10px; object-fit: contain; flex: none; }
-.visite-talk { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 60px; padding: 6px 2px; }
+.visite-azami { display: block; width: 180px; height: 180px; margin: -6px auto -10px; object-fit: contain; flex: none; transition: width .3s, height .3s; }
+.visite-card.long .visite-azami { width: 120px; height: 120px; }
+.visite-talk { flex: 1 1 auto; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding: 6px 2px 10px; scroll-behavior: smooth; overscroll-behavior: contain; }
 .bubble { margin: 0; max-width: 88%; padding: 11px 14px; font-size: 17px; line-height: 1.38; font-weight: 700; border-radius: 20px; }
 .bubble.az { align-self: flex-start; background: #F7C948; color: #2A1C15; border-bottom-left-radius: 6px; box-shadow: 0 3px 0 #C8951E; }
 .visite-card.rare .bubble.az { background: linear-gradient(135deg, #FFE8A3, #F7C948); }

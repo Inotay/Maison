@@ -1113,11 +1113,17 @@ const parentOf = email => personOf(email) === 'mariana' ? 'maman' : personOf(ema
 const visitFor = v => { const me = parentOf(S.me); return !v.for || v.for === 'both' || v.for === me; };
 const turnsOf = v => v.turns || [{ lines: v.lines, choices: v.choices }];
 const carnetHas = id => S.carnet?.has(id);
+// Azami vous appelle par vos prénoms (pas « papa » ni « maman »).
 function visitText(t) {
-  const me = parentOf(S.me) || 'toi', o = parentOf(other()) || 'l’autre';
-  // Papa fait du son pour les films : quand c'est lui qui joue, « comme papa » devient « comme toi ».
-  if (me === 'papa') t = String(t).replace(/\bcomme papa\b/g, 'comme toi');
-  return String(t).replace(/\{toi\}/g, me).replace(/\{autre\}/g, o).replace(/(^|[.!?…]\s+|«\s?)(papa|maman)/g, (m, a, w) => a + w[0].toUpperCase() + w.slice(1));
+  const meP = parentOf(S.me);
+  const nameOfP = p => { const m = S.members.find(x => parentOf(x.email) === p); return m ? nameOf(m.email) : p === 'papa' ? 'Yatoni' : 'Mariana'; };
+  t = String(t);
+  // Yatoni fait du son pour les films : quand c'est lui qui joue, « comme papa » devient « comme toi ».
+  if (meP === 'papa') t = t.replace(/\bcomme papa\b/gi, 'comme toi');
+  if (meP === 'maman') t = t.replace(/\bcomme maman\b/gi, 'comme toi');
+  t = t.replace(/\{toi\}/g, nameOf(S.me) || 'toi').replace(/\{autre\}/g, other() ? nameOf(other()) : 'l’autre');
+  // Les mamans souris et kangourous des blagues restent des mamans.
+  return t.replace(/(\b(?:une|la|Une|La|qu'une)\s)?\b([Pp]apa|[Mm]aman)\b(?!\s(?:souris|kangourou))/g, (m, det, w) => det ? m : nameOfP(w.toLowerCase()));
 }
 function visitPick(doneToday) {
   // D'abord ce que personne de vous deux n'a encore découvert.
@@ -1202,20 +1208,22 @@ const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azam
 // Les répliques s'écrivent lettre par lettre (toucher la carte pour aller plus vite).
 async function visitSay(lines, done, who = 'az') {
   const cur = visitCur; const talk = cur.box.querySelector('.visite-talk');
+  // La conversation suit toute seule le texte qui s'écrit (comme une messagerie).
+  const stick = () => { talk.style.scrollBehavior = 'auto'; talk.scrollTop = talk.scrollHeight; };
   for (const raw of lines || []) {
     const txt = visitText(raw);
     const p = document.createElement('p'); p.className = `bubble ${who}`; talk.appendChild(p);
     cur.typing = true; cur.skip = false;
     if (reducedMotion()) p.textContent = txt;
     else for (let i = 1; i <= txt.length; i++) {
-      if (cur.skip) { p.textContent = txt; break; }
-      p.textContent = txt.slice(0, i);
+      if (cur.skip) { p.textContent = txt; stick(); break; }
+      p.textContent = txt.slice(0, i); stick();
       const ch = txt[i - 1];
       await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 260 : /[,;:]/.test(ch) ? 140 : 26));
       if (visitCur !== cur) return;
     }
     cur.typing = false;
-    p.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    stick();
     await new Promise(r => setTimeout(r, 420));
     if (visitCur !== cur) return;
   }
@@ -1226,7 +1234,7 @@ function visitChoices() {
   visitImg(visitWaitImg(visitCur.v));
   const n = turns.length;
   box.querySelector('.visite-foot').innerHTML = `${n > 1 ? `<p class="visite-step">${visitCur.v.kind === 'devinette' ? `Devinette ${turn + 1} sur ${n}` : `${turn + 1} / ${n}`}</p>` : ''}<div class="visite-choices">${t.choices.map((c, i) => `<button class="btn ${i ? 'ghost' : ''}" data-v="choice" data-i="${i}">${esc(visitText(c.label))}</button>`).join('')}</div>`;
-  box.querySelector('.visite-foot').scrollIntoView({ block: 'end' });
+  const talk = box.querySelector('.visite-talk'); requestAnimationFrame(() => { talk.scrollTop = talk.scrollHeight; });
 }
 const SCORE_LINES = [
   ['Zéro sur trois.', 'Je ne dirai rien à {autre}. Enfin si. Je vais tout raconter.'],
@@ -1242,7 +1250,8 @@ function visitChoose(i) {
   box.querySelector('.visite-foot').innerHTML = '';
   const talk = box.querySelector('.visite-talk');
   const me = document.createElement('p'); me.className = `bubble me ${c.ok === true ? 'ok' : c.ok === false ? 'ko' : ''}`; me.textContent = visitText(c.label); talk.appendChild(me);
-  me.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  requestAnimationFrame(() => { talk.scrollTop = talk.scrollHeight; });
+  if (cur.turn >= 0 && talk.children.length > 3) box.querySelector('.visite-card')?.classList.add('long');   // plus de place pour la conversation
   let mood = ['rire', 'coeur', 'fier', 'malice'].includes(c.mood) ? c.mood : 'rire';
   if (c.ok === false || mood === 'malice') mood = Math.random() < .5 ? 'langue' : 'malice';   // de temps en temps, elle tire la langue
   if (c.ok === true) mood = 'fier';
@@ -1765,7 +1774,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v124</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v125</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
