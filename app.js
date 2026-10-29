@@ -1471,7 +1471,7 @@ let propRun = null, lastHdScene = null;
 function stopPropSounds() {
   if (!propRun) return;
   try { propRun.bus?.disconnect(); } catch {}
-  propRun.timers.forEach(clearTimeout); propRun = null;
+  propRun.io?.disconnect(); propRun.timers.forEach(clearTimeout); propRun = null;
 }
 function propEnter() {
   const img = document.querySelector('.hd img.azami');
@@ -1487,8 +1487,18 @@ function propEnter() {
     img.src = url;
     if (!SOUNDS || document.hidden || !audioCtx || audioCtx.state !== 'running') return;
     const c = audioCtx, t0 = c.currentTime + .03;
-    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run) meow(true, .45, 'eternue'); }, (at - c.currentTime) * 1000));
+    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run && run.seen > .3) meow(true, .45 * run.seen, 'eternue'); }, (at - c.currentTime) * 1000));
+    run.seen = 1;
     run.bus = scheduleBruits(c, [...ENTREE[sc], ...CUES[sc]], t0, .85, meowAt);
+    // Les sons s'effacent quand on descend dans la page et qu'Azami sort de l'écran (et reviennent si on remonte).
+    if ('IntersectionObserver' in window) {
+      run.io = new IntersectionObserver(([e]) => {
+        if (propRun !== run || !run.bus) return;
+        run.seen = e.isIntersecting ? Math.min(1, e.intersectionRatio / .6) : 0;
+        run.bus.gain.setTargetAtTime(.85 * run.seen, c.currentTime, .12);
+      }, { threshold: [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1] });
+      run.io.observe(img);
+    }
   };
   (pre.decode ? pre.decode() : Promise.resolve()).then(go, go);
 }
@@ -1917,7 +1927,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v136</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v137</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

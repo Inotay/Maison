@@ -22,9 +22,10 @@ function tone(c, out, at, dur, { f = 440, vol = .1, type = 'sine', attack = .004
   g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + attack); g.gain.exponentialRampToValueAtTime(.0006, at + dur);
   o.connect(g); g.connect(out); o.start(at); o.stop(at + dur + .02);
 }
-// Petit « ding » métallique : partiels inharmoniques, comme une pièce.
+// Petit « ding » de pièce, doux : partiels inharmoniques, sans les très aigus, passés dans un filtre.
 function metal(c, out, at, f, dur, vol) {
-  [[1, 1], [2.76, .5], [5.4, .25], [8.9, .12]].forEach(([m, v]) => tone(c, out, at, dur * (1.1 - m / 12), { f: f * m * rnd(.995, 1.005), vol: vol * v, type: 'sine', attack: .002 }));
+  const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200; lp.Q.value = .5; lp.connect(out);
+  [[1, 1], [2.76, .3], [5.4, .08]].forEach(([m, v]) => { if (f * m < 7500) tone(c, lp, at, dur * (1.1 - m / 10), { f: f * m * rnd(.995, 1.005), vol: vol * v, type: 'sine', attack: .007 }); });
 }
 
 export const BRUITS = {
@@ -36,18 +37,18 @@ export const BRUITS = {
   blop: (c, o, t) => { tone(c, o, t, .12, { f: [rnd(240, 280), rnd(780, 900)], vol: .13 }); tone(c, o, t + .02, .08, { f: [500, 1200], vol: .05, type: 'triangle' }); },
   lape: (c, o, t) => { tone(c, o, t, .06, { f: [900, 1500], vol: .05 }); hiss(c, o, t, .06, { f: 3000, q: 2, vol: .05 }); },
   // pièces
-  tapote: (c, o, t) => metal(c, o, t, 1900, .18, .05),
-  roule: (c, o, t) => { for (let i = 0; i < 9; i++) metal(c, o, t + i * .065 + rnd(0, .015), rnd(2300, 2600), .05, .03); hiss(c, o, t, .6, { f: 1800, q: 1.5, vol: .03 }); },
+  tapote: (c, o, t) => metal(c, o, t, 1400, .16, .04),
+  roule: (c, o, t) => { for (let i = 0; i < 9; i++) metal(c, o, t + i * .065 + rnd(0, .015), rnd(1600, 1800), .05, .022); hiss(c, o, t, .6, { f: 1800, q: 1.5, vol: .03 }); },
   boum: (c, o, t) => { tone(c, o, t, .16, { f: [280, 120], vol: .13 }); hiss(c, o, t, .06, { type: 'lowpass', f: 900, vol: .08, shape: x => Math.pow(1 - x, 3) }); },
-  tchiing: (c, o, t) => { metal(c, o, t, 1568, .9, .065); metal(c, o, t + .09, 2093, 1.1, .06); hiss(c, o, t + .09, .5, { type: 'highpass', f: 6500, vol: .03, shape: x => Math.pow(1 - x, 3) }); },
+  tchiing: (c, o, t) => { metal(c, o, t, 1318.5, .8, .05); metal(c, o, t + .09, 1760, 1.0, .045); hiss(c, o, t + .09, .4, { type: 'bandpass', f: 5000, q: .7, vol: .01, shape: x => Math.pow(1 - x, 3) }); },
   tombe: (c, o, t) => tone(c, o, t, .45, { f: [2200, 900], vol: .02 }),
-  rebond: (c, o, t, v = 1) => metal(c, o, t, rnd(2400, 2700), .22, .06 * v),
+  rebond: (c, o, t, v = 1) => metal(c, o, t, rnd(1650, 1850), .2, .04 * v),
   tourne: (c, o, t) => {   // la pièce tourne sur la tranche : des petits clics de plus en plus rapprochés, puis à plat
     let at = t, gap = .14;
-    for (let i = 0; i < 14 && at < t + 1.3; i++) { metal(c, o, at, rnd(2800, 3100), .06, .02 + i * .002); at += gap; gap *= .86; }
-    hiss(c, o, t, 1.3, { f: [1500, 3200], q: 3, vol: .02, shape: x => x });
+    for (let i = 0; i < 14 && at < t + 1.3; i++) { metal(c, o, at, rnd(1900, 2100), .06, .014 + i * .0015); at += gap; gap *= .86; }
+    hiss(c, o, t, 1.3, { f: [1200, 2400], q: 3, vol: .012, shape: x => x });
   },
-  aplat: (c, o, t) => { metal(c, o, t, 2350, .35, .07); tone(c, o, t, .05, { f: 3800, vol: .02 }); },
+  aplat: (c, o, t) => metal(c, o, t, 1750, .3, .045),
   pose: (c, o, t) => tone(c, o, t, .1, { f: [340, 190], vol: .07 }),
   // sac de courses : papier kraft qui froisse
   froisse: (c, o, t, dur = .5) => {
