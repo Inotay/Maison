@@ -1188,6 +1188,7 @@ function visitOpen(id, replay = false) {
   requestAnimationFrame(() => box.classList.add('on'));
   haptic('medium');
   visitCur = { v, replay, box, turn: 0, score: 0, turns: turnsOf(v) };
+  visitFollow(box.querySelector('.visite-talk'));
   box.addEventListener('click', e => {
     const b = e.target.closest('[data-v]');
     if (!b) { if (visitCur?.typing) visitCur.skip = true; return; }
@@ -1199,6 +1200,16 @@ function visitOpen(id, replay = false) {
 // Costume selon la visite : lunettes de psy pour les séances, nœud papillon pour les devinettes.
 const visitTalkImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_parle';
 const visitWaitImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_ecoute';
+// Le fil suit toujours le dernier message, sauf si on remonte exprès pour relire (il reprend dès qu'on redescend).
+function visitFollow(talk) {
+  let follow = true, prog = false;
+  const stick = () => { if (!follow) return; prog = true; talk.scrollTop = talk.scrollHeight; requestAnimationFrame(() => { prog = false; }); };
+  talk.addEventListener('scroll', () => { if (prog) return; follow = talk.scrollHeight - talk.clientHeight - talk.scrollTop < 40; }, { passive: true });
+  const ro = new ResizeObserver(stick); const mo = new MutationObserver(() => { stick(); requestAnimationFrame(stick); });
+  mo.observe(talk, { childList: true, subtree: true, characterData: true });
+  ro.observe(talk);
+  talk.follow = () => { follow = true; stick(); };
+}
 function visitTurn() {
   const t = visitCur.turns[visitCur.turn];
   visitImg(visitTalkImg(visitCur.v));
@@ -1209,10 +1220,10 @@ const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azam
 async function visitSay(lines, done, who = 'az') {
   const cur = visitCur; const talk = cur.box.querySelector('.visite-talk');
   // La conversation suit toute seule le texte qui s'écrit (comme une messagerie).
-  const stick = () => { talk.style.scrollBehavior = 'auto'; talk.scrollTop = talk.scrollHeight; };
+  const stick = () => talk.follow?.();
   for (const raw of lines || []) {
     const txt = visitText(raw);
-    const p = document.createElement('p'); p.className = `bubble ${who}`; talk.appendChild(p);
+    const p = document.createElement('p'); p.className = `bubble ${who}`; talk.appendChild(p); talk.follow?.();
     cur.typing = true; cur.skip = false;
     if (reducedMotion()) p.textContent = txt;
     else for (let i = 1; i <= txt.length; i++) {
@@ -1249,7 +1260,7 @@ function visitChoose(i) {
   if (c.ok === true) cur.score++;
   box.querySelector('.visite-foot').innerHTML = '';
   const talk = box.querySelector('.visite-talk');
-  const me = document.createElement('p'); me.className = `bubble me ${c.ok === true ? 'ok' : c.ok === false ? 'ko' : ''}`; me.textContent = visitText(c.label); talk.appendChild(me);
+  const me = document.createElement('p'); me.className = `bubble me ${c.ok === true ? 'ok' : c.ok === false ? 'ko' : ''}`; me.textContent = visitText(c.label); talk.appendChild(me); talk.follow?.();
   requestAnimationFrame(() => { talk.scrollTop = talk.scrollHeight; });
   if (cur.turn >= 0 && talk.children.length > 3) box.querySelector('.visite-card')?.classList.add('long');   // plus de place pour la conversation
   let mood = ['rire', 'coeur', 'fier', 'malice'].includes(c.mood) ? c.mood : 'rire';
@@ -1774,7 +1785,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v125</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v126</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
