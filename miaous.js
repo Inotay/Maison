@@ -58,12 +58,12 @@ function voice(c, out, t, { pts, dur, vol = .16, form = [2100, 1300, 750], q = 4
   return t + dur;
 }
 
-// Ronron : petites pulsations rapides (vers 25 par seconde), modulées en vagues « rrRrr rrRrr rrRrr » :
+// Ronron : petites pulsations (vers 20 par seconde, grave et calme), modulées en vagues « rrRrr rrRrr rrRrr » :
 // chaque vague monte au milieu puis redescend, un peu plus rapide et plus forte au sommet.
 function purr(c, out, t, vol = .5) {
-  const sr = c.sampleRate, waves = 3, wl = [0, 0, 0].map(() => rnd(.5, .66)), dur = wl.reduce((x, y) => x + y, 0);
+  const sr = c.sampleRate, waves = 3, wl = [0, 0, 0].map(() => rnd(.8, 1.0)), dur = wl.reduce((x, y) => x + y, 0);
   const len = Math.floor(sr * dur), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
-  const base = rnd(23, 26);
+  const base = rnd(19, 21);
   let ph = 0, w = 0, wStart = 0;
   for (let i = 0; i < len; i++) {
     const tt = i / sr;
@@ -71,13 +71,13 @@ function purr(c, out, t, vol = .5) {
     const x = Math.min(1, (tt - wStart) / wl[w]);                  // position dans la vague (0 à 1)
     const swell = Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.05)), 1.6);   // r r R r r
     const amp = .22 + .78 * swell;
-    ph += base * (1 + .1 * swell + (Math.random() - .5) * .05) / sr;
-    d[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * (ph % 1)), 6) * amp;
+    ph += base * (1 + .06 * swell + (Math.random() - .5) * .05) / sr;
+    d[i] = (Math.random() * 2 - 1) * Math.pow(Math.sin(Math.PI * (ph % 1)), 5) * amp;
   }
   const s = c.createBufferSource(), lp = c.createBiquadFilter(), pk = c.createBiquadFilter(), g = c.createGain();
-  s.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 1100;
-  pk.type = 'peaking'; pk.frequency.value = 650; pk.Q.value = .8; pk.gain.value = 6;
-  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * .42, t + .06); g.gain.setValueAtTime(vol * .42, t + dur - .12); g.gain.linearRampToValueAtTime(0, t + dur);
+  s.buffer = buf; lp.type = 'lowpass'; lp.frequency.value = 800;
+  pk.type = 'peaking'; pk.frequency.value = 450; pk.Q.value = .8; pk.gain.value = 6;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * .34, t + .1); g.gain.setValueAtTime(vol * .34, t + dur - .12); g.gain.linearRampToValueAtTime(0, t + dur);
   s.connect(lp); lp.connect(pk); pk.connect(g); g.connect(out); s.start(t);
   return t + dur;
 }
