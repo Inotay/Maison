@@ -2200,7 +2200,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v165</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v166</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3607,9 +3607,21 @@ function cineIdeasHtml(space) {
 function cineSallesHtml() {
   if (!S.salles) return '<p class="hint cine-empty">Azami regarde le programme des salles…</p>';
   if (!S.salles.length) return '<p class="hint cine-empty">Le programme des salles ne répond pas pour l’instant.</p>';
-  const have = new Map(); for (const f of S.films) for (const x of fSalles(f)) have.set(x, f);
-  const row = (x) => { const i = S.salles.indexOf(x), f = have.get(x);
-    return `<li class="srow"><a href="${esc(x.url)}" target="_blank" rel="noopener"><b>${esc(x.title)}</b><span>${esc(x.when || '')}</span></a>${f ? `<button class="btn small ghost" data-action="cine-open" data-id="${f.id}">${f.status === 'vu' ? 'Vu' : 'Dans la liste'}</button>` : `<button class="btn small" data-action="salle-add" data-i="${i}" aria-label="Ajouter ${esc(x.title)}">+</button>`}</li>`; };
+  // ce que l'app sait de chaque film à l'affiche : dans une liste, vu, ou juste un « bof » passé dans Cinder
+  const known = new Map(); for (const f of S.films) for (const x of fSalles(f)) known.set(x, f);
+  const o = other();
+  const state = f => { const v = fVotes(f);
+    if (f.status === 'vu' || fSeen(f, S.me)) return ['Vu', 'dim'];
+    if (fMatch(f)) return ['💞 Vous deux', 'hot'];
+    if (f.status === 'en_cours') return ['En cours', 'hot'];
+    if (T.wants(v[S.me])) return ['Dans ta liste', 'hot'];
+    if (o && T.wants(v[o])) return [`Envie de ${nameOf(o)}`, 'hot'];
+    if (v[S.me] === 'beurk') return ['Non pour toi', 'dim'];
+    if (v[S.me] === 'non') return ['Bof pour toi', 'dim'];
+    return null; };
+  const have = new Map([...known].filter(([, f]) => state(f)?.[1] === 'hot'));
+  const row = (x) => { const i = S.salles.indexOf(x), f = known.get(x), st = f && state(f);
+    return `<li class="srow"><a href="${esc(x.url)}" target="_blank" rel="noopener"><b>${esc(x.title)}</b><span>${esc(x.when || '')}</span></a>${st ? `<button class="btn small ghost ${st[1] === 'dim' ? 'sdim' : ''}" data-action="cine-open" data-id="${f.id}">${esc(st[0])}</button>` : `<button class="btn small" data-action="salle-add" data-i="${i}" aria-label="Ajouter ${esc(x.title)}">+</button>`}</li>`; };
   const groups = ['Pathé Flon', 'Pathé Les Galeries', 'Cinémathèque'].map(w => [w, S.salles.filter(x => x.where === w)]).filter(([, l]) => l.length);
   const inList = S.salles.filter(x => have.has(x));
   return `${inList.length ? `<p class="chip-label">De votre liste, à l’affiche</p><ul class="srows hot">${inList.map(row).join('')}</ul>` : ''}

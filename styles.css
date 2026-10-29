@@ -1667,3 +1667,4 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .lb-file { cursor: pointer; }
 .cal-row { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-top: 12px; }
 .fsheet .cal-row .field { background: #3A2840; color: #FBF3E9; border-color: #54395B; color-scheme: dark; }
+.cine .srow .sdim { opacity: .6; font-size: 12.5px; }
