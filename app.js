@@ -2200,7 +2200,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v166</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v167</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3214,7 +3214,7 @@ FILM_DEMO.forEach((f, i) => { f.gids = [[53, 18], [16, 14], [9648, 18], [53, 107
   f.traits = { dir: [{ id: 100 + i, name: f.director || 'Quelqu’un' }], cast: [], kw: [{ id: 900 + (i % 3), name: ['class', 'magic', 'dream'][i % 3] }], rt: f.runtime, bo: 'public' }; });
 async function filmsCall(body) {
   if (DEMO) {
-    const inList = new Set(S.films.map(fkey));
+    const inList = new Set(myKeys());
     if (body.action === 'status') return { tmdb: true };
     if (body.action === 'search') { const q = norm(body.q || ''); return { results: FILM_DEMO.filter(f => norm(f.title).includes(q)) }; }
     if (body.action === 'details') return FILM_DEMO.find(f => f.tmdb_id === body.tmdb_id) || {};
@@ -3245,6 +3245,10 @@ function tastes(extra = []) {
   return tasteMemo;
 }
 const gReg = e => S.goutReg?.[e] || {};
+// Ce que quelqu'un a déjà jugé : son avis, son « déjà vu », sa note, ou un film vu ou en cours à deux.
+// Un film que seul l'autre connaît reste une découverte possible pour toi.
+const judged = (f, e = S.me) => !!(fVotes(f)[e] || f.seen?.[e] || f.ratings?.[e]?.note || f.status === 'vu' || f.status === 'en_cours');
+const myKeys = () => S.films.filter(f => judged(f)).map(fkey);
 const fSeen = (f, e) => f.status === 'vu' || !!f.seen?.[e];
 const fVotes = f => f.votes || {};
 const fWanted = f => Object.values(fVotes(f)).some(T.wants);
@@ -3653,8 +3657,10 @@ function cineResHtml(res) {
   if (res === 'load') return '<p class="hint">Azami cherche…</p>';
   if (typeof res === 'string') return `<p class="hint">${esc(res)}</p>`;
   if (!res.length) return '<p class="hint">Rien trouvé. Essaie le titre original, ou colle un lien IMDb ou Letterboxd.</p>';
-  const have = new Set(S.films.map(fkey));
-  return `<ul class="cine-found">${res.map((f, i) => `<li><button type="button" data-action="cine-pick" data-i="${i}" ${have.has(fkey(f)) ? 'disabled' : ''}>${fPoster(f, 'sposter')}<span><b>${esc(f.title)}</b><small>${esc([f.year, f.media === 'tv' ? 'Série' : 'Film'].filter(Boolean).join(' · '))}${have.has(fkey(f)) ? ' · déjà dans la liste' : ''}</small></span></button></li>`).join('')}</ul>`;
+  const o = other(), st = f => { const x = S.films.find(y => fkey(y) === fkey(f)); if (!x) return '';
+    const v = fVotes(x)[S.me]; return T.wants(v) ? 'déjà dans ta liste' : x.status === 'vu' ? 'vu ensemble' : x.status === 'en_cours' ? 'en cours' : x.seen?.[S.me] ? 'déjà vu' : o && T.wants(fVotes(x)[o]) ? `dans la liste de ${nameOf(o)}` : ''; };
+  const mine = f => { const x = S.films.find(y => fkey(y) === fkey(f)); return x && (T.wants(fVotes(x)[S.me]) || x.status === 'vu' || x.status === 'en_cours'); };
+  return `<ul class="cine-found">${res.map((f, i) => `<li><button type="button" data-action="cine-pick" data-i="${i}" ${mine(f) ? 'disabled' : ''}>${fPoster(f, 'sposter')}<span><b>${esc(f.title)}</b><small>${esc([f.year, f.media === 'tv' ? 'Série' : 'Film'].filter(Boolean).join(' · '))}${st(f) ? ` · ${esc(st(f))}` : ''}</small></span></button></li>`).join('')}</ul>`;
 }
 let cineT = null, cineSeq = 0;
 function cineSearch(q) {
@@ -3751,8 +3757,9 @@ async function deckMore(first = false) {
   const pm = t0.me ? T.prefs(t0.me) : {}, po = t0.other ? T.prefs(t0.other) : {};
   const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws };
   let more = [];
-  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...S.films.map(fkey), ...deck.keys] })).results || []; } catch (e) { console.warn('deck', e); }
-  more = more.filter(f => !deck.keys.has(fkey(f)));
+  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys] })).results || []; } catch (e) { console.warn('deck', e); }
+  // si l'autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s'il est déjà jugé par toi, on l'écarte
+  more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
   const t = tastes(more);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
   const ordered = T.order(more.filter(f => !T.banned(t.me, f)), sc);
@@ -4004,13 +4011,13 @@ async function filmsResolve() {
 async function cineIdeas(force = false) {
   S.cineIdeasAsked = true;
   const sig = S.films.length + ':' + S.films.filter(f => (f.coeur || []).length || Object.keys(f.ratings || {}).length).length;
-  if (!force) { try { const c = JSON.parse(safeGet('maison-idees') || 'null'); if (c && Date.now() - c.at < 12 * 3600e3 && c.sig === sig) { const have = new Set(S.films.map(fkey)); S.cineIdeas = c.items.filter(x => !have.has(fkey(x))); if (S.cineIdeas.length >= 4) return; } } catch {} }
+  if (!force) { try { const c = JSON.parse(safeGet('maison-idees') || 'null'); if (c && Date.now() - c.at < 12 * 3600e3 && c.sig === sig) {  const have = new Set(myKeys()); S.cineIdeas = c.items.filter(x => !have.has(fkey(x))); if (S.cineIdeas.length >= 4) return; } } catch {} }
   await new Promise(r => setTimeout(r, force ? 0 : 1200));
   const seeds = cineSeeds(5);
   if (!seeds.length && !S.films.some(f => f.traits)) return;
   try {
     const t0 = tastes(), pm = t0.me ? T.prefs(t0.me) : {};
-    const r = await filmsCall({ action: 'deck', seeds, subs: S.subs, prefs: pm, exclude: [...S.films.map(fkey), ...(S.cineIdeasSeen || [])] });
+    const r = await filmsCall({ action: 'deck', seeds, subs: S.subs, prefs: pm, exclude: [...myKeys(), ...(S.cineIdeasSeen || [])] });
     const items = r.results || [], t = tastes(items);
     S.cineIdeas = T.order(items.filter(f => !T.banned(t.me, f)), f => (t.other ? T.scoreBoth(t.me, t.other, f, t.couple) * .5 : 0) + T.score(t.me, f) * .5, 16);
     S.cineIdeasSeen = [...(S.cineIdeasSeen || []), ...S.cineIdeas.map(fkey)].slice(-80);
