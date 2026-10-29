@@ -23,5 +23,55 @@
       "sizes": "1024x1024",
       "type": "image/png"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ajouter aux courses",
+      "short_name": "Courses",
+      "url": "./?do=ajout",
+      "icons": [
+        {
+          "src": "icons/themes/courses.webp",
+          "sizes": "160x160",
+          "type": "image/webp"
+        }
+      ]
+    },
+    {
+      "name": "On mange quoi ce soir ?",
+      "short_name": "Ce soir",
+      "url": "./?do=soir",
+      "icons": [
+        {
+          "src": "icons/themes/cuisine.webp",
+          "sizes": "160x160",
+          "type": "image/webp"
+        }
+      ]
+    },
+    {
+      "name": "Lave-vaisselle",
+      "short_name": "Lave-vaisselle",
+      "url": "./?do=lavevaisselle",
+      "icons": [
+        {
+          "src": "icons/themes/lavevaisselle.webp",
+          "sizes": "160x160",
+          "type": "image/webp"
+        }
+      ]
+    },
+    {
+      "name": "Écrire un mot",
+      "short_name": "Un mot",
+      "url": "./?do=mot",
+      "icons": [
+        {
+          "src": "icons/themes/care_tendresse.webp",
+          "sizes": "160x160",
+          "type": "image/webp"
+        }
+      ]
+    }
   ]
 }

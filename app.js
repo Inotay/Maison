@@ -1951,6 +1951,20 @@ function cookRestore() {
     if (S.cook) setTimeout(() => toast(S.cook.full ? 'On reprend la recette là où tu en étais.' : `On reprend à l’étape ${S.cook.step + 1}.`), 300);
   } catch {}
 }
+// Raccourcis (appui long sur l'icône, ou app Raccourcis de l'iPhone) : ./?do=ajout, soir, lavevaisselle, mot.
+let deepDone = false;
+function deepLink() {
+  if (deepDone || !S.me) return; deepDone = true;
+  const k = new URLSearchParams(location.search).get('do'); if (!k) return;
+  try { history.replaceState(null, '', location.pathname); } catch {}
+  const go = v => { if (S.view !== v) { S.view = v; S.recette = null; S.cook = null; render(); } };
+  setTimeout(() => {
+    if (k === 'ajout') { go('courses'); document.getElementById('shop-label')?.focus(); }
+    else if (k === 'soir') { go('recettes'); loadEtapes().then(() => { render(); rouletteOpen(); }).catch(() => {}); }
+    else if (k === 'lavevaisselle') { go('menage'); const c = S.chores.find(x => x.sorte === 'lavevaisselle'); const el = c && document.querySelector(`[data-id="${c.id}"]`); el?.closest('li, section')?.scrollIntoView({ block: 'center' }); }
+    else if (k === 'mot') { go('nuit'); const f = document.getElementById('care-body'); f?.scrollIntoView({ block: 'center' }); f?.focus(); }
+  }, 300);
+}
 function render() {
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
@@ -1978,6 +1992,7 @@ function render() {
   placeAzami();
   cookSave();
   propEnter();
+  deepLink();
   maybeCoucou();
   afvCheck();
   helpAnswerCheck();
@@ -2166,7 +2181,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v157</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v158</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
