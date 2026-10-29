@@ -10,7 +10,7 @@ import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { VISITES } from './visites.js';
-import { playMeow, randomMeow, MEOW_KINDS } from './miaous.js';
+import { playMeow, randomMeow, MEOW_KINDS, pick } from './miaous.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -1166,7 +1166,7 @@ function visitInvite(fresh) {
   el.setAttribute('aria-label', 'Azami a quelque chose à te dire');
   el.innerHTML = `<img src="${azamiSrc('v44_visite_appel')}" alt="" width="96" height="96"><span class="vi-bubble"><b>${rare ? 'Psst… un secret !' : quiz ? 'Je te lance un défi !' : `Psst… ${esc(visitText('{toi}'))} !`}</b><span>${rare ? 'Un secret rare, rien que pour toi' : quiz ? 'Trois devinettes. Tu oses ?' : 'J’ai un truc à te dire'}</span></span>`;
   requestAnimationFrame(() => el.classList.add('on'));
-  if (fresh) { haptic('heavy'); meow(true, .7, ['question', 'trille', 'chirp'][Math.floor(Math.random() * 3)]); }
+  if (fresh) { haptic('heavy'); meow(true, .7, pick(['question', 'trille', 'chirp', 'mrrr', 'miaou2'])); }
 }
 let visitCur = null;
 function visitOpen(id, replay = false) {
@@ -1265,7 +1265,7 @@ function visitChoose(i) {
   setTimeout(() => {
     if (visitCur !== cur) return;
     visitImg('visite_' + mood);
-    meow(true, .55, { rire: 'chirp', coeur: 'ronron', fier: 'long', malice: 'grogne', langue: 'mew' }[mood] || 'miaou');
+    meow(true, .55, pick({ rire: ['chirp', 'gazouille', 'mewmew'], coeur: ['ronron', 'ronronmrr', 'mrrr'], fier: ['long', 'miaou2'], malice: ['grogne', 'mrrr', 'eternue'], langue: ['mew', 'mewmew'] }[mood] || ['miaou']));
     visitSay(c.reply, () => {
       cur.busy = false;
       cur.turn++;
@@ -1781,7 +1781,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v127</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v128</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3126,7 +3126,7 @@ const actions = {
   'care-delete': el => { if (confirm('Retirer ce mot de sa boîte ?')) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { meow(true, .6, Math.random() < .4 ? 'ronron' : null); caresse(el.querySelector('img.azami')); },
+  meow: el => { meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(el.querySelector('img.azami')); },
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
