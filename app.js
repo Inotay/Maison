@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v178</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v179</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4116,7 +4116,7 @@ function deckTrailer(b) {
   b.replaceWith(w); haptic(1);
 }
 // Déjà vu : une note rapide, qui en dit long (surtout quand on n'a pas aimé).
-function deckWhyHide() { clearTimeout(deckWhy.t); deck?.box.querySelectorAll('.dwhyask').forEach(x => x.remove()); }
+function deckWhyHide() { clearTimeout(deckWhy.t); deck?.box.querySelectorAll('.dwhyask').forEach(x => x.remove()); deckWhyReset(); }
 function deckAskSeen(redraw = false) {
   const f = deck?.cards[deck.i]; if (!f) return;
   deckWhyHide();
@@ -4152,11 +4152,21 @@ async function deckVote(v) {
   try {
     const saved = await filmVote(f, v, T.wants(v));
     deckUndoOffer(f);
-    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking) deckWhy(saved, v);
+    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking) deckWhyOffer(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }
-// Pourquoi ? Après un Bof ou un Non!, quelques pastilles facultatives : un toucher dit à Azami ce qui n'a pas plu.
+// Pourquoi ? Rien ne s'impose : après un Bof ou un Non!, un petit lien discret remplace l'aide en bas quelques
+// secondes. Si on le touche, les pastilles s'ouvrent ; sinon, rien ne bouge (un Bof veut souvent dire « flemme »).
+function deckWhyOffer(f, v) {
+  const hint = deck?.box.querySelector('.deck-hint'); if (!hint) return;
+  clearTimeout(deckWhyOffer.t);
+  hint.dataset.txt = hint.dataset.txt || hint.textContent;
+  hint.innerHTML = `<button type="button" class="dwhy-link">Pourquoi ${v === 'beurk' ? 'ce non' : 'ce bof'} pour ${esc(f.title)} ?</button>`;
+  hint.querySelector('button').addEventListener('click', e => { e.stopPropagation(); deckWhyReset(); deckWhy(f, v); });
+  deckWhyOffer.t = setTimeout(deckWhyReset, 3500);
+}
+function deckWhyReset() { clearTimeout(deckWhyOffer.t); const hint = deck?.box.querySelector('.deck-hint'); if (hint?.dataset.txt) { hint.textContent = hint.dataset.txt; delete hint.dataset.txt; } }
 function deckWhy(f, v) {
   const host = deck?.box; if (!host) return;   // à côté de la pile (la pile est redessinée à chaque carte)
   host.querySelector('.dwhyask')?.remove(); clearTimeout(deckWhy.t);
@@ -4165,7 +4175,7 @@ function deckWhy(f, v) {
   const draw = () => { el.innerHTML = `<p>${v === 'beurk' ? 'Non !' : 'Bof'} pour <b>${esc(f.title)}</b>. Pourquoi ? <small>(facultatif)</small></p><div>${T.RAISONS.map(([k, l]) => `<button type="button" data-why="${k}" aria-pressed="${mine().includes(k)}">${l}</button>`).join('')}</div>`; };
   draw(); host.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
   const bye = (ms) => { clearTimeout(deckWhy.t); deckWhy.t = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 250); }, ms); };
-  bye(2000);   // deux secondes : ça ne doit pas gêner le rythme des cartes
+  bye(4000);   // ouvert exprès : le temps de choisir, puis ça s'en va
   el.addEventListener('pointerdown', e => e.stopPropagation());
   el.addEventListener('click', e => {
     e.stopPropagation();
