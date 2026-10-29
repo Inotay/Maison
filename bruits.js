@@ -88,8 +88,11 @@ export const CUES = {
 
 // Programme une liste de bruitages à partir de l'instant t0 (temps de l'AudioContext). Renvoie le bus,
 // à déconnecter pour tout couper.
-export function schedule(c, list, t0, vol = 1, meow = null) {
-  const bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination);
+// Durée d'un tour de chaque scène (les bruitages repartent à chaque tour, comme l'animation).
+export const DUREE = { v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12 };
+
+export function schedule(c, list, t0, vol = 1, meow = null, bus = null) {
+  if (!bus) { bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination); }
   for (const [kind, at, arg] of list) {
     if (kind === 'eternue') { if (meow) meow(t0 + at); continue; }
     const f = BRUITS[kind]; if (f) try { f(c, bus, t0 + at, arg); } catch {}
