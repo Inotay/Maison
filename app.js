@@ -987,7 +987,8 @@ const nudgeMenu = (kind, row) => { const o = nudgeWho(kind, row); return o ? `<b
 
 // Petites notifications dans l'app : à l'ouverture et en direct (rappel, demande d'aide, réponse, petit mot).
 // Elles restent quelques secondes en haut ; un toucher ouvre le détail.
-const popQueue = []; let popOn = null;
+// Pile des notifications affichées (la plus récente en haut) ; repliée quand il y en a trop.
+let popList = [], popExpanded = false, popHeld = false;
 function popEvents() {
   const out = [], now = Date.now();
   const itemIcon = h => { const r = helpRow(h); return r ? iconHtml(displayIcon(h.item_kind === 'task' ? 'tasks' : 'chores', r)) : '<img class="ticon" src="icons/themes/care_besoin.webp" alt="" width="34" height="34">'; };
@@ -1001,7 +1002,7 @@ function popEvents() {
   return out.sort((x, y) => String(x.at).localeCompare(String(y.at)));
 }
 // Les notifications reçues sur le téléphone (rappels du jour, minuteurs, aliments…) sont gardées par le
-// service worker : à l'ouverture, celles qu'on n'a pas touchées réapparaissent ici.
+// service worker : à l'ouverture, celles arrivées depuis la dernière fois réapparaissent ici.
 let pushInbox = [];
 async function loadInbox() {
   let list = [];
@@ -1028,34 +1029,53 @@ function popCheck() {
   if (!S.me || !S.ready || S.recovery || document.getElementById('tour') || document.getElementById('cele')) return;
   if (!inboxLoaded) { inboxLoaded = true; loadInbox(); return; }
   const seen = new Set((safeGet('maison-pop-vu') || '').split(',').filter(Boolean));
-  const fresh = popEvents().filter(e => !seen.has(e.id) && popOn?.id !== e.id && !popQueue.some(q => q.id === e.id));
+  // Tout ce qui est arrivé depuis la dernière fois (chaque notification ne s'affiche qu'une fois).
+  const fresh = popEvents().filter(e => !seen.has(e.id) && !popList.some(q => q.id === e.id));
   if (!fresh.length) return;
-  fresh.forEach(e => seen.add(e.id)); safeSet('maison-pop-vu', [...seen].slice(-80).join(','));
-  // Beaucoup d'un coup : les deux premières, puis un résumé.
-  if (popQueue.length + fresh.length > 3) { const keep = fresh.slice(0, Math.max(0, 2 - popQueue.length)); const rest = fresh.length - keep.length; popQueue.push(...keep); if (rest > 0) popQueue.push({ id: 'sum', icon: iconHtml('chat'), title: `${rest} autre${rest > 1 ? 's' : ''} nouveauté${rest > 1 ? 's' : ''}`, body: 'Sur la page Maison', go: { view: 'maison' } }); }
-  else popQueue.push(...fresh);
-  if (!popOn) popNext();
+  fresh.forEach(e => seen.add(e.id)); safeSet('maison-pop-vu', [...seen].slice(-120).join(','));
+  popList = [...popList, ...fresh];
+  haptic(1); popRender(true);
 }
 function popBox() {
   let b = document.getElementById('pop'); if (b) return b;
   b = document.createElement('div'); b.id = 'pop'; b.setAttribute('role', 'status'); b.setAttribute('aria-live', 'polite');
-  b.addEventListener('click', e => { const t = e.target.closest('[data-pop]'); if (!t) return; if (t.dataset.pop === 'open') popOpen(); else popHide(); });
+  b.addEventListener('click', e => {
+    const t = e.target.closest('[data-pop]'); if (!t) return;
+    const k = t.dataset.pop, id = t.dataset.id;
+    if (k === 'open') popOpen(id);
+    else if (k === 'x') { popList = popList.filter(x => x.id !== id); popRender(); }
+    else if (k === 'all') popClose();
+    else if (k === 'more') { popExpanded = true; popHold(); popRender(); }
+  });
+  // Toucher la pile la garde ouverte (on lit tranquillement) ; glisser vers le haut la ferme.
   let y0 = null;
-  b.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
-  b.addEventListener('touchmove', e => { if (y0 != null && e.touches[0].clientY - y0 < -24) { y0 = null; popHide(); } }, { passive: true });
+  b.addEventListener('touchstart', e => { popHold(); y0 = e.touches[0].clientY; }, { passive: true });
+  b.addEventListener('touchmove', e => { if (!popExpanded && y0 != null && e.touches[0].clientY - y0 < -28) { y0 = null; popClose(); } }, { passive: true });
+  b.addEventListener('pointerdown', popHold);
   document.body.appendChild(b); return b;
 }
-function popNext() {
-  const b = popBox(); const e = popQueue.shift();
-  if (!e) { b.classList.remove('on'); popOn = null; return; }
-  popOn = e;
-  b.innerHTML = `<button class="pop-card" data-pop="open">${e.icon}<span class="pop-txt"><b>${esc(e.title)}</b><span>${esc(e.body)}</span></span><span class="pop-go" aria-hidden="true">›</span></button><button class="pop-x" data-pop="x" aria-label="Fermer">×</button><span class="pop-bar"></span>`;
-  b.classList.remove('on'); void b.offsetWidth; b.classList.add('on'); haptic(1);
-  clearTimeout(popNext.t); popNext.t = setTimeout(popHide, 6000);
+function popHold() { if (popHeld) return; popHeld = true; clearTimeout(popRender.t); document.getElementById('pop')?.classList.add('held'); }
+function popClose() { popList = []; popRender(); }
+function popRender(arm) {
+  const b = popBox();
+  clearTimeout(popRender.t);
+  if (!popList.length) { b.classList.remove('on', 'held'); popExpanded = false; popHeld = false; return; }
+  const list = [...popList].reverse();   // la plus récente en haut
+  const MAX = 3, folded = !popExpanded && list.length > MAX;
+  const shown = folded ? list.slice(0, MAX - 1) : list;
+  const card = (e, i) => `<div class="pop-item" style="--i:${i}"><button class="pop-card" data-pop="open" data-id="${esc(e.id)}">${e.icon}<span class="pop-txt"><b>${esc(e.title)}</b><span>${esc(e.body)}</span></span><span class="pop-go" aria-hidden="true">›</span></button><button class="pop-x" data-pop="x" data-id="${esc(e.id)}" aria-label="Fermer">×</button></div>`;
+  const d = list.length > 1 ? 10 : 7;
+  b.style.setProperty('--d', `${d}s`);
+  b.innerHTML = (list.length > 1 ? `<div class="pop-head"><span>${list.length} nouveautés</span><button data-pop="all">Tout fermer</button></div>` : '')
+    + `<div class="pop-list">${shown.map(card).join('')}${folded ? `<button class="pop-more" data-pop="more">+ ${list.length - shown.length} autre${list.length - shown.length > 1 ? 's' : ''} · tout voir</button>` : ''}</div>`
+    + (popHeld ? '' : '<span class="pop-bar"></span>');
+  b.classList.toggle('expanded', popExpanded);
+  if (!b.classList.contains('on')) { void b.offsetWidth; b.classList.add('on'); }
+  if (!popHeld && (arm || !popRender.t)) popRender.t = setTimeout(popClose, d * 1000);
 }
-function popHide() { clearTimeout(popNext.t); const b = document.getElementById('pop'); if (b) b.classList.remove('on'); setTimeout(() => { if (!document.getElementById('pop')?.classList.contains('on')) popNext(); }, 380); }
-function popOpen() {
-  const e = popOn; if (!e) return; popHide();
+function popOpen(id) {
+  const e = popList.find(x => x.id === id); if (!e) return;
+  popList = popList.filter(x => x.id !== id); popRender();
   const g = e.go || {};
   closeTicket(); clearReaction();
   S.view = g.view || 'maison'; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view);
@@ -1523,7 +1543,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v119</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v120</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
