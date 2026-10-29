@@ -813,6 +813,14 @@ async function agendaCall(body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
+// Tâche datée : la mettre aussi dans le calendrier partagé (iCloud), pour la voir dans Calendrier sur le téléphone.
+const inCal = t => S.agenda.events.some(e => e.title === t.title && evDay(e) === t.due_on);
+const calBtn = t => t.due_on && S.agenda.configured && !inCal(t) ? `<button class="btn ghost small" data-action="task-cal" data-id="${t.id}">📅 Dans le calendrier</button>` : '';
+function taskEvent(t) {
+  if (t.due_time) { const s = new Date(`${t.due_on}T${String(t.due_time).slice(0, 5)}`); return { title: t.title, start: s.toISOString(), end: new Date(s.getTime() + 3600000).toISOString(), allDay: false, notes: 'Depuis Maison' }; }
+  const n = new Date(t.due_on + 'T12:00'); n.setDate(n.getDate() + 1);
+  return { title: t.title, start: t.due_on, end: isoDate(n), allDay: true, notes: 'Depuis Maison' };
+}
 async function loadAgenda() {
   if (S.agenda.loading) return;
   S.agenda.loading = true;
@@ -2181,7 +2189,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v158</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v159</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2329,7 +2337,7 @@ function viewTasks() {
       ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${late ? 'late' : ''}">${esc(meta.join(', '))}</div>${t.done ? '' : nudgeBtn('task', t, t.due_on && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) <= 0)}</div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${iconPicker('tasks', t)}
-      ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${t.done ? '' : nudgeMenu('task', t)}${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
+      ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${t.done ? '' : nudgeMenu('task', t)}${t.done ? '' : calBtn(t)}${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
@@ -3463,6 +3471,7 @@ const actions = {
     runAgenda(() => agendaCall({ action: 'delete', href: e.href }), 'Supprimé du calendrier');
   },
   'agenda-refresh': () => { loadAgenda(); render(); },
+  'task-cal': el => { const t = S.tasks.find(x => x.id === el.dataset.id); if (!t?.due_on) return; S.open = null; runAgenda(() => agendaCall({ action: 'create', event: taskEvent(t) }), `Dans le calendrier « ${S.agenda.calendar} »`).then(ok => ok && haptic('medium')); },
   'agenda-forget': () => { if (confirm('Déconnecter le calendrier ? Rien n\'est effacé dans iCloud ; le mot de passe d\'application est oublié.')) runAgenda(() => agendaCall({ action: 'forget' }), 'Calendrier déconnecté'); },
   pick: el => { S.pick = S.pick?.id === el.dataset.id ? null : { type: el.dataset.type, id: el.dataset.id }; S.open = null; render(); },
   'pick-set': el => {
