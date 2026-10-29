@@ -11,7 +11,7 @@ import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { VISITES } from './visites.js';
 import { playMeow, randomMeow, MEOW_KINDS, pick } from './miaous.js';
-import { schedule as scheduleBruits, ENTREE, CUES, DUREE } from './bruits.js';
+import { schedule as scheduleBruits, ENTREE, CUES, DUREE, parle } from './bruits.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -1217,6 +1217,10 @@ function visitTurn() {
 }
 const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img || visitCur.hold) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
 // Les répliques s'écrivent lettre par lettre (toucher la carte pour aller plus vite).
+function voixAzami(ch, up) {
+  if (!SOUNDS || !audioCtx || audioCtx.state !== 'running' || document.hidden) return;
+  try { parle(audioCtx, ch, .06, up); } catch {}
+}
 async function visitSay(lines, done, who = 'az') {
   const cur = visitCur; const talk = cur.box.querySelector('.visite-talk');
   // La conversation suit toute seule le texte qui s'écrit (comme une messagerie).
@@ -1226,10 +1230,12 @@ async function visitSay(lines, done, who = 'az') {
     const p = document.createElement('p'); p.className = `bubble ${who}`; talk.appendChild(p); talk.follow?.();
     cur.typing = true; cur.skip = false;
     if (reducedMotion()) p.textContent = txt;
-    else for (let i = 1; i <= txt.length; i++) {
+    else for (let i = 1, n = 0; i <= txt.length; i++) {
       if (cur.skip) { p.textContent = txt; stick(); break; }
       p.textContent = txt.slice(0, i); stick();
       const ch = txt[i - 1];
+      // sa petite voix : un blip toutes les deux lettres, qui monte en fin de question
+      if (who === 'az' && /\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
       await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 260 : /[,;:]/.test(ch) ? 140 : 26));
       if (visitCur !== cur) return;
     }
@@ -1945,7 +1951,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v139</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v140</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

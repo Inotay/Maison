@@ -99,3 +99,17 @@ export function schedule(c, list, t0, vol = 1, meow = null, bus = null) {
   }
   return bus;
 }
+
+// Voix d'Azami quand elle « parle » dans les visites : un petit blip par syllabe, à la Animal Crossing.
+// Hauteur et timbre dépendent de la lettre (les voyelles donnent la couleur), voix aiguë de petite chatte.
+const FORMANT = { a: 1150, à: 1150, â: 1150, e: 1700, é: 2100, è: 1800, ê: 1800, i: 2500, î: 2500, o: 850, ô: 850, u: 1900, ù: 1900, y: 2400 };
+export function parle(c, ch, vol = .05, up = 0) {
+  const l = ch.toLowerCase(), t = c.currentTime + .005, code = l.charCodeAt(0);
+  const f = 640 * (1 + ((code % 7) - 3) * .035) * (1 + up) * rnd(.98, 1.02), dur = rnd(.045, .06);
+  const o = c.createOscillator(), bp = c.createBiquadFilter(), lp = c.createBiquadFilter(), g = c.createGain();
+  o.type = 'square'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * .9, t + dur);
+  bp.type = 'bandpass'; bp.Q.value = 2.5; bp.frequency.value = FORMANT[l] || 1400 + (code % 5) * 120;
+  lp.type = 'lowpass'; lp.frequency.value = 3200;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + .006); g.gain.exponentialRampToValueAtTime(.0005, t + dur);
+  o.connect(bp); bp.connect(lp); lp.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + .02);
+}
