@@ -1280,3 +1280,13 @@ li.item.swipe-ok { background: var(--accent); }
 .roulette-why { font-size: 12px; font-weight: 800; color: #3F7A36; background: #E6F4E0; border-radius: 999px; padding: 3px 9px; }
 .roulette-actions { justify-content: center; margin-top: 10px; }
 .roulette .link { display: block; margin: 8px auto 0; }
+
+/* Récap du dimanche */
+.recap-card { position: relative; margin: var(--s3) 0; padding: 14px 14px 14px 96px; border-radius: 20px; border: 2.5px solid #2A1C15; box-shadow: 0 4px 0 #2A1C15; color: #2A1C15; background: linear-gradient(150deg, #FFF3C9, #F7D774 55%, #FFF8E0); min-height: 110px; }
+.recap-card img { position: absolute; left: -4px; top: 50%; width: 104px; height: 104px; transform: translateY(-50%); }
+.recap-card .calm-kicker { color: #6B5A4E; margin: 0; }
+.recap-big { margin: 2px 0 6px; font-size: 17px; font-weight: 800; }
+.recap-big b { font-size: 26px; }
+.recap-parts { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.recap-parts li { font-size: 12px; font-weight: 700; background: rgba(255,255,255,.7); border-radius: 999px; padding: 2px 8px; }
+.recap-mot { margin: 0 0 8px; font-size: 13px; font-style: italic; }

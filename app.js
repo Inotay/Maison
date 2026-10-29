@@ -2083,6 +2083,32 @@ function winsCard() {
   </section>`;
 }
 
+// Récap du dimanche : le dimanche dès 17 h et le lundi, une carte « Votre semaine à deux » (tout ce que
+// vous avez fait ensemble, sans compter qui a fait quoi), un mot d'Azami et les nouvelles cartes du carnet.
+const RECAP_MOTS = ['Je suis fière de vous. Ne le répétez pas.', 'La maison sent bon, le canapé est libre : vous avez gagné une sieste avec moi.', 'Vous formez une très bonne équipe. Après moi, évidemment.',
+  'Je vous accorde officiellement le titre de meilleurs humains de la semaine.', 'Bravo. Pour fêter ça, je propose des croquettes. Pour moi.', 'Vous avez assuré. Moi aussi : j’ai dormi pour vous trois.'];
+function recapWeek() {
+  const now = new Date(), d = now.getDay(), h = now.getHours();
+  if (!((d === 0 && h >= 17) || d === 1)) return null;
+  const sunday = new Date(now); sunday.setDate(now.getDate() - (d === 1 ? 1 : 0)); sunday.setHours(23, 59, 59, 999);
+  const t1 = sunday.getTime(), t0 = t1 - 7 * DAY;
+  return { key: isoDate(sunday), t0, t1 };
+}
+function recapCard() {
+  const wk = recapWeek(); if (!wk || safeGet('maison-recap-vu') === wk.key) return '';
+  const ws = S.wins.filter(w => { const t = new Date(w.done_at).getTime(); return t > wk.t0 && t <= wk.t1; });
+  if (!ws.length) return '';
+  const c = k => ws.filter(w => w.kind === k).length;
+  const parts = [[c('chore'), 'corvée', 'corvées'], [c('task'), 'tâche', 'tâches'], [c('shop'), 'courses', 'courses'], [c('cuisine'), 'recette', 'recettes'], [c('settle'), 'comptes à zéro', 'comptes à zéro']].filter(x => x[0]);
+  const cartes = [...(S.carnetInfo?.entries() || [])].filter(([id, x]) => !id.startsWith('~') && x.at && new Date(x.at).getTime() > wk.t0).length;
+  const mot = RECAP_MOTS[Math.abs([...wk.key].reduce((a, ch) => a + ch.charCodeAt(0), 0)) % RECAP_MOTS.length];
+  return `<section class="recap-card"><img src="azami/v44/statiques/azami_v44_reussite_statique.svg" alt="" width="512" height="512">
+    <p class="calm-kicker">Votre semaine à deux</p>
+    <p class="recap-big"><b>${ws.length}</b> ${ws.length > 1 ? 'choses faites ensemble' : 'chose faite ensemble'}</p>
+    <ul class="recap-parts">${parts.map(([n, a, b]) => `<li><b>${n}</b> ${n > 1 ? b : a}</li>`).join('')}${cartes ? `<li><b>${cartes}</b> ${cartes > 1 ? 'cartes d’Azami' : 'carte d’Azami'}</li>` : ''}${streak() >= 2 ? `<li><b>${streak()}</b> jours de suite</li>` : ''}</ul>
+    <p class="recap-mot">« ${esc(mot)} »</p>
+    <button class="btn small" data-action="recap-ok" data-k="${wk.key}">Merci Azami</button></section>`;
+}
 function viewMaison() {
   let [hello, scene] = greeting();
   const cc = calmCheck();
@@ -2114,7 +2140,7 @@ function viewMaison() {
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
-    ${pushCard()}${helpCards()}
+    ${recapCard()}${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
     <div class="glance">${lines.map(([label, num, to, late]) =>
       `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num ${String(num).length > 7 ? 'small' : ''}">${esc(num)}</span></button>`).join('')}</div>
@@ -2140,7 +2166,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v156</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v157</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3199,6 +3225,7 @@ const actions = {
   },
   'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
   'visite-replay': el => visitOpen(el.dataset.id, true),
+  'recap-ok': el => { safeSet('maison-recap-vu', el.dataset.k); sfx('merci'); burst('hearts', el, 10); haptic('medium'); setTimeout(render, 350); },
   roulette: () => { haptic(1); rouletteOpen(); },
   'roulette-again': () => { const b = document.getElementById('ticket'); if (b) rouletteSpin(b); },
   'roulette-go': el => { closeTicket(); S.recette = el.dataset.id; S.cook = null; render(); window.scrollTo(0, 0); },
