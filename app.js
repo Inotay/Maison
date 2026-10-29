@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v177</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v178</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4165,13 +4165,13 @@ function deckWhy(f, v) {
   const draw = () => { el.innerHTML = `<p>${v === 'beurk' ? 'Non !' : 'Bof'} pour <b>${esc(f.title)}</b>. Pourquoi ? <small>(facultatif)</small></p><div>${T.RAISONS.map(([k, l]) => `<button type="button" data-why="${k}" aria-pressed="${mine().includes(k)}">${l}</button>`).join('')}</div>`; };
   draw(); host.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
   const bye = (ms) => { clearTimeout(deckWhy.t); deckWhy.t = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 250); }, ms); };
-  bye(6000);
+  bye(2000);   // deux secondes : ça ne doit pas gêner le rythme des cartes
   el.addEventListener('pointerdown', e => e.stopPropagation());
   el.addEventListener('click', e => {
     e.stopPropagation();
     const b = e.target.closest('[data-why]'); if (!b) return;
     const k = b.dataset.why, cur = mine(), next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
-    f.raisons = { ...(f.raisons || {}), [S.me]: next }; haptic(1); draw(); bye(3500);
+    f.raisons = { ...(f.raisons || {}), [S.me]: next }; haptic(1); draw(); bye(1800);
     api.update('films', { id: f.id }, { raisons: f.raisons }).catch(() => {});
   });
 }
