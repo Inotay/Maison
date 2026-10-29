@@ -72,6 +72,27 @@
           "type": "image/webp"
         }
       ]
+    },
+    {
+      "name": "Ajouter un film ou une série",
+      "short_name": "Ciné",
+      "url": "./?do=film",
+      "icons": [
+        {
+          "src": "icons/themes/popcorn.webp",
+          "sizes": "160x160",
+          "type": "image/webp"
+        }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
