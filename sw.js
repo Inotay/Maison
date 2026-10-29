@@ -1,5 +1,5 @@
 // Maison : service worker. L'app s'ouvre sans réseau (lecture) et reçoit des notifications.
-const VERSION = 'maison-v117';
+const VERSION = 'maison-v118';
 const SHELL = ['./', './index.html', './styles.css', './app.js', './themes.js', './fx.js', './people.js', './dechets.js', './recettes.js', './fraicheur.js', './cuisine.js', './etapes.js', './guide.js', './rayons.js', './config.js', './manifest.webmanifest', './vendor/supabase-js-2.49.4.js',
   './azami/v44/azami_v44_etirement_anime.svg', './azami/v44/azami_v44_jeu_anime.svg', './azami/v44/azami_v44_toilette_anime.svg', './azami/v44/azami_v44_marche_anime.svg', './azami/v44/azami_v44_miaulement_anime.svg', './azami/v44/azami_v44_repos_anime.svg', './azami/v44/azami_v44_menage_anime.svg', './azami/v44/azami_v44_courses_anime.svg', './azami/v44/azami_v44_argent_anime.svg', './azami/v44/azami_v44_care_anime.svg', './azami/v44/azami_v44_reussite_anime.svg', './azami/v44/azami_v44_cuisine_anime.svg', './azami/v44/reactions/annuler_anime.svg', './azami/v44/reactions/minuteur_fini_anime.svg', './azami/v44/reactions/machine_lancee_anime.svg', './azami/v44/reactions/recette_reussie_anime.svg', './azami/v44/reactions/a_finir_vite_anime.svg', './azami/v44/reactions/caresse_1_anime.svg', './azami/v44/reactions/caresse_2_anime.svg', './azami/v44/reactions/caresse_3_anime.svg', './azami/v44/reactions/tache_cochee_anime.svg', './azami/v44/reactions/corvee_terminee_anime.svg', './azami/v44/reactions/courses_completees_anime.svg', './azami/v44/reactions/comptes_equilibres_anime.svg', './azami/v44/reactions/mot_envoye_anime.svg', './azami/v44/reactions/objectif_commun_anime.svg', './azami/v44/reactions/surprise_coucou_anime.svg', './azami/v44/reactions/fete_reussites_anime.svg', './azami/v44/azami_v44_calme_anime.svg', './azami/v44/azami_v44_connexion_anime.svg', './azami/v44/azami_v44_hors_ligne_anime.svg', './azami/v44/azami_v44_chargement_anime.svg', './azami/v44/azami_v44_guide_anime.svg', './azami/v44/reactions/coup_de_main_anime.svg', './azami/v44/reactions/aide_acceptee_anime.svg', './azami/v44/reactions/calme_termine_anime.svg', './azami/v44/reactions/pris_par_l_autre_anime.svg', './azami/v44/reactions/deplacer_anime.svg', './azami/v44/reactions/dechets_descendus_anime.svg', './azami/v44/reactions/etape_suivante_anime.svg', './azami/v44/statiques/azami_v44_chargement_statique.svg', './azami/v44/statiques/azami_v44_hors_ligne_statique.svg',
   './icons/icon-192.png', './icons/icon-512.png',
@@ -18,7 +18,7 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== 'maison-inbox').map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 // Fichiers de l'app : réseau d'abord, cache en secours.
@@ -50,21 +50,34 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Notification poussée par un serveur (quand il y en aura un) : { title, body, url }.
+// Les notifications reçues sont aussi gardées (24 h, 20 au plus) pour que l'app les remontre à l'ouverture.
+const INBOX = './__inbox';
+async function inbox(fn) {
+  const c = await caches.open('maison-inbox');
+  const r = await c.match(INBOX); let list = [];
+  try { list = r ? await r.json() : []; } catch { list = []; }
+  list = fn(list.filter(n => Date.now() - n.at < 86400000)).slice(-20);
+  await c.put(INBOX, new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json' } }));
+}
+
+// Notification poussée par le serveur : { title, body, url, tag }.
 self.addEventListener('push', e => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch { data = { body: e.data?.text() }; }
   // L'app ouverte est prévenue tout de suite : elle se met à jour et affiche sa petite notification.
   e.waitUntil(Promise.all([
+    inbox(list => [...list.filter(n => n.tag !== (data.tag || 'maison')), { tag: data.tag || 'maison', title: data.title || 'Maison', body: data.body || '', url: data.url || './', at: Date.now() }]).catch(() => {})
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true })).then(list => list.forEach(c => c.postMessage({ type: 'push', data }))),
     self.registration.showNotification(data.title || 'Maison', {
       body: data.body || '', icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: data.tag || 'maison', data: { url: data.url || './' },
     }),
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => list.forEach(c => c.postMessage({ type: 'push', data }))),
   ]));
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  const tag = e.notification.tag;
+  e.waitUntil(inbox(list => list.filter(n => n.tag !== tag)).catch(() => {}));   // touchée : pas besoin de la remontrer
   const target = new URL(e.notification.data?.url || './', location.href).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     const open = list.find(c => c.url.startsWith(location.origin));

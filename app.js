@@ -997,10 +997,26 @@ function popEvents() {
     const k = ['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(c.kind) ? c.kind : 'merci';
     out.push({ id: 'c' + c.id, at: c.created_at, icon: `<img class="ticon" src="icons/themes/care_${k}.webp" alt="" width="34" height="34">`, title: `${careKind(c.kind) || 'Un mot'} de ${nameOf(c.author)}`, body: 'Touche pour l’ouvrir', go: { view: 'nuit', letter: c.id } });
   }
+  out.push(...pushEvents());
   return out.sort((x, y) => String(x.at).localeCompare(String(y.at)));
 }
+// Les notifications reçues sur le téléphone (rappels du jour, minuteurs, aliments…) sont gardées par le
+// service worker : à l'ouverture, celles qu'on n'a pas touchées réapparaissent ici.
+let pushInbox = [];
+async function loadInbox() {
+  try { const c = await caches.open('maison-inbox'); const r = await c.match('./__inbox'); pushInbox = r ? await r.json() : []; } catch { pushInbox = []; }
+  popCheck();
+}
+const VIEW_OF = u => { try { return new URL(u || './', location.href).searchParams.get('v') || 'maison'; } catch { return 'maison'; } };
+function pushEvents() {
+  return pushInbox.filter(n => n && n.at && Date.now() - n.at < DAY && !/^(aide|rappel)-/.test(n.tag || ''))   // demandes et rappels : déjà montrés par leur carte
+    .map(n => ({ id: `p${n.tag || 'maison'}-${n.at}`, at: new Date(n.at).toISOString(), icon: '<img class="ticon" src="icons/icon-192.png" alt="" width="34" height="34">', title: n.title || 'Maison', body: n.body || '', go: { view: ['maison', 'menage', 'recettes', 'courses', 'argent', 'nuit'].includes(VIEW_OF(n.url)) ? VIEW_OF(n.url) : 'maison' } }));
+}
+let inboxLoaded = false;
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) setTimeout(loadInbox, 600); });
 function popCheck() {
   if (!S.me || !S.ready || S.recovery || document.getElementById('tour') || document.getElementById('cele')) return;
+  if (!inboxLoaded) { inboxLoaded = true; loadInbox(); return; }
   const seen = new Set((safeGet('maison-pop-vu') || '').split(',').filter(Boolean));
   const fresh = popEvents().filter(e => !seen.has(e.id) && popOn?.id !== e.id && !popQueue.some(q => q.id === e.id));
   if (!fresh.length) return;
@@ -1497,7 +1513,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v117</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v118</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1532,7 +1548,7 @@ function houseItem(h) {
     const meta = ['À faire', who, h.time ? `à ${h.time}` : '', h.late ? `prévu ${relDay(t.due_on)}` : ''].filter(Boolean).join(' · ');
     return `<li class="item house">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="false" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      ${iconHtml(displayIcon('tasks', t))}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div></li>`;
+      ${iconHtml(displayIcon('tasks', t))}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div>${nudgeBtn('task', t, h.late || (t.due_on && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) <= 0))}</div></li>`;
   }
   if (h.kind === 'seq') {
     const c = h.row, q = seqOf(c), s = seqState(c);
@@ -1543,7 +1559,7 @@ function houseItem(h) {
   const c = h.row;
   const who = !c.turn ? 'Qui veut' : c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`;
   const meta = c.sorte ? `Déchets · ${dechetMeta(c)}` : ['Ménage', who, h.late ? h.st.label : ''].filter(Boolean).join(' · ');
-  return `<li class="item house">${iconHtml(displayIcon('chores', c))}<div class="item-main"><div class="item-title">${esc(c.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div></div>
+  return `<li class="item house">${iconHtml(displayIcon('chores', c))}<div class="item-main"><div class="item-title">${esc(c.title)}</div><div class="item-meta ${h.late ? 'late' : ''}">${esc(meta)}</div>${nudgeBtn('chore', c, choreStatus(c).due)}</div>
     <div class="item-trail">${choreBtn(c)}</div></li>`;
 }
 function viewAgenda() {
@@ -3068,7 +3084,7 @@ async function boot() {
   if ('serviceWorker' in navigator) {
     // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
     let had = !!navigator.serviceWorker.controller;
-    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'push' && S.me) scheduleRefresh(); });
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'push' && S.me) { scheduleRefresh(); loadInbox(); } });
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing() && !S.recovery && !/type=recovery/.test(location.hash)) location.reload(); had = true; });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
