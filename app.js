@@ -88,6 +88,21 @@ function splitText() {
   if (p === 0) return `Avancé pour ${oth === 'Toi' ? 'toi' : oth} : ${oth === 'Toi' ? 'tu dois' : oth + ' doit'} tout`;
   return `${payer} ${p} % · ${oth} ${100 - p} %`;
 }
+// Les feuilles du bas se ferment aussi en les tirant vers le bas (depuis le haut de la feuille).
+document.addEventListener('touchstart', e => {
+  const card = e.target.closest?.('#ticket .ticket-card'); if (!card || e.touches.length !== 1 || card.scrollTop > 0 || e.target.closest('input, textarea, .fteam, .fprovs, .cine-ideas')) { sheetDrag = null; return; }
+  sheetDrag = { card, y: e.touches[0].clientY, dy: 0 };
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!sheetDrag) return; const dy = e.touches[0].clientY - sheetDrag.y;
+  if (dy < 0 || sheetDrag.card.scrollTop > 0) { sheetDrag.card.style.transform = ''; return; }
+  sheetDrag.dy = dy; sheetDrag.card.style.transition = 'none'; sheetDrag.card.style.transform = `translateY(${dy * .9}px)`;
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (!sheetDrag) return; const { card, dy } = sheetDrag; sheetDrag = null; card.style.transition = '';
+  if (dy > 110) { closeTicket(); render(); } else card.style.transform = '';
+});
+let sheetDrag = null;
 function closeTicket() { const b = document.getElementById('ticket'); if (!b) return; b.classList.remove('on'); setTimeout(() => b.remove(), 300); S.ticket = null; }
 function placeAzami() {
   document.querySelectorAll('.azami-slot').forEach(slot => {
@@ -2349,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v174</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v175</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4173,7 +4188,7 @@ async function cineOpen(id) {
     const rates = S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> <span class="hearts">${'♥'.repeat(f.ratings[m.email].note)}${'♡'.repeat(5 - f.ratings[m.email].note)}</span>${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
     document.getElementById('ticket')?.remove();
     const box = document.createElement('div'); box.id = 'ticket';
-    box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}">${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
+    box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}"><button type="button" class="fsheet-x" data-action="sheet-close" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
       <div class="fsheet-top">${fPoster(f, 'bposter')}<div><p class="ticket-title">${esc(f.title)}</p><p class="ticket-sub">${esc(fMeta(f))}</p>${f.director ? `<p class="ticket-sub">${f.media === 'tv' ? 'Créée par' : 'De'} ${esc(f.director)}</p>` : ''}
         ${fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
       ${presseRow(f)}${palmaresRow(f)}${tonsRow(f)}
