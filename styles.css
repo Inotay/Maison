@@ -1114,7 +1114,7 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 @media (prefers-reduced-motion: reduce) { .vi-bubble, .bubble.me, .visite-choices .btn { animation: none; } }
 
 /* Azami boude : elle a quitté l'écran (en-têtes et invitation), elle revient en trottinant. */
-body.azami-away .azami-btn img.azami, body.azami-away #visite-invite { opacity: 0; pointer-events: none; transition: opacity .2s; }
+body.azami-away .azami-btn img.azami, body.azami-away #visite-invite { opacity: 0 !important; pointer-events: none; transition: none; }
 body.azami-away .azami-btn { cursor: default; }
 .visite-azami { cursor: pointer; }
 

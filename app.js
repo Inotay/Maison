@@ -1472,8 +1472,8 @@ function azamiHiss(img, inVisit) {
   setTimeout(() => scratchScreen(true), 900);
   if (inVisit && visitCur) visitCur.hold = true;
   playOnImg(img, 'crache', 1950, back => {
-    img.src = back;
-    azamiLeave();
+    azamiLeave();   // d'abord cachée, ensuite seulement on remet sa scène (sinon elle réapparaît une image)
+    requestAnimationFrame(() => requestAnimationFrame(() => { img.src = back; }));
     if (inVisit) { if (visitCur) visitCur.hold = false; visitClose(); }
   });
 }
@@ -1531,9 +1531,13 @@ function azamiLeave() {
 function azamiBack() {
   if (!document.body.classList.contains('azami-away')) return;
   awayUntil = 0; clearTimeout(awayTimer);
-  document.body.classList.remove('azami-away');
   const img = document.querySelector('.hd img.azami');
-  if (img) playOnImg(img, 'retour', 1600);
+  const show = () => document.body.classList.remove('azami-away');
+  if (img) {
+    // L'animation du retour commence hors champ : on la charge pendant qu'elle est encore cachée, puis on montre.
+    playOnImg(img, 'retour', 1650);
+    (img.decode ? img.decode() : Promise.resolve()).catch(() => {}).then(() => setTimeout(show, 30));
+  } else show();
   meow(true, .5, pick(['mrrr', 'question']));
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && document.body.classList.contains('azami-away')) setTimeout(azamiBack, 400); });
@@ -1878,7 +1882,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v134</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v135</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
