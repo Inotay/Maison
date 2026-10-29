@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v176</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v177</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4116,8 +4116,10 @@ function deckTrailer(b) {
   b.replaceWith(w); haptic(1);
 }
 // Déjà vu : une note rapide, qui en dit long (surtout quand on n'a pas aimé).
+function deckWhyHide() { clearTimeout(deckWhy.t); deck?.box.querySelectorAll('.dwhyask').forEach(x => x.remove()); }
 function deckAskSeen(redraw = false) {
   const f = deck?.cards[deck.i]; if (!f) return;
+  deckWhyHide();
   deck.asking = true; haptic(1);
   const st = deck.box.querySelector('.deck-stack');
   st.querySelector('.dseen')?.remove();
@@ -4141,6 +4143,7 @@ function deckUndoOffer(f) {
 }
 async function deckVote(v) {
   const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
+  deckWhyHide();
   const el = deck.box.querySelector('.dcard.top');
   if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = v === 'beurk' ? 'translateY(560px) rotate(6deg)' : v === 'super' ? 'translateY(-560px) scale(.9)' : `translateX(${v === 'oui' ? 480 : -480}px) rotate(${v === 'oui' ? 24 : -24}deg)`; el.style.opacity = '0'; }
   haptic(T.wants(v) ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (T.wants(v)) sfx(v === 'super' ? 'done' : 'tick');
@@ -4149,7 +4152,7 @@ async function deckVote(v) {
   try {
     const saved = await filmVote(f, v, T.wants(v));
     deckUndoOffer(f);
-    if ((v === 'non' || v === 'beurk') && saved?.id) deckWhy(saved, v);
+    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking) deckWhy(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }

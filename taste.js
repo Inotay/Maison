@@ -152,8 +152,12 @@ const WHY = {
   violent: k => (k === 'ton' || k === 'in' || k === 'cert') ? 2.5 : .5,
   equipe: k => PEOPLE.has(k) ? 2.6 : .4,
   deja: k => (k === 'kw' || k === 'saga' || k === 'genre') ? 1.5 : .6,
+  // « ça n'a pas l'air incroyable » : c'est la promesse du film qui déçoit (presse, palmarès, réputation), pas son genre
+  bof_bof: k => (k === 'presse' || k === 'palmares' || k === 'bo') ? 2 : .35,
+  // « flemme » : ça dit l'effort (durée, rythme, intensité, une série entière), presque rien du goût
+  flemme: k => (k === 'rt' || k === 'ry' || k === 'in' || k === 'media') ? 1.2 : .12,
 };
-export const RAISONS = [['sujet', 'Le sujet'], ['ton', 'Le ton'], ['lent', 'Trop lent'], ['violent', 'Trop violent'], ['equipe', 'L’équipe'], ['deja', 'Déjà trop vu']];
+export const RAISONS = [['bof_bof', 'Pas l’air incroyable'], ['flemme', 'Flemme'], ['sujet', 'Le sujet'], ['ton', 'Le ton'], ['lent', 'Trop lent'], ['violent', 'Trop violent'], ['equipe', 'L’équipe'], ['deja', 'Déjà trop vu']];
 export function profile(films, email, idf = () => 1, manual = {}, sig = signal) {
   const P = new Map(), N = new Map(), C = new Map(), NC = new Map(), liked = new Map(); let n = 0, pos = 0, neg = 0;
   const now = Date.now(), st = stats(films, email), solo = sig === signal;
