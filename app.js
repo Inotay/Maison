@@ -1961,7 +1961,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v141</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v142</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2449,7 +2449,10 @@ function viewCourses() {
     </form>
     ${duoBanner(mode)}
     ${(() => { const mm = menuMissing(); return mm.length ? `<div class="menu-miss"><b>Pour le menu</b> ${mm.map(({ p, items }) => `<span>${esc(p.title)} <em>${pl(items.length, 'à prendre', 'à prendre')}</em></span>`).join('')}</div>` : ''; })()}
-    <div class="where"><span class="chip-label">Je suis à…</span><div class="chips">${SHOPS.map(([k, l]) => `<button type="button" class="shop-chip" data-action="shop-mode" data-shop="${k}" aria-pressed="${mode === k}">${shopIc(k, 'chip-ic')}${esc(l)}</button>`).join('')}</div></div>
+    <div class="where">
+      <button type="button" class="where-btn ${mode ? 'on' : ''}" data-action="where-open" aria-expanded="${!!S.whereOpen}" aria-haspopup="listbox"><span class="where-k">Je suis à…</span>${mode ? `${shopIc(mode, 'chip-ic')}<span class="where-v">${esc(modeLabel)}</span>` : '<span class="where-v none">Choisir un magasin</span>'}<span class="where-caret" aria-hidden="true"></span></button>
+      ${S.whereOpen ? `<div class="where-menu" role="listbox" aria-label="Je suis à">${SHOPS.map(([k, l, ex]) => `<button type="button" class="where-opt" role="option" data-action="shop-pick" data-shop="${k}" aria-selected="${mode === k}">${shopIc(k, 'chip-ic')}<span><b>${esc(l)}</b>${ex ? `<small>${esc(ex)}</small>` : ''}</span></button>`).join('')}${mode ? '<button type="button" class="where-opt out" role="option" data-action="shop-pick" data-shop="" aria-selected="false"><span><b>Je ne suis pas en magasin</b></span></button>' : ''}</div>` : ''}
+    </div>
     <div class="shop">${mode
       ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2>${aisleGroups(mode, todo, item)}` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
       : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = byAisle(k, todo.filter(s => shopsOf(s).includes(k))); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
@@ -3235,6 +3238,8 @@ const actions = {
       .then(ok => { if (ok && last) { azamiJump(); celebrate({ title: 'Panier complet !', sub: praise('basket'), badge: variantSrc(variantFor(personOf(S.me), 'courses') || ''), reaction: 'courses_completees' }); if (first) streakCheer(3000); } });
   },
   'shop-clear': el => actions['shop-done'](el),   // même chemin que « Courses faites » : historique + ticket de caisse
+  'where-open': () => { S.whereOpen = !S.whereOpen; haptic(1); render(); },
+  'shop-pick': el => { const k = el.dataset.shop || null; S.whereOpen = false; if (k === S.shopMode) { render(); return; } S.shopMode = k; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); presenceTrack(); render(); },
   'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); presenceTrack(); render(); },
   // Courses faites : ce qui est dans le panier sort de la liste, chaque article est gardé en mémoire (pour les pré-listes), et c'est une réussite.
   'shop-done': el => {
