@@ -53,7 +53,10 @@ function traitsOf(d: Record<string, any>, media: "movie" | "tv") {
     for (const c of ["CH", "FR", "US"]) { const r = cr.find(x => x.iso_3166_1 === c)?.rating; if (r) { cert = CERT[r] ?? (/\d+/.test(r) ? String(Math.min(18, Number(r.match(/\d+/)![0]))) : ""); break; } }
   }
   if (cert && /^\d+$/.test(cert)) cert = Number(cert) <= 10 ? "tous" : Number(cert) <= 14 ? "12" : Number(cert) <= 16 ? "16" : "18";
-  return { dir, wri, comp, dop, cast, kw, pays, rt, bo, cert, vc };
+  // le studio (Ghibli, A24, Toho…) et la saga (Harry Potter, Alien…) : deux indices de plus sur le goût
+  const co: Person[] = ((d.production_companies ?? []) as Record<string, any>[]).slice(0, 3).map(c => ({ id: c.id, name: c.name }));
+  const col = d.belongs_to_collection ? { id: d.belongs_to_collection.id, name: d.belongs_to_collection.name } : null;
+  return { dir, wri, comp, dop, cast, kw, pays, rt, bo, cert, vc, co, col, v: 2 };
 }
 const APPEND = (media: string) => media === "movie" ? "credits,keywords,release_dates" : "credits,keywords,content_ratings";
 async function traitsFor(x: Item) {
@@ -231,7 +234,7 @@ async function pool<T, R>(list: T[], n: number, fn: (x: T) => Promise<R>) {
 // Propositions pour le match à deux : ce qui ressemble à ce que vous avez aimé, et les tendances.
 // Les genres des films n'ont pas tous le même numéro pour les séries.
 const TVG: Record<string, string> = { "878": "10765", "14": "10765", "28": "10759", "12": "10759", "10752": "10768" };
-type Prefs = { like?: number[]; dislike?: number[]; langs?: string[]; people?: number[]; kws?: number[] };
+type Prefs = { like?: number[]; dislike?: number[]; langs?: string[]; people?: number[]; kws?: number[]; cos?: number[] };
 async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<string>, mood: string, subs: string[], prefs: Prefs = {}) {
   if (!KEY) return [];
   // toutes les sources partent en même temps ; chacune donne une liste, qu'on mélange ensuite
@@ -270,6 +273,8 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     }
     for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "150" }, "movie");
     if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "popularity.desc", "vote_count.gte": "150" }, media);
+    // les studios que vous aimez (Ghibli, A24…)
+    for (const c of (prefs.cos ?? []).slice(0, 2)) src("/discover/movie", { with_companies: String(c), sort_by: "vote_average.desc", "vote_count.gte": "100", page: rnd(2) }, "movie");
     if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "200", page: rnd(4) }, "movie");
     // les recommandations de vos films adorés : on compte combien d'entre eux recommandent chaque film
     for (const s of seeds.slice(0, 6)) jobs.push(tmdb(`/${s.media}/${s.tmdb_id}/recommendations`, {}).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, s.media)).filter(Boolean).map(x => ({ ...x!, reco: 1 }))).catch(() => []));
@@ -372,6 +377,28 @@ async function alertes(db: ReturnType<typeof createClient>) {
   return { alertes: fresh.length, envoyees: sent2 };
 }
 
+// Mettre à jour la fiche détaillée (traits) des films déjà enregistrés : ceux qui n'en ont pas, puis les anciennes
+// fiches sans studio ni saga. Ne renvoie que des compteurs ; à relancer jusqu'à « reste: 0 ».
+async function retraits(db: ReturnType<typeof createClient>, n: number) {
+  if (!KEY) return { error: "Pas de TMDB." };
+  const { data } = await db.from("films").select("id, tmdb_id, media, traits, gids, lang, note").not("tmdb_id", "is", null);
+  const todo = (data ?? []).filter(f => !f.traits || f.traits.v !== 2);
+  const batch = todo.slice(0, n);
+  let ok = 0;
+  await pool(batch, 8, async (f: Record<string, any>) => {
+    try {
+      const d = await tmdb(`/${f.media}/${f.tmdb_id}`, { append_to_response: APPEND(f.media) });
+      const patch: Record<string, unknown> = { traits: traitsOf(d, f.media) };
+      if (!f.gids?.length) patch.gids = (d.genres ?? []).map((g: { id: number }) => g.id);
+      if (!f.lang && d.original_language) patch.lang = d.original_language;
+      if (d.vote_average) patch.note = Math.round(Number(d.vote_average) * 10) / 10;
+      if (f.media === "movie" && d.runtime) patch.runtime = d.runtime;
+      await db.from("films").update(patch).eq("id", f.id); ok++;
+    } catch (e) { console.warn("retraits", f.tmdb_id, (e as Error).message); }
+  });
+  return { faits: ok, reste: todo.length - ok };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   let body: Record<string, unknown> = {};
@@ -380,6 +407,7 @@ Deno.serve(async (req) => {
   if (body.action === "salles") { try { return json({ salles: await salles() }); } catch (e) { return json({ error: (e as Error).message }, 500); } }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   // le planificateur, une fois par jour : rien n'est renvoyé de privé, les notifications vont aux membres
+  if (body.action === "retraits") { try { return json(await retraits(db, Math.min(80, Number(body.n) || 40))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   if (body.action === "alertes") { try { return json(await alertes(db)); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
   const me = (user?.email ?? "").toLowerCase();

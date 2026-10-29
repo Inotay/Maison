@@ -2349,7 +2349,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v171</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v172</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3512,7 +3512,7 @@ function cineFilter(list, who) {
   const fl = S.cineF || '', so = S.cineS || 'envie', t = tastes(), p = who === 'nous' ? null : t.by[who === 'moi' ? S.me : other()];
   const md = S.cineM || '';
   let l = list.filter(f => (!fl || (fl === 'chez' ? fDispo(f) : f.media === 'movie' && (f.traits?.rt || f.runtime || 999) <= 120)) && (!md || (md === 'film' ? f.media === 'movie' : f.media === 'tv')));
-  const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple) : 0);
+  const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f, .2) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple, .2) : 0);   // dans vos listes : « vais-je l'aimer ? » compte le plus
   const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
   l = [...l].sort(by[so] || by.envie);
   return l;
@@ -3913,7 +3913,7 @@ async function deckMore(first = false) {
   const o = other(), t0 = tastes();
   const pending = first ? S.films.filter(f => f.status === 'a_voir' && o && T.wants(fVotes(f)[o]) && !fVotes(f)[S.me] && !fSeen(f, S.me)) : [];
   const pm = t0.me ? T.prefs(t0.me) : {}, po = t0.other ? T.prefs(t0.other) : {};
-  const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws };
+  const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws, cos: pm.cos };
   let more = [];
   try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys] })).results || []; } catch (e) { console.warn('deck', e); }
   // si l'autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s'il est déjà jugé par toi, on l'écarte
@@ -4167,7 +4167,7 @@ function cineSoir(kind = '') {
   const stage = box.querySelector('.roulette-stage');
   if (!pool.length) { stage.innerHTML = '<p class="ticket-sub">Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !</p>'; return; }
   const t = tastes();
-  const w = f => (fMatch(f) ? 3 : 1) * (S.members.some(m => fVotes(f)[m.email] === 'super') ? 2 : 1) * (f.status === 'en_cours' ? 2 : 1) * (fDispo(f) ? 2 : 1) * (t.other ? Math.exp(Math.max(-1.5, Math.min(1.5, T.scoreBoth(t.me, t.other, f, t.couple) / 3))) : 1);
+  const w = f => (fMatch(f) ? 3 : 1) * (S.members.some(m => fVotes(f)[m.email] === 'super') ? 2 : 1) * (f.status === 'en_cours' ? 2 : 1) * (fDispo(f) ? 2 : 1) * (t.other ? Math.exp(Math.max(-1.5, Math.min(1.5, T.scoreBoth(t.me, t.other, f, t.couple, .2) / 3))) : 1);
   const tot = pool.reduce((a, f) => a + w(f), 0); let x = Math.random() * tot, pick = pool[0];
   for (const f of pool) { x -= w(f); if (x <= 0) { pick = f; break; } }
   stage.innerHTML = `<div class="gacha r1" style="--k:#E7505A"><button type="button" class="gacha-cap" aria-label="Ouvrir la capsule"><span class="cap-top"></span><span class="cap-bot"></span><span class="cap-shine"></span></button><p class="gacha-hint">Touche la capsule !</p></div>`;

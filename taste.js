@@ -36,25 +36,59 @@ export function feats(f) {
   const rt = t.rt || f.runtime; if (rt && f.media === 'movie') { const b = rt < 95 ? 'court' : rt <= 135 ? 'moyen' : 'long'; add(m, 'rt:' + b, .4, RT[b], 'rt'); }
   if (t.bo && BO[t.bo]) add(m, 'bo:' + t.bo, .5, BO[t.bo], 'bo');
   if (t.cert) add(m, 'cert:' + t.cert, .3, '', 'cert');
-  add(m, 'm:' + f.media, .4, f.media === 'tv' ? 'les séries' : 'les films', 'media');
+  // le studio (Ghibli, A24…) dit beaucoup ; la saga, juste un peu (chaque film d'une saga reste jugé pour lui-même)
+  for (const c of t.co || []) add(m, 's:' + c.id, 1.2, c.name, 'studio');
+  if (t.col) add(m, 'col:' + t.col.id, .6, t.col.name, 'saga');
+  // films et séries ne se jugent pas pareil : le genre compte aussi « dans les séries » ou « dans les films »
+  add(m, 'm:' + f.media, .8, f.media === 'tv' ? 'les séries' : 'les films', 'media');
+  for (const g of f.gids || []) { const id = TV2M[g] || g; if (GENRES[id]) add(m, `gm:${id}:${f.media}`, .35, '', 'gm'); }
   return [...m].map(([k, [w, label, kind]]) => [k, w, label, kind]);
 }
 
 export const wants = v => v === 'oui' || v === 'super';
-// Ce qu'un film dit du goût de quelqu'un, de -2.5 (détesté) à +4 (coup de cœur adoré). Les avis anciens
+// Chacun note à sa façon : quelqu'un qui ne met presque jamais moins de 3 veut dire « décevant » par un 3.
+// On lit donc chaque note par rapport à la moyenne et à l'écart de la personne. Et comme les « bof » sont souvent
+// bien plus nombreux que les envies, leur poids total est ramené à celui des avis positifs.
+const STATS = {};
+export function stats(films, email) {
+  const rs = films.map(f => f.ratings?.[email]?.note).filter(Boolean);
+  const n = rs.length, mu = n ? rs.reduce((a, b) => a + b, 0) / n : 3;
+  const sd = n > 1 ? Math.sqrt(rs.reduce((a, b) => a + (b - mu) ** 2, 0) / (n - 1)) : 1.2;
+  let pos = 0, bof = 0;
+  for (const f of films) { const v = f.votes?.[email]; if (f.ratings?.[email]?.note) continue; if (wants(v)) pos++; else if (v === 'non') bof++; }
+  pos += rs.filter(r => r > mu).length;
+  const st = n >= 10 ? { mu, sd: Math.max(.6, sd), n } : { mu: 3, sd: 1.2, n };
+  st.bof = bof > pos * 1.5 ? (pos * 1.5) / bof : 1;
+  return (STATS[email] = st);
+}
+// Ce qu'un film dit du goût de quelqu'un, d'environ -3 (détesté) à +5 (coup de cœur adoré). Les avis anciens
 // comptent un peu moins que les récents (le goût bouge), mais jamais moins de la moitié.
-export function signal(f, email, now = Date.now()) {
+export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let w = 0;
-  if (r) w = (r - 3) * 1.25 + (r === 3 ? .15 : 0);
-  else if (v === 'super') w = 2;      // ⭐ très envie
-  else if (v === 'oui') w = 1;
-  else if (v === 'non') w = -.35;      // bof : pas intéressé, indifférent
+  if (r) w = Math.max(-3.2, Math.min(2.8, ((r - st.mu) / st.sd + .35) * 1.25));
+  else if (v === 'super') w = W.aSuper;      // ⭐ très envie
+  else if (v === 'oui') w = W.aOui;
+  else if (v === 'non') w = -W.aBof * st.bof;   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
   else if (v === 'beurk') w = -1.6;   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
-  const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || '');
-  if (w && at) w *= Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5)));
-  return w;
+  return w * age(f, email, now);
+}
+const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || ''); return at ? Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5))) : 1; };
+// Deux questions différentes : « est-ce que ça m'attire ? » (la curiosité, ce que Cinder demande) et « est-ce que
+// je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
+export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9 };   // réglés sur vos avis (v172)
+export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
+  const r = f.ratings?.[email]?.note, v = f.votes?.[email];
+  let c = 0;
+  if (r) c = .6 + .35 * (r - st.mu) / st.sd;
+  else if (f.seen?.[email]) c = .5;
+  else if (v === 'super') c = 2;
+  else if (v === 'oui') c = 1;
+  else if (v === 'non') c = -W.cBof * st.bof;   // bof : pas intéressé, pas curieux d'en savoir plus
+  else if (v === 'beurk') c = -1.6;
+  if ((f.coeur || []).includes(email)) c += 1;
+  return c * age(f, email, now);
 }
 // Le goût du couple : les films vus ensemble et notés par les deux, à la moyenne de vos deux notes.
 export function coupleSignal(f, a, b) {
@@ -66,42 +100,60 @@ export function coupleSignal(f, a, b) {
 export function rarity(list) {
   const df = new Map(); let n = 0;
   for (const f of list) { n++; for (const [k] of feats(f)) df.set(k, (df.get(k) || 0) + 1); }
-  return k => (k[0] === 'p' || k[0] === 'k') ? 1 + Math.log((1 + n) / (1 + (df.get(k) || 0))) * .5 : 1;
+  return k => /^(p|k|s|col):/.test(k) ? 1 + Math.log((1 + n) / (1 + (df.get(k) || 0))) * .5 : 1;
 }
 
 // manual : les réglages à la main { boost: {clé: libellé}, ban: {clé: libellé} } ; sig : pour le couple.
+// Un « bof » juge l'histoire et l'affiche, pas l'équipe : il pèse peu sur les réalisateurs, acteurs et studios
+// (on peut ne pas être curieux d'un film d'un cinéaste qu'on adore par ailleurs).
+const PEOPLE = new Set(['dir', 'crea', 'wri', 'comp', 'dop', 'cast', 'studio']);
 export function profile(films, email, idf = () => 1, manual = {}, sig = signal) {
-  const P = new Map(), N = new Map(), liked = new Map(); let n = 0, pos = 0, neg = 0;
-  const now = Date.now();
+  const P = new Map(), N = new Map(), C = new Map(), NC = new Map(), liked = new Map(); let n = 0, pos = 0, neg = 0;
+  const now = Date.now(), st = stats(films, email), solo = sig === signal;
+  const xs = [];
   for (const f of films) {
-    const w = sig(f, email, now); if (!w) continue;
-    n++; w > 0 ? pos++ : neg++;
+    const w = sig(f, email, now, st), c = solo ? curiosity(f, email, now, st) : 0; if (!w && !c) continue;
+    n++; (w || c) > 0 ? pos++ : neg++;
+    const bof = solo && !f.ratings?.[email]?.note && f.votes?.[email] === 'non';
+    if (f.note && f.ratings?.[email]?.note) xs.push([f.note - 6.8, w]);
     for (const [k, fw, label, kind] of feats(f)) {
-      P.set(k, (P.get(k) || 0) + w * fw * idf(k)); N.set(k, (N.get(k) || 0) + 1);
-      if (w >= 1.2 && (kind === 'dir' || kind === 'crea' || kind === 'comp' || kind === 'dop' || kind === 'wri' || kind === 'cast' || kind === 'kw')) { const l = liked.get(k) || []; if (l.length < 3) l.push(f.title); liked.set(k, l); }
+      const damp = bof && PEOPLE.has(kind) ? .35 : 1;
+      if (w) { P.set(k, (P.get(k) || 0) + w * damp * fw * idf(k)); N.set(k, (N.get(k) || 0) + 1); }
+      if (c) { C.set(k, (C.get(k) || 0) + c * damp * fw * idf(k)); NC.set(k, (NC.get(k) || 0) + 1); }
+      if (w >= 1.2 && (kind === 'studio' || kind === 'saga' || kind === 'dir' || kind === 'crea' || kind === 'comp' || kind === 'dop' || kind === 'wri' || kind === 'cast' || kind === 'kw')) { const l = liked.get(k) || []; if (l.length < 3) l.push(f.title); liked.set(k, l); }
     }
   }
   const Pn = new Map([...P].map(([k, v]) => [k, v / Math.sqrt(N.get(k) + 1)]));
+  const Cn = new Map([...C].map(([k, v]) => [k, v / Math.sqrt(NC.get(k) + 1)]));
   // une consigne explicite (« plus de ça », « jamais ça ») pèse plus que vingt avis
   for (const k of Object.keys(manual.boost || {})) Pn.set(k, Math.max(0, Pn.get(k) || 0) + 2.5);
   for (const k of Object.keys(manual.ban || {})) Pn.set(k, -6);
-  return { email, n, pos, neg, Pn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual };
+  // ton rapport à la note du public (TMDB) : appris sur tes propres notes, au lieu d'un bonus fixe
+  let beta = .25;
+  if (xs.length >= 15) { const mx = xs.reduce((a, [x]) => a + x, 0) / xs.length, my = xs.reduce((a, [, y]) => a + y, 0) / xs.length;
+    const cov = xs.reduce((a, [x, y]) => a + (x - mx) * (y - my), 0), vx = xs.reduce((a, [x]) => a + (x - mx) ** 2, 0);
+    if (vx > 0) beta = Math.max(-.15, Math.min(.45, (cov / vx) * .5)); }
+  for (const k of Object.keys(manual.boost || {})) Cn.set(k, Math.max(0, Cn.get(k) || 0) + 2.5);
+  for (const k of Object.keys(manual.ban || {})) Cn.set(k, -6);
+  return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, st };
 }
 
 // Le score d'un film pour quelqu'un : ses traits pondérés par le profil, la qualité (note TMDB), et un bonus
 // quand plusieurs films que vous aimez le recommandent (le plus proche d'un « ceux qui aiment ça ont adoré »).
-export function score(prof, f) {
-  const extra = (f.note ? (f.note - 6.8) * .25 : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0);
+// mix : 0 = seulement « vais-je l'aimer ? », 1 = seulement « est-ce que ça m'attire ? ».
+export function score(prof, f, mix = W.mix) {
+  const extra = (f.note ? (f.note - 6.8) * (prof?.beta ?? .25) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0);
   if (!prof || (!prof.n && !prof.ban?.size)) return extra;
-  let s = 0, norm = 0, banned = false;
-  for (const [k, fw] of feats(f)) { const w = fw * prof.idf(k); norm += w * w; s += w * (prof.Pn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
-  s = norm ? s / Math.sqrt(norm) : 0;
+  let a = 0, c = 0, norm = 0, banned = false;
+  const useC = prof.Cn?.size ? mix : 0;
+  for (const [k, fw] of feats(f)) { const w = fw * prof.idf(k); norm += w * w; a += w * (prof.Pn.get(k) || 0); if (useC) c += w * (prof.Cn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
+  const s = norm ? ((1 - useC) * a + useC * c) / Math.sqrt(norm) : 0;
   const conf = Math.min(1, prof.n / 25);
   return s * (.4 + .6 * conf) + extra - (banned ? 8 : 0);
 }
 // Pour vous deux : un film que l'un adore et que l'autre déteste n'est pas un bon choix commun.
 // Le goût du couple (vos notes communes) s'ajoute quand il y en a assez.
-export const scoreBoth = (a, b, f, c) => { const x = score(a, f), y = score(b, f); return Math.min(x, y) * .6 + (x + y) / 2 * .4 + (c?.n >= 3 ? score(c, f) * .3 : 0); };
+export const scoreBoth = (a, b, f, c, mix = W.mix) => { const x = score(a, f, mix), y = score(b, f, mix); return Math.min(x, y) * .6 + (x + y) / 2 * .4 + (c?.n >= 3 ? score(c, f, 0) * .3 : 0); };
 export const banned = (prof, f) => !!prof?.ban?.size && feats(f).some(([k]) => prof.ban.has(k));
 
 // La précision d'Azami : on cache une partie des notes, on devine, on compare (5 tours). Résultat : la part
@@ -114,7 +166,7 @@ export function accuracy(films, email, idf, manual = {}) {
   for (let k = 0; k < folds; k++) {
     const hide = new Set(rated.filter(f => f._fold === k));
     const p = profile(films.filter(f => !hide.has(f)), email, idf, manual);
-    for (const f of hide) pred.set(f, score(p, f));
+    for (const f of hide) pred.set(f, score(p, f, 0));
   }
   let ok = 0, all = 0;
   for (let i = 0; i < rated.length; i++) for (let j = i + 1; j < rated.length; j++) {
@@ -125,7 +177,7 @@ export function accuracy(films, email, idf, manual = {}) {
   return all ? { acc: ok / all, n: rated.length } : null;
 }
 
-const KIND_TXT = { dir: n => `De ${n}`, crea: n => `Créée par ${n}`, wri: n => `Écrit par ${n}`, comp: n => `Musique de ${n}`, dop: n => `Image de ${n}`, cast: n => `Avec ${n}` };
+const KIND_TXT = { dir: n => `De ${n}`, crea: n => `Créée par ${n}`, wri: n => `Écrit par ${n}`, comp: n => `Musique de ${n}`, dop: n => `Image de ${n}`, cast: n => `Avec ${n}`, studio: n => `Produit par ${n}`, saga: n => `La saga ${n}` };
 // Pourquoi Azami le propose : les deux traits qui comptent le plus, avec un film aimé en exemple.
 export function why(prof, f, max = 2) {
   if (!prof?.n) return [];
@@ -156,7 +208,7 @@ export function top(prof, films, { min = .3 } = {}) {
   const rows = [...prof.Pn].filter(([k]) => lab.has(k)).map(([k, v]) => [k, v, ...lab.get(k)]).filter(r => r[3] !== 'dec' || Math.abs(r[1]) > .9);
   const pick = (kinds, sign, m = 4) => rows.filter(r => kinds.includes(r[3]) && (sign > 0 ? r[1] > min : r[1] < -min)).sort((a, b) => sign * (b[1] - a[1])).slice(0, m);
   return {
-    people: pick(['dir', 'crea', 'comp', 'dop', 'wri', 'cast'], 1, 6), themes: pick(['kw'], 1, 5), genres: pick(['genre'], 1, 4), langs: pick(['lang', 'dec'], 1, 3),
+    people: pick(['dir', 'crea', 'comp', 'dop', 'wri', 'cast', 'studio'], 1, 6), themes: pick(['kw'], 1, 5), genres: pick(['genre'], 1, 4), langs: pick(['lang', 'dec'], 1, 3),
     dislikes: pick(['genre', 'kw', 'dir', 'crea', 'bo', 'rt'], -1, 4),
   };
 }
@@ -164,7 +216,7 @@ export function top(prof, films, { min = .3 } = {}) {
 export function prefs(prof) {
   const rows = [...prof.Pn];
   const best = (re, m, sign = 1) => rows.filter(([k, v]) => re.test(k) && sign * v > .2).sort((a, b) => sign * (b[1] - a[1])).slice(0, m).map(([k]) => k.split(':')[1]);
-  return { like: best(/^g:/, 3).map(Number), dislike: best(/^g:/, 2, -1).map(Number), langs: best(/^l:(?!en$)/, 2), people: best(/^p:/, 4).map(Number), kws: best(/^k:/, 4).map(Number) };
+  return { like: best(/^g:/, 3).map(Number), dislike: best(/^g:/, 2, -1).map(Number), langs: best(/^l:(?!en$)/, 2), people: best(/^p:/, 4).map(Number), kws: best(/^k:/, 4).map(Number), cos: best(/^s:/, 2).map(Number) };
 }
 
 const simKeys = f => new Set(feats(f).filter(([, , , kind]) => kind === 'dir' || kind === 'crea' || kind === 'kw').map(([k]) => k));
