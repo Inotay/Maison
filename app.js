@@ -1470,7 +1470,7 @@ const PROP_REACTIONS = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crach
 let propRun = null, lastHdScene = null;
 function stopPropSounds() {
   if (!propRun) return;
-  try { propRun.bus?.disconnect(); } catch {}
+  try { propRun.buses?.forEach(b => b.disconnect()); } catch {}
   propRun.io?.disconnect(); propRun.timers.forEach(clearTimeout); propRun = null;
 }
 function propEnter() {
@@ -1479,7 +1479,7 @@ function propEnter() {
   if (sc === lastHdScene) return;
   lastHdScene = sc; stopPropSounds();
   if (!sc || !PROP_SCENES[sc] || reducedMotion() || img.dataset.caresse || document.body.classList.contains('azami-away')) return;
-  const run = propRun = { timers: [], bus: null };
+  const run = propRun = { timers: [], buses: null };
   // Repartir du début : on charge la scène sous une nouvelle adresse, et on ne l'échange qu'une fois prête.
   const url = `${azamiSrc(sc)}?t=${Date.now()}`, pre = new Image(512, 512); pre.src = url;
   const go = () => {
@@ -1487,15 +1487,17 @@ function propEnter() {
     img.src = url;
     if (!SOUNDS || document.hidden || !audioCtx || audioCtx.state !== 'running') return;
     const c = audioCtx, t0 = c.currentTime + .03;
-    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run && run.seen > .3) meow(true, .45 * run.seen, 'eternue'); }, (at - c.currentTime) * 1000));
+    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run && run.seen > .3) meow(true, .2 * run.seen, 'eternue'); }, (at - c.currentTime) * 1000));
     run.seen = 1;
-    run.bus = scheduleBruits(c, [...ENTREE[sc], ...CUES[sc]], t0, .85, meowAt);
+    // Sons qu'on n'a pas demandés : discrets. Celui de l'arrivée sur la page un peu plus présent que la suite.
+    const VOL = [.4, .28];
+    run.buses = [scheduleBruits(c, ENTREE[sc], t0, VOL[0]), scheduleBruits(c, CUES[sc], t0, VOL[1], meowAt)];
     // Les sons s'effacent quand on descend dans la page et qu'Azami sort de l'écran (et reviennent si on remonte).
     if ('IntersectionObserver' in window) {
       run.io = new IntersectionObserver(([e]) => {
-        if (propRun !== run || !run.bus) return;
+        if (propRun !== run || !run.buses) return;
         run.seen = e.isIntersecting ? Math.min(1, e.intersectionRatio / .6) : 0;
-        run.bus.gain.setTargetAtTime(.85 * run.seen, c.currentTime, .12);
+        run.buses.forEach((b, i) => b.gain.setTargetAtTime(VOL[i] * run.seen, c.currentTime, .12));
       }, { threshold: [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1] });
       run.io.observe(img);
     }
@@ -1927,7 +1929,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v137</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v138</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
