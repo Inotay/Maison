@@ -1441,10 +1441,13 @@ function caresse(img) {
   let n; do { n = 1 + Math.floor(Math.random() * 3); } while (n === lastCaresse); lastCaresse = n;
   playOnImg(img, `caresse_${n}`, 2500);
 }
-// Trop de caresses : à force (8 touchers en 6 s), Azami donne deux coups de patte. Si on insiste encore
-// (5 touchers de plus dans les 10 s), elle crache et part bouder. Elle revient quand on rouvre l'app,
-// ou au bout d'une minute. Marche aussi pendant une visite.
-let petTimes = [], angryAt = 0, awayUntil = 0, awayTimer = null;
+// Trop de caresses : à force (8 touchers en 6 s), Azami donne un avertissement (coups de patte, griffure).
+// Après un petit temps de grâce, si on la retouche : deuxième avertissement ; encore une fois et elle crache
+// et part bouder. Si on la spamme juste après un avertissement, elle part directement. Si on la laisse
+// tranquille quelques secondes, tout se calme. Elle revient quand on rouvre l'app, ou au bout d'une minute.
+// Marche aussi pendant une visite.
+let petTimes = [], angryLevel = 0, angryAt = 0, lastPet = 0, awayUntil = 0, awayTimer = null;
+const GRACE = 1200, CALM = 5000;
 const reactSrc = id => reducedMotion() ? `azami/v44/reactions/statiques/${id}_statique.svg` : `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
 // Joue une réaction dans l'image d'Azami puis revient à sa scène (une seule à la fois : la dernière gagne).
 function playOnImg(img, id, ms, then) {
@@ -1456,32 +1459,48 @@ function playOnImg(img, id, ms, then) {
   setTimeout(() => { if (img.dataset.caresse !== tok) return; delete img.dataset.caresse; then ? then(back) : (img.src = back); }, ms);
 }
 const azamiAway = () => Date.now() < awayUntil;
+function azamiWarn(img, inVisit) {
+  angryLevel++; angryAt = Date.now();
+  haptic('heavy'); meow(true, .7, angryLevel > 1 ? 'grogne' : pick(['grogne', 'mrrr']));
+  setTimeout(() => scratchScreen(false), 380);
+  if (inVisit && visitCur) visitCur.hold = true;
+  playOnImg(img, 'attaque', 1750, back => { if (inVisit && visitCur) { visitCur.hold = false; visitImg(visitWaitImg(visitCur.v)); } else img.src = back; });
+}
+function azamiHiss(img, inVisit) {
+  angryLevel = 0; angryAt = Date.now(); petTimes = [];
+  haptic('heavy'); meow(true, .8, 'crache'); setTimeout(() => haptic('heavy'), 250);
+  setTimeout(() => scratchScreen(true), 900);
+  if (inVisit && visitCur) visitCur.hold = true;
+  playOnImg(img, 'crache', 1950, back => {
+    img.src = back;
+    azamiLeave();
+    if (inVisit) { if (visitCur) visitCur.hold = false; visitClose(); }
+  });
+}
+let petDecide = null;
 function azamiPet(img, inVisit = false) {
   const now = Date.now();
   if (azamiAway()) { toast('Azami boude. Elle reviendra bientôt.'); return true; }
+  if (angryLevel && now - lastPet > CALM) { angryLevel = 0; angryAt = 0; petTimes = []; }   // on l'a laissée tranquille : elle se calme
+  lastPet = now;
   petTimes = petTimes.filter(t => now - t < 6000); petTimes.push(now);
-  if (angryAt && now - angryAt < 10000 && petTimes.filter(t => t > angryAt + 1800).length >= 5) {
-    angryAt = 0; petTimes = [];
-    haptic('heavy'); meow(true, .8, 'crache'); setTimeout(() => haptic('heavy'), 250);
-    setTimeout(() => scratchScreen(true), 900);
-    if (inVisit && visitCur) visitCur.hold = true;
-    playOnImg(img, 'crache', 1950, back => {
-      img.src = back;
-      azamiLeave();
-      if (inVisit) { if (visitCur) visitCur.hold = false; visitClose(); }
-    });
-    return true;
+  if (!angryLevel) {
+    if (petTimes.filter(t => t > angryAt).length >= 8) { azamiWarn(img, inVisit); return true; }
+    return false;
   }
-  if (!angryAt && petTimes.length >= 8) {
-    angryAt = now; petTimes = [];
-    haptic('heavy'); meow(true, .7, pick(['grogne', 'mrrr']));
-    setTimeout(() => scratchScreen(false), 380);
-    if (inVisit && visitCur) visitCur.hold = true;
-    playOnImg(img, 'attaque', 1750, back => { if (inVisit && visitCur) { visitCur.hold = false; visitImg(visitWaitImg(visitCur.v)); } else img.src = back; });
-    return true;
+  if (now - angryAt < GRACE) return true;   // petit temps de grâce juste après l'avertissement
+  if (angryLevel >= 2) { clearTimeout(petDecide); petDecide = null; azamiHiss(img, inVisit); return true; }
+  // Premier avertissement déjà donné : on attend un instant pour voir si c'est un toucher ou du spam.
+  if (!petDecide) {
+    const from = now;
+    petDecide = setTimeout(() => {
+      petDecide = null;
+      if (azamiAway()) return;
+      const n = petTimes.filter(t => t >= from).length;
+      if (n >= 3) azamiHiss(img, inVisit); else azamiWarn(img, inVisit);
+    }, 650);
   }
-  if (angryAt && now - angryAt > 10000) angryAt = 0;
-  return false;
+  return true;
 }
 // Griffure sur l'écran : des rayures sur le « verre » du téléphone, qui restent jusqu'à ce qu'on ferme l'app.
 function scratchScreen(big = false) {
@@ -1859,7 +1878,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v133</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v134</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
