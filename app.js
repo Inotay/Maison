@@ -908,7 +908,7 @@ function calmBtn(x) {
 }
 const calmLate = x => x.late > 0 ? (x.late === 1 ? 'attend depuis hier' : `attend depuis ${x.late} jours`) : x.kind === 'task' && x.row.due_on ? relDay(x.row.due_on) : "aujourd'hui";
 const calmTitle = x => x.kind === 'chore' && /^vaisselle$/i.test(x.row.title.trim()) ? 'Vaisselle à la main' : x.row.title;
-function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
+function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && h.ask !== 'rappel' && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
 function calmSection() {
   const list = myPending(), o = overload(list), st = calmState();
   const todo0 = list.filter(x => x.p !== 'later');
@@ -944,16 +944,101 @@ function calmSection() {
   </section>`;
 }
 // Demandes d'aide reçues (et réponses à mes demandes) : en haut de la page Maison.
-function helpCards() {
-  const ask = { remplacer: 'Tu peux le faire à ma place ?', ensemble: 'On le fait ensemble ?', souffler: 'J’ai besoin de souffler un peu. Tu peux prendre le relais ?' };
-  const inbox = S.help.filter(h => h.to_email === S.me && !h.status && Date.now() - new Date(h.created_at).getTime() < 3 * DAY);
-  const answers = S.help.filter(h => h.from_email === S.me && h.status && h.answered_at && Date.now() - new Date(h.answered_at).getTime() < 12 * 3600000 && !S.helpSeen.has(h.id));
-  const ANS = { pris: 's’en occupe', ensemble: 'est d’accord pour le faire ensemble', non: 'ne peut pas tout de suite' };
-  return inbox.map(h => `<section class="help-card"><p class="calm-kicker">${esc(nameOf(h.from_email))} demande un coup de main</p>
-      ${h.label ? `<p class="help-what">${esc(h.label)}</p>` : ''}<p class="help-ask">${esc(ask[h.ask] || ask.remplacer)}</p>
-      <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="${h.ask === 'ensemble' ? 'ensemble' : 'pris'}">${h.ask === 'ensemble' ? 'OK, ensemble' : h.ask === 'souffler' ? 'J’arrive' : 'Je m’en occupe'}</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Pas maintenant</button></div></section>`).join('')
-    + answers.map(h => `<section class="help-card answer ${h.status}"><p><b>${esc(nameOf(h.to_email))}</b> ${ANS[h.status]}${h.label ? ` : ${esc(h.label)}` : ''}.</p><button class="link" data-action="help-seen" data-id="${h.id}">OK</button></section>`).join('');
+const HELP_ASK = { remplacer: 'Tu peux le faire à ma place ?', ensemble: 'On le fait ensemble ?', souffler: 'J’ai besoin de souffler un peu. Tu peux prendre le relais ?' };
+const HELP_ANS = { pris: 's’en occupe', ensemble: 'est d’accord pour le faire ensemble', non: 'ne peut pas tout de suite' };
+const RAPPEL_ANS = { pris: 's’en occupe', non: 'le fera un peu plus tard' };
+const helpRow = h => h.item_kind === 'task' ? S.tasks.find(x => x.id === h.item_id) : h.item_kind === 'chore' ? S.chores.find(x => x.id === h.item_id) : null;
+// Un rappel n'a plus lieu d'être quand la chose a été faite après son envoi.
+function helpItemDone(h) {
+  if (!h.item_id) return false;
+  const r = helpRow(h); if (!r) return true;
+  return h.item_kind === 'task' ? !!r.done : !!(r.last_done_at && new Date(r.last_done_at) > new Date(h.created_at));
 }
+function helpInbox() {
+  const list = S.help.filter(h => h.to_email === S.me && !h.status && Date.now() - new Date(h.created_at).getTime() < 3 * DAY && !(h.ask === 'rappel' && helpItemDone(h)))
+    .sort((x, y) => y.created_at.localeCompare(x.created_at));
+  // Plusieurs rappels pour la même chose : on n'en montre qu'un, le plus récent.
+  return list.filter((h, i) => h.ask !== 'rappel' || list.findIndex(x => x.ask === 'rappel' && x.item_id === h.item_id) === i);
+}
+const helpAnswers = () => S.help.filter(h => h.from_email === S.me && h.status && h.answered_at && Date.now() - new Date(h.answered_at).getTime() < 12 * 3600000 && !S.helpSeen.has(h.id));
+const helpAnsText = h => (h.ask === 'rappel' ? RAPPEL_ANS : HELP_ANS)[h.status] || 'a répondu';
+function helpCards() {
+  return helpInbox().map(h => h.ask === 'rappel'
+    ? `<section class="help-card rappel" id="help-${h.id}"><p class="calm-kicker">${esc(nameOf(h.from_email))} te fait penser à</p>
+      <p class="help-what">${esc(h.label || 'Une chose à faire')}</p>
+      <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="pris">J’y vais</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Plus tard</button></div></section>`
+    : `<section class="help-card" id="help-${h.id}"><p class="calm-kicker">${esc(nameOf(h.from_email))} demande un coup de main</p>
+      ${h.label ? `<p class="help-what">${esc(h.label)}</p>` : ''}<p class="help-ask">${esc(HELP_ASK[h.ask] || HELP_ASK.remplacer)}</p>
+      <div class="calm-actions"><button class="btn" data-action="help-answer" data-id="${h.id}" data-s="${h.ask === 'ensemble' ? 'ensemble' : 'pris'}">${h.ask === 'ensemble' ? 'OK, ensemble' : h.ask === 'souffler' ? 'J’arrive' : 'Je m’en occupe'}</button><button class="btn ghost" data-action="help-answer" data-id="${h.id}" data-s="non">Pas maintenant</button></div></section>`).join('')
+    + helpAnswers().map(h => `<section class="help-card answer ${h.status}" id="help-${h.id}"><p><b>${esc(nameOf(h.to_email))}</b> ${helpAnsText(h)}${h.label ? ` : ${esc(h.label)}` : ''}.</p><button class="link" data-action="help-seen" data-id="${h.id}">OK</button></section>`).join('');
+}
+
+// Rappeler à l'autre : un geste pour lui faire penser à une chose qui est à son tour (notification sur son téléphone).
+const BELL = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3.5a5 5 0 0 0-5 5v2.9c0 .9-.3 1.8-.9 2.5L5 15.3h14l-1.1-1.4a4 4 0 0 1-.9-2.5V8.5a5 5 0 0 0-5-5Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 18.2a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const BELL_OK = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5.5 12.5l4.2 4.2 8.8-9.2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const nudgeOf = id => S.help.find(h => h.ask === 'rappel' && h.item_id === id && h.from_email === S.me && !h.status && !helpItemDone(h) && Date.now() - new Date(h.created_at).getTime() < 12 * 3600000);
+const nudgeWho = (kind, row) => { const o = other(); const w = kind === 'chore' ? row.turn : row.assignee; return o && w === o ? o : null; };
+function nudgeBtn(kind, row, due) {
+  const o = nudgeWho(kind, row); if (!o || !due) return '';
+  const n = nudgeOf(row.id);
+  return `<button class="nudge ${n ? 'sent' : ''}" data-action="nudge" data-kind="${kind}" data-id="${row.id}" aria-label="${n ? `Rappel envoyé à ${esc(nameOf(o))} ${esc(ago(n.created_at))}` : `Rappeler à ${esc(nameOf(o))}`}">${n ? `${BELL_OK}<span>Rappelé</span>` : `${BELL}<span>Rappeler</span>`}</button>`;
+}
+const nudgeMenu = (kind, row) => { const o = nudgeWho(kind, row); return o ? `<button class="btn ghost small" data-action="nudge" data-kind="${kind}" data-id="${row.id}">Rappeler à ${esc(nameOf(o))}</button>` : ''; };
+
+// Petites notifications dans l'app : à l'ouverture et en direct (rappel, demande d'aide, réponse, petit mot).
+// Elles restent quelques secondes en haut ; un toucher ouvre le détail.
+const popQueue = []; let popOn = null;
+function popEvents() {
+  const out = [], now = Date.now();
+  const itemIcon = h => { const r = helpRow(h); return r ? iconHtml(displayIcon(h.item_kind === 'task' ? 'tasks' : 'chores', r)) : '<img class="ticon" src="icons/themes/care_besoin.webp" alt="" width="34" height="34">'; };
+  for (const h of helpInbox()) out.push({ id: 'h' + h.id, at: h.created_at, icon: itemIcon(h), title: h.ask === 'rappel' ? `${nameOf(h.from_email)} te fait penser à` : `${nameOf(h.from_email)} demande un coup de main`, body: h.ask === 'rappel' ? (h.label || 'Une chose à faire') : [h.label, HELP_ASK[h.ask]].filter(Boolean).join(' · '), go: { view: 'maison', el: `help-${h.id}` } });
+  for (const h of helpAnswers()) out.push({ id: 'a' + h.id, at: h.answered_at, icon: itemIcon(h), title: `${nameOf(h.to_email)} ${helpAnsText(h)}`, body: h.label || (h.ask === 'rappel' ? 'Ton rappel' : 'Ta demande d’aide'), go: { view: 'maison', el: `help-${h.id}` } });
+  if (S.view !== 'nuit') for (const c of S.care.filter(c => c.recipient === S.me && !c.read_at && now - new Date(c.created_at).getTime() < 3 * DAY)) {
+    const k = ['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(c.kind) ? c.kind : 'merci';
+    out.push({ id: 'c' + c.id, at: c.created_at, icon: `<img class="ticon" src="icons/themes/care_${k}.webp" alt="" width="34" height="34">`, title: `${careKind(c.kind) || 'Un mot'} de ${nameOf(c.author)}`, body: 'Touche pour l’ouvrir', go: { view: 'nuit', letter: c.id } });
+  }
+  return out.sort((x, y) => String(x.at).localeCompare(String(y.at)));
+}
+function popCheck() {
+  if (!S.me || !S.ready || S.recovery || document.getElementById('tour') || document.getElementById('cele')) return;
+  const seen = new Set((safeGet('maison-pop-vu') || '').split(',').filter(Boolean));
+  const fresh = popEvents().filter(e => !seen.has(e.id) && popOn?.id !== e.id && !popQueue.some(q => q.id === e.id));
+  if (!fresh.length) return;
+  fresh.forEach(e => seen.add(e.id)); safeSet('maison-pop-vu', [...seen].slice(-80).join(','));
+  // Beaucoup d'un coup : les deux premières, puis un résumé.
+  if (popQueue.length + fresh.length > 3) { const keep = fresh.slice(0, Math.max(0, 2 - popQueue.length)); const rest = fresh.length - keep.length; popQueue.push(...keep); if (rest > 0) popQueue.push({ id: 'sum', icon: iconHtml('chat'), title: `${rest} autre${rest > 1 ? 's' : ''} nouveauté${rest > 1 ? 's' : ''}`, body: 'Sur la page Maison', go: { view: 'maison' } }); }
+  else popQueue.push(...fresh);
+  if (!popOn) popNext();
+}
+function popBox() {
+  let b = document.getElementById('pop'); if (b) return b;
+  b = document.createElement('div'); b.id = 'pop'; b.setAttribute('role', 'status'); b.setAttribute('aria-live', 'polite');
+  b.addEventListener('click', e => { const t = e.target.closest('[data-pop]'); if (!t) return; if (t.dataset.pop === 'open') popOpen(); else popHide(); });
+  let y0 = null;
+  b.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+  b.addEventListener('touchmove', e => { if (y0 != null && e.touches[0].clientY - y0 < -24) { y0 = null; popHide(); } }, { passive: true });
+  document.body.appendChild(b); return b;
+}
+function popNext() {
+  const b = popBox(); const e = popQueue.shift();
+  if (!e) { b.classList.remove('on'); popOn = null; return; }
+  popOn = e;
+  b.innerHTML = `<button class="pop-card" data-pop="open">${e.icon}<span class="pop-txt"><b>${esc(e.title)}</b><span>${esc(e.body)}</span></span><span class="pop-go" aria-hidden="true">›</span></button><button class="pop-x" data-pop="x" aria-label="Fermer">×</button><span class="pop-bar"></span>`;
+  b.classList.remove('on'); void b.offsetWidth; b.classList.add('on'); haptic(1);
+  clearTimeout(popNext.t); popNext.t = setTimeout(popHide, 6000);
+}
+function popHide() { clearTimeout(popNext.t); const b = document.getElementById('pop'); if (b) b.classList.remove('on'); setTimeout(() => { if (!document.getElementById('pop')?.classList.contains('on')) popNext(); }, 380); }
+function popOpen() {
+  const e = popOn; if (!e) return; popHide();
+  const g = e.go || {};
+  closeTicket(); clearReaction();
+  S.view = g.view || 'maison'; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view);
+  if (g.letter) { S.openLetter = g.letter; const c = S.care.find(x => x.id === g.letter); if (c && !c.read_at) { c.read_at = new Date().toISOString(); api.rpc('care_mark_read', { msg: c.id }).catch(console.error); } }
+  render(); window.scrollTo(0, 0);
+  const el = g.el && document.getElementById(g.el);
+  if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+}
+
 function openHelp(kind, id) {
   const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
   const o = other(); if (!o) return;
@@ -1255,6 +1340,7 @@ function render() {
   maybeCoucou();
   afvCheck();
   helpAnswerCheck();
+  popCheck();
   if (!tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app);
 
@@ -1411,7 +1497,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v116</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v117</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -1556,10 +1642,10 @@ function viewTasks() {
     if (S.edit?.id === t.id) return `<li class="item editing">${editTask(t)}</li>`;
     return `<li class="item ${t.done ? (fresh.includes(t) ? 'done fresh' : 'done') : ''}" data-sid="${t.id}">
       <button class="tick" id="tick-${t.id}" role="checkbox" aria-checked="${t.done}" aria-label="Fait : ${esc(t.title)}" data-action="task-toggle" data-id="${t.id}"></button>
-      ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${late ? 'late' : ''}">${esc(meta.join(', '))}</div></div>
+      ${iconBtn('tasks', t)}<div class="item-main"><div class="item-title">${esc(t.title)}</div><div class="item-meta ${late ? 'late' : ''}">${esc(meta.join(', '))}</div>${t.done ? '' : nudgeBtn('task', t, t.due_on && dayDiff(new Date(t.due_on + 'T12:00'), new Date()) <= 0)}</div>
       <button class="more" id="more-${t.id}" aria-label="Options" aria-expanded="${S.open === t.id}" data-action="more" data-id="${t.id}">⋯</button>
       ${iconPicker('tasks', t)}
-      ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
+      ${S.open === t.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="tasks" data-id="${t.id}">Modifier</button>${t.done ? '' : nudgeMenu('task', t)}${who.filter(w => w[0] !== 'other' || other()).map(([k, l]) => `<button class="btn ghost small" data-action="task-assign" data-id="${t.id}" data-who="${k}">Pour ${k === 'me' ? 'moi' : k === 'nous' ? 'nous deux' : esc(l)}</button>`).join('')}<button class="btn ghost small" data-action="task-delete" data-id="${t.id}">Supprimer</button></div>` : ''}
     </li>`;
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
@@ -1719,10 +1805,10 @@ function plainRow(c) {
   const st = choreStatus(c);
   const who = !c.turn ? 'Qui veut' : c.fixed ? (c.turn === S.me ? 'Toujours toi' : `Toujours ${nameOf(c.turn)}`) : (c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`);
   const title = /^vaisselle$/i.test(c.title.trim()) ? 'À la main' : c.title;
-  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline"><span class="dot ${st.due ? 'dot-non' : 'dot-ok'}"></span></span>${esc(who)}, ${esc(st.label)}</div></div>
+  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline"><span class="dot ${st.due ? 'dot-non' : 'dot-ok'}"></span></span>${esc(who)}, ${esc(st.label)}</div>${nudgeBtn('chore', c, st.due)}</div>
     <div class="item-trail">${choreBtn(c)}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
     ${iconPicker('chores', c)}
-    ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}</li>`;
+    ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${nudgeMenu('chore', c)}${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}</li>`;
 }
 // Carte groupée : un en-tête repliable (icône, titre, résumé, pastilles) et ses lignes, même anatomie que Déchets.
 function groupCard({ id, icon, title, summary, dots, rows }) {
@@ -1797,13 +1883,13 @@ function viewMenage() {
       return `<div class="chore ${mine ? 'mine' : ''} ${st.late ? 'late' : ''}" data-sid="${c.id}">
         ${iconBtn('chores', c)}<div class="item-main"><div class="c-title">${esc(c.title)}</div>
           <div class="c-meta">${!c.turn ? 'Qui veut' : c.fixed ? (mine ? 'Toujours toi' : `Toujours ${esc(nameOf(c.turn))}`) : (mine ? 'À toi' : `À ${esc(nameOf(c.turn))}`)}, <span class="c-when">${esc(st.label)}</span></div>
-          <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div></div>
+          <div class="c-meta">${esc(freqLabel(c.every_days))}${weightLabel(c.weight) ? `, ${weightLabel(c.weight)}` : ''}${c.last_done_by ? `, dernière fois par ${esc(c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by))}` : ''}</div>${nudgeBtn('chore', c, st.due)}</div>
         <div class="item-trail">
           ${choreBtn(c)}
           <button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button>
         </div>
         ${iconPicker('chores', c)}
-        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
+        ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${nudgeMenu('chore', c)}${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
     }).join('')}</div>${chores.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une corvée pour la déplacer.</p>' : ''}` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
 
@@ -2411,6 +2497,17 @@ const actions = {
       async () => { for (const x of rest) await api.update(x.kind === 'task' ? 'tasks' : 'chores', { id: x.row.id }, { snooze_until: until }); }, 'Repoussé de 3 jours. On s’en occupe plus tard.');
   },
   'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
+  nudge: el => {
+    const kind = el.dataset.kind, id = el.dataset.id;
+    const row = kind === 'task' ? S.tasks.find(t => t.id === id) : S.chores.find(c => c.id === id);
+    const o = row && nudgeWho(kind, row); if (!o) return;
+    const n = nudgeOf(id);
+    if (n && Date.now() - new Date(n.created_at).getTime() < 3600000) { haptic(1); toast(`Déjà rappelé ${ago(n.created_at)}. ${nameOf(o)} a reçu la notification.`); return; }
+    const label = /^vaisselle$/i.test(row.title.trim()) ? 'Vaisselle à la main' : row.title;
+    haptic('medium'); S.open = null;
+    run(async () => { const r = await api.insert('help_requests', { from_email: S.me, to_email: o, item_kind: kind, item_id: id, label, ask: 'rappel' }); await pingHelp(r?.id); },
+      `Rappel envoyé à ${nameOf(o)}.`, 'nudge-' + id);
+  },
   'help-send': el => {
     const kind = el.dataset.kind || null, id = el.dataset.id || null;
     const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
@@ -2971,6 +3068,7 @@ async function boot() {
   if ('serviceWorker' in navigator) {
     // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
     let had = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'push' && S.me) scheduleRefresh(); });
     navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing() && !S.recovery && !/type=recovery/.test(location.hash)) location.reload(); had = true; });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if (notifOn()) setTimeout(() => { if (S.me && !DEMO) subscribePush(); }, 4000); }).catch(e => console.warn('sw', e));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });

@@ -186,9 +186,14 @@ async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
   const ASK: Record<string, string> = { remplacer: "Tu peux le faire à ma place ?", ensemble: "On le fait ensemble ?", souffler: "J'ai besoin de souffler. Tu peux prendre le relais ?" };
   const ANS: Record<string, string> = { pris: "s'en occupe", ensemble: "est d'accord pour le faire ensemble", non: "ne peut pas tout de suite" };
   const to = h.status ? h.from_email : h.to_email;
+  // Petit rappel envoyé à l'autre (« tu peux penser à… ») : même circuit, autres mots.
+  const rappel = h.ask === "rappel";
+  const ANS_R: Record<string, string> = { pris: "s'en occupe", non: "le fera un peu plus tard" };
   const payload = h.status
-    ? JSON.stringify({ title: `${name(h.to_email)} ${ANS[h.status] || "a répondu"}`, body: h.label || "Ta demande d'aide", tag: `aide-${h.id}`, url: "./?v=maison" })
-    : JSON.stringify({ title: `${name(h.from_email)} demande un coup de main`, body: [h.label, ASK[h.ask] || ASK.remplacer].filter(Boolean).join(" · "), tag: `aide-${h.id}`, url: "./?v=maison" });
+    ? JSON.stringify({ title: `${name(h.to_email)} ${(rappel ? ANS_R : ANS)[h.status] || "a répondu"}`, body: h.label || (rappel ? "Ton rappel" : "Ta demande d'aide"), tag: `aide-${h.id}`, url: "./?v=maison" })
+    : rappel
+      ? JSON.stringify({ title: `${name(h.from_email)} te fait penser à`, body: h.label || "Une chose à faire", tag: `rappel-${h.item_id || h.id}`, url: "./?v=maison" })
+      : JSON.stringify({ title: `${name(h.from_email)} demande un coup de main`, body: [h.label, ASK[h.ask] || ASK.remplacer].filter(Boolean).join(" · "), tag: `aide-${h.id}`, url: "./?v=maison" });
   const { data: subs } = await db.from("push_subscriptions").select("endpoint, email, sub").eq("email", to);
   if (!(subs ?? []).length) return { sent: 0 };
   const keys = await vapid(db);
