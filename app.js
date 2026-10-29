@@ -1742,7 +1742,8 @@ function uiMenu(anchor, items, cur, onPick, { title = '' } = {}) {
   menuClose();
   const wrap = document.createElement('div'); wrap.id = 'uimenu';
   if (anchor.closest('.cine')) wrap.classList.add('dark');
-  wrap.innerHTML = `<div class="ui-menu" role="menu" aria-label="${esc(title)}">${title ? `<p class="ui-menu-t">${esc(title)}</p>` : ''}${items.map(([k, lab]) => `<button type="button" role="menuitemradio" aria-checked="${k === cur}" data-k="${esc(k)}"><span class="um-check" aria-hidden="true">${k === cur ? '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>${esc(lab)}</button>`).join('')}</div>`;
+  const on = k => Array.isArray(cur) ? cur.includes(k) : k === cur;
+  wrap.innerHTML = `<div class="ui-menu" role="menu" aria-label="${esc(title)}">${title ? `<p class="ui-menu-t">${esc(title)}</p>` : ''}${items.map(it => it.h ? `<p class="ui-menu-t">${esc(it.h)}</p>` : it).map(it => typeof it === 'string' ? it : (([k, lab]) => `<button type="button" role="menuitemradio" aria-checked="${on(k)}" data-k="${esc(k)}"><span class="um-check" aria-hidden="true">${on(k) ? '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>${esc(lab)}</button>`)(it)).join('')}</div>`;
   document.body.appendChild(wrap);
   const menu = wrap.firstElementChild, r = anchor.getBoundingClientRect(), mw = Math.max(r.width, 190);
   menu.style.minWidth = mw + 'px';
@@ -2348,7 +2349,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v170</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v171</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3504,11 +3505,13 @@ function cineCard(f) {
 }
 const SPACE_KEY = 'maison-cine-space';
 // Filtrer et trier une grille d'affiches ; on n'en montre que 30 à la fois.
-const CF = [['', 'Tout'], ['chez', '✓ Chez vous'], ['court', 'Moins de 2 h'], ['film', 'Films'], ['serie', 'Séries']];
+const CF = [['', 'Tout'], ['chez', 'Chez vous'], ['court', 'Moins de 2 h']];
+const CM = [['', 'Films et séries'], ['film', 'Films'], ['serie', 'Séries']];
 const CS = [['envie', 'Envie'], ['recent', 'Récents'], ['note', 'Note'], ['duree', 'Durée']];
 function cineFilter(list, who) {
   const fl = S.cineF || '', so = S.cineS || 'envie', t = tastes(), p = who === 'nous' ? null : t.by[who === 'moi' ? S.me : other()];
-  let l = list.filter(f => !fl || (fl === 'chez' ? fDispo(f) : fl === 'court' ? f.media === 'movie' && (f.runtime || f.traits?.rt || 999) <= 120 : fl === 'film' ? f.media === 'movie' : f.media === 'tv'));
+  const md = S.cineM || '';
+  let l = list.filter(f => (!fl || (fl === 'chez' ? fDispo(f) : f.media === 'movie' && (f.traits?.rt || f.runtime || 999) <= 120)) && (!md || (md === 'film' ? f.media === 'movie' : f.media === 'tv')));
   const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple) : 0);
   const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
   l = [...l].sort(by[so] || by.envie);
@@ -3516,8 +3519,9 @@ function cineFilter(list, who) {
 }
 function cineGrid(list, who) {
   const l = cineFilter(list, who), max = S.cineMore === who ? 400 : 30;
-  const bar = list.length > 6 ? `<div class="cine-filt"><div class="chips mini">${CF.map(([k, lab]) => `<button type="button" data-action="cine-f" data-k="${k}" aria-pressed="${(S.cineF || '') === k}">${lab}</button>`).join('')}</div>
-    <button type="button" class="cine-sortb" data-action="cine-sort" aria-haspopup="menu" aria-label="Trier">${(CS.find(([k]) => k === (S.cineS || 'envie')) || CS[0])[1]}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>` : '';
+  const so = (CS.find(([k]) => k === (S.cineS || 'envie')) || CS[0])[1], md = CM.find(([k]) => k === (S.cineM || ''));
+  const bar = list.length > 6 ? `<div class="cine-filt"><div class="cine-seg" role="group" aria-label="Filtrer">${CF.map(([k, lab]) => `<button type="button" data-action="cine-f" data-k="${k}" aria-pressed="${(S.cineF || '') === k}">${lab}</button>`).join('')}</div>
+    <button type="button" class="cine-sortb${S.cineM ? ' on' : ''}" data-action="cine-sort" aria-haspopup="menu" aria-label="Afficher et trier : ${esc(S.cineM ? md[1] + ', ' : '')}${esc(so)}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><circle cx="16" cy="7" r="2.3" fill="none" stroke="currentColor" stroke-width="2.2"/><circle cx="10" cy="17" r="2.3" fill="none" stroke="currentColor" stroke-width="2.2"/></svg><span>${esc(S.cineM ? md[1] : so)}</span></button></div>` : '';
   if (!l.length) return bar + '<p class="hint cine-empty">Rien avec ce filtre.</p>';
   return `${bar}<ul class="cine-grid">${l.slice(0, max).map(f => cineTile(f, who)).join('')}</ul>${l.length > max ? `<button class="btn ghost wide cine-more" data-action="cine-more" data-w="${who}">Voir les ${l.length - max} autres</button>` : ''}`;
 }
@@ -4320,7 +4324,7 @@ const actions = {
     try { const t = x.title.replace(/\s*\((19|20)\d{2}\)\s*/, ' ').trim(); const r = DEMO ? { results: FILM_DEMO.filter(f => nt(f.title) === nt(t)) } : await filmsCall({ action: 'resolve', items: [{ title: t.split(' (')[0], media: 'movie', year: x.year }] }); const d = r.results?.[0];
       const saved = await filmVote(d?.tmdb_id ? d : { title: t, media: 'movie', year: x.year || null }, 'oui', false); toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter.'); el.disabled = false; } },
   'taste-test': () => deckOpen('test'),
-  'cine-sort': el => uiMenu(el, CS, S.cineS || 'envie', k => { S.cineS = k; S.cineMore = null; render(); }, { title: 'Trier par' }),
+  'cine-sort': el => uiMenu(el, [{ h: 'Afficher' }, ...CM.map(([k, l]) => ['m:' + k, l]), { h: 'Trier par' }, ...CS.map(([k, l]) => ['s:' + k, l])], ['m:' + (S.cineM || ''), 's:' + (S.cineS || 'envie')], k => { const [g, v] = [k.slice(0, 1), k.slice(2)]; if (g === 'm') S.cineM = v; else S.cineS = v; S.cineMore = null; render(); }),
   'pk-open': el => pickOpen(el),
   'gout-kind': el => { S.goutKind = el.dataset.k; el.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); document.getElementById('gout-t')?.focus(); },
   'cine-f': el => { S.cineF = el.dataset.k; S.cineMore = null; haptic(1); render(); },
