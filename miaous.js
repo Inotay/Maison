@@ -18,6 +18,7 @@ export const MEOW_KINDS = {
   mewmew: 'Mew mew',
   eternue: 'Atchi !',
   ronronmrr: 'Ronron puis mrr',
+  crache: 'Crache (hiss)',
 };
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -100,6 +101,16 @@ export function playMeow(c, kind = 'miaou', volume = .6) {
     case 'baille': return voice(c, out, t, { pts: [[0, 420], [.25, 560], [1, 260]], dur: rnd(.9, 1.2), vol: .11, form: [1200, 900, 500], q: 2, breath: .07 });
     case 'gazouille': { let at = t; const n = 4 + Math.floor(Math.random() * 3); for (let i = 0; i < n; i++) at = voice(c, out, at, { pts: [[0, rnd(850, 1000)], [1, rnd(1150, 1400)]], dur: rnd(.05, .075), vol: .13, form: [2600, 2900, 2500], breath: 0 }) + rnd(.03, .06); return at; }
     case 'mewmew': { const e = voice(c, out, t, { pts: [[0, 880], [.4, 1080], [1, 760]], dur: rnd(.18, .24), vol: .12, form: [2700, 2000, 1400] }); return voice(c, out, e + rnd(.1, .18), { pts: [[0, 820], [.4, 1000], [1, 700]], dur: rnd(.2, .28), vol: .12, form: [2600, 1900, 1300] }); }
+    case 'crache': {   // petit « k » puis un long souffle aigu
+      const mk = (dur, f, q, v, at, shape = 2) => { const len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+        for (let i = 0; i < len; i++) { const x = i / len; d[i] = (Math.random() * 2 - 1) * Math.min(1, x * 25) * Math.pow(1 - x, shape); }
+        const n = c.createBufferSource(), bp = c.createBiquadFilter(), hp = c.createBiquadFilter(), g = c.createGain(); n.buffer = buf;
+        bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; hp.type = 'highpass'; hp.frequency.value = 1800; g.gain.value = v;
+        n.connect(bp); bp.connect(hp); hp.connect(g); g.connect(out); n.start(at); };
+      mk(.03, 3000, .6, .5, t, 4);
+      mk(rnd(.6, .8), rnd(4200, 5200), .7, .35, t + .04, 1.2);
+      return t + .85;
+    }
     case 'eternue': {
       const len = Math.floor(c.sampleRate * .16), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.5);

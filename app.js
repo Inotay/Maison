@@ -1136,6 +1136,7 @@ function visitPick(doneToday) {
 }
 function visitMaybe() {
   if (!S.me) return;
+  if (azamiAway()) { setTimeout(visitMaybe, 15000); return; }
   if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { setTimeout(visitMaybe, 1500); return; }
   const st = visitState(); const today = isoDate(new Date());
   if (st.pending) { visitInvite(); return; }
@@ -1152,6 +1153,7 @@ function visitMaybe() {
 }
 // L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
 function visitInvite(fresh) {
+  if (azamiAway()) return;
   const st = visitState(); const v = VISITES.find(x => x.id === st.pending);
   let el = document.getElementById('visite-invite');
   if (!v) { el?.remove(); return; }
@@ -1186,6 +1188,7 @@ function visitOpen(id, replay = false) {
   visitCur = { v, replay, box, turn: 0, score: 0, turns: turnsOf(v) };
   visitFollow(box.querySelector('.visite-talk'));
   box.addEventListener('click', e => {
+    if (e.target.closest('.visite-azami')) { if (!azamiPet(e.target.closest('.visite-azami'), true) && !visitCur?.hold) meow(true, .5, Math.random() < .5 ? pick(['ronron', 'ronronmrr']) : null); return; }
     const b = e.target.closest('[data-v]');
     if (!b) { if (visitCur?.typing) visitCur.skip = true; return; }
     if (b.dataset.v === 'choice') visitChoose(Number(b.dataset.i));
@@ -1211,7 +1214,7 @@ function visitTurn() {
   visitImg(visitTalkImg(visitCur.v));
   visitSay(t.lines, () => visitChoices());
 }
-const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
+const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img || visitCur.hold) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
 // Les répliques s'écrivent lettre par lettre (toucher la carte pour aller plus vite).
 async function visitSay(lines, done, who = 'az') {
   const cur = visitCur; const talk = cur.box.querySelector('.visite-talk');
@@ -1436,10 +1439,63 @@ let lastCaresse = 0;
 function caresse(img) {
   if (!img || img.dataset.caresse) return;
   let n; do { n = 1 + Math.floor(Math.random() * 3); } while (n === lastCaresse); lastCaresse = n;
-  const back = img.src; img.dataset.caresse = '1';
-  img.src = reducedMotion() ? `azami/v44/reactions/statiques/caresse_${n}_statique.svg` : `azami/v44/reactions/caresse_${n}_anime.svg?${Date.now()}`;
-  setTimeout(() => { img.src = back; delete img.dataset.caresse; }, 2500);
+  playOnImg(img, `caresse_${n}`, 2500);
 }
+// Trop de caresses : à force (8 touchers en 6 s), Azami donne deux coups de patte. Si on insiste encore
+// (5 touchers de plus dans les 10 s), elle crache et part bouder. Elle revient quand on rouvre l'app,
+// ou au bout d'une minute. Marche aussi pendant une visite.
+let petTimes = [], angryAt = 0, awayUntil = 0, awayTimer = null;
+const reactSrc = id => reducedMotion() ? `azami/v44/reactions/statiques/${id}_statique.svg` : `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
+// Joue une réaction dans l'image d'Azami puis revient à sa scène (une seule à la fois : la dernière gagne).
+function playOnImg(img, id, ms, then) {
+  if (!img) return;
+  const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
+  const back = sc ? azamiSrc(sc) : (img.dataset.back || img.src);
+  if (!img.dataset.caresse) img.dataset.back = img.src;
+  const tok = String(Math.random()); img.dataset.caresse = tok; img.src = reactSrc(id);
+  setTimeout(() => { if (img.dataset.caresse !== tok) return; delete img.dataset.caresse; then ? then(back) : (img.src = back); }, ms);
+}
+const azamiAway = () => Date.now() < awayUntil;
+function azamiPet(img, inVisit = false) {
+  const now = Date.now();
+  if (azamiAway()) { toast('Azami boude. Elle reviendra bientôt.'); return true; }
+  petTimes = petTimes.filter(t => now - t < 6000); petTimes.push(now);
+  if (angryAt && now - angryAt < 10000 && petTimes.filter(t => t > angryAt + 1800).length >= 5) {
+    angryAt = 0; petTimes = [];
+    haptic('heavy'); meow(true, .8, 'crache'); setTimeout(() => haptic('heavy'), 250);
+    if (inVisit && visitCur) visitCur.hold = true;
+    playOnImg(img, 'crache', 1950, back => {
+      img.src = back;
+      azamiLeave();
+      if (inVisit) { if (visitCur) visitCur.hold = false; visitClose(); }
+    });
+    return true;
+  }
+  if (!angryAt && petTimes.length >= 8) {
+    angryAt = now; petTimes = [];
+    haptic('heavy'); meow(true, .7, pick(['grogne', 'mrrr']));
+    if (inVisit && visitCur) visitCur.hold = true;
+    playOnImg(img, 'attaque', 1750, back => { if (inVisit && visitCur) { visitCur.hold = false; visitImg(visitWaitImg(visitCur.v)); } else img.src = back; });
+    return true;
+  }
+  if (angryAt && now - angryAt > 10000) angryAt = 0;
+  return false;
+}
+function azamiLeave() {
+  awayUntil = Date.now() + 60000;
+  document.body.classList.add('azami-away');
+  toast('Azami est partie bouder.');
+  clearTimeout(awayTimer); awayTimer = setTimeout(azamiBack, 60000);
+}
+function azamiBack() {
+  if (!document.body.classList.contains('azami-away')) return;
+  awayUntil = 0; clearTimeout(awayTimer);
+  document.body.classList.remove('azami-away');
+  const img = document.querySelector('.hd img.azami');
+  if (img) playOnImg(img, 'retour', 1600);
+  meow(true, .5, pick(['mrrr', 'question']));
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && document.body.classList.contains('azami-away')) setTimeout(azamiBack, 400); });
 // Ma demande d'aide a été prise par l'autre : Azami le montre une fois par réponse.
 function helpAnswerCheck() {
   if (S.view !== 'maison' || !S.me || !S.help?.length) return;
@@ -1781,7 +1837,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v128</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v129</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3126,7 +3182,7 @@ const actions = {
   'care-delete': el => { if (confirm('Retirer ce mot de sa boîte ?')) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(el.querySelector('img.azami')); },
+  meow: el => { const img = el.querySelector('img.azami'); if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); },
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();

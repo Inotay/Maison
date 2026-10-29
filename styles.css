@@ -1112,3 +1112,8 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 .carnet-kind { font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .carnet-txt { font-size: 15px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .vi-bubble, .bubble.me, .visite-choices .btn { animation: none; } }
+
+/* Azami boude : elle a quitté l'écran (en-têtes et invitation), elle revient en trottinant. */
+body.azami-away .azami-btn img.azami, body.azami-away #visite-invite { opacity: 0; pointer-events: none; transition: opacity .2s; }
+body.azami-away .azami-btn { cursor: default; }
+.visite-azami { cursor: pointer; }
