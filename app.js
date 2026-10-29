@@ -1613,6 +1613,153 @@ function morphChildren(from, to) {
   }
   while (a) { const n = a.nextSibling; if (!(a.nodeType === 1 && a.classList.contains('hap'))) from.removeChild(a); a = n; }
 }
+// ── Nos propres choix : menus, dates, heures et confirmations, dessinés par la maison (jamais les boîtes du téléphone) ──
+const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+const PK_IC = {
+  date: '<svg viewBox="0 0 24 24" width="18" height="18"><rect x="3.5" y="5" width="17" height="15" rx="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+  time: '<svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
+};
+// Les champs date et heure des gabarits deviennent un bouton maison + la valeur cachée (même id, même name).
+function deNative(html) {
+  return html.replace(/<input\b([^>]*?)\btype="(date|time)"([^>]*)>/g, (m, a, t, b) => {
+    const at = a + b, id = at.match(/\bid="([^"]+)"/)?.[1]; if (!id) return m;
+    const req = /\srequired\b/.test(at);
+    const rest = at.replace(/\srequired\b/, '').replace(/\sclass="[^"]*"/, '');
+    return `<button type="button" class="field pickf" data-action="pk-open" data-for="${id}" data-pk="${t}"${req ? ' data-req="1"' : ''}><span class="pk-ic" aria-hidden="true">${PK_IC[t]}</span><span class="pk-v"></span></button><input type="text" hidden tabindex="-1" data-pk="${t}"${rest}>`;
+  });
+}
+const pkDate = v => { const [y, m, d] = String(v).split('-').map(Number); return new Date(y, m - 1, d); };
+function pkLabel(t, v) {
+  if (!v) return t === 'date' ? 'Choisir une date' : 'Pas d’heure';
+  if (t === 'time') { const [h, mi] = v.split(':'); return `${Number(h)} h ${mi}`; }
+  const d = pkDate(v), now = new Date(), diff = Math.round((d - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 864e5);
+  const rel = diff === 0 ? 'Aujourd’hui · ' : diff === 1 ? 'Demain · ' : diff === -1 ? 'Hier · ' : '';
+  const t2 = `${rel}${JOURS[d.getDay()].slice(0, rel ? 3 : 9)}${rel ? '.' : ''} ${d.getDate()} ${MOIS[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ' ' + d.getFullYear() : ''}`;
+  return t2[0].toUpperCase() + t2.slice(1);
+}
+function pickSync(root = document) {
+  root.querySelectorAll('.pickf').forEach(b => {
+    const inp = document.getElementById(b.dataset.for); if (!inp) return;
+    const v = b.querySelector('.pk-v'), lab = pkLabel(b.dataset.pk, inp.value);
+    if (v.textContent !== lab) v.textContent = lab;
+    b.classList.toggle('empty', !inp.value);
+  });
+}
+// Une feuille qui monte du bas (même famille que le ticket de caisse), sombre quand on est dans le ciné.
+function uiSheet(html, { from, label = '', cls = '' } = {}) {
+  uiClose(true);
+  const box = document.createElement('div'); box.id = 'uisheet';
+  if (from?.closest?.('.cine, .fsheet, #deck')) box.classList.add('dark');
+  box.innerHTML = `<div class="ui-card ${cls}" role="dialog" aria-modal="true" aria-label="${esc(label)}"><div class="ui-grab" aria-hidden="true"></div>${html}</div>`;
+  document.body.appendChild(box);
+  box.addEventListener('click', e => { if (e.target === box) uiClose(); });
+  requestAnimationFrame(() => box.classList.add('on'));
+  haptic(1);
+  return box;
+}
+function uiClose(now) {
+  const b = document.getElementById('uisheet'); if (!b) return;
+  b._done?.(false); b._done = null; b.id = '';
+  if (now) { b.remove(); return; }
+  b.classList.remove('on'); setTimeout(() => b.remove(), 280);
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && (document.getElementById('uisheet') || document.getElementById('uimenu'))) { e.preventDefault(); uiClose(); menuClose(); } });
+
+function pickOpen(btn) {
+  const inp = document.getElementById(btn.dataset.for); if (!inp) return;
+  const t = btn.dataset.pk, req = !!btn.dataset.req;
+  const title = document.querySelector(`label[for="${btn.dataset.for}"]`)?.textContent.replace(/\s*\(.*\)$/, '') || (t === 'date' ? 'Date' : 'Heure');
+  const set = v => { inp.value = v; inp.dispatchEvent(new Event('input', { bubbles: true })); inp.dispatchEvent(new Event('change', { bubbles: true })); pickSync(); haptic(1); };
+  if (t === 'date') return dateSheet(btn, title, inp.value, req, v => { set(v); uiClose(); });
+  timeSheet(btn, title, inp.value, req, v => { set(v); uiClose(); });
+}
+function dateSheet(from, title, value, req, done) {
+  const today = isoDate(new Date());
+  let cur = value ? pkDate(value) : new Date(); cur = new Date(cur.getFullYear(), cur.getMonth(), 1);
+  const box = uiSheet('<div class="ui-body"></div>', { from, label: title, cls: 'ui-cal' });
+  const body = box.querySelector('.ui-body');
+  const draw = () => {
+    const y = cur.getFullYear(), m = cur.getMonth(), first = (new Date(y, m, 1).getDay() + 6) % 7, n = new Date(y, m + 1, 0).getDate();
+    let cells = ''; for (let i = 0; i < first; i++) cells += '<span></span>';
+    for (let d = 1; d <= n; d++) { const iso = isoDate(new Date(y, m, d)); cells += `<button type="button" data-d="${iso}" class="${iso === today ? 'today' : ''}" aria-pressed="${iso === value}">${d}</button>`; }
+    const tmw = isoDate(new Date(Date.now() + 864e5));
+    body.innerHTML = `<p class="ui-title">${esc(title)}</p>
+      <div class="cal-head"><button type="button" class="cal-nav" data-m="-1" aria-label="Mois précédent"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button><b>${MOIS[m]} ${y}</b><button type="button" class="cal-nav" data-m="1" aria-label="Mois suivant"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+      <div class="cal-dow" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="cal-days">${cells}</div>
+      <div class="ui-quick"><button type="button" data-d="${today}">Aujourd’hui</button><button type="button" data-d="${tmw}">Demain</button>${req ? '' : '<button type="button" data-d="" class="ui-clear">Sans date</button>'}</div>`;
+  };
+  draw();
+  body.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.m) { cur = new Date(cur.getFullYear(), cur.getMonth() + Number(b.dataset.m), 1); haptic(1); draw(); return; }
+    if ('d' in b.dataset) done(b.dataset.d);
+  });
+  // glisser à gauche ou à droite pour changer de mois
+  let sx = null; body.addEventListener('pointerdown', e => { sx = e.clientX; });
+  body.addEventListener('pointerup', e => { if (sx == null) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 50) { cur = new Date(cur.getFullYear(), cur.getMonth() + (dx < 0 ? 1 : -1), 1); haptic(1); draw(); } });
+}
+function timeSheet(from, title, value, req, done) {
+  let [h, mi] = value ? value.split(':').map(Number) : [20, 0];
+  const box = uiSheet('<div class="ui-body"></div>', { from, label: title, cls: 'ui-time' });
+  const body = box.querySelector('.ui-body');
+  const two = n => String(n).padStart(2, '0');
+  const draw = () => {
+    body.innerHTML = `<p class="ui-title">${esc(title)}</p>
+      <p class="tm-big"><b>${h}</b><span>h</span><b>${two(mi)}</b></p>
+      <p class="chip-label">Heure</p><div class="tm-grid h">${Array.from({ length: 24 }, (_, i) => (i + 6) % 24).map(i => `<button type="button" data-h="${i}" aria-pressed="${i === h}">${i}</button>`).join('')}</div>
+      <p class="chip-label">Minutes</p><div class="tm-grid m">${Array.from({ length: 12 }, (_, i) => i * 5).map(i => `<button type="button" data-mi="${i}" aria-pressed="${i === mi}">${two(i)}</button>`).join('')}</div>
+      <div class="form-actions">${req ? '' : '<button type="button" class="btn ghost" data-x="1">Sans heure</button>'}<button type="button" class="btn" data-ok="1">C’est bon</button></div>`;
+  };
+  draw();
+  body.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.h) { h = Number(b.dataset.h); haptic(1); draw(); }
+    else if (b.dataset.mi) { mi = Number(b.dataset.mi); haptic(1); draw(); }
+    else if (b.dataset.x) done('');
+    else if (b.dataset.ok) done(`${two(h)}:${two(mi)}`);
+  });
+}
+// Confirmer : une carte à nous, au centre. Renvoie une promesse (true si on confirme).
+function uiAsk(text, { title = '', ok = 'Oui', cancel = 'Annuler', danger = false, from } = {}) {
+  return new Promise(res => {
+    const box = uiSheet(`${title ? `<p class="ui-title">${esc(title)}</p>` : ''}<p class="ui-text">${esc(text)}</p>
+      <div class="form-actions"><button type="button" class="btn ghost" data-no="1">${esc(cancel)}</button><button type="button" class="btn ${danger ? 'danger' : ''}" data-yes="1">${esc(ok)}</button></div>`, { from: from || document.activeElement, label: title || text, cls: 'ui-ask' });
+    box.classList.add('center');
+    box._done = res;
+    box.querySelector('.ui-card').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      const yes = !!b.dataset.yes; if (!b.dataset.yes && !b.dataset.no) return;
+      box._done = null; res(yes); uiClose();
+    });
+    setTimeout(() => box.querySelector('[data-yes]')?.focus({ preventScroll: true }), 60);
+  });
+}
+// Menu déroulant maison, accroché sous le bouton qui l'ouvre.
+function menuClose() { const m = document.getElementById('uimenu'); if (!m) return; m.id = ''; m.classList.remove('on'); setTimeout(() => m.remove(), 180); }
+function uiMenu(anchor, items, cur, onPick, { title = '' } = {}) {
+  menuClose();
+  const wrap = document.createElement('div'); wrap.id = 'uimenu';
+  if (anchor.closest('.cine')) wrap.classList.add('dark');
+  wrap.innerHTML = `<div class="ui-menu" role="menu" aria-label="${esc(title)}">${title ? `<p class="ui-menu-t">${esc(title)}</p>` : ''}${items.map(([k, lab]) => `<button type="button" role="menuitemradio" aria-checked="${k === cur}" data-k="${esc(k)}"><span class="um-check" aria-hidden="true">${k === cur ? '<svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}</span>${esc(lab)}</button>`).join('')}</div>`;
+  document.body.appendChild(wrap);
+  const menu = wrap.firstElementChild, r = anchor.getBoundingClientRect(), mw = Math.max(r.width, 190);
+  menu.style.minWidth = mw + 'px';
+  const left = Math.min(Math.max(12, r.right - mw), innerWidth - mw - 12);
+  menu.style.left = left + 'px';
+  const below = r.bottom + 6, h = menu.offsetHeight;
+  menu.style.top = (below + h > innerHeight - 80 ? Math.max(12, r.top - h - 6) : below) + 'px';
+  menu.style.transformOrigin = below + h > innerHeight - 80 ? 'bottom right' : 'top right';
+  wrap.addEventListener('click', e => {
+    const b = e.target.closest('button[data-k]');
+    if (b) { haptic(1); onPick(b.dataset.k); }
+    menuClose();
+  });
+  requestAnimationFrame(() => wrap.classList.add('on'));
+  haptic(1);
+  menu.querySelector('[aria-checked="true"]')?.focus({ preventScroll: true });
+}
 function morph(root, html) {
   const tpl = document.createElement('template'); tpl.innerHTML = html;
   if (!root.firstChild) { root.appendChild(tpl.content); return; }
@@ -2007,7 +2154,7 @@ function render() {
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${guideHint()}`);
-  morph($app, demoBar() + page + timersBar() + nav());
+  morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
   cookSave();
   propEnter();
@@ -2031,6 +2178,7 @@ function render() {
     if (!el) continue;
     if (el.type === 'checkbox') el.checked = v; else el.value = v;
   }
+  pickSync($app);
   if (focusId) {
     const el = document.getElementById(focusId);
     el?.focus({ preventScroll: true });
@@ -2200,7 +2348,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v167</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v168</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3369,7 +3517,7 @@ function cineFilter(list, who) {
 function cineGrid(list, who) {
   const l = cineFilter(list, who), max = S.cineMore === who ? 400 : 30;
   const bar = list.length > 6 ? `<div class="cine-filt"><div class="chips mini">${CF.map(([k, lab]) => `<button type="button" data-action="cine-f" data-k="${k}" aria-pressed="${(S.cineF || '') === k}">${lab}</button>`).join('')}</div>
-    <label class="cine-sort"><span class="sr">Trier</span><select class="field" data-action-change="cine-s">${CS.map(([k, lab]) => `<option value="${k}" ${(S.cineS || 'envie') === k ? 'selected' : ''}>${lab}</option>`).join('')}</select></label></div>` : '';
+    <button type="button" class="cine-sortb" data-action="cine-sort" aria-haspopup="menu" aria-label="Trier">${(CS.find(([k]) => k === (S.cineS || 'envie')) || CS[0])[1]}<svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>` : '';
   if (!l.length) return bar + '<p class="hint cine-empty">Rien avec ce filtre.</p>';
   return `${bar}<ul class="cine-grid">${l.slice(0, max).map(f => cineTile(f, who)).join('')}</ul>${l.length > max ? `<button class="btn ghost wide cine-more" data-action="cine-more" data-w="${who}">Voir les ${l.length - max} autres</button>` : ''}`;
 }
@@ -3524,8 +3672,9 @@ function cineCal(id) {
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="Prévoir une soirée"><p class="ticket-title">📅 ${esc(f.title)}</p><p class="ticket-sub">Une soirée ciné dans votre calendrier${S.agenda?.calendar ? ` « ${esc(S.agenda.calendar)} »` : ''}.</p>
-    <div class="row cal-row"><input class="field" type="date" id="cc-d" value="${isoDate(d)}"><input class="field" type="time" id="cc-t" value="20:30"></div>
+    <div class="row cal-row"><input class="field" type="date" id="cc-d" value="${isoDate(d)}" required><input class="field" type="time" id="cc-t" value="20:30" required></div>
     <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-c="ok">Ajouter</button></div></div>`;
+  box.innerHTML = deNative(box.innerHTML);
   box.addEventListener('click', e => {
     if (e.target === box) { closeTicket(); return; }
     if (!e.target.closest('[data-c]')) return;
@@ -3536,7 +3685,7 @@ function cineCal(id) {
     if (!S.agenda?.configured) { toast('Le calendrier n’est pas encore relié (onglet Maison, Agenda).'); return; }
     runAgenda(() => agendaCall({ action: 'create', event: ev }), `Soirée prévue le ${new Date(s0).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })}`).then(ok => ok && haptic('medium'));
   });
-  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  document.body.appendChild(box); pickSync(box); requestAnimationFrame(() => box.classList.add('on'));
 }
 // Le petit ménage : ce qui attend dans ta liste depuis plus de 6 mois.
 const SIX_MOIS = 182 * 864e5;
@@ -3650,7 +3799,8 @@ function cineGouts() {
     <p class="chip-label">Vos goûts</p>
     <p class="hint">Ce que vous aimez en dehors des films. Quand un livre ou un jeu a été adapté, Azami s’en sert pour ses idées.</p>
     ${mine.length ? `<p class="chip-label">Toi</p>${chips(mine)}` : ''}${theirs.length ? `<p class="chip-label">${esc(nameOf(other()))}</p>${chips(theirs)}` : ''}
-    <div class="gout-add"><select class="field" id="gout-kind" aria-label="Type">${Object.entries(GOUT_KIND).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+    <div class="chips mini gout-kinds" role="group" aria-label="Type">${Object.entries(GOUT_KIND).map(([k, l]) => `<button type="button" data-action="gout-kind" data-k="${k}" aria-pressed="${(S.goutKind || 'livre') === k}">${l}</button>`).join('')}</div>
+    <div class="gout-add">
       <input class="field" id="gout-t" placeholder="Un livre, un jeu que tu adores…" autocomplete="off"><button class="btn small" data-action="gout-add">Ajouter</button></div></details>`;
 }
 function cineResHtml(res) {
@@ -3727,6 +3877,10 @@ async function deckOpen(mood = '') {
     const n = e.target.closest('[data-note]'); if (n) { deckSeen(Number(n.dataset.note)); return; }
     const b = e.target.closest('[data-d], [data-mood]'); if (!b) return;
     if (b.dataset.mood !== undefined) { deckOpen(b.dataset.mood); return; }
+    if (b.dataset.d === 'info') { deckInfo(); return; }
+    if (b.dataset.d === 'info-close') { deckInfoClose(); return; }
+    if (b.dataset.d === 'trailer') { deckTrailer(b); return; }
+    deckInfoClose(true);
     if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); }, 250); return; }
     if (b.dataset.d === 'vu') { deckAskSeen(); return; }
     if (b.dataset.d !== 'skip') cinderLog(b.dataset.d);
@@ -3781,7 +3935,7 @@ function deckDraw() {
   const card = (f, cls) => {
     const why = cls === 'top' ? T.why(t.me, f, 2) : [], warn = cls === 'top' ? T.warn(t.me, f) : '';
     const sub = [f.year, f.media === 'tv' ? 'Série' : f.runtime ? rDur(f.runtime) : (f.traits?.rt ? rDur(f.traits.rt) : 'Film'), f.traits?.dir?.[0]?.name].filter(Boolean).join(' · ');
-    return `<div class="dcard ${cls}">${fPoster(f, 'dposter')}<div class="dinfo"><b>${esc(f.title)}</b><span>${esc(sub)}</span>
+    return `<div class="dcard ${cls}">${fPoster(f, 'dposter')}<div class="dinfo">${cls === 'top' ? `<button type="button" class="dinfo-btn" data-d="info" aria-label="Plus d’infos sur ${esc(f.title)}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}<b>${esc(f.title)}</b><span>${esc(sub)}</span>
       <div class="dtags">${f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${f.note ? `<em class="dtag note">★ ${String(f.note).replace('.', ',')}</em>` : ''}</div>
       ${why.length ? `<ul class="dwhy">${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}
       <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
@@ -3816,6 +3970,8 @@ function deckDraw() {
     const vert = Math.abs(dy) > Math.abs(dx) * 1.1;
     const fx = Math.abs(dx) > 90 || (Math.abs(dx) > 35 && Math.abs(vx) > .45), fy = Math.abs(dy) > 90 || (Math.abs(dy) > 35 && Math.abs(vy) > .45);
     el.style.transition = ''; if (nx) nx.style.transition = '';
+    // un simple toucher (sans glisser) : la carte se retourne et montre la fiche, comme sur Tinder
+    if (Math.hypot(dx, dy) < 8 && performance.now() - t0 < 400) { el.style.transform = ''; if (nx) nx.style.transform = nx.style.opacity = ''; deckInfo(); return; }
     if (vert && fy && dy < 0) { el.style.transform = ''; el.classList.remove('lean-vu'); if (nx) nx.style.transform = nx.style.opacity = ''; deckAskSeen(); }
     else if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk'); }
     else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non'); }
@@ -3823,6 +3979,61 @@ function deckDraw() {
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   el.addEventListener('lostpointercapture', end);
+}
+const TMDB_G = { 28: 'Action', 12: 'Aventure', 16: 'Animation', 35: 'Comédie', 80: 'Policier', 99: 'Documentaire', 18: 'Drame', 10751: 'Familial', 14: 'Fantastique', 36: 'Histoire', 27: 'Horreur', 10402: 'Musique', 9648: 'Mystère', 10749: 'Romance', 878: 'Science-fiction', 53: 'Thriller', 10752: 'Guerre', 37: 'Western', 10759: 'Action', 10765: 'SF et fantastique', 10768: 'Guerre', 10762: 'Enfants', 10764: 'Téléréalité', 10766: 'Feuilleton', 10767: 'Talk-show', 10763: 'Actualités' };
+// La fiche d'une carte : synopsis, bande-annonce, crédits, où le voir et pourquoi Azami le propose.
+// Les détails (bande-annonce surtout) arrivent de TMDB à la première ouverture, puis restent sur la carte.
+function deckInfo() {
+  const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
+  const st = deck.box.querySelector('.deck-stack'); st.querySelector('.dmore')?.remove();
+  st.insertAdjacentHTML('beforeend', `<div class="dmore" role="dialog" aria-label="Fiche de ${esc(f.title)}"><div class="dm-scroll">${deckInfoHtml(f)}</div>
+    <button type="button" class="dm-close" data-d="info-close" aria-label="Revenir à la carte"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>`);
+  const m = st.querySelector('.dmore'); requestAnimationFrame(() => m.classList.add('on')); haptic(1);
+  m.querySelector('.dm-hero')?.addEventListener('click', () => deckInfoClose());
+  if (!f._det && f.tmdb_id) {
+    f._det = 'load';
+    filmsCall({ action: 'details', tmdb_id: f.tmdb_id, media: f.media }).then(d => {
+      for (const [k, v] of Object.entries(d || {})) if (v != null && v !== '' && !(Array.isArray(v) && !v.length) && !['title', 'id', 'tmdb_id', 'media'].includes(k) && (f[k] == null || ['trailer', 'providers', 'genres', 'traits', 'overview'].includes(k))) f[k] = v;
+      f._det = 'ok';
+    }).catch(() => { f._det = 'ko'; }).finally(() => {
+      const sc = deck?.box.querySelector('.dmore .dm-scroll');
+      if (sc && deck.cards[deck.i] === f) { const y = sc.scrollTop; sc.innerHTML = deckInfoHtml(f); sc.scrollTop = y; sc.querySelector('.dm-hero')?.addEventListener('click', () => deckInfoClose()); }
+    });
+  }
+}
+function deckInfoClose(now) {
+  const m = deck?.box.querySelector('.dmore'); if (!m) return;
+  if (now) { m.remove(); return; }
+  m.classList.remove('on'); setTimeout(() => m.remove(), 260); haptic(1);
+}
+function deckInfoHtml(f) {
+  const t = tastes(deck.cards), why = T.why(t.me, f, 4), warn = T.warn(t.me, f), o = other();
+  const tr = f.traits || {}, names = l => (l || []).map(p => p.name).filter(Boolean);
+  const genres = (Array.isArray(f.genres) && f.genres.length && typeof f.genres[0] === 'string' ? f.genres : (f.gids || []).map(g => TMDB_G[g]).filter(Boolean)).slice(0, 3);
+  const dur = f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.runtime || tr.rt) ? rDur(f.runtime || tr.rt) : '';
+  const meta = [f.year, dur, genres.join(', ')].filter(Boolean).join(' · ');
+  const cred = [[f.media === 'tv' ? 'Création' : 'Réalisation', names(tr.dir).join(', ') || f.director], ['Avec', names(tr.cast).slice(0, 4).join(', ')], ['Scénario', names(tr.wri).join(', ')], ['Musique', names(tr.comp).join(', ')], ['Image', names(tr.dop).join(', ')]].filter(([, v]) => v);
+  const yt = f.trailer && String(f.trailer).match(/[?&]v=([\w-]{6,})/)?.[1];
+  const where = fWhereLine(f);
+  const theirs = o && T.wants(fVotes(f)[o]);
+  return `<div class="dm-hero">${f.poster ? `<img class="dm-bg" src="${esc(f.poster)}" alt="" referrerpolicy="no-referrer">` : ''}${fPoster(f, 'dm-poster')}
+      <div class="dm-head"><h3>${esc(f.title)}</h3>${f.original && nt(f.original) !== nt(f.title) ? `<p class="dm-orig">${esc(f.original)}</p>` : ''}<p class="dm-meta">${esc(meta)}</p>
+      <div class="dtags">${f.note ? `<em class="dtag note">★ ${String(Math.round(f.note * 10) / 10).replace('.', ',')}</em>` : ''}${where ? '' : f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${theirs ? `<em class="dtag">🤫 Envie de ${esc(nameOf(o))}</em>` : ''}</div></div></div>
+    <div class="dm-body">
+      ${yt ? `<button type="button" class="dm-trailer" data-d="trailer" data-yt="${esc(yt)}" aria-label="Lire la bande-annonce"><img src="https://i.ytimg.com/vi/${esc(yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="dm-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="dm-tl">Bande-annonce</span></button>`
+        : f._det === 'load' ? '<div class="dm-trailer wait"><span>Azami cherche la bande-annonce…</span></div>' : ''}
+      ${f.overview ? `<p class="dm-syn">${esc(f.overview)}</p>` : f._det === 'load' ? '' : '<p class="dm-syn muted">Pas encore de synopsis en français.</p>'}
+      ${where ? `<p class="dm-where">${where}</p>` : ''}
+      ${cred.length ? `<dl class="dm-cred">${cred.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
+      ${why.length || warn ? `<div class="dm-why"><p class="chip-label">Pourquoi Azami te le propose</p>${why.length ? `<ul>${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}</div>` : ''}
+      <p class="dm-links">${yt ? `<a href="https://www.youtube.com/watch?v=${esc(yt)}" target="_blank" rel="noopener">Ouvrir sur YouTube</a>` : ''}${f.tmdb_id ? `<a href="https://www.themoviedb.org/${f.media === 'tv' ? 'tv' : 'movie'}/${f.tmdb_id}" target="_blank" rel="noopener">Fiche complète</a>` : ''}</p>
+    </div>`;
+}
+function deckTrailer(b) {
+  const id = b.dataset.yt; if (!id) return;
+  const w = document.createElement('div'); w.className = 'dm-trailer playing';
+  w.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&playsinline=1&rel=0&modestbranding=1" title="Bande-annonce" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  b.replaceWith(w); haptic(1);
 }
 // Déjà vu : une note rapide, qui en dit long (surtout quand on n'a pas aimé).
 function deckAskSeen(redraw = false) {
@@ -4100,7 +4311,7 @@ const actions = {
     api.update('films', { id: f.id }, { coeur: f.coeur }).catch(() => toast('Pas enregistré.')); cineOpen(f.id); render(); },
   'cine-propose': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const back = filmBefore(f, ['status', 'votes']); const patch = { status: 'a_voir', votes: { ...fVotes(f), [S.me]: 'oui' } }; Object.assign(f, patch); S.cineTab = 'a_voir'; haptic('medium'); sfx('tick');
     run(() => api.update('films', { id: f.id }, patch), 'Dans ta liste').then(ok => { if (ok) cineUndo(`${f.title} : proposé`, [back]); if (fMatch(f)) filmMatchParty(f); }); },
-  'gout-add': () => { const t = document.getElementById('gout-t'), k = document.getElementById('gout-kind')?.value || 'livre'; const title = t?.value.trim(); if (!title) { t?.focus(); return; }
+  'gout-add': () => { const t = document.getElementById('gout-t'), k = S.goutKind || 'livre'; const title = t?.value.trim(); if (!title) { t?.focus(); return; }
     const row = { email: S.me, kind: k, title }; S.gouts.push({ ...row, id: 'tmp' + Date.now() }); t.value = ''; haptic(1); let nid = null; run(() => api.insert('gouts', row).then(r => { nid = r?.id; }), 'Ajouté à tes goûts').then(ok => ok && nid && cineUndo(`${title} ajouté`, [], [['gouts', nid]])); },
   'gout-del': el => { const g = S.gouts.find(x => x.id === el.dataset.id); S.gouts = S.gouts.filter(x => x !== g); run(() => api.remove('gouts', { id: el.dataset.id }), 'Retiré').then(ok => ok && g && cineUndo(`${g.title} retiré`, [{ t: 'gouts', gone: true, row: g }])); },
   'cine-ideas-more': () => { haptic(1); S.cineIdeas = []; render(); cineIdeas(true); },
@@ -4109,6 +4320,9 @@ const actions = {
     try { const t = x.title.replace(/\s*\((19|20)\d{2}\)\s*/, ' ').trim(); const r = DEMO ? { results: FILM_DEMO.filter(f => nt(f.title) === nt(t)) } : await filmsCall({ action: 'resolve', items: [{ title: t.split(' (')[0], media: 'movie', year: x.year }] }); const d = r.results?.[0];
       const saved = await filmVote(d?.tmdb_id ? d : { title: t, media: 'movie', year: x.year || null }, 'oui', false); toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter.'); el.disabled = false; } },
   'taste-test': () => deckOpen('test'),
+  'cine-sort': el => uiMenu(el, CS, S.cineS || 'envie', k => { S.cineS = k; S.cineMore = null; render(); }, { title: 'Trier par' }),
+  'pk-open': el => pickOpen(el),
+  'gout-kind': el => { S.goutKind = el.dataset.k; el.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); document.getElementById('gout-t')?.focus(); },
   'cine-f': el => { S.cineF = el.dataset.k; S.cineMore = null; haptic(1); render(); },
   'cine-more': el => { S.cineMore = el.dataset.w; render(); },
   'cine-menage': () => menageOpen(),
@@ -4350,15 +4564,15 @@ const actions = {
   'edit-cancel': () => { S.edit = null; render(); },
   'ev-form': el => { S.showEventForm = el.dataset.show === '1'; render(); if (S.showEventForm) document.getElementById('ev-title')?.focus(); },
   'ev-edit': el => { S.edit = { type: 'event', id: el.dataset.id }; S.open = null; S.chips = {}; render(); document.getElementById('ee-title')?.focus(); },
-  'ev-delete': el => {
+  'ev-delete': async el => {
     const e = S.agenda.events.find(x => x.id === el.dataset.id); if (!e) return;
-    if (!confirm(`Supprimer « ${e.title} » du calendrier partagé ?`)) return;
+    if (!await uiAsk(`« ${e.title} » sera retiré du calendrier partagé.`, { title: 'Supprimer ?', ok: 'Supprimer', danger: true })) return;
     S.open = null;
     runAgenda(() => agendaCall({ action: 'delete', href: e.href }), 'Supprimé du calendrier');
   },
   'agenda-refresh': () => { loadAgenda(); render(); },
   'task-cal': el => { const t = S.tasks.find(x => x.id === el.dataset.id); if (!t?.due_on) return; S.open = null; runAgenda(() => agendaCall({ action: 'create', event: taskEvent(t) }), `Dans le calendrier « ${S.agenda.calendar} »`).then(ok => ok && haptic('medium')); },
-  'agenda-forget': () => { if (confirm('Déconnecter le calendrier ? Rien n\'est effacé dans iCloud ; le mot de passe d\'application est oublié.')) runAgenda(() => agendaCall({ action: 'forget' }), 'Calendrier déconnecté'); },
+  'agenda-forget': async () => { if (await uiAsk('Rien n’est effacé dans iCloud ; le mot de passe d’application est oublié.', { title: 'Déconnecter le calendrier ?', ok: 'Déconnecter', danger: true })) runAgenda(() => agendaCall({ action: 'forget' }), 'Calendrier déconnecté'); },
   pick: el => { S.pick = S.pick?.id === el.dataset.id ? null : { type: el.dataset.type, id: el.dataset.id }; S.open = null; render(); },
   'pick-set': el => {
     const { type, id, icon } = el.dataset;
@@ -4373,7 +4587,7 @@ const actions = {
   },
 
   'note-pin': el => { const n = S.board.find(x => x.id === el.dataset.id); if (!n) return refresh(); run(() => api.update('board', { id: n.id }, { pinned: !n.pinned })); },
-  'note-delete': el => { if (confirm('Retirer ce mot du tableau ?')) run(() => api.remove('board', { id: el.dataset.id }), 'Retiré du tableau'); },
+  'note-delete': async el => { if (await uiAsk('Il disparaît du tableau pour vous deux.', { title: 'Retirer ce mot ?', ok: 'Retirer', danger: true })) run(() => api.remove('board', { id: el.dataset.id }), 'Retiré du tableau'); },
 
   'chore-done': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
@@ -4401,7 +4615,7 @@ const actions = {
     S.open = null;
     run(() => api.update('chores', { id: c.id }, { turn: next }), `C'est au tour de ${nameOf(next)}`);
   },
-  'chore-delete': el => { if (confirm('Supprimer cette corvée ?')) { S.open = null; run(() => api.remove('chores', { id: el.dataset.id }), 'Corvée supprimée'); } },
+  'chore-delete': async el => { if (await uiAsk('Elle disparaît de la liste pour vous deux.', { title: 'Supprimer cette corvée ?', ok: 'Supprimer', danger: true })) { S.open = null; run(() => api.remove('chores', { id: el.dataset.id }), 'Corvée supprimée'); } },
   'chore-form': el => { S.showChoreForm = el.dataset.show === '1'; render(); if (S.showChoreForm) document.getElementById('chore-title')?.focus(); },
 
   'shop-toggle': el => {
@@ -4459,15 +4673,16 @@ const actions = {
     run(async () => { for (const r of rows) await api.insert('expenses', r); }, null).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: `${chf(amount)} notés`, sub: owed === 0 ? 'Rien à partager' : row.paid_by === S.me ? `${nameOf(other())} te doit ${chf(owed)}` : `Tu dois ${chf(owed)} à ${nameOf(row.paid_by)}`, level: 'small', reaction: 'comptes_equilibres', badge: variantBadge('expenses', { label: 'courses', paid_by: row.paid_by }, row.paid_by) }); });
   },
 
-  'settle-undo': el => { if (confirm('Annuler ce remboursement ? Le solde sera recalculé comme s\'il n\'avait pas eu lieu.')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
-  'exp-delete': el => { if (confirm('Supprimer cette dépense ?')) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Dépense supprimée'); } },
-  settle: () => {
+  'settle-undo': async el => { if (await uiAsk('Le solde sera recalculé comme s’il n’avait pas eu lieu.', { title: 'Annuler ce remboursement ?', ok: 'Annuler le remboursement', cancel: 'Garder', danger: true })) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Remboursement annulé'); } },
+  'exp-delete': async el => { if (await uiAsk('Le solde sera recalculé sans elle.', { title: 'Supprimer cette dépense ?', ok: 'Supprimer', danger: true })) { S.open = null; run(() => api.remove('expenses', { id: el.dataset.id }), 'Dépense supprimée'); } },
+  settle: async () => {
     const net = balances()[S.me] || 0;
     const o = other();
     const payer = net < 0 ? S.me : o;
     const amt = Math.round(Math.abs(net) * 100) / 100;
     if (pending.has('settle')) return;
-    if (!confirm(`Enregistrer un remboursement de ${chf(amt)} francs ? Le solde revient à zéro. Rien n'est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.`)) return;
+    if (!await uiAsk('Le solde revient à zéro. Rien n’est effacé : les dépenses restent dans la liste et le remboursement peut être annulé après coup.', { title: `Remboursement de ${chf(amt)} francs ?`, ok: 'Enregistrer' })) return;
+    if (pending.has('settle')) return;
     sfx('coin'); haptic('heavy');
     burst('coins', document.querySelector('[data-action="settle"]'), 22);
     run(async () => { await api.insert('expenses', { label: 'Remboursement', amount: amt, paid_by: payer, payer_share: 0, category: 'autre', spent_on: isoDate(new Date()), is_settlement: true }); await win('settle', 'Comptes à zéro', 1); }, null, 'settle')
@@ -4488,7 +4703,7 @@ const actions = {
     ta.value = ta.value ? ta.value + '\n\n' + scaffold : scaffold;
     ta.focus();
   },
-  'care-delete': el => { if (confirm('Retirer ce mot de sa boîte ?')) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
+  'care-delete': async el => { if (await uiAsk('Le mot quitte sa boîte.', { title: 'Retirer ce mot ?', ok: 'Retirer', danger: true })) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
   meow: el => { const img = el.querySelector('img.azami'); if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); },
@@ -4508,7 +4723,7 @@ const actions = {
   },
 
   'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l'app comme ${nameOf(S.me)}`); },
-  'demo-reset': async () => { if (!confirm('Effacer les données de démo et repartir de l\'exemple ?')) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = tracked(demoApi()); await refresh(); },
+  'demo-reset': async () => { if (!await uiAsk('On efface les données de démo et on repart de l’exemple.', { title: 'Tout remettre à zéro ?', ok: 'Effacer', danger: true })) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = tracked(demoApi()); await refresh(); },
 };
 
 const forms = {
