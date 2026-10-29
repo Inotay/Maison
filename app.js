@@ -250,6 +250,7 @@ function sfx(kind) {
     else if (kind === 'done') { note(c, N.G5, t, .28, .22); note(c, N.C6, t + .11, .4, .22); shimmer(c, t + .11, .25, .05); }
     else if (kind === 'big') { [N.C5, N.E5, N.G5, N.C6].forEach((f, i) => note(c, f, t + i * .085, .35, .2)); note(c, N.E6, t + .34, .7, .2); note(c, N.G6, t + .42, .8, .14); shimmer(c, t + .34, .5, .07); }
     else if (kind === 'coin') { note(c, N.D6, t, .18, .16, 'square'); note(c, N.A5 * 2, t + .07, .5, .14, 'sine'); shimmer(c, t, .12, .03); }
+    else if (kind === 'merci') { [N.G5, N.C6, N.E6, N.G6].forEach((f, i) => note(c, f, t + i * .075, .45, .13)); note(c, N.C7, t + .32, .9, .09, 'sine'); shimmer(c, t + .3, .45, .045); }
     else if (kind === 'heart') { note(c, N.C5, t, .9, .12, 'sine'); note(c, N.E5, t + .03, .9, .11, 'sine'); note(c, N.G5, t + .06, 1, .1, 'sine'); note(c, N.C6, t + .25, .9, .08, 'sine'); }
   } catch {}
 }
@@ -1215,6 +1216,8 @@ function visitOpen(id, replay = false) {
     if (!b) { if (visitCur?.typing) visitCur.skip = true; return; }
     if (b.dataset.v === 'choice') visitChoose(Number(b.dataset.i));
     if (b.dataset.v === 'close') visitClose();
+    // « Merci Azami » : une petite récompense, un carillon qui monte et son petit brrrt content
+    if (b.dataset.v === 'merci') { sfx('merci'); if (SOUNDS) setTimeout(() => meow(true, .32, 'trille'), 380); haptic('medium'); burst('hearts', b, 10); setTimeout(visitClose, 260); }
   });
   visitTurn();
 }
@@ -1321,7 +1324,7 @@ function visitEnd() {
     note = `<p class="visite-note">${isNew ? `<b>Nouveau dans votre carnet</b> · ${got} / ${total}` : `Déjà dans votre carnet · ${got} / ${total}`}</p>`;
     if (isNew && v.kind === 'secret') burst('sparkle', box.querySelector('.visite-azami'), 16);
   }
-  box.querySelector('.visite-foot').innerHTML = `${note}<div class="visite-choices"><button class="btn" data-v="close">Merci Azami</button></div>`;
+  box.querySelector('.visite-foot').innerHTML = `${note}<div class="visite-choices"><button class="btn" data-v="merci">Merci Azami</button></div>`;
 }
 function visitClose() {
   const box = document.getElementById('visite'); if (!box) return;
@@ -1998,7 +2001,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v145</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v146</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
