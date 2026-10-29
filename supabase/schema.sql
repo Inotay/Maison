@@ -300,3 +300,8 @@ create policy own_row on public.user_tips for all to authenticated using ((selec
 
 -- Courses à deux : qui a pris l'article.
 alter table public.shopping add column if not exists checked_by text, add column if not exists checked_at timestamptz;
+
+-- Carnet d'Azami : commun aux deux (ce que l'un découvre compte pour vous deux).
+create table if not exists public.azami_carnet (id text primary key, found_by text not null default lower(auth.jwt() ->> 'email'), found_at timestamptz not null default now());
+alter table public.azami_carnet enable row level security;
+create policy shared_all on public.azami_carnet for all to authenticated using ((select is_member())) with check ((select is_member()));

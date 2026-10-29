@@ -9,6 +9,7 @@ import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
+import { VISITES } from './visites.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -356,7 +357,7 @@ function demoApi() {
     },
     async update(t, m, patch) { (db[t] || []).forEach(r => { if (matches(r, m)) Object.assign(r, patch); }); save(); },
     async upsert(t, row) {
-      const key = t === 'icon_hints' ? 'word' : t === 'push_subscriptions' ? 'endpoint' : t === 'kitchen_gear' ? 'id' : 'email';
+      const key = t === 'icon_hints' ? 'word' : t === 'push_subscriptions' ? 'endpoint' : t === 'kitchen_gear' || t === 'azami_carnet' ? 'id' : 'email';
       const r = key === 'email' ? { ...row, email: row.email || S.me } : { ...row };
       db[t] = (db[t] || []).filter(x => x[key] !== r[key]); db[t].push(r); save();
     },
@@ -548,17 +549,17 @@ function hintsFrom(rows) {
 
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
-  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help, tipRows] = await Promise.all([
+  const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help, tipRows, carnet] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null), api.list('azami_carnet').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }) });
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)) });
   await ensureDechets();
   notifyNew();
   duoNotice();
@@ -703,6 +704,7 @@ function doUndo() {
 document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && UNDO && !typing()) { e.preventDefault(); doUndo(); } });
 
 function win(kind, title, weight = 1, icon = null) {
+  setTimeout(() => visitMaybe(kind), 3800);   // après la fête : Azami viendra peut-être parler
   return api.insert('wins', { kind, title: title || null, done_by: S.me, done_at: new Date().toISOString(), weight, icon }).catch(e => console.warn('win', e));
 }
 const WEEK = 7 * DAY;
@@ -1099,6 +1101,210 @@ function popOpen(id) {
   if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Visites d'Azami : de temps en temps, après des choses faites, Azami vient parler (blague, mot doux,
+// question, devinettes, secret rare). Un dialogue en plusieurs tours, un choix à chaque tour.
+// Le carnet est commun : ce que l'un découvre compte pour vous deux.
+// Récompense imprévisible : plus on en fait dans la journée, plus elle a de chances de venir.
+const VISIT_KIND = { blague: 'Une blague', mignon: 'Un mot doux', question: 'Une question', bravo: 'Bravo', secret: 'Secret rare', devinette: 'Devinettes' };
+const visitState = () => (S.tips && S.tips.azami) || { last: null, day: null, n: 0, pending: null };
+function visitSave(st) { if (!S.tips) S.tips = {}; tipSave('azami', st); }
+const parentOf = email => personOf(email) === 'mariana' ? 'maman' : personOf(email) === 'yatoni' ? 'papa' : null;
+const visitFor = v => { const me = parentOf(S.me); return !v.for || v.for === 'both' || v.for === me; };
+const turnsOf = v => v.turns || [{ lines: v.lines, choices: v.choices }];
+const carnetHas = id => S.carnet?.has(id);
+function visitText(t) {
+  const me = parentOf(S.me) || 'toi', o = parentOf(other()) || 'l’autre';
+  // Papa fait du son pour les films : quand c'est lui qui joue, « comme papa » devient « comme toi ».
+  if (me === 'papa') t = String(t).replace(/\bcomme papa\b/g, 'comme toi');
+  return String(t).replace(/\{toi\}/g, me).replace(/\{autre\}/g, o).replace(/(^|[.!?…]\s+|«\s?)(papa|maman)/g, (m, a, w) => a + w[0].toUpperCase() + w.slice(1));
+}
+function visitPick(doneToday) {
+  // D'abord ce que personne de vous deux n'a encore découvert.
+  let pool = VISITES.filter(v => visitFor(v) && !carnetHas(v.id));
+  if (!pool.length) pool = VISITES.filter(visitFor);   // tout découvert : on recommence le tour
+  const by = k => pool.filter(v => v.kind === k);
+  const r = Math.random();
+  const from = by('secret').length && r < .07 ? by('secret')
+    : by('bravo').length && doneToday >= 4 && r < .35 ? by('bravo')
+    : by('devinette').length && r > .82 ? by('devinette')
+    : pool.filter(v => v.kind !== 'secret' && v.kind !== 'bravo');
+  const list = from.length ? from : pool;
+  return list[Math.floor(Math.random() * list.length)];
+}
+function visitMaybe() {
+  if (!S.me) return;
+  if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { setTimeout(visitMaybe, 1500); return; }
+  const st = visitState(); const today = isoDate(new Date());
+  if (st.pending) { visitInvite(); return; }
+  const n = st.day === today ? st.n || 0 : 0;
+  if (n >= 3) return;
+  if (st.last && Date.now() - new Date(st.last).getTime() < 40 * 60000) return;
+  const doneToday = S.wins.filter(w => w.done_by === S.me && isoDate(new Date(w.done_at)) === today).length || 1;
+  const first = !st.last;
+  const p = first ? 1 : n === 0 && doneToday >= 4 ? 1 : Math.min(.6, .15 + .12 * (doneToday - 1));
+  if (Math.random() > p) return;
+  const v = visitPick(doneToday); if (!v) return;
+  visitSave({ ...st, pending: v.id, day: today, n: n + 1, last: new Date().toISOString() });
+  visitInvite(true);
+}
+// L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
+function visitInvite(fresh) {
+  const st = visitState(); const v = VISITES.find(x => x.id === st.pending);
+  let el = document.getElementById('visite-invite');
+  if (!v) { el?.remove(); return; }
+  if (document.getElementById('visite')) return;
+  if (!el) {
+    el = document.createElement('button'); el.id = 'visite-invite'; el.type = 'button';
+    el.addEventListener('click', () => visitOpen(visitState().pending));
+    document.body.appendChild(el);
+  }
+  const rare = v.kind === 'secret', quiz = v.kind === 'devinette';
+  el.className = rare ? 'rare' : '';
+  el.setAttribute('aria-label', 'Azami a quelque chose à te dire');
+  el.innerHTML = `<img src="${azamiSrc('v44_visite_appel')}" alt="" width="96" height="96"><span class="vi-bubble"><b>${rare ? 'Psst… un secret !' : quiz ? 'Je te lance un défi !' : `Psst… ${esc(visitText('{toi}'))} !`}</b><span>${rare ? 'Un secret rare, rien que pour toi' : quiz ? 'Trois devinettes. Tu oses ?' : 'J’ai un truc à te dire'}</span></span>`;
+  requestAnimationFrame(() => el.classList.add('on'));
+  if (fresh) { haptic('heavy'); meow(true, .7); }
+}
+let visitCur = null;
+function visitOpen(id, replay = false) {
+  const v = VISITES.find(x => x.id === id); if (!v) return;
+  document.getElementById('visite-invite')?.remove();
+  clearReaction(); popClose();
+  document.getElementById('visite')?.remove();
+  const box = document.createElement('div'); box.id = 'visite';
+  box.innerHTML = `<div class="visite-card ${v.kind === 'secret' ? 'rare' : ''}" role="dialog" aria-modal="true" aria-label="Azami te parle">
+    <p class="visite-kind">${esc(VISIT_KIND[v.kind] || 'Azami')}${replay ? ' · dans votre carnet' : ''}</p><button class="visite-x" data-v="close" aria-label="${replay ? 'Fermer' : 'Plus tard'}">×</button>
+    <img class="visite-azami" src="${azamiSrc('v44_visite_parle')}" alt="" width="200" height="200">
+    <div class="visite-talk" aria-live="polite"></div>
+    <div class="visite-foot"></div></div>`;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('on'));
+  haptic('medium');
+  visitCur = { v, replay, box, turn: 0, score: 0, turns: turnsOf(v) };
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-v]');
+    if (!b) { if (visitCur?.typing) visitCur.skip = true; return; }
+    if (b.dataset.v === 'choice') visitChoose(Number(b.dataset.i));
+    if (b.dataset.v === 'close') visitClose();
+  });
+  visitTurn();
+}
+// Costume selon la visite : lunettes de psy pour les séances, nœud papillon pour les devinettes.
+const visitTalkImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_parle';
+const visitWaitImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_ecoute';
+function visitTurn() {
+  const t = visitCur.turns[visitCur.turn];
+  visitImg(visitTalkImg(visitCur.v));
+  visitSay(t.lines, () => visitChoices());
+}
+const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
+// Les répliques s'écrivent lettre par lettre (toucher la carte pour aller plus vite).
+async function visitSay(lines, done, who = 'az') {
+  const cur = visitCur; const talk = cur.box.querySelector('.visite-talk');
+  for (const raw of lines || []) {
+    const txt = visitText(raw);
+    const p = document.createElement('p'); p.className = `bubble ${who}`; talk.appendChild(p);
+    cur.typing = true; cur.skip = false;
+    if (reducedMotion()) p.textContent = txt;
+    else for (let i = 1; i <= txt.length; i++) {
+      if (cur.skip) { p.textContent = txt; break; }
+      p.textContent = txt.slice(0, i);
+      const ch = txt[i - 1];
+      await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 260 : /[,;:]/.test(ch) ? 140 : 26));
+      if (visitCur !== cur) return;
+    }
+    cur.typing = false;
+    p.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    await new Promise(r => setTimeout(r, 420));
+    if (visitCur !== cur) return;
+  }
+  done && done();
+}
+function visitChoices() {
+  const { box, turns, turn } = visitCur; const t = turns[turn];
+  visitImg(visitWaitImg(visitCur.v));
+  const n = turns.length;
+  box.querySelector('.visite-foot').innerHTML = `${n > 1 ? `<p class="visite-step">${visitCur.v.kind === 'devinette' ? `Devinette ${turn + 1} sur ${n}` : `${turn + 1} / ${n}`}</p>` : ''}<div class="visite-choices">${t.choices.map((c, i) => `<button class="btn ${i ? 'ghost' : ''}" data-v="choice" data-i="${i}">${esc(visitText(c.label))}</button>`).join('')}</div>`;
+  box.querySelector('.visite-foot').scrollIntoView({ block: 'end' });
+}
+const SCORE_LINES = [
+  ['Zéro sur trois.', 'Je ne dirai rien à {autre}. Enfin si. Je vais tout raconter.'],
+  ['Un sur trois.', 'C’est un début. Un tout petit début. Comme une croquette.'],
+  ['Deux sur trois !', 'Pas mal du tout. Je te laisse cinq centimètres de canapé.'],
+  ['Trois sur trois !', 'Incroyable. Tu as gagné le droit de me gratter le menton. C’est un immense honneur.'],
+];
+function visitChoose(i) {
+  const cur = visitCur; const { v, box, turns } = cur; const t = turns[cur.turn]; const c = t?.choices[i];
+  if (!c || cur.typing || cur.busy) return;
+  cur.busy = true; haptic(1);
+  if (c.ok === true) cur.score++;
+  box.querySelector('.visite-foot').innerHTML = '';
+  const talk = box.querySelector('.visite-talk');
+  const me = document.createElement('p'); me.className = `bubble me ${c.ok === true ? 'ok' : c.ok === false ? 'ko' : ''}`; me.textContent = visitText(c.label); talk.appendChild(me);
+  me.scrollIntoView({ block: 'end', behavior: 'smooth' });
+  let mood = ['rire', 'coeur', 'fier', 'malice'].includes(c.mood) ? c.mood : 'rire';
+  if (c.ok === false || mood === 'malice') mood = Math.random() < .5 ? 'langue' : 'malice';   // de temps en temps, elle tire la langue
+  if (c.ok === true) mood = 'fier';
+  setTimeout(() => {
+    if (visitCur !== cur) return;
+    visitImg('visite_' + mood);
+    if (mood === 'coeur') sfx('heart'); else if (mood === 'rire') meow(true, .5);
+    visitSay(c.reply, () => {
+      cur.busy = false;
+      cur.turn++;
+      if (cur.turn < turns.length) { setTimeout(() => { if (visitCur === cur) visitTurn(); }, 500); return; }
+      const end = () => visitEnd();
+      if (v.kind === 'devinette') { const sc = SCORE_LINES[Math.min(3, cur.score)]; setTimeout(() => { if (visitCur !== cur) return; visitImg(cur.score >= 2 ? 'visite_fier' : 'visite_malice'); visitSay(sc, end); }, 500); }
+      else end();
+    });
+  }, 450);
+}
+function visitEnd() {
+  const { v, box, replay } = visitCur;
+  setTimeout(() => visitImg(visitWaitImg(v)), 600);
+  let note = '';
+  if (!replay) {
+    const isNew = !carnetHas(v.id);
+    if (!S.carnet) S.carnet = new Set();
+    S.carnet.add(v.id);
+    if (isNew) api.insert('azami_carnet', { id: v.id, found_by: S.me }).catch(e => console.warn('carnet', e));
+    visitSave({ ...visitState(), pending: null });
+    const total = VISITES.length, got = VISITES.filter(x => carnetHas(x.id)).length;
+    note = `<p class="visite-note">${isNew ? `<b>Nouveau dans votre carnet</b> · ${got} / ${total}` : `Déjà dans votre carnet · ${got} / ${total}`}</p>`;
+    if (isNew && v.kind === 'secret') burst('sparkle', box.querySelector('.visite-azami'), 16);
+  }
+  box.querySelector('.visite-foot').innerHTML = `${note}<div class="visite-choices"><button class="btn" data-v="close">Merci Azami</button></div>`;
+}
+function visitClose() {
+  const box = document.getElementById('visite'); if (!box) return;
+  box.classList.remove('on'); setTimeout(() => { box.remove(); if (visitState().pending) visitInvite(); }, 320); visitCur = null; haptic(1);
+  if (S.view === 'nuit') render();
+}
+// Pour essayer : ?azami=test ouvre tout de suite une visite au hasard (ou ?azami=devinette, secret, blague…).
+let visitTestDone = false;
+function visitTestHook() {
+  if (visitTestDone || !S.me || !S.ready || document.getElementById('tour')) return;
+  const q = new URLSearchParams(location.search).get('azami'); if (!q) return;
+  visitTestDone = true;
+  const pool = VISITES.filter(v => visitFor(v) && (q === 'test' || v.kind === q || v.id === q));
+  const v = pool[Math.floor(Math.random() * pool.length)]; if (!v) return;
+  setTimeout(() => visitOpen(v.id, true), 600);
+}
+// Le carnet commun : tout ce qu'Azami vous a déjà dit, à vous deux, à relire ou à refaire écouter.
+function carnetSection() {
+  const total = VISITES.length;
+  const got = VISITES.filter(v => carnetHas(v.id));
+  const mine = got.filter(visitFor);   // celles qui se rejouent pour la personne qui regarde
+  const line = v => `<li><button class="carnet-item ${v.kind === 'secret' ? 'rare' : ''}" data-action="visite-replay" data-id="${v.id}"><span class="carnet-kind">${esc(VISIT_KIND[v.kind] || '')}</span><span class="carnet-txt">${esc(visitText(turnsOf(v)[0].lines[0]))}</span></button></li>`;
+  const kinds = Object.keys(VISIT_KIND).map(k => [k, VISITES.filter(v => v.kind === k).length, got.filter(v => v.kind === k).length]).filter(x => x[1]);
+  return `<h2>Notre carnet d’Azami</h2>
+    <p class="hint">${got.length ? `Vous avez découvert ${got.length} visites sur ${total}, à vous deux. Azami vient parler de temps en temps, quand vous faites des choses : plus vous en faites dans la journée, plus elle a de chances de venir. Il y a des secrets rares.` : 'Azami vient parler de temps en temps, quand vous faites des choses dans la maison. Ce qu’elle vous dit se range ici, pour vous deux.'}</p>
+    <div class="carnet-bar" style="--p:${Math.round(got.length / Math.max(1, total) * 100)}%"><span></span></div>
+    <div class="carnet-kinds">${kinds.map(([k, n, g]) => `<span class="${k === 'secret' ? 'rare' : ''}">${esc(VISIT_KIND[k])} <b>${g}/${n}</b></span>`).join('')}</div>
+    ${mine.length ? `<details class="fold" data-fold="carnet"><summary>Relire (${mine.length})</summary><ul class="carnet">${mine.slice().reverse().map(line).join('')}</ul></details>` : ''}`;
+}
+
 function openHelp(kind, id) {
   const row = kind === 'task' ? S.tasks.find(t => t.id === id) : kind === 'chore' ? S.chores.find(c => c.id === id) : null;
   const o = other(); if (!o) return;
@@ -1401,6 +1607,8 @@ function render() {
   afvCheck();
   helpAnswerCheck();
   popCheck();
+  if (S.me && S.ready && visitState().pending && !document.getElementById('visite-invite') && !document.getElementById('tour')) visitInvite();
+  visitTestHook();
   if (!tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app);
 
@@ -1557,7 +1765,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v121</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v124</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2530,7 +2738,8 @@ function viewCare() {
     ${sent.length ? `<details class="fold" data-fold="sent"><summary>Tes mots envoyés (${sent.length})</summary><ul class="list sent">${sent.map(c => `
       <li class="item"><div class="item-main"><div class="item-title">${esc(c.body.length > 90 ? c.body.slice(0, 90) + '…' : c.body)}</div>
       <div class="item-meta">${esc(ago(c.created_at))}, ${c.read_at ? 'lu' : 'pas encore lu'}</div></div>
-      <button class="link" data-action="care-delete" data-id="${c.id}">Retirer</button></li>`).join('')}</ul></details>` : ''}`;
+      <button class="link" data-action="care-delete" data-id="${c.id}">Retirer</button></li>`).join('')}</ul></details>` : ''}
+    ${carnetSection()}`;
 }
 
 
@@ -2541,7 +2750,7 @@ const actions = {
   'guide-page': () => openGuidePage(),
   'guide-tour': () => { closeTicket(); openTour(0); },
   'guide-hint-off': () => { tipSave('page:' + guideKey()); render(); },
-  'guide-reset': () => { S.tips = {}; tipSave('tour', false); openTour(0); },
+  'guide-reset': () => { S.tips = S.tips?.azami ? { azami: S.tips.azami } : {}; tipSave('tour', false); openTour(0); },
 
   'calm-on': () => { const o = overload(); setCalm({ on: true, auto: false, since: Date.now(), start: o.late.length }); S.calmExit = false; haptic(1); render(); window.scrollTo(0, 0); },
   'calm-off': () => { setCalm({ on: false, offDay: isoDate(new Date()) }); haptic(1); render(); },
@@ -2557,6 +2766,7 @@ const actions = {
       async () => { for (const x of rest) await api.update(x.kind === 'task' ? 'tasks' : 'chores', { id: x.row.id }, { snooze_until: until }); }, 'Repoussé de 3 jours. On s’en occupe plus tard.');
   },
   'help-open': el => openHelp(el.dataset.kind, el.dataset.id),
+  'visite-replay': el => visitOpen(el.dataset.id, true),
   nudge: el => {
     const kind = el.dataset.kind, id = el.dataset.id;
     const row = kind === 'task' ? S.tasks.find(t => t.id === id) : S.chores.find(c => c.id === id);
