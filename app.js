@@ -701,7 +701,7 @@ function doUndo() {
 document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && UNDO && !typing()) { e.preventDefault(); doUndo(); } });
 
 function win(kind, title, weight = 1, icon = null) {
-  setTimeout(() => visitMaybe(kind), 3800);   // après la fête : Azami viendra peut-être parler
+  setTimeout(() => visitMaybe(kind, weight), 3800);   // après la fête : Azami viendra peut-être parler
   return api.insert('wins', { kind, title: title || null, done_by: S.me, done_at: new Date().toISOString(), weight, icon }).catch(e => console.warn('win', e));
 }
 const WEEK = 7 * DAY;
@@ -1101,7 +1101,7 @@ function popOpen(id) {
   popList = popList.filter(x => x.id !== id); popRender();
   const g = e.go || {};
   closeTicket(); clearReaction();
-  S.view = g.view || 'maison'; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view);
+  const from = S.view; S.view = g.view || 'maison'; S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view);
   if (g.letter) { S.openLetter = g.letter; const c = S.care.find(x => x.id === g.letter); if (c && !c.read_at) { c.read_at = new Date().toISOString(); api.rpc('care_mark_read', { msg: c.id }).catch(console.error); } }
   render(); window.scrollTo(0, 0);
   const el = g.el && document.getElementById(g.el);
@@ -1113,7 +1113,7 @@ function popOpen(id) {
 // question, devinettes, secret rare). Un dialogue en plusieurs tours, un choix à chaque tour.
 // Le carnet est commun : ce que l'un découvre compte pour vous deux.
 // Récompense imprévisible : plus on en fait dans la journée, plus elle a de chances de venir.
-const VISIT_KIND = { blague: 'Une blague', mignon: 'Un mot doux', question: 'Une question', bravo: 'Bravo', secret: 'Secret rare', devinette: 'Devinettes' };
+const VISIT_KIND = { blague: 'Une blague', mignon: 'Un mot doux', question: 'Une question', bravo: 'Bravo', secret: 'Secret rare', devinette: 'Devinettes', cuisine: 'En cuisine' };
 const visitState = () => (S.tips && S.tips.azami) || { last: null, day: null, n: 0, pending: null };
 function visitSave(st) { if (!S.tips) S.tips = {}; tipSave('azami', st); }
 const parentOf = email => personOf(email) === 'mariana' ? 'maman' : personOf(email) === 'yatoni' ? 'papa' : null;
@@ -1132,11 +1132,14 @@ function visitText(t) {
   // Les mamans souris et kangourous des blagues restent des mamans.
   return t.replace(/(\b(?:une|la|Une|La|qu'une)\s)?\b([Pp]apa|[Mm]aman)\b(?!\s(?:souris|kangourou))/g, (m, det, w) => det ? m : nameOfP(w.toLowerCase()));
 }
-function visitPick(doneToday) {
+function visitPick(doneToday, kind) {
   // D'abord ce que personne de vous deux n'a encore découvert.
   let pool = VISITES.filter(v => visitFor(v) && !carnetHas(v.id));
   if (!pool.length) pool = VISITES.filter(visitFor);   // tout découvert : on recommence le tour
   const by = k => pool.filter(v => v.kind === k);
+  // Après avoir cuisiné : le plus souvent, Azami vient en toque parler cuisine.
+  if (kind === 'cuisine' && by('cuisine').length && Math.random() < .75) { const l = by('cuisine'); return l[Math.floor(Math.random() * l.length)]; }
+  pool = pool.filter(v => v.kind !== 'cuisine') .length ? pool.filter(v => v.kind !== 'cuisine') : pool;
   const r = Math.random();
   const from = by('secret').length && r < .07 ? by('secret')
     : by('bravo').length && doneToday >= 4 && r < .35 ? by('bravo')
@@ -1145,21 +1148,29 @@ function visitPick(doneToday) {
   const list = from.length ? from : pool;
   return list[Math.floor(Math.random() * list.length)];
 }
-function visitMaybe() {
+// Les visites récompensent l'effort, pas automatiquement mais à force : chaque chose faite ajoute des
+// points d'effort (cuisiner une recette compte beaucoup, une corvée lourde plus qu'une légère, cocher un
+// article presque rien). Plus on en a accumulé depuis la dernière visite, plus elle a de chances de venir.
+const EFFORT = { cuisine: 4, shop: 2, settle: 1, task: 1, achat: 0 };
+function visitMaybe(kind, weight = 1, tries = 0) {
   if (!S.me) return;
-  if (azamiAway()) { setTimeout(visitMaybe, 15000); return; }
-  if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { setTimeout(visitMaybe, 1500); return; }
-  const st = visitState(); const today = isoDate(new Date());
+  if (azamiAway()) { if (tries < 8) setTimeout(() => visitMaybe(kind, 0, tries + 1), 15000); return; }
+  if (document.getElementById('cele') || document.getElementById('tour') || document.getElementById('visite')) { if (tries < 40) setTimeout(() => visitMaybe(kind, 0, tries + 1), 1500); return; }
+  let st = visitState(); const today = isoDate(new Date());
+  // les points ne comptent qu'une fois (les nouvelles tentatives arrivent avec weight = 0)
+  const pts = tries ? 0 : kind === 'chore' ? Math.max(1, Number(weight) || 2) : (EFFORT[kind] ?? 1);
+  if (pts) { st = { ...st, effort: (st.effort || 0) + pts }; visitSave(st); }
   if (st.pending) { visitInvite(); return; }
   const n = st.day === today ? st.n || 0 : 0;
   if (n >= 3) return;
   if (st.last && Date.now() - new Date(st.last).getTime() < 40 * 60000) return;
   const doneToday = S.wins.filter(w => w.done_by === S.me && isoDate(new Date(w.done_at)) === today).length || 1;
   const first = !st.last;
-  const p = first ? 1 : n === 0 && doneToday >= 4 ? 1 : Math.min(.6, .15 + .12 * (doneToday - 1));
-  if (Math.random() > p) return;
-  const v = visitPick(doneToday); if (!v) return;
-  visitSave({ ...st, pending: v.id, day: today, n: n + 1, last: new Date().toISOString() });
+  // environ une chance sur trois après une recette, presque sûr après une belle série d'efforts
+  const p = first ? 1 : Math.min(.85, (st.effort || 0) / 12);
+  if (!pts || Math.random() > p) return;
+  const v = visitPick(doneToday, kind); if (!v) return;
+  visitSave({ ...st, effort: 0, pending: v.id, day: today, n: n + 1, last: new Date().toISOString() });
   visitInvite(true);
 }
 // L'invitation reste là tant qu'on ne l'a pas ouverte : le temps d'appeler l'autre pour qu'il vienne voir.
@@ -1208,8 +1219,8 @@ function visitOpen(id, replay = false) {
   visitTurn();
 }
 // Costume selon la visite : lunettes de psy pour les séances, nœud papillon pour les devinettes.
-const visitTalkImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_parle';
-const visitWaitImg = v => v.kind === 'devinette' ? 'visite_quiz' : /^h/.test(v.id) ? 'visite_psy' : 'visite_ecoute';
+const visitTalkImg = v => v.kind === 'devinette' ? 'visite_quiz' : v.kind === 'cuisine' ? 'visite_chef_parle' : /^h/.test(v.id) ? 'visite_psy' : 'visite_parle';
+const visitWaitImg = v => v.kind === 'devinette' ? 'visite_quiz' : v.kind === 'cuisine' ? 'visite_chef_ecoute' : /^h/.test(v.id) ? 'visite_psy' : 'visite_ecoute';
 // Le fil suit toujours le dernier message, sauf si on remonte exprès pour relire (il reprend dès qu'on redescend).
 function visitFollow(talk) {
   let follow = true, prog = false;
@@ -1225,7 +1236,7 @@ function visitTurn() {
   visitImg(visitTalkImg(visitCur.v));
   visitSay(t.lines, () => visitChoices());
 }
-const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img || visitCur.hold) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
+const visitImg = name => { const img = visitCur?.box.querySelector('.visite-azami'); if (!img || visitCur.hold) return; img.src = ['visite_parle', 'visite_ecoute', 'visite_appel', 'visite_psy', 'visite_quiz', 'visite_chef_parle', 'visite_chef_ecoute'].includes(name) ? azamiSrc('v44_' + name) : (reducedMotion() ? `azami/v44/reactions/statiques/${name}_statique.svg` : `azami/v44/reactions/${name}_anime.svg?${Date.now()}`); };
 // Les répliques s'écrivent lettre par lettre (toucher la carte pour aller plus vite).
 function voixAzami(ch, up) {
   if (!SOUNDS || !audioCtx || audioCtx.state !== 'running' || document.hidden) return;
@@ -1284,7 +1295,7 @@ function visitChoose(i) {
   if (c.ok === true) mood = 'fier';
   setTimeout(() => {
     if (visitCur !== cur) return;
-    visitImg('visite_' + mood);
+    visitImg((visitCur.v.kind === 'cuisine' ? 'visite_chef_' : 'visite_') + mood);
     meow(true, .55, pick({ rire: ['chirp', 'gazouille', 'mewmew'], coeur: ['ronron', 'ronronmrr', 'mrrr'], fier: ['long', 'miaou2'], malice: ['grogne', 'mrrr', 'eternue'], langue: ['mew', 'mewmew'] }[mood] || ['miaou']));
     visitSay(c.reply, () => {
       cur.busy = false;
@@ -1782,7 +1793,24 @@ function duoNotice() {
 const FOLD_ON = new WeakSet();
 // Écran de chargement : Azami suit sa pelote (le même que dans index.html, avant que le script tourne).
 const BOOT = '<div class="boot" role="status" aria-label="Chargement"><picture><source srcset="azami/v44/statiques/azami_v44_chargement_statique.svg" media="(prefers-reduced-motion: reduce)"><img src="azami/v44/azami_v44_chargement_anime.svg" alt="" width="180" height="180"></picture></div>';
+// Recette en cours : si on quitte la page (une notification, un autre onglet, l'app fermée), on la retrouve
+// là où on en était en revenant sur Recettes (pendant 6 heures).
+function cookSave() {
+  if (S.view !== 'recettes') return;
+  safeSet('maison-cook', S.cook || S.recette ? JSON.stringify({ cook: S.cook, recette: S.recette, persons: S.persons, at: Date.now() }) : '');
+}
+function cookRestore() {
+  try {
+    const x = JSON.parse(safeGet('maison-cook') || 'null');
+    if (!x || Date.now() - x.at > 6 * 3600000) return;
+    if (x.cook && !RID(x.cook.id)) return;
+    if (x.recette && !RID(x.recette)) return;
+    S.cook = x.cook; S.recette = x.recette; if (x.persons) S.persons = x.persons;
+    if (S.cook) setTimeout(() => toast(S.cook.full ? 'On reprend la recette là où tu en étais.' : `On reprend à l’étape ${S.cook.step + 1}.`), 300);
+  } catch {}
+}
 function render() {
+  if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
   if (!S.ready) { if (!$app.querySelector('.boot')) $app.innerHTML = BOOT; return; }
   if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); placeAzami(); return; }
@@ -1806,6 +1834,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${guideHint()}`);
   morph($app, demoBar() + page + timersBar() + nav());
   placeAzami();
+  cookSave();
   propEnter();
   maybeCoucou();
   afvCheck();
@@ -1969,7 +1998,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v143</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v144</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3111,7 +3140,7 @@ const actions = {
     }, null).then(ok => { if (!ok) return; const a = S.panierAdded; toast(a ? `Au menu. ${pl(a, 'article ajouté', 'articles ajoutés')} à la liste` : 'Au menu. Tu as déjà tout'); react('courses_completees', document.querySelector('.hd .azami')); });
   },
 
-  go: el => { clearReaction(); S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
