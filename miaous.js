@@ -19,6 +19,7 @@ export const MEOW_KINDS = {
   eternue: 'Atchi !',
   ronronmrr: 'Ronron puis mrr',
   crache: 'Crache (hiss)',
+  griffe: 'Griffe (sur l’écran)',
 };
 
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -110,6 +111,16 @@ export function playMeow(c, kind = 'miaou', volume = .6) {
       mk(.03, 3000, .6, .5, t, 4);
       mk(rnd(.6, .8), rnd(4200, 5200), .7, .35, t + .04, 1.2);
       return t + .85;
+    }
+    case 'griffe': {   // trois petits « scritch » rapides
+      for (let i = 0; i < 3; i++) {
+        const at = t + i * rnd(.05, .07), dur = rnd(.07, .1), len = Math.floor(c.sampleRate * dur), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+        for (let j = 0; j < len; j++) { const x = j / len; d[j] = (Math.random() * 2 - 1) * Math.sin(Math.PI * x) * (.6 + .4 * Math.sin(j / 9)); }
+        const n = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain(); n.buffer = buf;
+        bp.type = 'bandpass'; bp.Q.value = 2; bp.frequency.setValueAtTime(rnd(2500, 3200), at); bp.frequency.linearRampToValueAtTime(rnd(5000, 6500), at + dur);
+        g.gain.value = .3; n.connect(bp); bp.connect(g); g.connect(out); n.start(at);
+      }
+      return t + .3;
     }
     case 'eternue': {
       const len = Math.floor(c.sampleRate * .16), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);

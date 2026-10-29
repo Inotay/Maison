@@ -1117,3 +1117,15 @@ body.no-scroll { overflow: hidden; touch-action: none; overscroll-behavior: none
 body.azami-away .azami-btn img.azami, body.azami-away #visite-invite { opacity: 0; pointer-events: none; transition: opacity .2s; }
 body.azami-away .azami-btn { cursor: default; }
 .visite-azami { cursor: pointer; }
+
+/* Griffures d'Azami sur l'« écran » : rayures claires sur le verre, tracées d'un coup, puis elles restent. */
+#griffures { position: fixed; inset: 0; z-index: 95; pointer-events: none; }
+#griffures svg { position: absolute; inset: 0; overflow: visible; }
+#griffures path { fill: none; stroke-linecap: round; stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: griffe .18s cubic-bezier(.2, .8, .3, 1) forwards; animation-delay: var(--d, 0s); }
+#griffures .g-shadow { stroke: rgba(20, 20, 30, .28); stroke-width: 7; transform: translate(1.5px, 2px); }
+#griffures .g-cut { stroke: rgba(255, 255, 255, .62); stroke-width: 4.5; }
+#griffures .g-shine { stroke: rgba(255, 255, 255, .95); stroke-width: 1.4; }
+#griffures g { animation: griffe-tremble .25s ease-out; animation-delay: var(--d, 0s); }
+@keyframes griffe { to { stroke-dashoffset: 0; } }
+@keyframes griffe-tremble { 0% { opacity: .2; } 100% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #griffures path { animation: none; stroke-dashoffset: 0; } }

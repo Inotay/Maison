@@ -1463,6 +1463,7 @@ function azamiPet(img, inVisit = false) {
   if (angryAt && now - angryAt < 10000 && petTimes.filter(t => t > angryAt + 1800).length >= 5) {
     angryAt = 0; petTimes = [];
     haptic('heavy'); meow(true, .8, 'crache'); setTimeout(() => haptic('heavy'), 250);
+    setTimeout(() => scratchScreen(true), 900);
     if (inVisit && visitCur) visitCur.hold = true;
     playOnImg(img, 'crache', 1950, back => {
       img.src = back;
@@ -1474,12 +1475,33 @@ function azamiPet(img, inVisit = false) {
   if (!angryAt && petTimes.length >= 8) {
     angryAt = now; petTimes = [];
     haptic('heavy'); meow(true, .7, pick(['grogne', 'mrrr']));
+    setTimeout(() => scratchScreen(false), 380);
     if (inVisit && visitCur) visitCur.hold = true;
     playOnImg(img, 'attaque', 1750, back => { if (inVisit && visitCur) { visitCur.hold = false; visitImg(visitWaitImg(visitCur.v)); } else img.src = back; });
     return true;
   }
   if (angryAt && now - angryAt > 10000) angryAt = 0;
   return false;
+}
+// Griffure sur l'écran : des rayures sur le « verre » du téléphone, qui restent jusqu'à ce qu'on ferme l'app.
+function scratchScreen(big = false) {
+  let layer = document.getElementById('griffures');
+  if (!layer) { layer = document.createElement('div'); layer.id = 'griffures'; layer.setAttribute('aria-hidden', 'true'); document.body.appendChild(layer); }
+  while (layer.children.length >= 5) layer.firstChild.remove();
+  const W = innerWidth, H = innerHeight, n = big ? 4 : 3, len = (big ? .55 : .38) * Math.min(W, H) * (0.85 + Math.random() * .3);
+  const cx = W * (.25 + Math.random() * .5), cy = H * (.2 + Math.random() * .45), rot = -35 + Math.random() * 70;
+  const gap = big ? 26 : 20, lines = [];
+  for (let i = 0; i < n; i++) {
+    const off = (i - (n - 1) / 2) * gap + (Math.random() - .5) * 6, l = len * (.8 + Math.random() * .25);
+    const x0 = off, y0 = -l / 2, x1 = off + (Math.random() - .5) * 18, y1 = l / 2, bend = (Math.random() - .5) * 40;
+    const d = `M${x0.toFixed(1)} ${y0.toFixed(1)} Q${(off + bend).toFixed(1)} 0 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+    lines.push(`<g style="--d:${(i * .06).toFixed(2)}s"><path class="g-shadow" d="${d}"/><path class="g-cut" d="${d}"/><path class="g-shine" d="${d}"/></g>`);
+  }
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('width', W); svg.setAttribute('height', H); svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = `<g transform="translate(${cx.toFixed(0)} ${cy.toFixed(0)}) rotate(${rot.toFixed(0)})">${lines.join('')}</g>`;
+  layer.appendChild(svg);
+  meow(true, .6, 'griffe');
 }
 function azamiLeave() {
   awayUntil = Date.now() + 60000;
@@ -1837,7 +1859,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v129</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v130</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
