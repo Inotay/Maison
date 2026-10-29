@@ -3,12 +3,13 @@
 // Suisse, et propositions pour le match à deux. Sans clé : Wikipédia (films) et TVmaze (séries).
 // Réservé aux membres de la maison. La clé reste ici, jamais dans l'app.
 import { createClient } from "npm:@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const KEY = Deno.env.get("TMDB_KEY") ?? "";
 const IMG = "https://image.tmdb.org/t/p/";
-type Item = { tmdb_id: number | null; media: "movie" | "tv"; title: string; original?: string; year: number | null; poster: string | null; overview: string; source: string; pop?: number; dispo?: boolean; cinema?: boolean; gids?: number[]; lang?: string; note?: number };
+type Item = { reco?: number; tmdb_id: number | null; media: "movie" | "tv"; title: string; original?: string; year: number | null; poster: string | null; overview: string; source: string; pop?: number; dispo?: boolean; cinema?: boolean; gids?: number[]; lang?: string; note?: number };
 
 async function tmdb(path: string, params: Record<string, string> = {}) {
   const u = new URL("https://api.themoviedb.org/3" + path);
@@ -205,7 +206,7 @@ async function search(q: string): Promise<Item[]> {
 
 // Retrouver la bonne fiche d'un titre écrit à la main (titre + année + film ou série), puis ses détails.
 const nrm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").replace(/^(le|la|les|l|the|a|an|un|une) /, "").trim();
-async function resolveOne(it: { title: string; media: string; year?: number }) {
+async function resolveOne(it: { title: string; media: string; year?: number }, lite = false) {
   const media = it.media === "tv" ? "tv" : "movie";
   const yk = media === "movie" ? "year" : "first_air_date_year";
   const q = it.title.replace(/\s*\((19|20)\d{2}\)\s*$/, "");
@@ -217,6 +218,8 @@ async function resolveOne(it: { title: string; media: string; year?: number }) {
   const score = (x: Record<string, unknown>) => (nrm(String(x.title || x.name || "")) === n || nrm(String(x.original_title || x.original_name || "")) === n ? 4 : 0)
     + (it.year && yr(x) && Math.abs(yr(x)! - it.year) <= 1 ? 3 : 0) + (x.poster_path ? 2 : 0) + Math.min(2, Number(x.popularity || 0) / 20);
   const best = [...res].sort((a, b) => score(b) - score(a))[0];
+  // en lot (import Letterboxd, test de goût) : la fiche courte suffit (affiche, résumé, traits du goût)
+  if (lite) return await traitsFor(fromTmdb(best, media)!);
   return await details(best.id as number, media);
 }
 async function pool<T, R>(list: T[], n: number, fn: (x: T) => Promise<R>) {
@@ -241,7 +244,24 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
   const pids = subs.length && mood !== "cine" ? await providerIds(subs) : [];
   const GEN: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
   for (const media of pids.length ? ["movie", "tv"] : []) src(`/discover/${media}`, { watch_region: "CH", with_watch_providers: pids.join("|"), with_watch_monetization_types: "flatrate|free", sort_by: "popularity.desc", "vote_count.gte": "200", ...(GEN[mood] ? { with_genres: media === "tv" ? (TVG[GEN[mood]] ?? GEN[mood]) : GEN[mood] } : {}), page: rnd(4) }, media, { dispo: true });
-  if (mood !== "cine") {
+  // les modes de pioche : pépites (très bien notés, peu connus), classiques, nouveautés, ce soir en moins de 2 h
+  const MODE: Record<string, (media: string) => Record<string, string>> = {
+    pepites: () => ({ sort_by: "vote_average.desc", "vote_average.gte": "7.2", "vote_count.gte": "120", "vote_count.lte": "2500" }),
+    classiques: m => ({ sort_by: "vote_average.desc", "vote_count.gte": "800", [m === "tv" ? "first_air_date.lte" : "primary_release_date.lte"]: "1989-12-31" }),
+    nouveautes: m => ({ sort_by: "popularity.desc", "vote_count.gte": "40", [m === "tv" ? "first_air_date.gte" : "primary_release_date.gte"]: new Date(Date.now() - 400 * 864e5).toISOString().slice(0, 10) }),
+    court: () => ({ sort_by: "vote_average.desc", "vote_count.gte": "400", "with_runtime.lte": "105", "with_runtime.gte": "60" }),
+  };
+  if (MODE[mood]) {
+    const like = (prefs.like ?? []).slice(0, 3).map(String), dislike = (prefs.dislike ?? []).slice(0, 2).map(String);
+    for (const media of mood === "court" ? ["movie"] : ["movie", "tv"]) {
+      const g = media === "tv" ? like.map(x => TVG[x] ?? x) : like, no = media === "tv" ? dislike.map(x => TVG[x] ?? x) : dislike;
+      const base = { ...MODE[mood](media), ...(no.length ? { without_genres: no.join(",") } : {}) };
+      src(`/discover/${media}`, { ...base, page: rnd(mood === "nouveautes" ? 2 : 8) }, media);
+      if (g.length) src(`/discover/${media}`, { ...base, with_genres: g.join("|"), page: rnd(4) }, media);
+      if (prefs.langs?.length && media === "movie") src("/discover/movie", { ...base, with_original_language: prefs.langs[0], page: rnd(3) }, media);
+    }
+    for (const pid of (prefs.people ?? []).slice(0, 2)) src("/discover/movie", { ...MODE[mood]("movie"), "vote_count.lte": "100000", with_people: String(pid) }, "movie");
+  } else if (mood !== "cine") {
     // ce que vos avis ont appris : genres aimés (sans ceux que vous n'aimez pas), langues, équipes, thèmes
     const like = (prefs.like ?? []).slice(0, 3).map(String).sort(() => Math.random() - .5).slice(0, 2), dislike = (prefs.dislike ?? []).slice(0, 3).map(String);
     if (like.length) for (const media of ["movie", "tv"]) {
@@ -251,23 +271,105 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "150" }, "movie");
     if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "popularity.desc", "vote_count.gte": "150" }, media);
     if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "200", page: rnd(4) }, "movie");
-    for (const s of seeds.slice(0, 4)) src(`/${s.media}/${s.tmdb_id}/recommendations`, {}, s.media);
+    // les recommandations de vos films adorés : on compte combien d'entre eux recommandent chaque film
+    for (const s of seeds.slice(0, 6)) jobs.push(tmdb(`/${s.media}/${s.tmdb_id}/recommendations`, {}).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, s.media)).filter(Boolean).map(x => ({ ...x!, reco: 1 }))).catch(() => []));
     const GENRE: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
     if (mood && GENRE[mood]) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_genres: media === "tv" ? (TVG[GENRE[mood]] ?? GENRE[mood]) : GENRE[mood], sort_by: "popularity.desc", "vote_count.gte": "300", page: rnd(3) }, media);
     src("/trending/all/week", {});
     src("/movie/top_rated", { page: rnd(5) }, "movie");
   }
   const lists = await Promise.all(jobs);
+  const recoN = new Map<string, number>();
+  for (const l of lists) for (const x of l) if (x.reco) { const k = `${x.media}:${x.tmdb_id}`; recoN.set(k, (recoN.get(k) || 0) + 1); }
   // on mélange les sources une par une, sans doublons ni ce qui est déjà dans votre liste
   const out: Item[] = [], seen = new Set<string>();
   for (let i = 0; out.length < 48 && lists.some(l => l.length > i); i++) for (const l of lists) {
     const x = l[i]; if (!x || !x.poster || !x.overview) continue;
     const k = `${x.media}:${x.tmdb_id}`; if (seen.has(k) || exclude.has(k)) continue;
-    seen.add(k); out.push(x);
+    seen.add(k); out.push({ ...x, reco: recoN.get(k) || 0 });
   }
+  // ceux que plusieurs de vos films recommandent passent devant
+  const strong = out.filter(x => (x.reco || 0) >= 2).sort((a, b) => (b.reco || 0) - (a.reco || 0));
+  out.splice(0, out.length, ...strong, ...out.filter(x => (x.reco || 0) < 2));
   // les plus prometteurs reçoivent leur fiche « goût » (équipe, thèmes, durée, succès, public)
   const rich = await pool(out.slice(0, 30), 10, traitsFor);
   return [...rich.map((x, i) => x ?? out[i]), ...out.slice(30)];
+}
+
+// Les alertes (lancées chaque jour par le planificateur) : un film de vos listes passe en salle à Lausanne,
+// arrive sur un de vos abonnements, ou une série en cours a une nouvelle saison. Chaque alerte part une seule fois.
+const wantsV = (v: unknown) => v === "oui" || v === "super";
+async function alertes(db: ReturnType<typeof createClient>) {
+  const [{ data: films }, { data: reg }, { data: sent }, { data: subsRows }, { data: keysRows }] = await Promise.all([
+    db.from("films").select("id, tmdb_id, media, title, original, year, status, votes, providers, seasons, checked_at").in("status", ["a_voir", "en_cours"]),
+    db.from("reglages").select("valeur").eq("cle", "abonnements").maybeSingle(),
+    db.from("film_alertes").select("film_id, kind, info"),
+    db.from("push_subscriptions").select("endpoint, email, sub"),
+    db.from("app_secrets").select("name, value").in("name", ["vapid_public", "vapid_private", "vapid_subject"]),
+  ]);
+  const done = new Set((sent ?? []).map((r: Record<string, string>) => `${r.film_id}|${r.kind}|${r.info}`));
+  const subs: string[] = (reg?.valeur as string[]) ?? [];
+  const isSub = (name: string) => subs.some(k => SUB_RE[k]?.test(name));
+  const out: { film: Record<string, any>; kind: string; info: string; title: string; body: string; to: string[] }[] = [];
+  const fans = (f: Record<string, any>) => Object.entries(f.votes ?? {}).filter(([, v]) => wantsV(v)).map(([e]) => e);
+  const wanted = (films ?? []).filter((f: Record<string, any>) => f.status === "a_voir" && fans(f).length);
+  // 1. en salle à Lausanne
+  try {
+    const sl = await salles();
+    for (const f of wanted) {
+      if (f.media !== "movie") continue;
+      const keys = new Set([nrm(f.title || ""), nrm(f.original || "")].filter(Boolean));
+      for (const x of sl) {
+        const parts = [x.title, ...x.title.replace(/\((19|20)\d{2}\)/, "").split(/[()]/)].map(nrm).filter(k => k.length > 1);
+        if (!parts.some(k => keys.has(k)) || (x.year && f.year && Math.abs(x.year - f.year) > 1)) continue;
+        const info = x.where;   // une seule alerte par film et par salle
+        out.push({ film: f, kind: "salle", info, to: fans(f), title: `🎟 ${f.title} ${x.where === "Cinémathèque" ? "à la Cinémathèque" : `au ${x.where}`}`, body: `${x.when ?? "En ce moment"}. Il est dans votre liste.` });
+        break;
+      }
+    }
+  } catch (e) { console.error("alertes salles", e); }
+  // 2. arrivé sur un de vos abonnements (les plus anciennes vérifications d'abord)
+  if (KEY && subs.length) {
+    const todo = wanted.filter((f: Record<string, any>) => f.tmdb_id).sort((a: Record<string, any>, b: Record<string, any>) => String(a.checked_at ?? "").localeCompare(String(b.checked_at ?? ""))).slice(0, 30);
+    await pool(todo, 6, async (f: Record<string, any>) => {
+      const ch = (await tmdb(`/${f.media}/${f.tmdb_id}/watch/providers`)).results?.CH ?? {};
+      const providers = [...(ch.flatrate ?? []).map((p: Record<string, string>) => ({ name: p.provider_name, logo: p.logo_path ? IMG + "w92" + p.logo_path : null, kind: "abo" })),
+        ...(ch.free ?? []).map((p: Record<string, string>) => ({ name: p.provider_name, logo: p.logo_path ? IMG + "w92" + p.logo_path : null, kind: "gratuit" })),
+        ...(ch.rent ?? []).slice(0, 3).map((p: Record<string, string>) => ({ name: p.provider_name, logo: p.logo_path ? IMG + "w92" + p.logo_path : null, kind: "location" }))];
+      const before = new Set(((f.providers ?? []) as Record<string, string>[]).filter(p => p.kind !== "location").map(p => p.name));
+      // la première vérification sert de point de départ (sinon tout ce qui est déjà dispo sonnerait d'un coup)
+      if (f.checked_at) for (const p of providers) if (p.kind !== "location" && isSub(p.name) && !before.has(p.name))
+        out.push({ film: f, kind: "abo", info: p.name, to: fans(f), title: `✓ ${f.title} est sur ${p.name}`, body: "Il est dans votre liste, et c’est inclus dans votre abonnement." });
+      await db.from("films").update({ providers, checked_at: new Date().toISOString() }).eq("id", f.id);
+    });
+  }
+  // 3. nouvelle saison d'une série en cours
+  if (KEY) {
+    const series = (films ?? []).filter((f: Record<string, any>) => f.status === "en_cours" && f.media === "tv" && f.tmdb_id);
+    await pool(series, 4, async (f: Record<string, any>) => {
+      const d = await tmdb(`/tv/${f.tmdb_id}`); const n = Number(d.number_of_seasons || 0);
+      if (f.seasons && n > f.seasons) out.push({ film: f, kind: "saison", info: String(n), to: [], title: `📺 ${f.title} : saison ${n}`, body: "Une nouvelle saison de votre série en cours est sortie." });
+      if (n && n !== f.seasons) await db.from("films").update({ seasons: n }).eq("id", f.id);
+    });
+  }
+  const fresh = out.filter(a => !done.has(`${a.film.id}|${a.kind}|${a.info}`));
+  if (!fresh.length) return { alertes: 0 };
+  const k = Object.fromEntries((keysRows ?? []).map((r: Record<string, string>) => [r.name, r.value]));
+  let sent2 = 0;
+  if (k.vapid_public && k.vapid_private) {
+    webpush.setVapidDetails(k.vapid_subject || "mailto:maison@inotay.github.io", k.vapid_public, k.vapid_private);
+    const byPerson = new Map<string, typeof fresh>();
+    const all = [...new Set((subsRows ?? []).map((s: Record<string, string>) => String(s.email || "").toLowerCase()))];
+    for (const a of fresh) for (const e of (a.to.length ? a.to : all)) byPerson.set(e, [...(byPerson.get(e) ?? []), a]);
+    for (const s of subsRows ?? []) {
+      const list = byPerson.get(String(s.email || "").toLowerCase()) ?? []; if (!list.length) continue;
+      const payload = list.length === 1 ? { title: list[0].title, body: list[0].body } : { title: `🍿 ${list.length} bonnes nouvelles pour votre ciné`, body: list.slice(0, 3).map(a => a.title.replace(/^\S+ /, "")).join(" · ") };
+      try { await webpush.sendNotification(s.sub, JSON.stringify({ ...payload, tag: "maison-cine", url: "./?do=film" }), { TTL: 12 * 3600 }); sent2++; }
+      catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) await db.from("push_subscriptions").delete().eq("endpoint", s.endpoint); }
+    }
+  }
+  await db.from("film_alertes").upsert(fresh.map(a => ({ film_id: a.film.id, kind: a.kind, info: a.info })));
+  return { alertes: fresh.length, envoyees: sent2 };
 }
 
 Deno.serve(async (req) => {
@@ -277,6 +379,8 @@ Deno.serve(async (req) => {
   // Les séances des salles de Lausanne sont publiques : pas besoin d'être membre pour les lire.
   if (body.action === "salles") { try { return json({ salles: await salles() }); } catch (e) { return json({ error: (e as Error).message }, 500); } }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  // le planificateur, une fois par jour : rien n'est renvoyé de privé, les notifications vont aux membres
+  if (body.action === "alertes") { try { return json(await alertes(db)); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
   const me = (user?.email ?? "").toLowerCase();
   const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
@@ -296,7 +400,7 @@ Deno.serve(async (req) => {
     if (action === "resolve") {
       if (!KEY) return json({ results: [] });
       const items = ((body.items ?? []) as { title: string; media: string; year?: number }[]).slice(0, 40);
-      return json({ results: await pool(items, 6, resolveOne) });
+      return json({ results: await pool(items, body.lite ? 8 : 6, x => resolveOne(x, !!body.lite)) });
     }
     if (action === "deck") {
       const seeds = (body.seeds ?? []) as { tmdb_id: number; media: string }[];
