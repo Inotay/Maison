@@ -19,6 +19,9 @@ const RT = { court: 'les films courts', moyen: '', long: 'les films longs' };
 // thèmes TMDB qui ne disent rien du goût
 const BANAL = /^(duringcreditsstinger|aftercreditsstinger|woman director|based on novel or book|sequel|remake|prequel|3d|imax|short film|anime)$/i;
 
+const PRIX = { palme: 'les Palmes d’or', lion: 'les Lions d’or de Venise', ours: 'les Ours d’or de Berlin', leopard: 'les Léopards d’or de Locarno', oscar_film: 'les Oscars du meilleur film', cesar: 'les Césars du meilleur film', annecy: 'les Cristaux d’Annecy', oscar_inter: 'les Oscars du film international', oscar_anim: 'les Oscars du film d’animation', cannes_gp: 'les Grands prix de Cannes' };
+const SELEC = { cannes: 'la compétition de Cannes', venise: 'la compétition de Venise', berlin: 'la compétition de Berlin', locarno: 'la compétition de Locarno', oscar_film_nom: 'les nommés à l’Oscar du meilleur film' };
+export const PALMA = { PRIX, SELEC };
 const add = (m, k, w, label, kind) => { const x = m.get(k); if (!x || x[0] < w) m.set(k, [w, label, kind]); };
 // Les traits d'un film : [clé, poids, libellé, type]
 export function feats(f) {
@@ -52,6 +55,21 @@ export function feats(f) {
     if (lb != null) { if (lb >= 4) add(m, 'lb:top', .5, 'les films très bien notés sur Letterboxd', 'presse'); else if (lb < 3.2) add(m, 'lb:bas', .5, '', 'presse'); }
     if (P.oscar) add(m, 'aw:oscar', .3, 'les films oscarisés', 'presse');
     if ((P.prix || 0) >= 25) add(m, 'aw:prime', .4, 'les films très primés', 'presse');
+  }
+  // palmarès : top 10 des Cahiers, Sight and Sound, prix et sélections des grands festivals (Wikidata)
+  const PL = f.palmares;
+  if (PL && !PL.aucun) {
+    if (PL.cahiers) add(m, 'pl:cahiers', .9, 'les films du top 10 des Cahiers du cinéma', 'palmares');
+    if (PL.ss) add(m, 'pl:ss', .9, 'les films du sondage Sight and Sound', 'palmares');
+    for (const p of PL.prix || []) add(m, 'pl:' + p, .5, PRIX[p] || '', 'palmares');
+    for (const p of PL.selec || []) add(m, 'sel:' + p, .5, SELEC[p] || '', 'palmares');
+  }
+  // tons et ambiances (lus par un modèle de langage dans le synopsis et l'article Wikipédia)
+  const TN = f.tons;
+  if (TN?.tons) {
+    for (const t of TN.tons) add(m, 'tn:' + t, 1, `le ton « ${t} »`, 'ton');
+    if (TN.rythme) add(m, 'ry:' + TN.rythme, .6, `le rythme ${TN.rythme}`, 'ry');
+    if (TN.intensite) add(m, 'in:' + TN.intensite, .5, `l’intensité ${TN.intensite}`, 'in');
   }
   // films et séries ne se jugent pas pareil : le genre compte aussi « dans les séries » ou « dans les films »
   add(m, 'm:' + f.media, .8, f.media === 'tv' ? 'les séries' : 'les films', 'media');
@@ -91,7 +109,7 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
 const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || ''); return at ? Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5))) : 1; };
 // Deux questions différentes : « est-ce que ça m'attire ? » (la curiosité, ce que Cinder demande) et « est-ce que
 // je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
-export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1 };   // réglés sur vos avis (v172)
+export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1, crA: 1, crC: .3 };   // réglés sur vos avis (v172)
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
@@ -126,17 +144,29 @@ export const quality = (f, src = 'tmdb') => (src !== 'tmdb' && SRC[src]?.(f.pres
 // Un « bof » juge l'histoire et l'affiche, pas l'équipe : il pèse peu sur les réalisateurs, acteurs et studios
 // (on peut ne pas être curieux d'un film d'un cinéaste qu'on adore par ailleurs).
 const PEOPLE = new Set(['dir', 'crea', 'wri', 'comp', 'dop', 'cast', 'studio']);
+// Quand on dit pourquoi (après un Bof ou un Non!), l'avis pèse surtout sur ce qu'on a désigné.
+const WHY = {
+  sujet: k => (k === 'kw' || k === 'genre' || k === 'gm') ? 1.6 : PEOPLE.has(k) ? .3 : .6,
+  ton: k => (k === 'ton' || k === 'ry' || k === 'in') ? 2.2 : .5,
+  lent: k => k === 'ry' ? 3 : k === 'rt' ? 2 : k === 'ton' ? 1 : .5,
+  violent: k => (k === 'ton' || k === 'in' || k === 'cert') ? 2.5 : .5,
+  equipe: k => PEOPLE.has(k) ? 2.6 : .4,
+  deja: k => (k === 'kw' || k === 'saga' || k === 'genre') ? 1.5 : .6,
+};
+export const RAISONS = [['sujet', 'Le sujet'], ['ton', 'Le ton'], ['lent', 'Trop lent'], ['violent', 'Trop violent'], ['equipe', 'L’équipe'], ['deja', 'Déjà trop vu']];
 export function profile(films, email, idf = () => 1, manual = {}, sig = signal) {
   const P = new Map(), N = new Map(), C = new Map(), NC = new Map(), liked = new Map(); let n = 0, pos = 0, neg = 0;
   const now = Date.now(), st = stats(films, email), solo = sig === signal;
-  const xs = [];
+  const xs = [], CR = {};
   for (const f of films) {
     const w = sig(f, email, now, st), c = solo ? curiosity(f, email, now, st) : 0; if (!w && !c) continue;
     n++; (w || c) > 0 ? pos++ : neg++;
     const bof = solo && !f.ratings?.[email]?.note && f.votes?.[email] === 'non';
-    if (f.ratings?.[email]?.note) xs.push([f, w]);
+    if (f.ratings?.[email]?.note) { xs.push([f, w]); if (f.critiques && !f.critiques.aucune) for (const [o, v] of Object.entries(f.critiques)) (CR[o] = CR[o] || []).push([+v, w]); }
+    const rz = solo ? (f.raisons?.[email] || []).filter(r => WHY[r]) : [];
     for (const [k, fw, label, kind] of feats(f)) {
-      const damp = bof && PEOPLE.has(kind) ? .35 : 1;
+      let damp = bof && PEOPLE.has(kind) ? .35 : 1;
+      if (rz.length) damp = rz.reduce((x, r) => Math.max(x, WHY[r](kind)), 0) * (bof && PEOPLE.has(kind) && !rz.includes('equipe') ? .35 : 1);
       if (w) { P.set(k, (P.get(k) || 0) + w * damp * fw * idf(k)); N.set(k, (N.get(k) || 0) + 1); }
       if (c) { C.set(k, (C.get(k) || 0) + c * damp * fw * idf(k)); NC.set(k, (NC.get(k) || 0) + 1); }
       if (w >= 1.2 && (kind === 'studio' || kind === 'saga' || kind === 'dir' || kind === 'crea' || kind === 'comp' || kind === 'dop' || kind === 'wri' || kind === 'cast' || kind === 'kw')) { const l = liked.get(k) || []; if (l.length < 3) l.push(f.title); liked.set(k, l); }
@@ -160,16 +190,32 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
   }
   for (const k of Object.keys(manual.boost || {})) Cn.set(k, Math.max(0, Cn.get(k) || 0) + 2.5);
   for (const k of Object.keys(manual.ban || {})) Cn.set(k, -6);
-  return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, src, corr, st };
+  // tes jumeaux critiques : les journaux dont les étoiles suivent le mieux tes notes (au moins 8 films en commun)
+  const critics = new Map();
+  for (const [o, pts] of Object.entries(CR)) {
+    if (pts.length < 8) continue;
+    const mx = pts.reduce((a, [x]) => a + x, 0) / pts.length, my = pts.reduce((a, [, y]) => a + y, 0) / pts.length;
+    let c = 0, vx = 0, vy = 0; for (const [x, y] of pts) { c += (x - mx) * (y - my); vx += (x - mx) ** 2; vy += (y - my) ** 2; }
+    if (vx && vy) critics.set(o, { r: c / Math.sqrt(vx * vy), mean: mx, n: pts.length });
+  }
+  return { email, n, pos, neg, Pn, Cn, liked, idf, ban: new Set(Object.keys(manual.ban || {})), manual, beta, src, corr, st, critics };
 }
 
 // Le score d'un film pour quelqu'un : ses traits pondérés par le profil, la qualité (note TMDB), et un bonus
 // quand plusieurs films que vous aimez le recommandent (le plus proche d'un « ceux qui aiment ça ont adoré »).
+// Ce que disent tes jumeaux critiques de ce film : l'écart de leurs étoiles à leur habitude, pondéré par leur ressemblance avec toi.
+export function critTerm(prof, f) {
+  const C = f.critiques; if (!C || C.aucune || !prof?.critics?.size) return 0;
+  let num = 0, den = 0;
+  for (const [o, v] of Object.entries(C)) { const c = prof.critics.get(o); if (!c || c.r <= .1) continue; const w = c.r * c.r * Math.min(1, c.n / 20); num += w * (v - c.mean); den += w; }
+  return den ? num / den * Math.min(1, den / .3) : 0;
+}
+export const twins = prof => [...(prof?.critics || [])].filter(([, c]) => c.n >= 8).sort((a, b) => b[1].r - a[1].r);
 // mix : 0 = seulement « vais-je l'aimer ? », 1 = seulement « est-ce que ça m'attire ? ».
 export function score(prof, f, mix = W.mix) {
   // la qualité vue par le public qui te ressemble compte beaucoup pour « vais-je l'aimer ? », moins pour « ça m'attire ? »
   const useC = prof?.Cn?.size ? mix : 0, q = quality(f, prof?.src);
-  const extra = (q ? (q - 6.8) * (prof?.beta ?? .5) * ((1 - useC) * W.qA + useC * W.qC) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0);
+  const extra = (q ? (q - 6.8) * (prof?.beta ?? .5) * ((1 - useC) * W.qA + useC * W.qC) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0) + critTerm(prof, f) * ((1 - useC) * W.crA + useC * W.crC);
   if (!prof || (!prof.n && !prof.ban?.size)) return extra;
   let a = 0, c = 0, norm = 0, banned = false;
   for (const [k, fw] of feats(f)) { const w = fw * prof.idf(k); norm += w * w; a += w * (prof.Pn.get(k) || 0); if (useC) c += w * (prof.Cn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
@@ -215,6 +261,7 @@ export function why(prof, f, max = 2) {
     const ex = prof.liked.get(k)?.find(t => t !== f.title);
     if (KIND_TXT[kind]) out.push(KIND_TXT[kind](label) + (ex ? `, comme ${ex}` : ''));
     else if (kind === 'kw') out.push(`Thème : ${label}` + (ex ? `, comme ${ex}` : ''));
+    else if (kind === 'ton' || kind === 'ry' || kind === 'palmares') out.push(`${prof.self ? 'Tu aimes' : `${prof.name || 'Elle'} aime`} ${label}`);
     else if (GEN.has(kind)) out.push(`${prof.self ? 'Tu aimes' : `${prof.name || 'Elle'} aime`} ${label}`);
     kinds.add(kind);
   }

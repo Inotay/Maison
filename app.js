@@ -2349,7 +2349,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v173</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v174</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3377,6 +3377,13 @@ async function filmsCall(body) {
   return data;
 }
 const fkey = f => `${f.media}:${f.tmdb_id || norm(f.title)}`;
+// les sources fines (palmarès, presse titre par titre, tons) : une autre fonction, appelée par petits lots
+async function srcCall(body) {
+  if (DEMO) return {};
+  const { data, error } = await sb.functions.invoke('films-sources', { body });
+  if (error) throw new Error(error.message);
+  return data || {};
+}
 // Annuler (Cmd+Z ou le bouton) pour tout ce qu'on fait dans le ciné : on garde l'état d'avant du film.
 const FILM_EMPTY = { votes: {}, ratings: {}, seen: {}, coeur: [] };
 const filmBefore = (f, keys) => ({ t: 'films', id: f.id, row: Object.fromEntries(keys.map(k => [k, f[k] ?? FILM_EMPTY[k] ?? null])) });
@@ -3692,6 +3699,8 @@ function cineCal(id) {
   });
   document.body.appendChild(box); pickSync(box); requestAnimationFrame(() => box.classList.add('on'));
 }
+// Quelqu'un d'autre a-t-il un avis sur ce film ? (alors il n'est pas à toi seul)
+const othersOn = f => S.members.some(m => m.email !== S.me && (fVotes(f)[m.email] || f.ratings?.[m.email] || f.seen?.[m.email] || (f.coeur || []).includes(m.email) || f.pourquoi?.[m.email]));
 // Le petit ménage : ce qui attend dans ta liste depuis plus de 6 mois.
 const SIX_MOIS = 182 * 864e5;
 const oldies = () => S.films.filter(f => f.status === 'a_voir' && T.wants(fVotes(f)[S.me]) && !fMatch(f) && Date.now() - Math.max(Date.parse(f.created_at || 0) || 0, Date.parse(f.garde?.[S.me] || 0) || 0) > SIX_MOIS);
@@ -3745,6 +3754,7 @@ function tasteCard(email) {
     ${top.people.length ? `<p class="taste-k">Côté équipes</p><div class="tchips">${chips(top.people)}</div>` : ''}
     ${top.themes.length || top.genres.length || top.langs.length ? `<p class="taste-k">Ce qui ${self ? 'te' : 'lui'} plaît</p><div class="tchips">${chips([...top.genres, ...top.langs, ...top.themes].slice(0, 8))}</div>` : ''}
     ${p.src && p.src !== 'tmdb' && p.corr > .2 ? `<p class="taste-k">${self ? 'Ton' : 'Son'} public le plus proche</p><p class="taste-pub">${({ lb: 'Les cinéphiles de Letterboxd', imdb: 'Le grand public d’IMDb', presse: 'La presse (Metacritic, Rotten Tomatoes)', public: 'Les spectateurs de Rotten Tomatoes' })[p.src]} <small>Entre la presse, le grand public et les cinéphiles, c’est leur avis qui ressemble le plus ${self ? 'au tien' : 'au sien'}.</small></p>` : ''}
+    ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.r > .25).slice(0, 3), lo = tw.filter(([, c]) => c.r < .1).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
     ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
@@ -3869,6 +3879,10 @@ function filmMatchParty(f, host) {
 // Cinder : le Tinder du canapé. Une pile de cartes : à droite j'ai envie, à gauche bof, en haut déjà vu (avec
 // une note). Chaque geste apprend quelque chose à Azami. Quand vous dites oui tous les deux, c'est un match.
 let deck = null;
+// Les cartes déjà passées sous tes yeux (même sans vote) ne reviennent pas avant trois semaines.
+const shownKey = () => 'maison-cine-vus-' + (S.me || '');
+function shownGet() { try { const o = JSON.parse(safeGet(shownKey()) || '{}'), lim = Date.now() - 21 * 864e5; for (const k in o) if (o[k] < lim) delete o[k]; return o; } catch { return {}; } }
+function shownAdd(f) { const o = shownGet(); o[fkey(f)] = Date.now(); const ks = Object.keys(o); if (ks.length > 900) ks.sort((a, b) => o[a] - o[b]).slice(0, ks.length - 900).forEach(k => delete o[k]); safeSet(shownKey(), JSON.stringify(o)); }
 const MOODS = [['', 'Tout'], ['pepites', '💎 Pépites'], ['classiques', 'Classiques'], ['nouveautes', 'Nouveautés'], ['court', 'Moins de 2 h'], ['cine', 'Au ciné'], ['leger', 'Léger'], ['frisson', 'Frisson'], ['romance', 'Romance'], ['animation', 'Animation'], ['sf', 'SF'], ['docu', 'Docu']];
 async function deckOpen(mood = '') {
   document.getElementById('deck')?.remove();
@@ -3918,7 +3932,9 @@ async function deckMore(first = false) {
   const pm = t0.me ? T.prefs(t0.me) : {}, po = t0.other ? T.prefs(t0.other) : {};
   const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws, cos: pm.cos };
   let more = [];
-  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys] })).results || []; } catch (e) { console.warn('deck', e); }
+  const shown = shownGet(), recent = Object.keys(shown).sort((a, b) => shown[b] - shown[a]).slice(0, 400);
+  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys, ...recent] })).results || []; } catch (e) { console.warn('deck', e); }
+  more = more.filter(f => !shown[fkey(f)]);
   // si l'autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s'il est déjà jugé par toi, on l'écarte
   more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
   const t = tastes(more);
@@ -3936,6 +3952,7 @@ function deckDraw() {
   const t = tastes(deck.cards), o = other();
   const n = deck.box.querySelector('.deck-n'); if (n) n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n} avis` : '';
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
+  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; shownAdd(cur); }
   if (deck.cards.length - deck.i < 6 && !deck.loading) deckMore().then(() => { if (!deck.cards[deck.i] || !st.querySelector('.dcard')) deckDraw(); });
   if (!cur) { st.innerHTML = deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`; return; }
   const theirs = o && T.wants(fVotes(cur)[o]);
@@ -4021,6 +4038,32 @@ function presseRow(f) {
   if (!pills.length) return '';
   return `<div class="fnotes">${pills.map(([k, v, u, t]) => `<span${t ? ` title="${esc(t)}"` : ''}><small>${k}</small><b>${v}</b>${u ? `<i>${u}</i>` : ''}</span>`).join('')}${P.oscar ? '<span class="osc"><small>Prix</small><b>🏆</b><i>Oscar</i></span>' : (P.prix || 0) >= 10 ? `<span class="osc"><small>Prix</small><b>${P.prix}</b></span>` : ''}</div>`;
 }
+// Le palmarès en pastilles : top 10 des Cahiers, Sight and Sound, prix et sélections.
+const PRIX_C = { palme: 'Palme d’or', lion: 'Lion d’or', ours: 'Ours d’or', leopard: 'Léopard d’or', oscar_film: 'Oscar du meilleur film', cesar: 'César du meilleur film', annecy: 'Cristal d’Annecy', oscar_inter: 'Oscar du film international', oscar_anim: 'Oscar du film d’animation', cannes_gp: 'Grand prix à Cannes' };
+const SEL_C = { cannes: 'En compétition à Cannes', venise: 'En compétition à Venise', berlin: 'En compétition à Berlin', locarno: 'En compétition à Locarno' };
+function palmaresRow(f) {
+  const P = f.palmares; if (!P || P.aucun) return '';
+  const b = [];
+  if (P.cahiers) b.push(['cah', `Top 10 des Cahiers ${P.cahiers[1]}${P.cahiers[0] ? ` · ${P.cahiers[0] === 1 ? '1er' : P.cahiers[0] + 'e'}` : ''}`]);
+  if (P.ss) b.push(['ss', `Sight and Sound${P.ss.c ? ` · critiques ${P.ss.c}e` : ''}${P.ss.d ? ` · cinéastes ${P.ss.d}e` : ''}`]);
+  for (const p of P.prix || []) if (PRIX_C[p]) b.push(['prix', PRIX_C[p]]);
+  const won = new Set((P.prix || []).map(p => ({ palme: 'cannes', lion: 'venise', ours: 'berlin', leopard: 'locarno' })[p]));
+  for (const p of P.selec || []) if (SEL_C[p] && !won.has(p)) b.push(['sel', SEL_C[p]]);
+  return b.length ? `<div class="fpalma">${b.map(([c, t]) => `<span class="${c}">${esc(t)}</span>`).join('')}</div>` : '';
+}
+function tonsRow(f) {
+  const T0 = f.tons; if (!T0?.tons?.length) return '';
+  return `<div class="ftons">${T0.tons.map(t => `<span>${esc(t)}</span>`).join('')}${T0.rythme ? `<span class="ry">rythme ${esc(T0.rythme)}</span>` : ''}${T0.intensite ? `<span class="ry">intensité ${esc(T0.intensite)}</span>` : ''}</div>`;
+}
+// La presse titre par titre (AlloCiné) : tes jumeaux critiques d'abord.
+function critiquesRow(f) {
+  const C = f.critiques; if (!C || C.aucune) return '';
+  const tw = tastes().me?.critics || new Map();
+  const list = Object.entries(C).map(([o, v]) => [o, v, tw.get(o)?.r ?? null]).sort((a, b) => (b[2] ?? -2) - (a[2] ?? -2) || b[1] - a[1]);
+  const star = v => `${'★'.repeat(Math.floor(v))}${v % 1 ? '½' : ''}`;
+  return `<details class="fcrit"><summary><span>La presse</span><small>${list.length} ${list.length > 1 ? 'journaux' : 'journal'}${list.some(x => x[2] > .3) ? ' · tes jumeaux en premier' : ''}</small></summary>
+    <ul>${list.map(([o, v, r]) => `<li class="${r > .3 ? 'twin' : ''}"><span>${esc(o)}${r > .3 ? '<em>te ressemble</em>' : ''}</span><b aria-label="${String(v).replace('.', ',')} sur 5">${star(v)}<i>${'★'.repeat(5 - Math.ceil(v))}</i></b></li>`).join('')}</ul></details>`;
+}
 function deckInfoClose(now) {
   const m = deck?.box.querySelector('.dmore'); if (!m) return;
   if (now) { m.remove(); return; }
@@ -4042,9 +4085,10 @@ function deckInfoHtml(f) {
     <div class="dm-body">
       ${yt ? `<button type="button" class="dm-trailer" data-d="trailer" data-yt="${esc(yt)}" aria-label="Lire la bande-annonce"><img src="https://i.ytimg.com/vi/${esc(yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="dm-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="dm-tl">Bande-annonce</span></button>`
         : f._det === 'load' ? '<div class="dm-trailer wait"><span>Azami cherche la bande-annonce…</span></div>' : ''}
-      ${presseRow(f)}
+      ${presseRow(f)}${palmaresRow(f)}${tonsRow(f)}
       ${f.overview ? `<p class="dm-syn">${esc(f.overview)}</p>` : f._det === 'load' ? '' : '<p class="dm-syn muted">Pas encore de synopsis en français.</p>'}
       ${where ? `<p class="dm-where">${where}</p>` : ''}
+      ${critiquesRow(f)}
       ${cred.length ? `<dl class="dm-cred">${cred.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
       ${why.length || warn ? `<div class="dm-why"><p class="chip-label">Pourquoi Azami te le propose</p>${why.length ? `<ul>${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}</div>` : ''}
       <p class="dm-links">${yt ? `<a href="https://www.youtube.com/watch?v=${esc(yt)}" target="_blank" rel="noopener">Ouvrir sur YouTube</a>` : ''}${f.tmdb_id ? `<a href="https://www.themoviedb.org/${f.media === 'tv' ? 'tv' : 'movie'}/${f.tmdb_id}" target="_blank" rel="noopener">Fiche complète</a>` : ''}</p>
@@ -4090,8 +4134,28 @@ async function deckVote(v) {
   try {
     const saved = await filmVote(f, v, T.wants(v));
     deckUndoOffer(f);
+    if ((v === 'non' || v === 'beurk') && saved?.id) deckWhy(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
+}
+// Pourquoi ? Après un Bof ou un Non!, quelques pastilles facultatives : un toucher dit à Azami ce qui n'a pas plu.
+function deckWhy(f, v) {
+  const host = deck?.box; if (!host) return;   // à côté de la pile (la pile est redessinée à chaque carte)
+  host.querySelector('.dwhyask')?.remove(); clearTimeout(deckWhy.t);
+  const el = document.createElement('div'); el.className = 'dwhyask'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', `Pourquoi ${v === 'beurk' ? 'non' : 'bof'} pour ${f.title}`);
+  const mine = () => f.raisons?.[S.me] || [];
+  const draw = () => { el.innerHTML = `<p>${v === 'beurk' ? 'Non !' : 'Bof'} pour <b>${esc(f.title)}</b>. Pourquoi ? <small>(facultatif)</small></p><div>${T.RAISONS.map(([k, l]) => `<button type="button" data-why="${k}" aria-pressed="${mine().includes(k)}">${l}</button>`).join('')}</div>`; };
+  draw(); host.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  const bye = (ms) => { clearTimeout(deckWhy.t); deckWhy.t = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 250); }, ms); };
+  bye(6000);
+  el.addEventListener('pointerdown', e => e.stopPropagation());
+  el.addEventListener('click', e => {
+    e.stopPropagation();
+    const b = e.target.closest('[data-why]'); if (!b) return;
+    const k = b.dataset.why, cur = mine(), next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+    f.raisons = { ...(f.raisons || {}), [S.me]: next }; haptic(1); draw(); bye(3500);
+    api.update('films', { id: f.id }, { raisons: f.raisons }).catch(() => {});
+  });
 }
 // La fiche d'un film : affiche, synopsis, où regarder, bande-annonce, et ce qu'on en fait.
 async function cineOpen(id) {
@@ -4112,8 +4176,9 @@ async function cineOpen(id) {
     box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}">${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
       <div class="fsheet-top">${fPoster(f, 'bposter')}<div><p class="ticket-title">${esc(f.title)}</p><p class="ticket-sub">${esc(fMeta(f))}</p>${f.director ? `<p class="ticket-sub">${f.media === 'tv' ? 'Créée par' : 'De'} ${esc(f.director)}</p>` : ''}
         ${fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
-      ${presseRow(f)}
+      ${presseRow(f)}${palmaresRow(f)}${tonsRow(f)}
       ${f.overview ? `<p class="fsyn">${esc(f.overview)}</p>` : ''}
+      ${critiquesRow(f)}
       ${(() => { const tr = f.traits || {}, ppl = [...(tr.dir || []).map(p => [p, f.media === 'tv' ? 'création' : 'réalisation']), ...(tr.wri || []).slice(0, 1).map(p => [p, 'scénario']), ...(tr.comp || []).map(p => [p, 'musique']), ...(tr.dop || []).map(p => [p, 'image']), ...(tr.cast || []).slice(0, 3).map(p => [p, ''])];
         const seen = new Set(); const l = ppl.filter(([p]) => !seen.has(p.id) && seen.add(p.id));
         return l.length ? `<p class="chip-label">L’équipe</p><div class="fteam">${l.map(([p, r]) => `<button type="button" data-action="taste-rule" data-k="p:${p.id}" data-l="${esc(p.name)}"><b>${esc(p.name)}</b>${r ? `<small>${r}</small>` : ''}</button>`).join('')}</div>` : ''; })()}
@@ -4127,7 +4192,7 @@ async function cineOpen(id) {
       <label class="chip-label" for="f-pq">Pourquoi tu l’as ajouté</label><input class="field fpq" id="f-pq" data-id="${f.id}" value="${esc(f.pourquoi?.[S.me] || '')}" placeholder="Recommandé par…, vu dans une interview…" maxlength="140">
       ${Object.entries(f.pourquoi || {}).filter(([e, t]) => e !== S.me && t).map(([e, t]) => `<p class="fpq-o">« ${esc(t)} » <small>${esc(nameOf(e))}</small></p>`).join('')}
       <div class="form-actions fsheet-acts">${acts}${heart}</div>
-      <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Fermer</button><button class="link" data-action="cine-del" data-id="${f.id}">Retirer de la liste</button></div></div>`;
+      <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Fermer</button>${fVotes(f)[S.me] || !othersOn(f) ? `<button class="link" data-action="cine-del" data-id="${f.id}">${othersOn(f) ? 'Retirer de ma liste' : 'Retirer de la liste'}</button>` : ''}</div></div>`;
     box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
     document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   };
@@ -4168,10 +4233,16 @@ function cineRate(id, solo = false) {
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
 }
 // « On regarde quoi ce soir ? » : la machine à capsules, dans votre liste (les matchs pèsent plus lourd).
-function cineSoir(kind = '') {
+// Les humeurs du soir : on pioche dans les tons (lus par Azami), sinon dans les genres.
+const HUMEURS = { leger: [['feel-good', 'drôle', 'lumineux', 'chaleureux', 'tendre'], [35, 10751, 16]], intense: [['haletant', 'nerveux', 'violent', 'déchirant', 'épique'], [53, 28, 80, 10752]],
+  contemplatif: [['contemplatif', 'poétique', 'mélancolique', 'minimaliste', 'intimiste'], [18]], frisson: [['angoissant', 'glaçant', 'malaisant', 'mystérieux'], [27, 53, 9648]], rire: [['drôle', 'absurde', 'humour noir', 'satirique'], [35]] };
+const humeurOk = (f, h) => { const H = HUMEURS[h]; if (!H) return true; return f.tons?.tons?.length ? f.tons.tons.some(t => H[0].includes(t)) || (h === 'contemplatif' && f.tons.rythme === 'lent') : (f.gids || []).some(g => H[1].includes(g)); };
+function cineSoir(kind = S.soirKind || '', mood = S.soirMood || '') {
+  S.soirKind = kind; S.soirMood = mood;
   const L = cineLists();
   let pool = [...L.nous, ...L.enCours.filter(f => f.media === 'tv')];
   if (pool.length < 3) pool.push(...cineCompromis().slice(0, 5).map(x => x.f).filter(f => !pool.includes(f)));
+  if (mood) pool = pool.filter(f => humeurOk(f, mood));
   if (kind === 'court') pool = pool.filter(f => f.media === 'movie' && (!f.runtime || f.runtime <= 105));
   if (kind === 'film') pool = pool.filter(f => f.media === 'movie');
   if (kind === 'serie') pool = pool.filter(f => f.media === 'tv');
@@ -4179,8 +4250,9 @@ function cineSoir(kind = '') {
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card roulette" role="dialog" aria-label="On regarde quoi ?"><p class="ticket-title">On regarde quoi ce soir ?</p>
+    <div class="chips cine-kinds cine-moods">${[['', 'Toute humeur'], ['leger', 'Léger'], ['rire', 'Rire'], ['intense', 'Intense'], ['frisson', 'Frisson'], ['contemplatif', 'Contemplatif']].map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
     <div class="chips cine-kinds">${[['', 'Peu importe'], ['chez', 'Dispo chez nous'], ['court', 'Un film court'], ['film', 'Un film'], ['serie', 'Une série']].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${kind === k}">${l}</button>`).join('')}</div><div class="roulette-stage"></div></div>`;
-  box.addEventListener('click', e => { if (e.target === box) closeTicket(); const k = e.target.closest('[data-k]'); if (k) cineSoir(k.dataset.k); });
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); const k = e.target.closest('[data-k]'); if (k) cineSoir(k.dataset.k, mood); const m = e.target.closest('[data-m]'); if (m) cineSoir(kind, m.dataset.m); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   const stage = box.querySelector('.roulette-stage');
   if (!pool.length) { stage.innerHTML = '<p class="ticket-sub">Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !</p>'; return; }
@@ -4232,6 +4304,15 @@ async function filmsResolve() {
       const r = await filmsCall({ action: 'presse', n: 40 }).catch(() => null);
       if (r) { filmsResolve.quota = r.quota; if (r.faits || r.sans) { const rows = await api.list('films').catch(() => []); const by = new Map(rows.map(x => [x.id, x])); for (const f of S.films) if (!f.presse && by.get(f.id)?.presse) f.presse = by.get(f.id).presse; } }
     }
+    // palmarès, presse titre par titre et tons : un petit lot de chaque à chaque passage
+    const need = { palmares: S.films.some(f => f.tmdb_id && !f.palmares), critiques: S.films.some(f => f.media === 'movie' && f.palmares?.allo && !f.critiques), tons: S.films.some(f => f.palmares && !f.tons) };
+    if (need.tons && filmsResolve.tons == null) filmsResolve.tons = !!(await srcCall({ action: 'status' }).catch(() => ({}))).tons;
+    let got = false;
+    for (const [action, n] of [['palmares', 200], ['critiques', 40], ['tons', 30]]) {
+      if (!need[action] || (action === 'tons' && !filmsResolve.tons)) continue;
+      const r = await srcCall({ action, n }).catch(() => null); if (r?.faits || r?.sans) got = true;
+    }
+    if (got) { const rows = await api.list('films').catch(() => []); const by = new Map(rows.map(x => [x.id, x])); for (const f of S.films) { const x = by.get(f.id); if (x) for (const k of ['palmares', 'critiques', 'tons']) if (!f[k] && x[k]) f[k] = x[k]; } }
     // les traits qui nourrissent le goût (équipe, thèmes, durée, succès, public) : une fois pour toutes
     const bare = S.films.filter(f => f.tmdb_id && !f.traits);
     for (let i = 0; i < bare.length; i += 4) {
@@ -4374,7 +4455,12 @@ const actions = {
     cineUndo(`${f.title} : S${season} · É${episode}`, [filmBefore(f, ['season', 'episode'])]);
     Object.assign(f, { season, episode }); haptic(1); sfx('tick'); closeTicket(); render(); api.update('films', { id: f.id }, { season, episode }).catch(() => {}); },
   'cine-seen': el => cineRate(el.dataset.id),
-  'cine-del': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); S.films = S.films.filter(x => x !== f); run(() => api.remove('films', { id: f.id }), 'Retiré').then(ok => ok && cineUndo(`${f.title} retiré`, [{ t: 'films', gone: true, row: filmRow(f) }])); },
+  'cine-del': el => {
+    const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket();
+    // un film que l'autre a aussi jugé (envie, note, coup de cœur…) reste à lui : on ne retire que ton avis
+    if (othersOn(f)) { if (!fVotes(f)[S.me]) return; const before = filmBefore(f, ['votes']), votes = { ...fVotes(f) }; delete votes[S.me]; f.votes = votes; render();
+      run(() => api.update('films', { id: f.id }, { votes }), 'Retiré de ta liste').then(ok => ok && cineUndo(`${f.title} retiré de ta liste`, [before])); return; }
+    S.films = S.films.filter(x => x !== f); run(() => api.remove('films', { id: f.id }), 'Retiré').then(ok => ok && cineUndo(`${f.title} retiré`, [{ t: 'films', gone: true, row: filmRow(f) }])); },
   'recap-ok': el => { safeSet('maison-recap-vu', el.dataset.k); sfx('merci'); burst('hearts', el, 10); haptic('medium'); setTimeout(render, 350); },
   roulette: () => { haptic(1); rouletteOpen(); },
   'roulette-again': () => { const b = document.getElementById('ticket'); if (b) rouletteSpin(b); },

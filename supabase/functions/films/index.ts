@@ -270,19 +270,22 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     const like = (prefs.like ?? []).slice(0, 3).map(String).sort(() => Math.random() - .5).slice(0, 2), dislike = (prefs.dislike ?? []).slice(0, 3).map(String);
     if (like.length) for (const media of ["movie", "tv"]) {
       const g = media === "tv" ? like.map(x => TVG[x] ?? x) : like, no = media === "tv" ? dislike.map(x => TVG[x] ?? x) : dislike;
-      src(`/discover/${media}`, { with_genres: g.join("|"), ...(no.length ? { without_genres: no.join(",") } : {}), sort_by: "vote_average.desc", "vote_count.gte": "400", page: rnd(6) }, media);
+      src(`/discover/${media}`, { with_genres: g.join("|"), ...(no.length ? { without_genres: no.join(",") } : {}), sort_by: "vote_average.desc", "vote_count.gte": "300", page: rnd(20) }, media);
     }
-    for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "150" }, "movie");
-    if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "popularity.desc", "vote_count.gte": "150" }, media);
+    for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "80", page: rnd(2) }, "movie");
+    if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "vote_average.desc", "vote_count.gte": "100", page: rnd(5) }, media);
     // les studios que vous aimez (Ghibli, A24…)
-    for (const c of (prefs.cos ?? []).slice(0, 2)) src("/discover/movie", { with_companies: String(c), sort_by: "vote_average.desc", "vote_count.gte": "100", page: rnd(2) }, "movie");
-    if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "200", page: rnd(4) }, "movie");
+    for (const c of (prefs.cos ?? []).slice(0, 2)) src("/discover/movie", { with_companies: String(c), sort_by: "vote_average.desc", "vote_count.gte": "60", page: rnd(4) }, "movie");
+    if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "150", page: rnd(12) }, "movie");
+    // une pioche au hasard dans les films reconnus, d'une décennie tirée au sort, pour sortir des sentiers
+    { const d = 1950 + 10 * Math.floor(Math.random() * 8); src("/discover/movie", { "primary_release_date.gte": `${d}-01-01`, "primary_release_date.lte": `${d + 9}-12-31`, sort_by: "vote_average.desc", "vote_count.gte": "300", page: rnd(8) }, "movie"); }
     // les recommandations de vos films adorés : on compte combien d'entre eux recommandent chaque film
-    for (const s of seeds.slice(0, 6)) jobs.push(tmdb(`/${s.media}/${s.tmdb_id}/recommendations`, {}).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, s.media)).filter(Boolean).map(x => ({ ...x!, reco: 1 }))).catch(() => []));
+    for (const s of seeds.slice(0, 6)) jobs.push(tmdb(`/${s.media}/${s.tmdb_id}/recommendations`, { page: rnd(2) }).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, s.media)).filter(Boolean).map(x => ({ ...x!, reco: 1 }))).catch(() => []));
     const GENRE: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
     if (mood && GENRE[mood]) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_genres: media === "tv" ? (TVG[GENRE[mood]] ?? GENRE[mood]) : GENRE[mood], sort_by: "popularity.desc", "vote_count.gte": "300", page: rnd(3) }, media);
-    src("/trending/all/week", {});
-    src("/movie/top_rated", { page: rnd(5) }, "movie");
+    src("/trending/all/week", { page: rnd(3) });
+    src("/movie/top_rated", { page: rnd(40) }, "movie");
+    src("/tv/top_rated", { page: rnd(15) }, "tv");
   }
   const lists = await Promise.all(jobs);
   const recoN = new Map<string, number>();
