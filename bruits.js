@@ -29,6 +29,16 @@ function metal(c, out, at, f, dur, vol) {
 }
 
 export const BRUITS = {
+  // accueil : toilette, jeu, petite marche
+  lechouille: (c, o, t) => { hiss(c, o, t, rnd(.07, .09), { f: [rnd(1800, 2200), rnd(3200, 3800)], q: 2.2, vol: .1, shape: x => Math.sin(Math.PI * x) }); tone(c, o, t + .01, .05, { f: [rnd(380, 450), rnd(650, 750)], vol: .03 }); },
+  frotte: (c, o, t) => hiss(c, o, t, .32, { type: 'lowpass', f: 1400, q: .7, vol: .12, shape: (x, i) => Math.sin(Math.PI * x) * (.55 + .45 * Math.sin(i / 700)) }),
+  secoue: (c, o, t) => { for (let i = 0; i < 5; i++) hiss(c, o, t + i * .07, .05, { f: rnd(900, 1300), q: 1, vol: .09, shape: x => Math.sin(Math.PI * x) }); },
+  saut: (c, o, t) => hiss(c, o, t, .2, { f: [700, 1600], q: 1, vol: .06 }),
+  atterrit: (c, o, t) => hiss(c, o, t, .07, { type: 'lowpass', f: 500, vol: .16, shape: x => Math.pow(1 - x, 3) }),
+  balle: (c, o, t) => { tone(c, o, t, .09, { f: [520, 380], vol: .08, type: 'triangle' }); hiss(c, o, t, .03, { f: 2500, q: 1, vol: .04 }); },
+  roulade: (c, o, t) => hiss(c, o, t, .55, { type: 'lowpass', f: [900, 400], q: 3, vol: .1, shape: (x, i) => (1 - x) * (.6 + .4 * Math.sin(i / 300)) }),
+  patte: (c, o, t) => hiss(c, o, t, .05, { type: 'lowpass', f: rnd(380, 480), vol: .14, shape: x => Math.pow(1 - x, 2.5) }),
+
   // balai : un « fchhh » qui glisse sur le sol
   balai: (c, o, t) => hiss(c, o, t, rnd(.22, .3), { f: [rnd(2400, 2800), rnd(1200, 1500)], q: .9, vol: .17, shape: x => Math.pow(Math.sin(Math.PI * Math.min(1, x * 1.3)), 1.5) }),
   etincelle: (c, o, t) => { [2637, 3520, 4186].forEach((f, i) => tone(c, o, t + i * .06, .35, { f, vol: .035 })); hiss(c, o, t, .3, { type: 'highpass', f: 7000, vol: .03, shape: x => Math.pow(1 - x, 3) }); },
@@ -79,7 +89,16 @@ export const ENTREE = {
 // Les bruitages calés sur chaque scène (secondes depuis le début de l'animation, un seul tour de boucle).
 const strokes = [0, 1, 2, 3, 4, 5].map(k => ['balai', .85 + k * .5]);
 export const CUES = {
-  v44_menage: [...strokes, ['eternue', 5.5], ['etincelle', 7.3], ['etincelle', 8.1], ['balai', 9.45], ['balai', 9.95]],
+  // accueil (les noms « m:… » sont des miaulements de miaous.js)
+  v44_etirement: [['m:baille', 2.25], ['m:mrrr', 4.75], ['secoue', 6.7]],
+  v44_jeu: [...[0, 1, 2, 3].map(k => ['patte', 2.05 + k * .42]), ['saut', 3.37], ['balle', 3.52], ['atterrit', 3.71], ['roulade', 3.6], ['m:chirp', 4.35]],
+  v44_toilette: [...[0, 1, 2, 3, 4].map(k => ['lechouille', 2.42 + k * .4]), ['frotte', 4.7], ['frotte', 5.3], ['secoue', 6.6]],
+  v44_marche: [...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => ['patte', 1.17 + k * .38]), ['m:trille', 7.6]],
+  v44_miaulement: [['m:miaou', 1.65], ['m:miaou2', 4.35]],
+  v44_repos: [['m:baille', 6.2]],
+  v44_calme: [['m:ronron', 1.1]],
+
+  v44_menage: [...strokes, ['m:eternue', 5.5], ['etincelle', 7.3], ['etincelle', 8.1], ['balai', 9.45], ['balai', 9.95]],
   v44_cuisine: [...[0, 1, 2, 3, 4].map(k => ['touille', .8 + k * .6]), ['lape', 4.82], ['lape', 5.24], ['blop', 6.84], ['boum', 7.32], ...[0, 1, 2].map(k => ['touille', 8.9 + k * .6]), ['carillon', 9.62]],
   v44_argent: [['tapote', 1.32], ['roule', 2.34], ['boum', 2.96], ['tchiing', 3.64], ['tombe', 6.02], ['rebond', 6.5], ['rebond', 6.8, .6], ['rebond', 6.96, .3], ['tourne', 7.1], ['aplat', 8.58], ['pose', 8.9]],
   v44_courses: [...[0, 1, 2, 3].map(k => ['renifle', .72 + k * .28]), ['froisse', 1.5, .5], ['froisse', 2.4, 1.7], ['pop', 4.22], ['gloup', 6.45], ['froisse', 8.1, 1.25], ['pop', 9.42], ['ploc', 10.75]],
@@ -89,12 +108,13 @@ export const CUES = {
 // Programme une liste de bruitages à partir de l'instant t0 (temps de l'AudioContext). Renvoie le bus,
 // à déconnecter pour tout couper.
 // Durée d'un tour de chaque scène (les bruitages repartent à chaque tour, comme l'animation).
-export const DUREE = { v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12 };
+export const DUREE = { v44_etirement: 12, v44_jeu: 12, v44_toilette: 12, v44_marche: 12, v44_miaulement: 12, v44_repos: 12, v44_calme: 12, v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12 };
 
 export function schedule(c, list, t0, vol = 1, meow = null, bus = null) {
   if (!bus) { bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination); }
   for (const [kind, at, arg] of list) {
-    if (kind === 'eternue') { if (meow) meow(t0 + at); continue; }
+    if (t0 + at < c.currentTime - .02) continue;   // déjà passé (on a rejoint l'animation en cours de route)
+    if (kind.startsWith('m:')) { if (meow) meow(t0 + at, kind.slice(2)); continue; }
     const f = BRUITS[kind]; if (f) try { f(c, bus, t0 + at, arg); } catch {}
   }
   return bus;

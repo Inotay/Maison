@@ -213,7 +213,7 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 function unlockAudio() {
   try {
     if (navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient';
-    const c = ctxAudio(); if (c.state === 'suspended') c.resume().catch(() => {});
+    const c = ctxAudio(); if (c.state === 'suspended') c.resume().then(() => propRun && propSound(propRun)).catch(() => {});
   } catch {}
 }
 ['touchend', 'click', 'keydown'].forEach(ev => document.addEventListener(ev, unlockAudio, { passive: true }));
@@ -1471,7 +1471,8 @@ function playOnImg(img, id, ms, then) {
   if (!img) return;
   const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
   // scène à accessoires : la même réaction, mais avec son balai, sa toque, sa tirelire…
-  if (sc && PROP_SCENES[sc] && PROP_REACTIONS.includes(id)) { id = `${PROP_SCENES[sc]}_${id}`; stopPropSounds(); }
+  if (sc && CUES[sc] && img === document.querySelector('.hd img.azami')) stopPropSounds();
+  if (sc && PROP_SCENES[sc] && PROP_REACTIONS.includes(id)) id = `${PROP_SCENES[sc]}_${id}`;
   const back = sc ? azamiSrc(sc) : (img.dataset.back || img.src);
   if (!img.dataset.caresse) img.dataset.back = img.src;
   const tok = String(Math.random()); img.dataset.caresse = tok; img.src = reactSrc(id);
@@ -1494,47 +1495,54 @@ function propEnter() {
   const sc = img ? Object.keys(azamiImgs).find(k => azamiImgs[k] === img) : null;
   if (sc === lastHdScene) return;
   lastHdScene = sc; stopPropSounds();
-  if (!sc || !PROP_SCENES[sc] || reducedMotion() || img.dataset.caresse || document.body.classList.contains('azami-away')) return;
+  if (!sc || !CUES[sc] || reducedMotion() || img.dataset.caresse || document.body.classList.contains('azami-away')) return;
   propStart(img, sc, true);
 }
 // Après une réaction (caresse, coup de patte, retour) : la scène reprend du début, avec ses bruitages.
 function restoreScene(img, back) {
   const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
-  if (sc && PROP_SCENES[sc] && img === document.querySelector('.hd img.azami') && !reducedMotion()) { stopPropSounds(); lastHdScene = sc; propStart(img, sc, false); }
+  if (sc && CUES[sc] && img === document.querySelector('.hd img.azami') && !reducedMotion()) { stopPropSounds(); lastHdScene = sc; propStart(img, sc, false); }
   else img.src = back;
 }
+// Scène qui repart du début, puis ses bruitages (balai, toilette, petits pas…) calés dessus, en boucle.
 function propStart(img, sc, entry) {
-  const run = propRun = { timers: [], buses: null, seen: 1 };
+  const run = propRun = { timers: [], buses: null, seen: 1, sc, img, entry, at: 0 };
   // Repartir du début : on charge la scène sous une nouvelle adresse, et on ne l'échange qu'une fois prête.
   const url = `${azamiSrc(sc)}?t=${Date.now()}`, pre = new Image(512, 512); pre.src = url;
   const go = () => {
     if (propRun !== run || lastHdScene !== sc || img.dataset.caresse) return;
-    img.src = url;
-    if (!SOUNDS || document.hidden || !audioCtx || audioCtx.state !== 'running') return;
-    const c = audioCtx, t0 = c.currentTime + .03;
-    const meowAt = at => run.timers.push(setTimeout(() => { if (propRun === run && run.seen > .3) meow(true, .2 * run.seen, 'eternue'); }, (at - c.currentTime) * 1000));
-    // Sons qu'on n'a pas demandés : discrets. Celui de l'arrivée sur la page un peu plus présent que la suite.
-    const VOL = [.4, .28];
-    run.buses = [scheduleBruits(c, entry ? ENTREE[sc] : [], t0, VOL[0]), scheduleBruits(c, [], t0, VOL[1])];
-    // Les bruitages suivent l'animation en boucle : chaque tour est programmé juste avant qu'il commence.
-    const D = DUREE[sc];
-    const lap = k => {
-      if (propRun !== run) return;
-      scheduleBruits(c, CUES[sc], t0 + k * D, VOL[1], meowAt, run.buses[1]);
-      run.timers.push(setTimeout(() => lap(k + 1), Math.max(0, (t0 + (k + 1) * D - c.currentTime - .6) * 1000)));
-    };
-    lap(0);
-    // Les sons s'effacent quand on descend dans la page et qu'Azami sort de l'écran (et reviennent si on remonte).
-    if ('IntersectionObserver' in window) {
-      run.io = new IntersectionObserver(([e]) => {
-        if (propRun !== run || !run.buses) return;
-        run.seen = e.isIntersecting ? Math.min(1, e.intersectionRatio / .6) : 0;
-        run.buses.forEach((b, i) => b.gain.setTargetAtTime(VOL[i] * run.seen, c.currentTime, .12));
-      }, { threshold: [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1] });
-      run.io.observe(img);
-    }
+    img.src = url; run.at = performance.now();
+    propSound(run);
   };
   (pre.decode ? pre.decode() : Promise.resolve()).then(go, go);
+}
+// Lance les sons d'une scène déjà en cours (au départ, ou plus tard quand le son se débloque au premier
+// toucher : on rejoint l'animation là où elle en est).
+function propSound(run) {
+  if (propRun !== run || run.buses || !run.at) return;
+  if (!SOUNDS || document.hidden || !audioCtx || audioCtx.state !== 'running') return;
+  const c = audioCtx, sc = run.sc, img = run.img, D = DUREE[sc];
+  const late = (performance.now() - run.at) / 1000, t0 = c.currentTime + .03 - late;
+  const meowAt = (at, kind) => run.timers.push(setTimeout(() => { if (propRun === run && run.seen > .3 && (MEOWS || kind === 'eternue')) meow(true, (kind === 'ronron' ? .25 : .2) * run.seen, kind); }, (at - c.currentTime) * 1000));
+  // Sons qu'on n'a pas demandés : discrets. Celui de l'arrivée sur la page un peu plus présent que la suite.
+  const VOL = [.4, .28];
+  run.buses = [scheduleBruits(c, run.entry && late < 1 ? ENTREE[sc] || [] : [], c.currentTime + .03, VOL[0]), scheduleBruits(c, [], t0, VOL[1])];
+  // Les bruitages suivent l'animation en boucle : chaque tour est programmé juste avant qu'il commence.
+  const lap = k => {
+    if (propRun !== run) return;
+    scheduleBruits(c, CUES[sc], t0 + k * D, VOL[1], meowAt, run.buses[1]);
+    run.timers.push(setTimeout(() => lap(k + 1), Math.max(0, (t0 + (k + 1) * D - c.currentTime - .6) * 1000)));
+  };
+  lap(Math.max(0, Math.floor(late / D)));
+  // Les sons s'effacent quand on descend dans la page et qu'Azami sort de l'écran (et reviennent si on remonte).
+  if ('IntersectionObserver' in window) {
+    run.io = new IntersectionObserver(([e]) => {
+      if (propRun !== run || !run.buses) return;
+      run.seen = e.isIntersecting ? Math.min(1, e.intersectionRatio / .6) : 0;
+      run.buses.forEach((b, i) => b.gain.setTargetAtTime(VOL[i] * run.seen, c.currentTime, .12));
+    }, { threshold: [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1] });
+    run.io.observe(img);
+  }
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) { stopPropSounds(); lastHdScene = null; } });
 function azamiWarn(img, inVisit) {
@@ -1961,7 +1969,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v142</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v143</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
