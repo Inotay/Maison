@@ -1983,7 +1983,7 @@ function viewMaison() {
       <button data-action="maison-tab" data-tab="agenda" aria-pressed="${S.maisonTab === 'agenda'}">Agenda</button>
       <button data-action="maison-tab" data-tab="tableau" aria-pressed="${S.maisonTab === 'tableau'}">Tableau</button>
     </div>
-    ${S.maisonTab === 'faire' ? viewTasks() : S.maisonTab === 'agenda' ? viewAgenda() : viewBoard()}
+    <div class="mtab">${S.maisonTab === 'faire' ? viewTasks() : S.maisonTab === 'agenda' ? viewAgenda() : viewBoard()}</div>
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
@@ -1998,7 +1998,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v144</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v145</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3527,6 +3527,90 @@ document.addEventListener('click', e => {
   const a = e.target.closest('[data-action]');
   if (a && actions[a.dataset.action]) { if (!hap) e.preventDefault(); actions[a.dataset.action](a); }
 });
+
+// Gestes au doigt -----------------------------------------------------------------
+// Glisser de côté : étape suivante / précédente en cuisinant, retour depuis une recette, onglets de
+// l'accueil (À faire, Agenda, Tableau), cocher un article de courses, écarter une notification.
+// Jamais dans un champ, une feuille, une visite, ni dans ce qui défile déjà de côté.
+let sw = null;
+const MTABS = ['faire', 'agenda', 'tableau'];
+function hScrollable(el) {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.scrollWidth > n.clientWidth + 4) { const ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return true; }
+  }
+  return false;
+}
+// Ce que fait un glissement de page ici (null : rien).
+function pageSwipe(tg) {
+  if (S.view === 'recettes' && S.cook && !S.cook.full) return { kind: 'cook', el: document.querySelector('.rstep') };
+  if (S.view === 'recettes' && S.recette && !S.cook) return { kind: 'recette', el: null, only: 1 };
+  if (S.view === 'maison' && tg.closest('.mtab')) return { kind: 'mtab', el: document.querySelector('.mtab') };
+  return null;
+}
+function slideIn(sel, from) {
+  const el = document.querySelector(sel); if (!el || reducedMotion()) return;
+  el.classList.remove('slide-l', 'slide-r'); void el.offsetWidth; el.classList.add(from > 0 ? 'slide-r' : 'slide-l');
+}
+document.addEventListener('touchstart', e => {
+  sw = null;
+  if (e.touches.length !== 1 || drag) return;
+  const t = e.touches[0], tg = e.target;
+  if (tg.closest('input:not(.hap), textarea, select, [contenteditable], .sheet, #ticket, #visite, #tour, #cele, .picker, .item-actions, .editing') || hScrollable(tg)) return;
+  if (t.clientX < 18 || t.clientX > innerWidth - 18) return;   // le bord de l'écran reste au système (retour iOS)
+  const pop = tg.closest('#pop .pop-item');
+  const shop = !pop && S.view === 'courses' && tg.closest('li.item');
+  sw = { x: t.clientX, y: t.clientY, t: Date.now(), dx: 0, dir: 0, pop, shop: shop && shop.querySelector('[data-action="shop-toggle"]') ? shop : null, page: pop || shop ? null : pageSwipe(tg) };
+  if (!sw.pop && !sw.shop && !sw.page) sw = null;
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!sw) return;
+  const t = e.touches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y;
+  if (!sw.dir) {
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+    if (Math.abs(dx) < Math.abs(dy) * 1.5) { sw = null; return; }   // c'est un défilement vertical
+    sw.dir = 1;
+  }
+  sw.dx = dx;
+  const el = sw.pop || sw.shop || sw.page?.el;
+  if (!el) return;
+  el.style.transition = 'none';
+  if (sw.shop) { const x = Math.max(0, dx) * .85; el.style.transform = `translateX(${x}px)`; el.classList.toggle('swipe-ok', dx > 80); }
+  else if (sw.pop) { el.style.transform = `translateX(${dx}px)`; el.style.opacity = String(Math.max(.2, 1 - Math.abs(dx) / 240)); }
+  else el.style.transform = `translateX(${dx * .35}px)`;
+}, { passive: true });
+function swipeReset(el) {
+  if (!el) return;
+  el.style.transition = 'transform .25s cubic-bezier(.2,.8,.3,1), opacity .25s'; el.style.transform = ''; el.style.opacity = '';
+  el.classList.remove('swipe-ok');
+  setTimeout(() => { el.style.transition = ''; }, 300);
+}
+document.addEventListener('touchend', () => {
+  const g = sw; sw = null;
+  if (!g || !g.dir) return;
+  const dx = g.dx, fast = Date.now() - g.t < 350, far = Math.abs(dx) > 90 || (fast && Math.abs(dx) > 45);
+  const el = g.pop || g.shop || g.page?.el;
+  if (g.shop) { const ok = dx > 80; swipeReset(el); if (ok) { haptic(1); g.shop.querySelector('[data-action="shop-toggle"]').click(); } return; }
+  if (g.pop) {
+    if (far) { el.style.transition = 'transform .2s, opacity .2s'; el.style.transform = `translateX(${dx > 0 ? 420 : -420}px)`; el.style.opacity = '0'; const id = el.querySelector('[data-id]')?.dataset.id; setTimeout(() => { popList = popList.filter(x => x.id !== id); popRender(); }, 180); }
+    else swipeReset(el);
+    return;
+  }
+  swipeReset(el);
+  if (!far) return;
+  const p = g.page;
+  if (p.kind === 'cook') {
+    const r = RID(S.cook.id), last = S.cook.step >= r.etapes.length - 1;
+    if (dx < 0 && !last) { actions['r-next'](); slideIn('.rstep', 1); }
+    else if (dx > 0 && S.cook.step > 0) { actions['r-prev'](); haptic(1); slideIn('.rstep', -1); }
+    else { haptic(1); const b = document.querySelector(dx < 0 ? '.rcta [data-action="r-done"]' : '.rcta [data-action="r-prev"]'); b?.classList.remove('bump'); void b?.offsetWidth; b?.classList.add('bump'); }
+  } else if (p.kind === 'recette' && dx > 0) { haptic(1); actions['r-back'](); }
+  else if (p.kind === 'mtab') {
+    const i = MTABS.indexOf(S.maisonTab), j = i + (dx < 0 ? 1 : -1);
+    if (j < 0 || j >= MTABS.length) { haptic(1); return; }
+    haptic(1); S.maisonTab = MTABS[j]; render(); slideIn('.mtab', dx < 0 ? 1 : -1);
+  }
+}, { passive: true });
+document.addEventListener('touchcancel', () => { if (sw) swipeReset(sw.pop || sw.shop || sw.page?.el); sw = null; }, { passive: true });
 
 document.addEventListener('input', e => {
   if (e.target.id === 'rq') rSearch(e.target.value);

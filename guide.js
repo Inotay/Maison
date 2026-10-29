@@ -53,6 +53,7 @@ export const TOUR = [
 // Guide complet par page (le « ? »). Chaque entrée : [titre, explication].
 export const PAGE = {
   maison: { title: 'La page Maison', items: [
+    ['Glisser entre les onglets', 'Glisse le doigt vers la gauche ou la droite sous les onglets pour passer d’À faire à Agenda puis à Tableau. Une notification en haut s’écarte aussi d’un glissement de côté.'],
     ['Le résumé', 'Les cases du haut résument ce qui t’attend. Une case rouge signale un retard. Touche une case pour aller directement à la bonne page.'],
     ['Réussites', 'Tout ce que vous faites compte : la carte Réussites montre ce que vous avez fait cette semaine à deux, et combien de jours de suite.'],
     ['Ajouter une chose à faire', 'Écris-la dans « Ajouter une chose à faire », choisis pour qui (Moi, Yatoni, Nous deux) et une date si besoin, puis « Ajouter ». L’icône est choisie toute seule.'],
@@ -80,6 +81,7 @@ export const PAGE = {
     ['Icônes', 'Touche l’icône d’une corvée pour en choisir une autre ; certaines montrent Yatoni ou toi en train de la faire.'],
   ] },
   recettes: { title: 'La page Recettes', items: [
+    ['Glisser', 'En cuisinant étape par étape, glisse vers la gauche pour l’étape suivante et vers la droite pour revenir. Sur une recette, glisse vers la droite pour revenir à la liste. Si tu quittes une recette en cours, tu la retrouves à la même étape.'],
     ['Chercher', 'Écris un plat ou un ingrédient (« riz », « poulet », « œufs ») : la liste se filtre au fur et à mesure.'],
     ['Prêt en', 'Glisse la jauge pour ne garder que les recettes prêtes en 10, 15, 20 minutes…'],
     ['Envie', 'Flemme, Végé, Réconfort, Sucré : tu peux en cocher plusieurs, elles se cumulent. Végé montre aussi les recettes qui ont une version végé.'],
@@ -104,6 +106,7 @@ export const PAGE = {
     ['Fini', '« C’est prêt ! » à la fin : la recette sort du menu et les aliments utilisés sortent de « À finir vite ».'],
   ] },
   courses: { title: 'La page Courses', items: [
+    ['Glisser pour cocher', 'Glisse un article vers la droite pour le mettre dans le panier, sans viser la petite case.'],
     ['Ajouter', 'Écris l’article : l’icône et le rayon sont trouvés tout seuls. Si la recette l’a ajouté, tu vois « Pour : » avec le nom du plat.'],
     ['Je suis au magasin', 'Touche l’endroit où tu es (Supermarché, Épicerie asiatique, Maison & brico…) : seuls les articles à prendre là restent, rangés dans l’ordre du tour du magasin (fruits et légumes d’abord, surgelés à la fin). « Je ressors » pour revenir à toute la liste.'],
     ['À deux', 'Si Yatoni est aussi au magasin, un bandeau le signale. Ce que chacun coche va dans son propre panier et disparaît de la liste de l’autre.'],
