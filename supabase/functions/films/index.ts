@@ -8,7 +8,7 @@ const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
 const KEY = Deno.env.get("TMDB_KEY") ?? "";
 const IMG = "https://image.tmdb.org/t/p/";
-type Item = { tmdb_id: number | null; media: "movie" | "tv"; title: string; original?: string; year: number | null; poster: string | null; overview: string; source: string; pop?: number; dispo?: boolean; cinema?: boolean };
+type Item = { tmdb_id: number | null; media: "movie" | "tv"; title: string; original?: string; year: number | null; poster: string | null; overview: string; source: string; pop?: number; dispo?: boolean; cinema?: boolean; gids?: number[]; lang?: string; note?: number };
 
 async function tmdb(path: string, params: Record<string, string> = {}) {
   const u = new URL("https://api.themoviedb.org/3" + path);
@@ -24,11 +24,44 @@ const fromTmdb = (x: Record<string, unknown>, media?: string): Item | null => {
   const m = (media || x.media_type) as string;
   if (m !== "movie" && m !== "tv") return null;
   return { tmdb_id: x.id as number, media: m, title: String(x.title || x.name || ""), original: String(x.original_title || x.original_name || ""), year: yearOf((x.release_date || x.first_air_date) as string),
-    poster: x.poster_path ? IMG + "w342" + x.poster_path : null, overview: String(x.overview || ""), source: "tmdb", pop: Number(x.popularity || 0) };
+    poster: x.poster_path ? IMG + "w342" + x.poster_path : null, overview: String(x.overview || ""), source: "tmdb", pop: Number(x.popularity || 0),
+    gids: ((x.genre_ids as number[]) ?? ((x.genres as { id: number }[]) ?? []).map(g => g.id)), lang: String(x.original_language || ""), note: Math.round(Number(x.vote_average || 0) * 10) / 10 };
 };
 
+// Ce qui fait le goût d'un film : qui l'a fait, qui joue dedans, ses thèmes, sa durée, son succès, son public.
+type Person = { id: number; name: string };
+const CERT: Record<string, string> = { G: "tous", PG: "tous", "PG-13": "12", R: "16", "NC-17": "18", U: "tous", "TV-Y": "tous", "TV-Y7": "tous", "TV-G": "tous", "TV-PG": "tous", "TV-14": "12", "TV-MA": "16", "0": "tous", "6": "tous" };
+function traitsOf(d: Record<string, any>, media: "movie" | "tv") {
+  const crew = (d.credits?.crew ?? []) as Record<string, any>[];
+  const dir: Person[] = media === "movie" ? crew.filter(c => c.job === "Director").slice(0, 2).map(c => ({ id: c.id, name: c.name }))
+    : (d.created_by ?? []).slice(0, 2).map((c: Record<string, any>) => ({ id: c.id, name: c.name }));
+  const cast: Person[] = ((d.credits?.cast ?? []) as Record<string, any>[]).slice(0, 5).map(c => ({ id: c.id, name: c.name }));
+  const job = (re: RegExp, n: number) => { const seen = new Set<number>(); return crew.filter(c => re.test(c.job) && !seen.has(c.id) && seen.add(c.id)).slice(0, n).map(c => ({ id: c.id, name: c.name })); };
+  const wri = job(/^(Screenplay|Writer|Novel|Story)$/, 2), comp = job(/^(Original Music Composer|Music)$/, 1), dop = job(/^Director of Photography$/, 1);
+  const kw: Person[] = ((d.keywords?.keywords ?? d.keywords?.results ?? []) as Record<string, any>[]).slice(0, 15).map(k => ({ id: k.id, name: k.name }));
+  const pays: string[] = (d.origin_country ?? (d.production_countries ?? []).map((c: Record<string, string>) => c.iso_3166_1) ?? []).slice(0, 2);
+  const rt = d.runtime || (d.episode_run_time ?? [])[0] || null;
+  const rev = Number(d.revenue || 0), vc = Number(d.vote_count || 0);
+  const bo = rev > 300e6 ? "blockbuster" : rev > 60e6 ? "succes" : vc > 8000 ? "culte" : vc < 1200 ? "confidentiel" : "public";
+  let cert = "";
+  if (media === "movie") {
+    const rd = (d.release_dates?.results ?? []) as Record<string, any>[];
+    for (const c of ["CH", "FR", "US"]) { const r = rd.find(x => x.iso_3166_1 === c)?.release_dates?.find((x: Record<string, string>) => x.certification)?.certification; if (r) { cert = CERT[r] ?? (/\d+/.test(r) ? String(Math.min(18, Number(r.match(/\d+/)![0]))) : ""); break; } }
+  } else {
+    const cr = (d.content_ratings?.results ?? []) as Record<string, any>[];
+    for (const c of ["CH", "FR", "US"]) { const r = cr.find(x => x.iso_3166_1 === c)?.rating; if (r) { cert = CERT[r] ?? (/\d+/.test(r) ? String(Math.min(18, Number(r.match(/\d+/)![0]))) : ""); break; } }
+  }
+  if (cert && /^\d+$/.test(cert)) cert = Number(cert) <= 10 ? "tous" : Number(cert) <= 14 ? "12" : Number(cert) <= 16 ? "16" : "18";
+  return { dir, wri, comp, dop, cast, kw, pays, rt, bo, cert, vc };
+}
+const APPEND = (media: string) => media === "movie" ? "credits,keywords,release_dates" : "credits,keywords,content_ratings";
+async function traitsFor(x: Item) {
+  try { const d = await tmdb(`/${x.media}/${x.tmdb_id}`, { append_to_response: APPEND(x.media) }); return { ...x, gids: x.gids?.length ? x.gids : (d.genres ?? []).map((g: { id: number }) => g.id), traits: traitsOf(d, x.media) }; }
+  catch { return x; }
+}
+
 async function details(id: number, media: "movie" | "tv") {
-  const d = await tmdb(`/${media}/${id}`, { append_to_response: "videos,watch/providers,credits" });
+  const d = await tmdb(`/${media}/${id}`, { append_to_response: "videos,watch/providers," + APPEND(media) });
   let vids = (d.videos?.results ?? []) as Record<string, string>[];
   if (!vids.length) { try { vids = (await tmdb(`/${media}/${id}/videos`, { language: "en-US" })).results ?? []; } catch { /* rien */ } }
   const tr = vids.find(v => v.site === "YouTube" && v.type === "Trailer") || vids.find(v => v.site === "YouTube");
@@ -43,7 +76,7 @@ async function details(id: number, media: "movie" | "tv") {
     episodes: media === "tv" ? (d.seasons ?? []).filter((s: Record<string, number>) => s.season_number > 0).map((s: Record<string, number>) => s.episode_count) : null,
     genres: (d.genres ?? []).map((g: Record<string, string>) => g.name), director: director || null, providers,
     trailer: tr ? `https://www.youtube.com/watch?v=${tr.key}` : null, link: `https://www.themoviedb.org/${media}/${id}`,
-    cinema: media === "movie" ? (await nowPlaying()).has(id) : false,
+    cinema: media === "movie" ? (await nowPlaying()).has(id) : false, traits: traitsOf(d, media),
   };
 }
 
@@ -193,31 +226,48 @@ async function pool<T, R>(list: T[], n: number, fn: (x: T) => Promise<R>) {
 }
 
 // Propositions pour le match à deux : ce qui ressemble à ce que vous avez aimé, et les tendances.
-async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<string>, mood: string, subs: string[]) {
+// Les genres des films n'ont pas tous le même numéro pour les séries.
+const TVG: Record<string, string> = { "878": "10765", "14": "10765", "28": "10759", "12": "10759", "10752": "10768" };
+type Prefs = { like?: number[]; dislike?: number[]; langs?: string[]; people?: number[]; kws?: number[] };
+async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<string>, mood: string, subs: string[], prefs: Prefs = {}) {
   if (!KEY) return [];
-  const lists: Item[][] = [];
-  if (mood === "cine") { await nowPlaying(); lists.push(npCache?.items ?? []); }
-  // ce qui est inclus dans vos abonnements passe en premier
-  const pids = subs.length ? await providerIds(subs) : [];
-  if (pids.length && mood !== "cine") {
-    const GEN: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
-    for (const media of ["movie", "tv"]) { try { lists.push(((await tmdb(`/discover/${media}`, { watch_region: "CH", with_watch_providers: pids.join("|"), with_watch_monetization_types: "flatrate|free", sort_by: "popularity.desc", "vote_count.gte": "200", ...(GEN[mood] ? { with_genres: GEN[mood] } : {}), page: String(1 + Math.floor(Math.random() * 4)) })).results ?? []).map((x: Record<string, unknown>) => ({ ...fromTmdb(x, media)!, dispo: true }))); } catch { /* rien */ } }
+  // toutes les sources partent en même temps ; chacune donne une liste, qu'on mélange ensuite
+  const jobs: Promise<Item[]>[] = [];
+  const src = (path: string, params: Record<string, string>, media?: string, tag: Partial<Item> = {}) =>
+    jobs.push(tmdb(path, params).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, media)).filter(Boolean).map(x => ({ ...x!, ...tag }))).catch(() => []));
+  const rnd = (n: number) => String(1 + Math.floor(Math.random() * n));
+  if (mood === "cine") jobs.push(nowPlaying().then(() => npCache?.items ?? []));
+  // ce qui est inclus dans vos abonnements
+  const pids = subs.length && mood !== "cine" ? await providerIds(subs) : [];
+  const GEN: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
+  for (const media of pids.length ? ["movie", "tv"] : []) src(`/discover/${media}`, { watch_region: "CH", with_watch_providers: pids.join("|"), with_watch_monetization_types: "flatrate|free", sort_by: "popularity.desc", "vote_count.gte": "200", ...(GEN[mood] ? { with_genres: media === "tv" ? (TVG[GEN[mood]] ?? GEN[mood]) : GEN[mood] } : {}), page: rnd(4) }, media, { dispo: true });
+  if (mood !== "cine") {
+    // ce que vos avis ont appris : genres aimés (sans ceux que vous n'aimez pas), langues, équipes, thèmes
+    const like = (prefs.like ?? []).slice(0, 3).map(String).sort(() => Math.random() - .5).slice(0, 2), dislike = (prefs.dislike ?? []).slice(0, 3).map(String);
+    if (like.length) for (const media of ["movie", "tv"]) {
+      const g = media === "tv" ? like.map(x => TVG[x] ?? x) : like, no = media === "tv" ? dislike.map(x => TVG[x] ?? x) : dislike;
+      src(`/discover/${media}`, { with_genres: g.join("|"), ...(no.length ? { without_genres: no.join(",") } : {}), sort_by: "vote_average.desc", "vote_count.gte": "400", page: rnd(6) }, media);
+    }
+    for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "150" }, "movie");
+    if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "popularity.desc", "vote_count.gte": "150" }, media);
+    if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "200", page: rnd(4) }, "movie");
+    for (const s of seeds.slice(0, 4)) src(`/${s.media}/${s.tmdb_id}/recommendations`, {}, s.media);
+    const GENRE: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
+    if (mood && GENRE[mood]) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_genres: media === "tv" ? (TVG[GENRE[mood]] ?? GENRE[mood]) : GENRE[mood], sort_by: "popularity.desc", "vote_count.gte": "300", page: rnd(3) }, media);
+    src("/trending/all/week", {});
+    src("/movie/top_rated", { page: rnd(5) }, "movie");
   }
-  for (const s of seeds.slice(0, 4)) { try { lists.push(((await tmdb(`/${s.media}/${s.tmdb_id}/recommendations`)).results ?? []).map((x: Record<string, unknown>) => fromTmdb(x, s.media)).filter(Boolean)); } catch { /* rien */ } }
-  const GENRE: Record<string, string> = { leger: "35", frisson: "53,27", romance: "10749", animation: "16", docu: "99", sf: "878,14" };
-  if (mood === "cine") { /* seulement l'affiche du moment, plus les idées */ } else if (mood && GENRE[mood]) {
-    for (const media of ["movie", "tv"]) { try { lists.push(((await tmdb(`/discover/${media}`, { with_genres: GENRE[mood].split(",")[0], sort_by: "popularity.desc", "vote_count.gte": "300", page: String(1 + Math.floor(Math.random() * 3)) })).results ?? []).map((x: Record<string, unknown>) => fromTmdb(x, media)).filter(Boolean)); } catch { /* rien */ } }
-  }
-  if (mood !== "cine") try { lists.push(((await tmdb("/trending/all/week")).results ?? []).map((x: Record<string, unknown>) => fromTmdb(x)).filter(Boolean)); } catch { /* rien */ }
-  if (mood !== "cine") try { lists.push(((await tmdb("/movie/top_rated", { page: String(1 + Math.floor(Math.random() * 5)) })).results ?? []).map((x: Record<string, unknown>) => fromTmdb(x, "movie")).filter(Boolean)); } catch { /* rien */ }
+  const lists = await Promise.all(jobs);
   // on mélange les sources une par une, sans doublons ni ce qui est déjà dans votre liste
   const out: Item[] = [], seen = new Set<string>();
-  for (let i = 0; out.length < 30 && lists.some(l => l.length > i); i++) for (const l of lists) {
+  for (let i = 0; out.length < 48 && lists.some(l => l.length > i); i++) for (const l of lists) {
     const x = l[i]; if (!x || !x.poster || !x.overview) continue;
     const k = `${x.media}:${x.tmdb_id}`; if (seen.has(k) || exclude.has(k)) continue;
     seen.add(k); out.push(x);
   }
-  return out;
+  // les plus prometteurs reçoivent leur fiche « goût » (équipe, thèmes, durée, succès, public)
+  const rich = await pool(out.slice(0, 30), 10, traitsFor);
+  return [...rich.map((x, i) => x ?? out[i]), ...out.slice(30)];
 }
 
 Deno.serve(async (req) => {
@@ -252,7 +302,7 @@ Deno.serve(async (req) => {
       const seeds = (body.seeds ?? []) as { tmdb_id: number; media: string }[];
       const exclude = new Set(((body.exclude ?? []) as string[]).map(String));
       const np = KEY ? await nowPlaying() : new Set<number>();
-      const res = (await deck(seeds, exclude, String(body.mood ?? ""), ((body.subs ?? []) as string[]).map(String))).map(x => ({ ...x, cinema: x.cinema || (x.media === "movie" && np.has(x.tmdb_id!)) }));
+      const res = (await deck(seeds, exclude, String(body.mood ?? ""), ((body.subs ?? []) as string[]).map(String), (body.prefs ?? {}) as Prefs)).map(x => ({ ...x, cinema: x.cinema || (x.media === "movie" && np.has(x.tmdb_id!)) }));
       return json({ results: res, tmdb: !!KEY });
     }
     return json({ error: "Action inconnue." }, 400);
