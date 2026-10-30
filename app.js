@@ -592,19 +592,22 @@ function hintsFrom(rows) {
 
 // Chargement -----------------------------------------------------------------
 
+// Les films sont lourds (plus de 4 000, avec presse et critiques) : on ne les relit que s'ils ont changé côté
+// serveur, ou toutes les 5 minutes. Sinon chaque petite action (cocher une course) attendait leur chargement.
+const filmsVoulus = () => !loadAll.filmsAt || loadAll.filmsDirty || Date.now() - loadAll.filmsAt > 5 * 60e3;
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
   const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help, tipRows, carnet, films, gouts, reglages] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null), api.list('azami_carnet').catch(() => []), api.list('films').catch(() => []), api.list('gouts').catch(() => []), api.list('reglages').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null), api.list('azami_carnet').catch(() => []), filmsVoulus() ? api.list('films').then(r => { loadAll.filmsAt = Date.now(); loadAll.filmsDirty = false; return r; }).catch(() => null) : Promise.resolve(null), api.list('gouts').catch(() => []), api.list('reglages').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
     goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
   algoApplique();
@@ -2416,7 +2419,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v193</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v194</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2756,6 +2759,14 @@ function vaisselleCard() {
   const summary = n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre';
   return groupCard({ id: 'vaisselle', icon: 'vaisselle', title: 'Vaisselle', summary, dots: all.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: [...main.map(plainRow), ...lv.map(seqRow)] });
 }
+// L'aspirateur : le lancer et son entretien (vider le bac, nettoyer les brosses…), groupés comme la vaisselle.
+const isAspi = c => /aspirateur/i.test(c.title || '');
+function aspiCard() {
+  const rows = S.chores.filter(c => !c.sorte && isAspi(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  if (!rows.length) return '';
+  const n = rows.filter(isDue).length;
+  return groupCard({ id: 'aspirateur', icon: 'aspirateur', title: 'Aspirateur', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
+}
 // Azami : toutes les corvées qui la concernent (caisse, croquettes, véto…), groupées comme la vaisselle.
 function azamiCard() {
   const rows = S.chores.filter(c => !c.sorte && isAzami(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
@@ -2789,11 +2800,11 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
+  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAspi(c) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_menage', 'Azami passe le balai')}</button></header>
-    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${lessiveCard()}${azamiCard()}</div>
+    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${aspiCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores" data-sort="chores">${chores.map(c => {
       const st = choreStatus(c);
@@ -5124,11 +5135,14 @@ const actions = {
   'task-delete': el => { S.open = null; run(() => api.remove('tasks', { id: el.dataset.id }), 'Supprimé'); },
   'shop-where': el => {
     const s = S.shopping.find(x => x.id === el.dataset.id); if (!s) return;
+    // un toucher range l'article à cet endroit (il quitte l'ancien) ; s'il était à plusieurs endroits, toucher l'un
+    // d'eux le retire de celui-là
     const cur = shopsOf(s); const k = el.dataset.shop;
-    const next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
-    if (!next.length) { toast('Garde au moins un endroit'); return; }
-    s.shop = next.join(','); haptic(1);
-    run(() => api.update('shopping', { id: s.id }, { shop: s.shop }));
+    const next = cur.includes(k) ? (cur.length > 1 ? cur.filter(x => x !== k) : cur) : [k];
+    if (next.join(',') === cur.join(',')) return;
+    s.shop = next.join(','); haptic(1); S.open = null; render();
+    const lab = SHOPS.find(x => x[0] === next[0])?.[1];
+    run(() => api.update('shopping', { id: s.id }, { shop: s.shop }), next.length === 1 ? `Rangé : ${lab}` : '', 'shop-' + s.id);
   },
   'shop-delete': el => { S.open = null; run(() => api.remove('shopping', { id: el.dataset.id }), 'Retiré de la liste'); },
   edit: el => { S.edit = { type: el.dataset.type, id: el.dataset.id }; S.open = null; S.pick = null; S.chips = {}; render(); document.querySelector('.edit input, .edit textarea')?.focus(); },
@@ -5619,7 +5633,7 @@ async function boot() {
   const listen = () => {
     if (channel) return;
     channel = sb.channel('maison')
-      .on('postgres_changes', { event: '*', schema: 'public' }, () => { if (S.me) scheduleRefresh(); })
+      .on('postgres_changes', { event: '*', schema: 'public' }, p => { if (p?.table === 'films') loadAll.filmsDirty = true; if (S.me) scheduleRefresh(); })
       .subscribe(status => { if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('realtime', status); });
   };
   const unlisten = () => { if (channel) { sb.removeChannel(channel); channel = null; } };
