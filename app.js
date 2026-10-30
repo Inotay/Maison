@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v179</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v180</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3863,12 +3863,13 @@ async function filmEnrich(f) {
 }
 // Un avis sur un film (envie, bof, ou déjà vu avec une note). Le film entre dans la base s'il n'y est pas :
 // même un « bof » sert, il apprend à Azami ce qu'on n'aime pas.
-async function filmVote(item, vote, enrich = true, seenNote = 0) {
+async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
   const k = fkey(item), ex = S.films.find(f => fkey(f) === k);
   const label = `${item.title} : ${seenNote ? 'noté' : vote === 'oui' ? 'envie' : vote === 'super' ? 'très envie' : vote === 'beurk' ? 'non' : 'bof'}`;
   if (ex) {
     const back = filmBefore(ex, ['votes', 'seen', 'ratings']);
     const patch = vote ? { votes: { ...fVotes(ex), [S.me]: vote } } : {};
+    if (meta) patch.hesite = { ...(ex.hesite || {}), [S.me]: meta };
     if (seenNote) { patch.seen = { ...(ex.seen || {}), [S.me]: true }; patch.ratings = { ...(ex.ratings || {}), [S.me]: { ...(ex.ratings?.[S.me] || {}), note: seenNote } }; }
     if (!ex.traits && item.traits) Object.assign(patch, { traits: item.traits, gids: item.gids || ex.gids || [], lang: item.lang || ex.lang, note: item.note || ex.note });
     if (!ex.presse && item.presse) patch.presse = item.presse;
@@ -3879,7 +3880,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0) {
   const full = enrich ? await filmEnrich(item) : item;
   const row = { tmdb_id: full.tmdb_id || null, media: full.media === 'tv' ? 'tv' : 'movie', title: full.title, year: full.year || null, poster: full.poster || null, overview: full.overview || null,
     runtime: full.runtime || null, seasons: full.seasons || null, genres: full.genres || [], director: full.director || null, providers: full.providers || [], trailer: full.trailer || null, votes: vote ? { [S.me]: vote } : {}, status: 'a_voir', coeur: [], original: full.original || null, added_by: S.me,
-    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
+    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, hesite: meta ? { [S.me]: meta } : null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
   const r = await api.insert('films', row);
   const saved = { ...row, ...(r || {}), status: 'a_voir', created_at: new Date().toISOString() };
   S.films.push(saved); filmVote.undo = [label, [], saved.id ? [['films', saved.id]] : []]; return saved;
@@ -3894,6 +3895,11 @@ function filmMatchParty(f, host) {
 // Cinder : le Tinder du canapé. Une pile de cartes : à droite j'ai envie, à gauche bof, en haut déjà vu (avec
 // une note). Chaque geste apprend quelque chose à Azami. Quand vous dites oui tous les deux, c'est un match.
 let deck = null;
+// Faux temps de réflexion : si tu n'étais plus sur ton téléphone (app en arrière-plan, ou aucun geste pendant un long
+// moment), le temps de décision ne veut rien dire et n'est pas compté.
+['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { if (!deck) return; const t = performance.now(); deck.gap = Math.max(deck.gap || 0, t - (deck.act || t)); deck.act = t; }, { passive: true, capture: true }));
+document.addEventListener('scroll', () => { if (deck) deck.act = performance.now(); }, { passive: true, capture: true });
+document.addEventListener('visibilitychange', () => { if (deck && document.hidden) deck.away = true; });
 // Les cartes déjà passées sous tes yeux (même sans vote) ne reviennent pas avant trois semaines.
 const shownKey = () => 'maison-cine-vus-' + (S.me || '');
 function shownGet() { try { const o = JSON.parse(safeGet(shownKey()) || '{}'), lim = Date.now() - 21 * 864e5; for (const k in o) if (o[k] < lim) delete o[k]; return o; } catch { return {}; } }
@@ -3967,7 +3973,7 @@ function deckDraw() {
   const t = tastes(deck.cards), o = other();
   const n = deck.box.querySelector('.deck-n'); if (n) n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n} avis` : '';
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
-  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; shownAdd(cur); }
+  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now(); deck.gap = 0; deck.away = document.hidden; deck.fiche = false; shownAdd(cur); }
   if (deck.cards.length - deck.i < 6 && !deck.loading) deckMore().then(() => { if (!deck.cards[deck.i] || !st.querySelector('.dcard')) deckDraw(); });
   if (!cur) { st.innerHTML = deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`; return; }
   const theirs = o && T.wants(fVotes(cur)[o]);
@@ -4024,7 +4030,8 @@ const TMDB_G = { 28: 'Action', 12: 'Aventure', 16: 'Animation', 35: 'Comédie', 
 // Les détails (bande-annonce surtout) arrivent de TMDB à la première ouverture, puis restent sur la carte.
 function deckInfo() {
   const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
-  const st = deck.box.querySelector('.deck-stack'); st.querySelector('.dmore')?.remove();
+  deck.fiche = true;
+  const st = deck.box.querySelector('.deck-stack'); st.querySelectorAll('.dmore').forEach(x => x.remove());
   st.insertAdjacentHTML('beforeend', `<div class="dmore" role="dialog" aria-label="Fiche de ${esc(f.title)}"><div class="dm-scroll">${deckInfoHtml(f)}</div>
     <button type="button" class="dm-close" data-d="info-close" aria-label="Revenir à la carte"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>`);
   const m = st.querySelector('.dmore'); requestAnimationFrame(() => m.classList.add('on')); haptic(1);
@@ -4082,7 +4089,7 @@ function critiquesRow(f) {
 function deckInfoClose(now) {
   const m = deck?.box.querySelector('.dmore'); if (!m) return;
   if (now) { m.remove(); return; }
-  m.classList.remove('on'); setTimeout(() => m.remove(), 260); haptic(1);
+  m.classList.remove('on'); m.style.pointerEvents = 'none'; m.classList.add('closing'); setTimeout(() => m.remove(), 260); haptic(1);
 }
 function deckInfoHtml(f) {
   const t = tastes(deck.cards), why = T.why(t.me, f, 4), warn = T.warn(t.me, f), o = other();
@@ -4150,9 +4157,13 @@ async function deckVote(v) {
   if (v === 'super' && el) burst('sparkle', el, 14);
   deck.i++; setTimeout(deckDraw, 220);
   try {
-    const saved = await filmVote(f, v, T.wants(v));
+    // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
+    const meta = { ms: Math.round(performance.now() - (deck.t0 || performance.now())), fiche: !!deck.fiche };
+    if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
+    const saved = await filmVote(f, v, T.wants(v), 0, meta);
     deckUndoOffer(f);
-    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking) deckWhyOffer(saved, v);
+    // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
+    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta) === 'hesite') deckWhyOffer(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }

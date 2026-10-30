@@ -312,3 +312,5 @@ create table if not exists public.film_notes (cle text primary key, data jsonb, 
 alter table public.film_notes enable row level security;
 -- v174 : palmarès (Wikidata, Cahiers, Sight and Sound), presse titre par titre (AlloCiné), tons (modèle de langage), raisons d'un avis
 alter table public.films add column if not exists palmares jsonb, add column if not exists critiques jsonb, add column if not exists tons jsonb, add column if not exists raisons jsonb;
+-- v180 : temps de décision dans Cinder
+alter table public.films add column if not exists hesite jsonb;

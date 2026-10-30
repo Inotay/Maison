@@ -99,26 +99,31 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let w = 0;
   if (r) w = Math.max(-3.2, Math.min(2.8, ((r - st.mu) / st.sd + .35) * 1.25));
-  else if (v === 'super') w = W.aSuper;      // ⭐ très envie
-  else if (v === 'oui') w = W.aOui;
-  else if (v === 'non') w = -W.aBof * st.bof;   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
-  else if (v === 'beurk') w = -1.6;   // non ! : je n'aime pas ce genre de film
+  else if (v === 'super') w = W.aSuper * tempoK(f, email, v);      // ⭐ très envie
+  else if (v === 'oui') w = W.aOui * tempoK(f, email, v);
+  else if (v === 'non') w = -W.aBof * st.bof * (tempo(f.hesite?.[email]) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
+  else if (v === 'beurk') w = -1.6 * tempoK(f, email, v);   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
   return w * age(f, email, now);
 }
 const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at || f.seen_at || f.created_at || ''); return at ? Math.max(.5, Math.pow(.5, (now - at) / (8 * 365 * 864e5))) : 1; };
 // Deux questions différentes : « est-ce que ça m'attire ? » (la curiosité, ce que Cinder demande) et « est-ce que
 // je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
-export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: 1, mix: .9, qA: 3, qC: 1, crA: 2, crC: .5 };   // réglés sur vos avis (v172)
+// Le temps de décision dans Cinder : un Bof immédiat (moins d'1,5 s) est un vrai désintérêt ; un Bof après avoir lu
+// le titre et vu l'affiche est un Bof normal ; un Bof après hésitation (plus de 5 s, ou la fiche ouverte) aurait pu passer.
+export const tempo = m => !m || m.ms == null || m.absent ? '' : m.fiche || m.ms > 5000 ? 'hesite' : m.ms < 1500 ? 'immediat' : 'lecture';
+const TEMPO = { bof: { immediat: 1.4, lecture: 1, hesite: .45 }, envie: { immediat: 1.25, lecture: 1, hesite: .85 }, non: { immediat: 1.15, lecture: 1, hesite: .8 } };
+const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email]); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
+export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC: 2, crA: 2, crC: .5 };   // réglés sur vos avis (v180 : 287 notes, 1 300 votes)
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
   if (r) c = .6 + .35 * (r - st.mu) / st.sd;
   else if (f.seen?.[email]) c = .5;
-  else if (v === 'super') c = 2;
-  else if (v === 'oui') c = 1;
-  else if (v === 'non') c = -W.cBof * st.bof;   // bof : pas intéressé, pas curieux d'en savoir plus
-  else if (v === 'beurk') c = -1.6;
+  else if (v === 'super') c = 2 * tempoK(f, email, v);
+  else if (v === 'oui') c = tempoK(f, email, v);
+  else if (v === 'non') c = -W.cBof * st.bof * tempoK(f, email, v);   // bof : pas intéressé, pas curieux d'en savoir plus
+  else if (v === 'beurk') c = -1.6 * tempoK(f, email, v);
   if ((f.coeur || []).includes(email)) c += 1;
   return c * age(f, email, now);
 }
