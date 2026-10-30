@@ -735,9 +735,10 @@ function doUndo() {
   document.getElementById('cele')?.remove();
   react('annuler', document.querySelector('.hd .azami') || null);
   run(async () => {
+    if (u.wait) Object.assign(u, await u.wait);
     for (const [t, id] of [...u.cap].reverse()) await api.remove(t, { id }).catch(e => console.warn('annuler', t, e));
     for (const b of u.before) { if (b.gone) await api.insert(b.t, b.row); else await api.update(b.t, { id: b.id }, b.row); }
-  }, `Annulé : ${u.label}`);
+  }, `Annulé : ${u.label}`, 'annuler-' + Date.now());   // jamais bloqué par une autre action en cours
 }
 document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && UNDO && !typing()) { e.preventDefault(); doUndo(); } });
 
@@ -2364,7 +2365,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v184</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v185</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3874,7 +3875,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
     if (!ex.traits && item.traits) Object.assign(patch, { traits: item.traits, gids: item.gids || ex.gids || [], lang: item.lang || ex.lang, note: item.note || ex.note });
     if (!ex.presse && item.presse) patch.presse = item.presse;
     Object.assign(ex, patch); await api.update('films', { id: ex.id }, patch);
-    filmVote.undo = [label, [back], []];
+    filmVote.undo = [label, [back], []]; (filmVote.undoFor ||= new Map()).set(k, filmVote.undo);
     return ex;
   }
   const full = enrich ? await filmEnrich(item) : item;
@@ -3883,7 +3884,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
     gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, hesite: meta ? { [S.me]: meta } : null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
   const r = await api.insert('films', row);
   const saved = { ...row, ...(r || {}), status: 'a_voir', created_at: new Date().toISOString() };
-  S.films.push(saved); filmVote.undo = [label, [], saved.id ? [['films', saved.id]] : []]; return saved;
+  S.films.push(saved); filmVote.undo = [label, [], saved.id ? [['films', saved.id]] : []]; (filmVote.undoFor ||= new Map()).set(k, filmVote.undo); return saved;
 }
 function filmMatchParty(f, host) {
   sfx('big'); haptic('heavy'); setTimeout(() => meow(true, .45, 'chirp'), 400);
@@ -4170,9 +4171,16 @@ async function deckSeen(note) {
   if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = 'translateY(-520px) rotate(-4deg)'; el.style.opacity = '0'; }
   deck.box.querySelector('.dseen')?.remove();
   deck.i++; setTimeout(deckDraw, 220);
-  try { await filmVote(f, fVotes(f)[S.me] || null, false, note); deckUndoOffer(f); } catch (e) { console.warn('vu', e); toast('La note n’est pas passée.'); }
+  try { const p = filmVote(f, fVotes(f)[S.me] || null, false, note); deckUndoNow(f, `${f.title} : noté`, p); await p; } catch (e) { console.warn('vu', e); toast('La note n’est pas passée.'); }
 }
 // Retour en arrière dans Cinder : la dernière carte revient, et l'avis est effacé.
+// Annuler dans Cinder : proposé tout de suite (sans attendre le réseau), et toujours pour la DERNIÈRE carte jugée.
+// La remise en état de la base attend que l'avis soit bien enregistré, puis défait exactement celui-là.
+function deckUndoNow(f, label, p) {
+  offerUndo(label, [], []);
+  UNDO.wait = p.then(() => { const u = filmVote.undoFor?.get(fkey(f)); return u ? { before: u[1], cap: u[2] } : { before: [], cap: [] }; }).catch(() => ({ before: [], cap: [] }));
+  UNDO.after = () => { if (deck && deck.cards[deck.i - 1] === f) { deck.i--; deck.asking = false; deckWhyHide(); deckInfoClose(true); deckDraw(); } };
+}
 function deckUndoOffer(f) {
   const [label, before, cap] = filmVote.undo || []; if (!label) return;
   cineUndo(label, before, cap, () => { if (deck && deck.cards[deck.i - 1] === f) { deck.i--; deck.asking = false; deckDraw(); } });
@@ -4190,8 +4198,9 @@ async function deckVote(v) {
     const meta = { ms: Math.max(0, Math.round(performance.now() - (deck.t0 || performance.now()))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
     if (f._relance) meta.relance = 1;   // une seule seconde chance
     if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
-    const saved = await filmVote(f, v, T.wants(v), 0, meta);
-    deckUndoOffer(f);
+    const p = filmVote(f, v, T.wants(v), 0, meta);
+    deckUndoNow(f, `${f.title} : ${v === 'oui' ? 'envie' : v === 'super' ? 'très envie' : v === 'beurk' ? 'non' : 'bof'}`, p);
+    const saved = await p;
     // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
     if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes().me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
