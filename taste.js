@@ -91,6 +91,7 @@ export function stats(films, email) {
   pos += rs.filter(r => r > mu).length;
   const st = n >= 10 ? { mu, sd: Math.max(.6, sd), n } : { mu: 3, sd: 1.2, n };
   st.bof = bof > pos * 1.5 ? (pos * 1.5) / bof : 1;
+  st.th = seuils(films, email);
   return (STATS[email] = st);
 }
 // Ce qu'un film dit du goût de quelqu'un, d'environ -3 (détesté) à +5 (coup de cœur adoré). Les avis anciens
@@ -101,7 +102,7 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
   if (r) w = Math.max(-3.2, Math.min(2.8, ((r - st.mu) / st.sd + .35) * 1.25));
   else if (v === 'super') w = W.aSuper * tempoK(f, email, v);      // ⭐ très envie
   else if (v === 'oui') w = W.aOui * tempoK(f, email, v);
-  else if (v === 'non') w = -W.aBof * st.bof * (tempo(f.hesite?.[email]) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
+  else if (v === 'non') w = -W.aBof * st.bof * (tempo(f.hesite?.[email], st.th) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
   else if (v === 'beurk') w = -1.6 * tempoK(f, email, v);   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
   return w * age(f, email, now);
@@ -111,9 +112,19 @@ const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at ||
 // je vais l'aimer ? » (le goût, ce que disent les notes). Un film qu'on a regardé, même moyen, nous attirait.
 // Le temps de décision dans Cinder : un Bof immédiat (moins d'1,5 s) est un vrai désintérêt ; un Bof après avoir lu
 // le titre et vu l'affiche est un Bof normal ; un Bof après hésitation (plus de 5 s, ou la fiche ouverte) aurait pu passer.
-export const tempo = m => !m || m.ms == null || m.absent ? '' : m.fiche || m.ms > 5000 ? 'hesite' : m.ms < 1500 ? 'immediat' : 'lecture';
+// Les seuils s'adaptent à chacun : dès 30 décisions chronométrées, « immédiat » = nettement plus vite que d'habitude
+// (moins de 0,55 fois ton temps habituel), « hésitation » = nettement plus lent (plus de 2,5 fois). Au départ :
+// moins d'une seconde, plus de quatre. Le temps est compté une fois l'affiche affichée, et la carte compte en plus
+// le temps de lecture de ses textes (un long synopsis laisse plus de temps avant de parler d'hésitation).
+export function seuils(films, email) {
+  const ms = films.map(f => f.hesite?.[email]).filter(m => m && m.ms != null && !m.absent && !m.fiche).map(m => m.ms).sort((a, b) => a - b);
+  if (ms.length < 30) return { vite: 1000, lent: 4000, n: ms.length };
+  const med = ms[Math.floor(ms.length / 2)];
+  return { vite: Math.max(500, Math.min(1300, med * .55)), lent: Math.max(2500, Math.min(6000, med * 2.5)), n: ms.length, med };
+}
+export const tempo = (m, th = { vite: 1000, lent: 4000 }) => !m || m.ms == null || m.absent ? '' : m.fiche || m.ms > th.lent + (m.lire || 0) ? 'hesite' : m.ms < th.vite ? 'immediat' : 'lecture';
 const TEMPO = { bof: { immediat: 1.4, lecture: 1, hesite: .45 }, envie: { immediat: 1.25, lecture: 1, hesite: .85 }, non: { immediat: 1.15, lecture: 1, hesite: .8 } };
-const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email]); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
+const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email], STATS[email]?.th); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
 export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC: 2, crA: 2, crC: .5 };   // réglés sur vos avis (v180 : 287 notes, 1 300 votes)
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];

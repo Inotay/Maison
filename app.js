@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v180</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v181</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3973,7 +3973,7 @@ function deckDraw() {
   const t = tastes(deck.cards), o = other();
   const n = deck.box.querySelector('.deck-n'); if (n) n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n} avis` : '';
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
-  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now(); deck.gap = 0; deck.away = document.hidden; deck.fiche = false; shownAdd(cur); }
+  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now() + 220; deck.gap = 0; deck.away = document.hidden; deck.fiche = false; deck.lire = 0; shownAdd(cur); }
   if (deck.cards.length - deck.i < 6 && !deck.loading) deckMore().then(() => { if (!deck.cards[deck.i] || !st.querySelector('.dcard')) deckDraw(); });
   if (!cur) { st.innerHTML = deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`; return; }
   const theirs = o && T.wants(fVotes(cur)[o]);
@@ -3988,6 +3988,10 @@ function deckDraw() {
   st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (theirs && !deck.asking ? `<p class="dtheirs">Dans la liste de ${esc(nameOf(o))} 🤫</p>` : '');
   if (deck.asking) { deckAskSeen(true); return; }
   const el = st.querySelector('.dcard.top'), nx = st.querySelector('.dcard.next');
+  // le temps de décision part quand l'affiche est vraiment là, et la carte laisse un peu plus de temps s'il y a du texte à lire
+  const img = el?.querySelector('img.dposter'), i0 = deck.i, go = () => { if (deck?.i === i0) deck.t0 = deck.act = Math.max(deck.act || 0, performance.now()); };
+  if (img && !img.complete) { img.addEventListener('load', go, { once: true }); img.addEventListener('error', go, { once: true }); setTimeout(go, 1200); }
+  deck.lire = Math.min(3000, ((el?.querySelector('.dinfo p')?.textContent.length || 0) + (el?.querySelector('.dwhy')?.textContent.length || 0)) * 8);
   // Glisser au doigt : la carte suit le doigt sans retard (une mise à jour par image), un geste vif suffit
   // (on regarde la vitesse, pas seulement la distance), et la carte suivante grandit pendant qu'on glisse.
   let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0, hist = [];
@@ -4158,12 +4162,12 @@ async function deckVote(v) {
   deck.i++; setTimeout(deckDraw, 220);
   try {
     // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
-    const meta = { ms: Math.round(performance.now() - (deck.t0 || performance.now())), fiche: !!deck.fiche };
+    const meta = { ms: Math.max(0, Math.round(performance.now() - (deck.t0 || performance.now()))), fiche: !!deck.fiche, lire: deck.lire || 0 };
     if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
     const saved = await filmVote(f, v, T.wants(v), 0, meta);
     deckUndoOffer(f);
     // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
-    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta) === 'hesite') deckWhyOffer(saved, v);
+    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes().me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }
