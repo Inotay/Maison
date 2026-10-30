@@ -2414,7 +2414,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v191</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v192</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4196,7 +4196,14 @@ async function deckMore(first = false) {
   more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
   const t = tastes(more, true);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
-  const ordered = T.order(more.filter(f => !T.banned(t.me, f)), sc);
+  // On ne montre que le meilleur de la pioche : sur tes avis, le tiers le mieux classé contient près de 8 envies sur 10
+  // (et 3 fois plus d'envies par carte qu'au hasard). Une carte sur sept vient quand même du reste, pour continuer
+  // d'apprendre et ne pas s'enfermer.
+  const pool0 = more.filter(f => !T.banned(t.me, f)).map(f => [f, sc(f)]).sort((a, b) => b[1] - a[1]);
+  const keepN = t.me?.n >= 40 ? Math.max(8, Math.ceil(pool0.length * (deck.mood ? .55 : .35))) : pool0.length;
+  const reste = pool0.slice(keepN).map(x => x[0]).sort(() => Math.random() - .5);
+  const choisis = [...pool0.slice(0, keepN).map(x => x[0]), ...reste.slice(0, Math.ceil(keepN / 6))];
+  const ordered = T.order(choisis, sc);
   const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
   const ps = pending.map(f => [f, pw(f)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
   // les films de l'autre passent en priorité, mais au hasard (environ une carte sur trois, jamais deux d'affilée) ;

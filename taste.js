@@ -128,11 +128,15 @@ const age = (f, email, now) => { const at = Date.parse(f.ratings?.[email]?.at ||
 export function seuils(films, email) {
   // (les toutes premières mesures comptaient aussi l'animation de la carte : on la retire)
   const ms = films.map(f => f.hesite?.[email]).filter(m => m && m.ms != null && !m.absent && !m.fiche).map(m => m.lire == null ? Math.max(0, m.ms - 220) : m.ms).sort((a, b) => a - b);
-  if (ms.length < 30) return { vite: 800, lent: 3000, n: ms.length };
+  // le geste : la plupart des balayages sont des pichenettes (~0,1 s) ; un geste nettement plus lent que d'habitude
+  // (plus de 2,5 fois) trahit une hésitation. Sur tes avis, les gestes lents ont 8 fois plus d'envies.
+  const gl = films.map(f => f.hesite?.[email]?.glisse).filter(x => x != null).sort((a, b) => a - b);
+  const glisse = gl.length >= 30 ? Math.max(180, Math.min(600, gl[Math.floor(gl.length / 2)] * 2.5)) : 300;
+  if (ms.length < 30) return { vite: 800, lent: 3000, n: ms.length, glisse };
   const med = ms[Math.floor(ms.length / 2)];
-  return { vite: Math.max(450, Math.min(1200, med * .7)), lent: Math.max(2200, Math.min(6000, med * 2.5)), n: ms.length, med };
+  return { vite: Math.max(450, Math.min(1200, med * .7)), lent: Math.max(2200, Math.min(6000, med * 2.5)), n: ms.length, med, glisse };
 }
-export const tempo = (m, th = { vite: 800, lent: 3000 }) => { if (!m || m.ms == null || m.absent) return ''; const ms = m.lire == null ? Math.max(0, m.ms - 220) : m.ms; return m.fiche || m.retour || (m.glisse || 0) > 1100 || ms > th.lent + (m.lire || 0) ? 'hesite' : ms < th.vite ? 'immediat' : 'lecture'; };
+export const tempo = (m, th = { vite: 800, lent: 3000 }) => { if (!m || m.ms == null || m.absent) return ''; const ms = m.lire == null ? Math.max(0, m.ms - 220) : m.ms; return m.fiche || m.retour || (m.glisse || 0) > (th.glisse || 300) || ms > th.lent + (m.lire || 0) ? 'hesite' : ms < th.vite ? 'immediat' : 'lecture'; };
 const TEMPO = { bof: { immediat: 1.4, lecture: 1, hesite: .45 }, envie: { immediat: 1.25, lecture: 1, hesite: .85 }, non: { immediat: 1.15, lecture: 1, hesite: .8 } };
 const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email], STATS[email]?.th); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
 export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC: 2, crA: 2, crC: .5 };   // réglés sur vos avis (v180 : 287 notes, 1 300 votes)
@@ -321,7 +325,7 @@ export function top(prof, films, { min = .3 } = {}) {
 export function prefs(prof) {
   const rows = [...prof.Pn];
   const best = (re, m, sign = 1) => rows.filter(([k, v]) => re.test(k) && sign * v > .2).sort((a, b) => sign * (b[1] - a[1])).slice(0, m).map(([k]) => k.split(':')[1]);
-  return { like: best(/^g:/, 3).map(Number), dislike: best(/^g:/, 2, -1).map(Number), langs: best(/^l:(?!en$)/, 2), people: best(/^p:/, 4).map(Number), kws: best(/^k:/, 4).map(Number), cos: best(/^s:/, 2).map(Number) };
+  return { like: best(/^g:/, 3).map(Number), dislike: best(/^g:/, 2, -1).map(Number), langs: best(/^l:(?!en$)/, 2), people: best(/^p:/, 4).map(Number), kws: best(/^k:/, 6).map(Number), cos: best(/^s:/, 2).map(Number) };
 }
 
 const simKeys = f => new Set(feats(f).filter(([, , , kind]) => kind === 'dir' || kind === 'crea' || kind === 'kw').map(([k]) => k));

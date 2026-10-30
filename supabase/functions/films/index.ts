@@ -274,6 +274,8 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     }
     for (const pid of (prefs.people ?? []).slice(0, 3)) src("/discover/movie", { with_people: String(pid), sort_by: "vote_average.desc", "vote_count.gte": "80", page: rnd(2) }, "movie");
     if (prefs.kws?.length) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_keywords: prefs.kws.slice(0, 4).join("|"), sort_by: "vote_average.desc", "vote_count.gte": "100", page: rnd(5) }, media);
+    // et chaque thème aimé pour lui-même (érotisme, satire, humour noir…) : sinon les thèmes rares se noient
+    for (const kw of (prefs.kws ?? []).slice(0, 6)) src("/discover/movie", { with_keywords: String(kw), sort_by: "vote_average.desc", "vote_count.gte": "60", page: rnd(2) }, "movie");
     // les studios que vous aimez (Ghibli, A24…)
     for (const c of (prefs.cos ?? []).slice(0, 2)) src("/discover/movie", { with_companies: String(c), sort_by: "vote_average.desc", "vote_count.gte": "60", page: rnd(4) }, "movie");
     if (prefs.langs?.length) src("/discover/movie", { with_original_language: prefs.langs[Math.floor(Math.random() * Math.min(2, prefs.langs.length))], sort_by: "vote_average.desc", "vote_count.gte": "150", page: rnd(12) }, "movie");
@@ -284,7 +286,7 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     const GENRE: Record<string, string> = { leger: "35", frisson: "53", romance: "10749", animation: "16", docu: "99", sf: "878" };
     if (mood && GENRE[mood]) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { with_genres: media === "tv" ? (TVG[GENRE[mood]] ?? GENRE[mood]) : GENRE[mood], sort_by: "popularity.desc", "vote_count.gte": "300", page: rnd(3) }, media);
     src("/trending/all/week", { page: rnd(3) });
-    src("/movie/top_rated", { page: rnd(40) }, "movie");
+    src("/movie/top_rated", { page: rnd(40) }, "movie"); src("/movie/top_rated", { page: rnd(40) }, "movie");
     src("/tv/top_rated", { page: rnd(15) }, "tv");
   }
   const lists = await Promise.all(jobs);
@@ -292,7 +294,8 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
   for (const l of lists) for (const x of l) if (x.reco) { const k = `${x.media}:${x.tmdb_id}`; recoN.set(k, (recoN.get(k) || 0) + 1); }
   // on mélange les sources une par une, sans doublons ni ce qui est déjà dans votre liste
   const out: Item[] = [], seen = new Set<string>();
-  for (let i = 0; out.length < 48 && lists.some(l => l.length > i); i++) for (const l of lists) {
+  // une large pioche (le téléphone ne garde ensuite que ce qui a le plus de chances de te plaire)
+  for (let i = 0; out.length < 90 && lists.some(l => l.length > i); i++) for (const l of lists) {
     const x = l[i]; if (!x || !x.poster || !x.overview) continue;
     const k = `${x.media}:${x.tmdb_id}`; if (seen.has(k) || exclude.has(k)) continue;
     seen.add(k); out.push({ ...x, reco: recoN.get(k) || 0 });
@@ -301,8 +304,8 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
   const strong = out.filter(x => (x.reco || 0) >= 2).sort((a, b) => (b.reco || 0) - (a.reco || 0));
   out.splice(0, out.length, ...strong, ...out.filter(x => (x.reco || 0) < 2));
   // les plus prometteurs reçoivent leur fiche « goût » (équipe, thèmes, durée, succès, public)
-  const rich = await pool(out.slice(0, 30), 10, traitsFor);
-  return [...rich.map((x, i) => x ?? out[i]), ...out.slice(30)];
+  const rich = await pool(out, 16, traitsFor);
+  return rich.map((x, i) => x ?? out[i]);
 }
 
 // Les alertes (lancées chaque jour par le planificateur) : un film de vos listes passe en salle à Lausanne,
@@ -491,7 +494,7 @@ Deno.serve(async (req) => {
       const res = (await deck(seeds, exclude, String(body.mood ?? ""), ((body.subs ?? []) as string[]).map(String), (body.prefs ?? {}) as Prefs)).map(x => ({ ...x, cinema: x.cinema || (x.media === "movie" && np.has(x.tmdb_id!)) }));
       // notes presse et public : celles déjà en cache pour tous, et jusqu'à 12 nouvelles par pioche
       let fresh = 0;
-      await pool(res.slice(0, 30), 3, async (x: Record<string, any>) => { const p = await presseOf(db, x.media, x.tmdb_id, () => fresh++ < 8).catch(() => null); if (p) x.presse = p; });
+      await pool(res, 8, async (x: Record<string, any>) => { const p = await presseOf(db, x.media, x.tmdb_id, () => fresh++ < 8).catch(() => null); if (p) x.presse = p; });
       return json({ results: res, tmdb: !!KEY });
     }
     return json({ error: "Action inconnue." }, 400);
