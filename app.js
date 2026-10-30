@@ -686,7 +686,16 @@ async function refresh() {
 document.addEventListener('focusout', () => { if (refreshPending) { refreshPending = false; setTimeout(refresh, 150); } });
 
 let refreshTimer = null;
-function scheduleRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 400); }
+// Pendant Cinder, l'écho de nos propres votes ne recharge pas tout (c'était la cause des saccades) : on attend
+// que le doigt se repose quelques secondes, et l'écran derrière la pile n'est redessiné qu'à la fermeture.
+function scheduleRefresh() {
+  clearTimeout(refreshTimer);
+  if (!document.getElementById('deck')) { refreshTimer = setTimeout(refresh, 400); return; }
+  refreshTimer = setTimeout(function later() {
+    if (document.getElementById('deck') && (deck?.drag || performance.now() - (deck?.act || 0) < 4000)) { refreshTimer = setTimeout(later, 1500); return; }
+    refresh();
+  }, 4000);
+}
 
 // Une action à la fois par élément : un double tap n'enregistre pas deux fois.
 const pending = new Set();
@@ -1846,7 +1855,7 @@ const azamiAway = () => Date.now() < awayUntil;
 
 // Scènes à accessoires (balai, casserole, tirelire, sac, lettre). En arrivant sur la page, la scène repart
 // du début, on entend un petit son de son accessoire, puis les bruitages suivent l'animation pendant un tour.
-const PROP_SCENES = { v44_menage: 'menage', v44_cuisine: 'cuisine', v44_argent: 'argent', v44_courses: 'courses', v44_care: 'care' };
+const PROP_SCENES = { v44_menage: 'menage', v44_cuisine: 'cuisine', v44_argent: 'argent', v44_courses: 'courses', v44_care: 'care', v44_cine: 'cine', v44_collection: 'collection' };
 const PROP_REACTIONS = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour'];
 let propRun = null, lastHdScene = null;
 function stopPropSounds() {
@@ -2183,6 +2192,7 @@ function deepLink() {
 function render() {
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
+  if (document.getElementById('deck') && S.me && S.ready) { render.later = true; return; }   // Cinder couvre l'écran : on redessinera en sortant
   if (!S.ready) { if (!$app.querySelector('.boot')) $app.innerHTML = BOOT; return; }
   if (S.offline && !S.members.length) { $app.innerHTML = viewOffline(); placeAzami(); return; }
   if (S.offline && S.view === 'nuit') S.view = 'maison';
@@ -2397,7 +2407,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v187</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v188</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3437,17 +3447,52 @@ const FILM_EMPTY = { votes: {}, ratings: {}, seen: {}, coeur: [] };
 const filmBefore = (f, keys) => ({ t: 'films', id: f.id, row: Object.fromEntries(keys.map(k => [k, f[k] ?? FILM_EMPTY[k] ?? null])) });
 function cineUndo(label, before, cap = [], after) { offerUndo(label, before, cap); if (UNDO) UNDO.after = after; }
 const filmRow = f => Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_')));
-// Le goût de chacun, appris de ses avis (voir taste.js). Recalculé quand la liste change.
-let tasteMemo = null;
-function tastes(extra = []) {
-  const sig = JSON.stringify(S.goutReg || {}).length + ':' + S.films.length + ':' + S.films.reduce((a, f) => a + JSON.stringify(f.votes || {}).length + JSON.stringify(f.ratings || {}).length + (f.coeur || []).length + (f.traits ? 1 : 0), 0) + ':' + extra.length;
-  if (tasteMemo?.sig === sig) return tasteMemo;
-  const idf = T.rarity([...S.films, ...extra]);
-  const by = {};
-  for (const m of S.members) { const p = T.profile(S.films, m.email, idf, gReg(m.email)); p.self = m.email === S.me; p.name = nameOf(m.email); by[m.email] = p; }
-  const o = other(), couple = o ? T.profile(S.films, S.me, idf, {}, f => T.coupleSignal(f, S.me, o)) : null;
-  tasteMemo = { sig, by, me: by[S.me], other: by[other()], couple };
-  return tasteMemo;
+// Le goût de chacun, appris de ses avis (voir taste.js). Le calcul est lourd (des centaines de films) : chaque
+// profil n'est refait que si les avis de CETTE personne ont changé, et la rareté des traits seulement quand la
+// liste a nettement grandi. Pendant Cinder, on garde le goût d'avant et on le remet à jour quand le doigt se repose.
+let tasteMemo = null, idfMemo = null;
+const VCODE = { oui: 1, super: 2, non: 3, beurk: 4 };
+function tasteSigs() {
+  const ms = S.members.map(m => m.email), h = ms.map(() => 7);
+  let c = 0;
+  for (const f of S.films) {
+    const d = (f.traits ? 1 : 0) + (f.presse ? 2 : 0) + (f.critiques ? 4 : 0) + (f.tons ? 8 : 0) + (f.palmares ? 16 : 0) + (f.status === 'vu' ? 32 : 0);
+    c = (c * 31 + d) | 0;
+    for (let i = 0; i < ms.length; i++) {
+      const e = ms[i], r = f.ratings?.[e];
+      h[i] = (h[i] * 31 + (VCODE[f.votes?.[e]] || 0) * 7 + (r?.note || 0) * 3 + ((f.coeur || []).includes(e) ? 11 : 0) + (f.hesite?.[e]?.ms || 0) % 997 + (f.raisons?.[e]?.length || 0) * 13 + (f.seen?.[e] ? 17 : 0) + d) | 0;
+    }
+  }
+  return Object.fromEntries(ms.map((e, i) => [e, `${h[i]}:${c}:${S.films.length}:${JSON.stringify(gReg(e))}`]));
+}
+function tastesCompute() {
+  const n = S.films.length;
+  if (!idfMemo || !tasteMemo || Math.abs(n - idfMemo.n) > Math.max(20, n * .02)) { idfMemo = { n, fn: T.rarity(S.films) }; tasteMemo = null; }
+  const idf = idfMemo.fn, sigs = tasteSigs(), old = tasteMemo?.by || {}, by = {};
+  for (const m of S.members) {
+    const k = sigs[m.email];
+    if (old[m.email]?._sig === k) { by[m.email] = old[m.email]; continue; }
+    const p = T.profile(S.films, m.email, idf, gReg(m.email)); p.self = m.email === S.me; p.name = nameOf(m.email); p._sig = k; by[m.email] = p;
+  }
+  const o = other(), csig = o ? `${sigs[S.me]}|${sigs[o]}` : '';
+  const couple = !o ? null : tasteMemo?.couple?._sig === csig ? tasteMemo.couple : Object.assign(T.profile(S.films, S.me, idf, {}, f => T.coupleSignal(f, S.me, o)), { _sig: csig });
+  const sig = Object.values(sigs).join('|');
+  return (tasteMemo = { sig, by, me: by[S.me], other: by[o], couple, at: performance.now() });
+}
+// lazy : rendre le goût déjà calculé (même un peu ancien) et le refaire plus tard, au calme
+function tastes(extra = [], lazy = false) {
+  if (lazy && tasteMemo) {
+    if (!tastes.soon) tastes.soon = setTimeout(function again() {
+      const busy = deck && (performance.now() - (deck.act || 0) < 1200 || deck.drag);
+      if (busy) { tastes.soon = setTimeout(again, 700); return; }
+      tastes.soon = null;
+      (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => tastesCompute(), { timeout: 2000 });
+    }, 900);
+    return tasteMemo;
+  }
+  const sigs = tasteSigs(), sig = Object.values(sigs).join('|');
+  if (tasteMemo?.sig === sig && idfMemo && Math.abs(S.films.length - idfMemo.n) <= Math.max(20, S.films.length * .02)) return tasteMemo;
+  return tastesCompute();
 }
 const gReg = e => S.goutReg?.[e] || {};
 // Ce que quelqu'un a déjà jugé : son avis, son « déjà vu », sa note, ou un film vu ou en cours à deux.
@@ -3692,10 +3737,17 @@ function cinderRate() {
   return l.length >= 15 ? { now: rate(last), before: before.length >= 15 ? rate(before) : null, n: l.length } : null;
 }
 let accMemo = null;
+// Le test de justesse refait cinq profils : c'est le calcul le plus lourd de l'app. On le fait au calme, après
+// l'affichage, et la carte se met à jour toute seule.
 function tasteAccuracy() {
   const t = tastes(), sig = t.sig;
-  if (accMemo?.sig !== sig) accMemo = { sig, v: T.accuracy(S.films, S.me, t.me.idf, gReg(S.me)) };
-  return accMemo.v;
+  if (accMemo?.sig !== sig && !tasteAccuracy.t) tasteAccuracy.t = setTimeout(() => (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => {
+    tasteAccuracy.t = null; const t2 = tastes();
+    if (accMemo?.sig === t2.sig || !t2.me) return;
+    accMemo = { sig: t2.sig, v: T.accuracy(S.films, S.me, t2.me.idf, gReg(S.me)) };
+    if (!document.getElementById('deck') && S.view === 'nuit') render();
+  }, { timeout: 3000 }), 600);
+  return accMemo?.v || null;
 }
 // Le test de goût : 30 films très différents, pour qu'Azami comprenne vite (vu ou pas, on donne son avis).
 const TEST_GOUT = [['Le Parrain', 1972], ['Pulp Fiction', 1994], ['Le Fabuleux Destin d’Amélie Poulain', 2001], ['Le Voyage de Chihiro', 2001], ['Titanic', 1997], ['The Dark Knight', 2008],
@@ -3981,7 +4033,7 @@ async function deckMore(first = false) {
     deck.cards.push(...cards); deck.mood = ''; deck.loading = false; deck.test = cards.length;
     return;
   }
-  const o = other(), t0 = tastes();
+  const o = other(), t0 = tastes([], true);
   // ce que l'autre veut voir (surtout « très envie ») ou a vu et aimé, et que tu n'as pas encore jugé : prioritaire, mais
   // pas systématique, et sans le dire (la surprise du match)
   if (!deck.prio) { const vus = shownGet(); deck.prio = o ? S.films.filter(f => !judged(f) && !vus[fkey(f)] && !deck.keys.has(fkey(f)) && (T.wants(fVotes(f)[o]) && f.status === 'a_voir' || (f.ratings?.[o]?.note || 0) >= 4 || (f.coeur || []).includes(o))) : []; }
@@ -3994,7 +4046,7 @@ async function deckMore(first = false) {
   more = more.filter(f => !shown[fkey(f)]);
   // si l'autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s'il est déjà jugé par toi, on l'écarte
   more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
-  const t = tastes(more);
+  const t = tastes(more, true);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
   const ordered = T.order(more.filter(f => !T.banned(t.me, f)), sc);
   const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
@@ -4016,27 +4068,64 @@ async function deckMore(first = false) {
   for (const f of mix) deck.keys.add(fkey(f));
   deck.cards.push(...mix); deck.loading = false;
 }
+// Dessiner la pile sans tout refaire : la carte d'en dessous (déjà affichée, affiche déjà décodée) monte et devient
+// la carte du dessus, la suivante arrive derrière en fondu, et celle qu'on vient de juger finit de s'envoler par-dessus.
+const deckFrag = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
+function deckPreload() {
+  // les affiches des prochaines cartes se chargent et se décodent en avance
+  for (const f of deck.cards.slice(deck.i + 1, deck.i + 5)) {
+    if (!f?.poster || deckPreload.done.has(f.poster)) continue;
+    deckPreload.done.add(f.poster); const im = new Image(); im.referrerPolicy = 'no-referrer'; im.decoding = 'async'; im.src = posterSrc(f.poster, 'dposter'); im.decode?.().catch(() => {});
+  }
+}
+deckPreload.done = new Set();
+// la carte suivante, derrière : elle arrive en fondu
+function deckDrawNext() {
+  const st = deck?.box.querySelector('.deck-stack'), nxt = deck?.cards[deck.i + 1], top = st?.querySelector('.dcard.top:not(.gone)');
+  if (!top || !deckDraw.card) return;
+  const cur = st.querySelector('.dcard.next');
+  if (!nxt) { cur?.remove(); return; }
+  if (cur?.dataset.k === fkey(nxt)) return;
+  cur?.remove();
+  const n = deckFrag(deckDraw.card(nxt, 'next')); n.classList.add('enter'); st.insertBefore(n, top);
+  requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('enter')));
+}
 function deckDraw() {
   const st = deck?.box.querySelector('.deck-stack'); if (!st) return;
-  const t = tastes(deck.cards), o = other();
-  const n = deck.box.querySelector('.deck-n'); if (n) n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n} avis` : '';
+  const t = tastes(deck.cards, true), o = other();
+  const n = deck.box.querySelector('.deck-n');
+  if (n) { const fresh = (deck.voted || []).filter(x => x > (tasteMemo?.at || 0)).length; n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n + fresh} avis` : ''; }
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
-  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now() + 220; deck.gap = 0; deck.away = document.hidden; deck.fiche = false; deck.lire = 0; shownAdd(cur); }
-  if (deck.cards.length - deck.i < 6 && !deck.loading) deckMore().then(() => { if (!deck.cards[deck.i] || !st.querySelector('.dcard')) deckDraw(); });
-  if (!cur) { st.innerHTML = deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`; return; }
-  const theirs = o && T.wants(fVotes(cur)[o]);
+  if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now() + 220; deck.gap = 0; deck.away = document.hidden; deck.fiche = false; deck.lire = 0; const c0 = cur; setTimeout(() => shownAdd(c0), 400); }
+  // plus que quelques cartes : on en cherche d'autres (une seule fois de suite si la pioche revient vide)
+  if (deck.cards.length - deck.i < 6 && !deck.loading && !(deck.dry && deck.dry === deck.cards.length)) {
+    const had = deck.cards.length;
+    deckMore().then(() => { if (!deck) return; if (deck.cards.length === had) deck.dry = had; if (!deck.cards[deck.i] || !st.querySelector('.dcard:not(.gone)')) deckDraw(); else deckDrawNext(); });
+  }
+  const live = [...st.children].filter(c => !c.classList.contains('gone'));
+  if (!cur) { live.forEach(c => c.remove()); st.insertAdjacentHTML('beforeend', deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`); return; }
   const card = (f, cls) => {
     const why = cls === 'top' ? T.why(t.me, f, 2) : [], warn = cls === 'top' ? T.warn(t.me, f) : '';
     const sub = [f.year, f.media === 'tv' ? 'Série' : f.runtime ? rDur(f.runtime) : (f.traits?.rt ? rDur(f.traits.rt) : 'Film'), f.traits?.dir?.[0]?.name].filter(Boolean).join(' · ');
-    return `<div class="dcard ${cls}">${fPoster(f, 'dposter')}<div class="dinfo">${cls === 'top' ? `<button type="button" class="dinfo-btn" data-d="info" aria-label="Plus d’infos sur ${esc(f.title)}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}<b>${esc(f.title)}</b><span>${esc(sub)}</span>
+    return `<div class="dcard ${cls}" data-k="${esc(fkey(f))}">${fPoster(f, 'dposter')}<div class="dinfo">${cls === 'top' ? `<button type="button" class="dinfo-btn" data-d="info" aria-label="Plus d’infos sur ${esc(f.title)}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}<b>${esc(f.title)}</b><span>${esc(sub)}</span>
       <div class="dtags">${f.cinema || fSalles(f).length ? `<em class="dtag salle">${icn('ticket')} Au cinéma</em>` : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${f.note ? `<em class="dtag note">★ ${String(f.note).replace('.', ',')}</em>` : ''}</div>
       ${why.length ? `<ul class="dwhy">${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}
       <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
   };
+  deckDraw.card = card;
   const ago = cur._relance ? Math.round((Date.now() - Date.parse(cur.hesite?.[S.me]?.at || cur.created_at || Date.now())) / (30 * 864e5)) : 0;
-  st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (cur._relance && !deck.asking ? `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>` : '');   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
+  // la carte qui était dessous monte (on garde l'élément et son affiche) ; sinon on la crée
+  const kc = fkey(cur), up = live.find(c => c.classList.contains('next') && c.dataset.k === kc);
+  live.forEach(c => { if (c !== up) c.remove(); });
+  let el;
+  if (up) { el = up; el.style.transform = el.style.opacity = ''; el.classList.replace('next', 'top'); const d = deckFrag(card(cur, 'top')); el.querySelector('.dinfo').replaceWith(d.querySelector('.dinfo')); }
+  else { el = deckFrag(card(cur, 'top')); st.appendChild(el); }
+  const gone = st.querySelector('.dcard.gone'); if (gone) st.appendChild(gone);   // elle finit de s'envoler par-dessus
+  deckDrawNext();
+  if (cur._relance && !deck.asking) st.insertAdjacentHTML('beforeend', `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>`);   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
+  deckPreload();
   if (deck.asking) { deckAskSeen(true); return; }
-  const el = st.querySelector('.dcard.top'), nx = st.querySelector('.dcard.next');
+  const nxF = () => st.querySelector('.dcard.next:not(.enter)');
   // le temps de décision part quand l'affiche est vraiment là, et la carte laisse un peu plus de temps s'il y a du texte à lire
   const img = el?.querySelector('img.dposter'), i0 = deck.i, go = () => { if (deck?.i === i0) deck.t0 = deck.act = Math.max(deck.act || 0, performance.now()); };
   if (img && !img.complete) { img.addEventListener('load', go, { once: true }); img.addEventListener('error', go, { once: true }); setTimeout(go, 1200); }
@@ -4045,7 +4134,7 @@ function deckDraw() {
   // (on regarde la vitesse, pas seulement la distance), et la carte suivante grandit pendant qu'on glisse.
   let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0, hist = [];
   const paint = () => {
-    raf = 0;
+    raf = 0; const nx = nxF();
     const vert = Math.abs(dy) > Math.abs(dx) * 1.1, up = vert && dy < -50, down = vert && dy > 50;
     el.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${dx / 16}deg)`;
     el.classList.toggle('lean-vu', up); el.classList.toggle('lean-beurk', down); el.classList.toggle('lean-oui', !vert && dx > 40); el.classList.toggle('lean-non', !vert && dx < -40);
@@ -4053,8 +4142,8 @@ function deckDraw() {
   };
   el.addEventListener('pointerdown', e => {
     if (e.button > 0 || e.target.closest('a, button')) return;
-    x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); hist = [[t0, 0, 0]];
-    el.setPointerCapture(e.pointerId); el.style.transition = 'none'; if (nx) nx.style.transition = 'none';
+    x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); hist = [[t0, 0, 0]]; deck.drag = true;
+    const nx = nxF(); el.setPointerCapture(e.pointerId); el.style.transition = 'none'; if (nx) nx.style.transition = 'none';
   });
   el.addEventListener('pointermove', e => {
     if (x0 == null) return; e.preventDefault();
@@ -4063,7 +4152,7 @@ function deckDraw() {
     if (!raf) raf = requestAnimationFrame(paint);
   });
   const end = () => {
-    if (x0 == null) return; x0 = null; cancelAnimationFrame(raf); raf = 0;
+    if (x0 == null) return; x0 = null; cancelAnimationFrame(raf); raf = 0; if (deck) deck.drag = false; const nx = nxF();
     const [ta, xa, ya] = hist[0], dt = Math.max(16, performance.now() - ta), vx = (dx - xa) / dt, vy = (dy - ya) / dt;   // px par ms
     const vert = Math.abs(dy) > Math.abs(dx) * 1.1;
     const fx = Math.abs(dx) > 90 || (Math.abs(dx) > 35 && Math.abs(vx) > .45), fy = Math.abs(dy) > 90 || (Math.abs(dy) > 35 && Math.abs(vy) > .45);
@@ -4071,8 +4160,8 @@ function deckDraw() {
     // un simple toucher (sans glisser) : la carte se retourne et montre la fiche, comme sur Tinder
     if (Math.hypot(dx, dy) < 8 && performance.now() - t0 < 400) { el.style.transform = ''; if (nx) nx.style.transform = nx.style.opacity = ''; deckInfo(); return; }
     if (vert && fy && dy < 0) { el.style.transform = ''; el.classList.remove('lean-vu'); if (nx) nx.style.transform = nx.style.opacity = ''; deckAskSeen(); }
-    else if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk'); }
-    else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non'); }
+    else if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk', { dx, dy }); }
+    else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non', { dx, dy }); }
     else { el.style.transform = ''; el.classList.remove('lean-oui', 'lean-non', 'lean-vu', 'lean-beurk'); if (nx) nx.style.transform = nx.style.opacity = ''; }
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
@@ -4148,7 +4237,7 @@ function tonsRow(f) {
 // La presse titre par titre (AlloCiné) : tes jumeaux critiques d'abord.
 function critiquesRow(f) {
   const C = f.critiques; if (!C || C.aucune) return '';
-  const tw = tastes().me?.critics || new Map();
+  const tw = tastes([], true).me?.critics || new Map();
   const list = Object.entries(C).map(([o, v]) => [o, v, tw.get(o)?.adj ?? null]).sort((a, b) => (b[2] ?? -2) - (a[2] ?? -2) || b[1] - a[1]);
   const star = v => `${'★'.repeat(Math.floor(v))}${v % 1 ? '½' : ''}`;
   return `<details class="fcrit"><summary><span>La presse</span><small>${list.length} ${list.length > 1 ? 'journaux' : 'journal'}${list.some(x => x[2] > .22) ? ' · tes jumeaux en premier' : ''}</small></summary>
@@ -4160,7 +4249,7 @@ function deckInfoClose(now) {
   m.classList.remove('on'); m.style.pointerEvents = 'none'; m.classList.add('closing'); setTimeout(() => m.remove(), 260); haptic(1);
 }
 function deckInfoHtml(f) {
-  const t = tastes(deck.cards), why = T.why(t.me, f, 4), warn = T.warn(t.me, f), o = other();
+  const t = tastes(deck.cards, true), why = T.why(t.me, f, 4), warn = T.warn(t.me, f), o = other();
   const tr = f.traits || {}, names = l => (l || []).map(p => p.name).filter(Boolean);
   const genres = (Array.isArray(f.genres) && f.genres.length && typeof f.genres[0] === 'string' ? f.genres : (f.gids || []).map(g => TMDB_G[g]).filter(Boolean)).slice(0, 3);
   const dur = f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.runtime || tr.rt) ? rDur(f.runtime || tr.rt) : '';
@@ -4205,10 +4294,10 @@ function deckAskSeen(redraw = false) {
 async function deckSeen(note) {
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');
   deck.asking = false; haptic(note >= 4 ? 'medium' : 1); sfx('tick');
-  const el = deck.box.querySelector('.dcard.top');
-  if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = 'translateY(-520px) rotate(-4deg)'; el.style.opacity = '0'; }
+  deckFly(deck.box.querySelector('.dcard.top:not(.gone)'), 'vu');
   deck.box.querySelector('.dseen')?.remove();
-  deck.i++; setTimeout(deckDraw, 220);
+  (deck.voted ||= []).push(performance.now());
+  deck.i++; deckDraw();
   try { const p = filmVote(f, fVotes(f)[S.me] || null, false, note); deckUndoNow(f, `${f.title} : noté`, p); await p; } catch (e) { console.warn('vu', e); toast('La note n’est pas passée.'); }
 }
 // Retour en arrière dans Cinder : la dernière carte revient, et l'avis est effacé.
@@ -4223,24 +4312,39 @@ function deckUndoOffer(f) {
   const [label, before, cap] = filmVote.undo || []; if (!label) return;
   cineUndo(label, before, cap, () => { if (deck && deck.cards[deck.i - 1] === f) { deck.i--; deck.asking = false; deckDraw(); } });
 }
-async function deckVote(v) {
+// La carte jugée s'envole dans la direction du geste, sans ralentir (elle part à la vitesse du doigt puis file),
+// pendant que la suivante est déjà là et déjà jouable.
+function deckFly(el, v, from) {
+  if (!el) return;
+  el.classList.remove('top'); el.classList.add('gone');
+  const W = innerWidth + 260, x = from?.dx || 0, y = from?.dy || 0;
+  const to = v === 'beurk' ? `translate3d(${x * .6}px, ${innerHeight}px, 0) rotate(${x / 30 + 6}deg)` : v === 'vu' || v === 'super' ? `translate3d(${x * .6}px, ${-innerHeight}px, 0) rotate(${x / 30 - 4}deg)${v === 'super' ? ' scale(.9)' : ''}`
+    : `translate3d(${v === 'oui' ? W : -W}px, ${y * 1.6 + 40}px, 0) rotate(${v === 'oui' ? 28 : -28}deg)`;
+  el.style.transition = 'transform .34s cubic-bezier(.25,.6,.45,1), opacity .34s ease-in';
+  requestAnimationFrame(() => { el.style.transform = to; el.style.opacity = '0'; });
+  setTimeout(() => el.remove(), 380);
+}
+async function deckVote(v, from) {
   const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
+  const tv = performance.now();
   deckWhyHide();
-  const el = deck.box.querySelector('.dcard.top');
-  if (el) { el.style.transition = 'transform .3s ease-in, opacity .3s'; el.style.transform = v === 'beurk' ? 'translateY(560px) rotate(6deg)' : v === 'super' ? 'translateY(-560px) scale(.9)' : `translateX(${v === 'oui' ? 480 : -480}px) rotate(${v === 'oui' ? 24 : -24}deg)`; el.style.opacity = '0'; }
-  haptic(T.wants(v) ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (T.wants(v)) sfx(v === 'super' ? 'done' : 'tick');
+  const el = deck.box.querySelector('.dcard.top:not(.gone)');
   if (v === 'super' && el) burst('sparkle', el, 14);
-  deck.i++; setTimeout(deckDraw, 220);
+  deckFly(el, v, from);
+  haptic(T.wants(v) ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (T.wants(v)) sfx(v === 'super' ? 'done' : 'tick');
+  (deck.voted ||= []).push(tv);
+  // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
+  const meta = { ms: Math.max(0, Math.round(tv - (deck.t0 || tv))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
+  if (f._relance) meta.relance = 1;   // une seule seconde chance
+  if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
+  deck.i++; deckDraw();
   try {
-    // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
-    const meta = { ms: Math.max(0, Math.round(performance.now() - (deck.t0 || performance.now()))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
-    if (f._relance) meta.relance = 1;   // une seule seconde chance
-    if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
     const p = filmVote(f, v, T.wants(v), 0, meta);
     deckUndoNow(f, `${f.title} : ${v === 'oui' ? 'envie' : v === 'super' ? 'très envie' : v === 'beurk' ? 'non' : 'bof'}`, p);
     const saved = await p;
     // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
-    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes().me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
+    if (!deck) return;
+    if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes([], true).me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
     if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }

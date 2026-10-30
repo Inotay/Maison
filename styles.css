@@ -1862,3 +1862,11 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .loisirs-tabs .icn { width: 17px; height: 17px; margin-right: 2px; }
 .deck-moods .icn, .cine-spaces .icn, .gout-k .icn, .gout-kinds .icn { width: 14px; height: 14px; }
 .ticket-title .icn { width: 20px; height: 20px; margin-right: 3px; color: #E7505A; }
+
+/* ── Cinder plus fluide ── */
+.dcard.gone { pointer-events: none; z-index: 3; }
+.dcard.next { transition: transform .26s cubic-bezier(.2,.8,.3,1), opacity .26s; }
+.dcard.next.enter { opacity: 0; transform: scale(.88) translateY(22px); transition: none; }
+.dcard { contain: layout paint; backface-visibility: hidden; }
+.dinfo-btn { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20,10,14,.72); }
+@media (prefers-reduced-motion: reduce) { .dcard.next.enter { opacity: 1; transform: scale(.94) translateY(10px); } }

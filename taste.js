@@ -23,8 +23,17 @@ const PRIX = { palme: 'les Palmes d’or', lion: 'les Lions d’or de Venise', o
 const SELEC = { cannes: 'la compétition de Cannes', venise: 'la compétition de Venise', berlin: 'la compétition de Berlin', locarno: 'la compétition de Locarno', oscar_film_nom: 'les nommés à l’Oscar du meilleur film' };
 export const PALMA = { PRIX, SELEC };
 const add = (m, k, w, label, kind) => { const x = m.get(k); if (!x || x[0] < w) m.set(k, [w, label, kind]); };
-// Les traits d'un film : [clé, poids, libellé, type]
+// Les traits d'un film : [clé, poids, libellé, type]. Calculés une fois par film, puis gardés tant que ses
+// données (traits, presse, palmarès, tons…) ne changent pas : le goût se recalcule bien plus vite.
+const FEATS = new WeakMap();
+const fdeps = f => [f.traits, f.presse, f.palmares, f.tons, f.gids, f.lang, f.year, f.media, f.runtime];
 export function feats(f) {
+  if (!f || typeof f !== 'object') return featsRaw(f || {});
+  const c = FEATS.get(f), d = fdeps(f);
+  if (c && c.d.every((x, i) => x === d[i])) return c.v;
+  const v = featsRaw(f); FEATS.set(f, { d, v }); return v;
+}
+function featsRaw(f) {
   const m = new Map(), t = f.traits || {};
   for (const g of f.gids || []) { const id = TV2M[g] || g; if (GENRES[id]) add(m, 'g:' + id, .7, GENRES[id], 'genre'); }
   for (const p of t.dir || []) add(m, 'p:' + p.id, 3, p.name, f.media === 'tv' ? 'crea' : 'dir');
@@ -149,7 +158,8 @@ export function coupleSignal(f, a, b) {
 export function rarity(list) {
   const df = new Map(); let n = 0;
   for (const f of list) { n++; for (const [k] of feats(f)) df.set(k, (df.get(k) || 0) + 1); }
-  return k => /^(p|k|s|col):/.test(k) ? 1 + Math.log((1 + n) / (1 + (df.get(k) || 0))) * .5 : 1;
+  const memo = new Map();
+  return k => { let v = memo.get(k); if (v === undefined) { v = /^(p|k|s|col):/.test(k) ? 1 + Math.log((1 + n) / (1 + (df.get(k) || 0))) * .5 : 1; memo.set(k, v); } return v; };
 }
 
 // manual : les réglages à la main { boost: {clé: libellé}, ban: {clé: libellé} } ; sig : pour le couple.
