@@ -6,7 +6,7 @@
 // à chaque appel ; tout ce qui vient de l'extérieur est validé et borné ; aucune table n'est ouverte à anon.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const ORIGINS = ["https://inotay.github.io"];
+const ORIGINS = ["https://maison.yatoni.ch", "https://inotay.github.io"];
 const cors = (req: Request) => {
   const o = req.headers.get("Origin") ?? "";
   return { "Access-Control-Allow-Origin": ORIGINS.includes(o) ? o : ORIGINS[0], "Vary": "Origin", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
