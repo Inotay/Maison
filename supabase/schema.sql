@@ -343,3 +343,17 @@ alter table public.soirees enable row level security;
 alter table public.soiree_votes enable row level security;
 revoke all on public.soirees from anon, authenticated;
 revoke all on public.soiree_votes from anon, authenticated;
+-- (v189b) le lien en clair n'est jamais gardé, et 20 invités au plus par soirée, vérifié par la base
+alter table public.soirees add constraint soirees_jeton_vide check (jeton = '') not valid;
+create or replace function public.soiree_places() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext(new.soiree_id::text));
+  if not exists (select 1 from public.soiree_votes where soiree_id = new.soiree_id and invite = new.invite)
+     and (select count(distinct invite) from public.soiree_votes where soiree_id = new.soiree_id) >= 20 then
+    raise exception 'soiree_complete';
+  end if;
+  return new;
+end $$;
+revoke all on function public.soiree_places() from public, anon, authenticated;
+create trigger soiree_places before insert on public.soiree_votes for each row execute function public.soiree_places();
