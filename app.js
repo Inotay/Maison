@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v183</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v184</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4049,7 +4049,22 @@ function deckInfo() {
   st.insertAdjacentHTML('beforeend', `<div class="dmore" role="dialog" aria-label="Fiche de ${esc(f.title)}"><div class="dm-scroll">${deckInfoHtml(f)}</div>
     <button type="button" class="dm-close" data-d="info-close" aria-label="Revenir à la carte"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 10l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>`);
   const m = st.querySelector('.dmore'); requestAnimationFrame(() => m.classList.add('on')); haptic(1);
-  m.querySelector('.dm-hero')?.addEventListener('click', () => deckInfoClose());
+  // on peut aussi voter depuis la fiche ouverte : glisser de côté (envie / bof) ; faire défiler reste vertical
+  let x0 = null, y0 = 0, dx = 0, horiz = false;
+  m.addEventListener('pointerdown', e => { if (e.button > 0 || e.target.closest('a, button, iframe')) return; x0 = e.clientX; y0 = e.clientY; dx = 0; horiz = false; });
+  m.addEventListener('pointermove', e => {
+    if (x0 == null) return; dx = e.clientX - x0; const dy = e.clientY - y0;
+    if (!horiz) { if (Math.abs(dx) < 12) return; if (Math.abs(dx) < Math.abs(dy) * 1.3) { x0 = null; return; } horiz = true; m.setPointerCapture?.(e.pointerId); }
+    m.style.transition = 'none'; m.style.transform = `translate3d(${dx}px, 0, 0) rotate(${dx / 22}deg)`;
+  });
+  const end = () => { if (x0 == null) return; x0 = null; m.style.transition = '';
+    if (horiz && Math.abs(dx) > 90) { const v = dx > 0 ? 'oui' : 'non'; cinderLog(v); m.remove(); deckVote(v); }
+    else m.style.transform = ''; horiz = false; };
+  m.addEventListener('pointerup', end); m.addEventListener('pointercancel', () => { if (!horiz) { x0 = null; return; } end(); });
+  // sur téléphone, le toucher qui ouvre la fiche produit ensuite un « clic » qui tomberait sur la fiche : on l'ignore
+  const opened = performance.now(), heroClose = () => { if (performance.now() - opened > 450) deckInfoClose(); };
+  m.addEventListener('click', e => { if (performance.now() - opened < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
+  m.querySelector('.dm-hero')?.addEventListener('click', heroClose);
   if (!f._det && f.tmdb_id) {
     f._det = 'load';
     filmsCall({ action: 'details', tmdb_id: f.tmdb_id, media: f.media }).then(d => {
@@ -4057,7 +4072,7 @@ function deckInfo() {
       f._det = 'ok';
     }).catch(() => { f._det = 'ko'; }).finally(() => {
       const sc = deck?.box.querySelector('.dmore .dm-scroll');
-      if (sc && deck.cards[deck.i] === f) { const y = sc.scrollTop; sc.innerHTML = deckInfoHtml(f); sc.scrollTop = y; sc.querySelector('.dm-hero')?.addEventListener('click', () => deckInfoClose()); }
+      if (sc && deck.cards[deck.i] === f) { const y = sc.scrollTop; sc.innerHTML = deckInfoHtml(f); sc.scrollTop = y; sc.querySelector('.dm-hero')?.addEventListener('click', () => { const mm = sc.closest('.dmore'); if (mm && !mm.classList.contains('closing')) deckInfoClose(); }); }
     });
   }
 }
