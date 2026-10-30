@@ -314,3 +314,32 @@ alter table public.film_notes enable row level security;
 alter table public.films add column if not exists palmares jsonb, add column if not exists critiques jsonb, add column if not exists tons jsonb, add column if not exists raisons jsonb;
 -- v180 : temps de décision dans Cinder
 alter table public.films add column if not exists hesite jsonb;
+
+-- Soirée ciné avec des invités (v189) -------------------------------------------
+-- Un lien secret (24 h, révocable). Les invités n'ont pas de compte : tout passe par la fonction « soiree »
+-- (clé de service). Aucune règle d'accès pour anon ni authenticated : les tables sont fermées.
+-- La colonne « jeton » n'est plus remplie (la base ne garde que l'empreinte jeton_hash).
+create table if not exists public.soirees (
+  id          uuid primary key default gen_random_uuid(),
+  jeton_hash  text not null unique,
+  jeton       text not null,
+  created_by  text not null references public.members(email) on update cascade,
+  created_at  timestamptz not null default now(),
+  expires_at  timestamptz not null,
+  revoked_at  timestamptz,
+  pool        jsonb not null default '[]'::jsonb
+);
+create table if not exists public.soiree_votes (
+  soiree_id  uuid not null references public.soirees(id) on delete cascade,
+  invite     text not null check (invite ~ '^[a-f0-9]{32}$'),
+  nom        text not null check (char_length(nom) between 1 and 24),
+  film       text not null check (char_length(film) <= 40),
+  vote       text not null check (vote in ('oui', 'super', 'non', 'vu')),
+  at         timestamptz not null default now(),
+  primary key (soiree_id, invite, film)
+);
+create index if not exists soiree_votes_soiree on public.soiree_votes (soiree_id);
+alter table public.soirees enable row level security;
+alter table public.soiree_votes enable row level security;
+revoke all on public.soirees from anon, authenticated;
+revoke all on public.soiree_votes from anon, authenticated;
