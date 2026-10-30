@@ -242,7 +242,10 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
   const jobs: Promise<Item[]>[] = [];
   const src = (path: string, params: Record<string, string>, media?: string, tag: Partial<Item> = {}) =>
     jobs.push(tmdb(path, params).then(r => ((r.results ?? []) as Record<string, unknown>[]).map(x => fromTmdb(x, media)).filter(Boolean).map(x => ({ ...x!, ...tag }))).catch(() => []));
-  const rnd = (n: number) => String(1 + Math.floor(Math.random() * n));
+  // plus vous avez jugé de films, plus il faut chercher loin : chaque tour suivant va piocher plus profond
+  let depth = 0;
+  const rnd = (n: number) => String(1 + Math.floor(Math.random() * Math.min(500, n * (1 + depth * 2))));
+  const build = async () => {
   if (mood === "cine") jobs.push(nowPlaying().then(() => npCache?.items ?? []));
   // ce qui est inclus dans vos abonnements
   const pids = subs.length && mood !== "cine" ? await providerIds(subs) : [];
@@ -288,8 +291,17 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
     src("/trending/all/week", { page: rnd(3) });
     src("/movie/top_rated", { page: rnd(40) }, "movie"); src("/movie/top_rated", { page: rnd(40) }, "movie");
     src("/tv/top_rated", { page: rnd(15) }, "tv");
+    // au-delà du premier tour : aussi des films moins connus mais bien notés
+    if (depth) for (const media of ["movie", "tv"]) src(`/discover/${media}`, { sort_by: "vote_average.desc", "vote_count.gte": "60", "vote_count.lte": "800", page: rnd(30) }, media);
   }
-  const lists = await Promise.all(jobs);
+  };
+  const lists: Item[][] = [];
+  const neufs = () => { const ks = new Set<string>(); for (const l of lists) for (const x of l) { const k = `${x.media}:${x.tmdb_id}`; if (x.poster && x.overview && !exclude.has(k)) ks.add(k); } return ks.size; };
+  for (depth = 0; depth < 4; depth++) {
+    jobs.length = 0; await build();
+    lists.push(...await Promise.all(jobs));
+    if (neufs() >= 80 || mood === "cine") break;
+  }
   const recoN = new Map<string, number>();
   for (const l of lists) for (const x of l) if (x.reco) { const k = `${x.media}:${x.tmdb_id}`; recoN.set(k, (recoN.get(k) || 0) + 1); }
   // on mélange les sources une par une, sans doublons ni ce qui est déjà dans votre liste

@@ -2419,7 +2419,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v194</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v195</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4212,6 +4212,7 @@ async function deckOpen(mood = '') {
     deckInfoClose(true);
     if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } algoTemps(); }, 250); return; }
     if (b.dataset.d === 'vu') { deckAskSeen(); return; }
+    if (b.dataset.d === 'encore') { deck.dry = 0; deck.dryN = 0; b.disabled = true; b.textContent = 'Azami cherche…'; deckDraw(); return; }
     if (b.dataset.d !== 'skip') cinderLog(b.dataset.d);
     if (b.dataset.d === 'skip') { deck.asking = false; deckDraw(); return; }
     deckVote(b.dataset.d);
@@ -4329,10 +4330,15 @@ function deckDraw() {
   // plus que quelques cartes : on en cherche d'autres (une seule fois de suite si la pioche revient vide)
   if (deck.cards.length - deck.i < 6 && !deck.loading && !(deck.dry && deck.dry === deck.cards.length)) {
     const had = deck.cards.length;
-    deckMore().then(() => { if (!deck) return; if (deck.cards.length === had) deck.dry = had; if (!deck.cards[deck.i] || !st.querySelector('.dcard:not(.gone)')) deckDraw(); else deckDrawNext(); });
+    deckMore().then(() => {
+      if (!deck) return;
+      // pioche vide : on retente deux fois (le serveur cherche alors plus loin) avant de s'arrêter
+      if (deck.cards.length === had) { deck.dryN = (deck.dryN || 0) + 1; if (deck.dryN >= 3) deck.dry = had; } else deck.dryN = 0;
+      if (!deck.cards[deck.i] || !st.querySelector('.dcard:not(.gone)')) deckDraw(); else deckDrawNext();
+    });
   }
   const live = [...st.children].filter(c => !c.classList.contains('gone'));
-  if (!cur) { live.forEach(c => c.remove()); st.insertAdjacentHTML('beforeend', deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou reviens plus tard.'}</p>`); return; }
+  if (!cur) { live.forEach(c => c.remove()); st.insertAdjacentHTML('beforeend', deck.loading ? '<p class="hint">Azami cherche d’autres films…</p>' : `<p class="hint">${S.filmsTmdb === false ? 'Cinder a besoin de TMDB pour proposer des films.' : 'Plus de propositions pour l’instant. Change d’envie, ou cherche encore.'}</p>${S.filmsTmdb === false ? '' : '<button class="btn ghost" data-d="encore">Chercher encore</button>'}`); return; }
   const card = (f, cls) => {
     const why = cls === 'top' ? T.why(t.me, f, 2) : [], warn = cls === 'top' ? T.warn(t.me, f) : '';
     const sub = [f.year, f.media === 'tv' ? 'Série' : f.runtime ? rDur(f.runtime) : (f.traits?.rt ? rDur(f.traits.rt) : 'Film'), f.traits?.dir?.[0]?.name].filter(Boolean).join(' · ');
