@@ -2364,7 +2364,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v182</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v183</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3965,6 +3965,15 @@ async function deckMore(first = false) {
   // les films de l'autre se glissent toutes les trois cartes, pour ne pas tout révéler d'un coup
   const mix = [];
   while (ordered.length || ps.length) { if (ps.length && (mix.length % 3 === 0)) mix.push(ps.shift()); else if (ordered.length) mix.push(ordered.shift()); else mix.push(ps.shift()); }
+  // la seconde chance : un film sur lequel tu avais hésité (Bof lent, ou fiche ouverte), il y a plus de deux mois et
+  // demi, revient une fois, glissé de temps en temps parmi les nouvelles cartes
+  if (first && !deck.mood) {
+    const th = t.me?.st?.th, now = Date.now(), vus = shownGet();
+    const again = S.films.filter(f => fVotes(f)[S.me] === 'non' && !fSeen(f, S.me) && !f.ratings?.[S.me] && f.hesite?.[S.me] && !f.hesite[S.me].relance && T.tempo(f.hesite[S.me], th) === 'hesite'
+      && now - Date.parse(f.hesite[S.me].at || f.created_at || 0) > 75 * 864e5 && !deck.keys.has(fkey(f)) && !vus[fkey(f)])
+      .sort((x, y) => T.score(t.me, y) - T.score(t.me, x)).slice(0, 3);
+    again.forEach((f, i) => { f._relance = true; mix.splice(Math.min(mix.length, 4 + i * 9), 0, f); });
+  }
   for (const f of mix) deck.keys.add(fkey(f));
   deck.cards.push(...mix); deck.loading = false;
 }
@@ -3985,7 +3994,8 @@ function deckDraw() {
       ${why.length ? `<ul class="dwhy">${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}
       <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
   };
-  st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (theirs && !deck.asking ? `<p class="dtheirs">Dans la liste de ${esc(nameOf(o))} 🤫</p>` : '');
+  const ago = cur._relance ? Math.round((Date.now() - Date.parse(cur.hesite?.[S.me]?.at || cur.created_at || Date.now())) / (30 * 864e5)) : 0;
+  st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (cur._relance && !deck.asking ? `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>` : '') + (theirs && !deck.asking && !cur._relance ? `<p class="dtheirs">Dans la liste de ${esc(nameOf(o))} 🤫</p>` : '');
   if (deck.asking) { deckAskSeen(true); return; }
   const el = st.querySelector('.dcard.top'), nx = st.querySelector('.dcard.next');
   // le temps de décision part quand l'affiche est vraiment là, et la carte laisse un peu plus de temps s'il y a du texte à lire
@@ -4162,7 +4172,8 @@ async function deckVote(v) {
   deck.i++; setTimeout(deckDraw, 220);
   try {
     // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
-    const meta = { ms: Math.max(0, Math.round(performance.now() - (deck.t0 || performance.now()))), fiche: !!deck.fiche, lire: deck.lire || 0 };
+    const meta = { ms: Math.max(0, Math.round(performance.now() - (deck.t0 || performance.now()))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
+    if (f._relance) meta.relance = 1;   // une seule seconde chance
     if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
     const saved = await filmVote(f, v, T.wants(v), 0, meta);
     deckUndoOffer(f);

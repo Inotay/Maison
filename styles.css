@@ -1835,3 +1835,4 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .fsheet { max-height: 84vh; }
 .fsheet-x { position: sticky; top: 0; float: right; z-index: 3; width: 36px; height: 36px; margin: -4px -4px 0 8px; border-radius: 50%; border: 1.5px solid rgba(250,243,232,.35); background: rgba(20,10,16,.55); color: #FBF3E9; display: grid; place-items: center; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .dwhy-link { border: 0; background: transparent; color: #F2C14E; font: inherit; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; padding: 4px 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtheirs.relance { background: #2A1C15; color: #F2C14E; border: 1.5px solid #8A6512; }
