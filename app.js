@@ -699,10 +699,7 @@ let refreshTimer = null;
 function scheduleRefresh() {
   clearTimeout(refreshTimer);
   if (!document.getElementById('deck')) { refreshTimer = setTimeout(refresh, 400); return; }
-  refreshTimer = setTimeout(function later() {
-    if (document.getElementById('deck') && (deck?.drag || performance.now() - (deck?.act || 0) < 4000)) { refreshTimer = setTimeout(later, 1500); return; }
-    refresh();
-  }, 4000);
+  scheduleRefresh.later = true;   // rechargé à la fermeture de Cinder
 }
 
 // Une action à la fois par élément : un double tap n'enregistre pas deux fois.
@@ -2417,7 +2414,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v190</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v191</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3493,8 +3490,8 @@ function tastesCompute() {
 function tastes(extra = [], lazy = false) {
   if (lazy && tasteMemo) {
     if (!tastes.soon) tastes.soon = setTimeout(function again() {
-      const busy = deck && (performance.now() - (deck.act || 0) < 1200 || deck.drag);
-      if (busy) { tastes.soon = setTimeout(again, 700); return; }
+      // pendant Cinder, rien de lourd : le goût est remis à jour à la fermeture (sinon le doigt peut « accrocher »)
+      if (document.getElementById('deck')) { tastes.soon = setTimeout(again, 1500); return; }
       tastes.soon = null;
       (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => tastesCompute(), { timeout: 2000 });
     }, 900);
@@ -4105,6 +4102,7 @@ function filmMatchParty(f, host) {
   const el = document.createElement('div'); el.className = 'fmatch';
   el.innerHTML = `<div class="fmatch-card">${fPoster(f, 'mposter')}<p class="fmatch-t">${icn('deux', 'big')} C’est un match !</p><p>Vous avez tous les deux envie de voir <b>${esc(f.title)}</b>.</p><button class="btn" data-x="1">Trop bien</button></div>`;
   (host || document.body).appendChild(el); burst('confetti', el.querySelector('.fmatch-card'), 36);
+  if (host && host.id === 'deck') setTimeout(() => el.remove(), 4500);   // dans Cinder, la fête ne bloque pas la suite
   el.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target === el) el.remove(); });
 }
 // Cinder : le Tinder du canapé. Une pile de cartes : à droite j'ai envie, à gauche bof, en haut déjà vu (avec
@@ -4138,13 +4136,33 @@ async function deckOpen(mood = '') {
     if (b.dataset.d === 'info-close') { deckInfoClose(); return; }
     if (b.dataset.d === 'trailer') { deckTrailer(b); return; }
     deckInfoClose(true);
-    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); }, 250); return; }
+    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } }, 250); return; }
     if (b.dataset.d === 'vu') { deckAskSeen(); return; }
     if (b.dataset.d !== 'skip') cinderLog(b.dataset.d);
     if (b.dataset.d === 'skip') { deck.asking = false; deckDraw(); return; }
     deckVote(b.dataset.d);
   });
   deck = { cards: [], i: 0, box, mood, keys: new Set(), loading: false };
+  // Balayer marche partout : même en partant de la question « tu l'as vu ? », du « pourquoi » ou du match,
+  // un geste horizontal (ou vers le bas) referme la bulle et emmène la carte.
+  let fw = null, fwAt = 0;
+  box.addEventListener('pointerdown', e => {
+    const ov = e.target.closest('.dseen, .dwhyask, .fmatch'); fw = ov && deck?.swipe && !e.button ? { x: e.clientX, y: e.clientY, id: e.pointerId, ov, on: false } : null;
+  }, true);
+  box.addEventListener('pointermove', e => {
+    if (!fw || e.pointerId !== fw.id) return;
+    if (!fw.on) {
+      const ddx = e.clientX - fw.x, ddy = e.clientY - fw.y; if (Math.hypot(ddx, ddy) < 14) return;
+      if (ddy < 0 && Math.abs(ddy) > Math.abs(ddx)) { fw = null; return; }
+      fw.on = true;
+      if (fw.ov.classList.contains('dseen')) { deck.asking = false; fw.ov.remove(); } else fw.ov.remove();
+      deck.swipe?.start(fw.x, fw.y); try { box.setPointerCapture(e.pointerId); } catch {}
+    }
+    e.preventDefault(); deck.swipe?.move(e.clientX, e.clientY);
+  }, true);
+  const fwEnd = () => { if (fw?.on) { fwAt = performance.now(); deck.swipe?.end(); } fw = null; };
+  box.addEventListener('pointerup', fwEnd, true); box.addEventListener('pointercancel', fwEnd, true); box.addEventListener('lostpointercapture', fwEnd, true);
+  box.addEventListener('click', e => { if (performance.now() - fwAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true);
   if (mood === 'test') box.querySelector('.deck-hint').textContent = 'Test de goût : vu ou pas, dis ce que tu en penses. Une trentaine de films, très différents.';
   await deckMore(true);
   deckDraw();
@@ -4262,7 +4280,7 @@ function deckDraw() {
   deck.lire = Math.min(3000, ((el?.querySelector('.dinfo p')?.textContent.length || 0) + (el?.querySelector('.dwhy')?.textContent.length || 0)) * 8);
   // Glisser au doigt : la carte suit le doigt sans retard (une mise à jour par image), un geste vif suffit
   // (on regarde la vitesse, pas seulement la distance), et la carte suivante grandit pendant qu'on glisse.
-  let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0, hist = [];
+  let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0, hist = [], mx = 0, nx0 = 0, my = 0, ny0 = 0;
   const paint = () => {
     raf = 0; const nx = nxF();
     const vert = Math.abs(dy) > Math.abs(dx) * 1.1, up = vert && dy < -50, down = vert && dy > 50;
@@ -4270,17 +4288,24 @@ function deckDraw() {
     el.classList.toggle('lean-vu', up); el.classList.toggle('lean-beurk', down); el.classList.toggle('lean-oui', !vert && dx > 40); el.classList.toggle('lean-non', !vert && dx < -40);
     if (nx) { const k = Math.min(1, Math.hypot(dx, dy) / 160); nx.style.transform = `scale(${.94 + .06 * k}) translateY(${10 - 10 * k}px)`; nx.style.opacity = String(.7 + .3 * k); }
   };
-  el.addEventListener('pointerdown', e => {
-    if (e.button > 0 || e.target.closest('a, button')) return;
-    x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); hist = [[t0, 0, 0]]; deck.drag = true;
-    const nx = nxF(); el.setPointerCapture(e.pointerId); el.style.transition = 'none'; if (nx) nx.style.transition = 'none';
-  });
-  el.addEventListener('pointermove', e => {
-    if (x0 == null) return; e.preventDefault();
-    dx = e.clientX - x0; dy = e.clientY - y0;
+  // le geste, en trois temps : il peut aussi partir d'une bulle posée sur la carte (note, pourquoi, match), qui
+  // s'efface alors pour laisser la carte suivre le doigt
+  const start = (x, y) => {
+    x0 = x; y0 = y; dx = dy = 0; mx = nx0 = my = ny0 = 0; t0 = performance.now(); hist = [[t0, 0, 0]]; deck.drag = true;
+    if (deck.box.querySelector('.dwhyask')) deckWhyHide();
+    const nx = nxF(); el.style.transition = 'none'; if (nx) nx.style.transition = 'none';
+  };
+  const move = (x, y) => {
+    if (x0 == null) return;
+    dx = x - x0; dy = y - y0; mx = Math.max(mx, dx); nx0 = Math.min(nx0, dx); my = Math.max(my, dy); ny0 = Math.min(ny0, dy);
     const now = performance.now(); hist.push([now, dx, dy]); while (hist.length > 2 && now - hist[0][0] > 90) hist.shift();
     if (!raf) raf = requestAnimationFrame(paint);
+  };
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0 || e.target.closest('a, button')) return;
+    start(e.clientX, e.clientY); try { el.setPointerCapture(e.pointerId); } catch {}
   });
+  el.addEventListener('pointermove', e => { if (x0 == null) return; e.preventDefault(); move(e.clientX, e.clientY); });
   const end = () => {
     if (x0 == null) return; x0 = null; cancelAnimationFrame(raf); raf = 0; if (deck) deck.drag = false; const nx = nxF();
     const [ta, xa, ya] = hist[0], dt = Math.max(16, performance.now() - ta), vx = (dx - xa) / dt, vy = (dy - ya) / dt;   // px par ms
@@ -4290,12 +4315,15 @@ function deckDraw() {
     // un simple toucher (sans glisser) : la carte se retourne et montre la fiche, comme sur Tinder
     if (Math.hypot(dx, dy) < 8 && performance.now() - t0 < 400) { el.style.transform = ''; if (nx) nx.style.transform = nx.style.opacity = ''; deckInfo(); return; }
     if (vert && fy && dy < 0) { el.style.transform = ''; el.classList.remove('lean-vu'); if (nx) nx.style.transform = nx.style.opacity = ''; deckAskSeen(); }
-    else if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk', { dx, dy }); }
-    else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non', { dx, dy }); }
+    // un geste lent, ou qui part d'un côté puis revient de l'autre, est une hésitation : Azami s'en sert aussi
+    const geste = { dx, dy, dur: performance.now() - t0, rev: (mx > 45 && nx0 < -45) || (my > 45 && ny0 < -45) };
+    if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk', geste); }
+    else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non', geste); }
     else { el.style.transform = ''; el.classList.remove('lean-oui', 'lean-non', 'lean-vu', 'lean-beurk'); if (nx) nx.style.transform = nx.style.opacity = ''; }
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
   el.addEventListener('lostpointercapture', end);
+  deck.swipe = { start, move, end, el };
 }
 const TMDB_G = { 28: 'Action', 12: 'Aventure', 16: 'Animation', 35: 'Comédie', 80: 'Policier', 99: 'Documentaire', 18: 'Drame', 10751: 'Familial', 14: 'Fantastique', 36: 'Histoire', 27: 'Horreur', 10402: 'Musique', 9648: 'Mystère', 10749: 'Romance', 878: 'Science-fiction', 53: 'Thriller', 10752: 'Guerre', 37: 'Western', 10759: 'Action', 10765: 'SF et fantastique', 10768: 'Guerre', 10762: 'Enfants', 10764: 'Téléréalité', 10766: 'Feuilleton', 10767: 'Talk-show', 10763: 'Actualités' };
 // La fiche d'une carte : synopsis, bande-annonce, crédits, où le voir et pourquoi Azami le propose.
@@ -4457,7 +4485,8 @@ function deckFly(el, v, from) {
   setTimeout(() => el.remove(), 380);
 }
 async function deckVote(v, from) {
-  const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
+  const f = deck?.cards[deck.i]; if (!f) return;
+  if (deck.asking) { deck.asking = false; deck.box.querySelector('.dseen')?.remove(); }
   const tv = performance.now();
   deckWhyHide();
   const el = deck.box.querySelector('.dcard.top:not(.gone)');
@@ -4468,6 +4497,7 @@ async function deckVote(v, from) {
   // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
   const meta = { ms: Math.max(0, Math.round(tv - (deck.t0 || tv))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
   if (f._relance) meta.relance = 1;   // une seule seconde chance
+  if (from?.dur != null) { meta.glisse = Math.round(from.dur); if (from.rev) meta.retour = 1; }
   if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
   deck.i++; deckDraw();
   try {
@@ -4477,7 +4507,9 @@ async function deckVote(v, from) {
     // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
     if (!deck) return;
     if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes([], true).me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
-    if (T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
+    // l'autre a peut-être voté entre-temps : on relit juste les votes de ce film (léger), pas toute la liste
+    if (T.wants(v) && saved?.id && !DEMO && sb) { try { const { data } = await sb.from('films').select('votes').eq('id', saved.id).maybeSingle(); if (data?.votes) saved.votes = { ...data.votes, ...fVotes(saved) }; } catch {} }
+    if (deck && T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }
 // Pourquoi ? Rien ne s'impose : après un Bof ou un Non!, un petit lien discret remplace l'aide en bas quelques
@@ -5462,7 +5494,7 @@ document.addEventListener('submit', e => {
   forms[f.dataset.form]?.(f);
 });
 
-document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) refresh(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) { if (document.getElementById('deck')) scheduleRefresh.later = true; else refresh(); } });
 setInterval(() => { if (S.me && !S.offline && (S.view === 'nuit' || notifOn())) refresh(); }, 30000);
 // Corvées en étapes : fin d'un minuteur pendant que l'app est ouverte → carte à jour et notification locale.
 const seqNotified = new Set();

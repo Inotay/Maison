@@ -132,7 +132,7 @@ export function seuils(films, email) {
   const med = ms[Math.floor(ms.length / 2)];
   return { vite: Math.max(450, Math.min(1200, med * .7)), lent: Math.max(2200, Math.min(6000, med * 2.5)), n: ms.length, med };
 }
-export const tempo = (m, th = { vite: 800, lent: 3000 }) => { if (!m || m.ms == null || m.absent) return ''; const ms = m.lire == null ? Math.max(0, m.ms - 220) : m.ms; return m.fiche || ms > th.lent + (m.lire || 0) ? 'hesite' : ms < th.vite ? 'immediat' : 'lecture'; };
+export const tempo = (m, th = { vite: 800, lent: 3000 }) => { if (!m || m.ms == null || m.absent) return ''; const ms = m.lire == null ? Math.max(0, m.ms - 220) : m.ms; return m.fiche || m.retour || (m.glisse || 0) > 1100 || ms > th.lent + (m.lire || 0) ? 'hesite' : ms < th.vite ? 'immediat' : 'lecture'; };
 const TEMPO = { bof: { immediat: 1.4, lecture: 1, hesite: .45 }, envie: { immediat: 1.25, lecture: 1, hesite: .85 }, non: { immediat: 1.15, lecture: 1, hesite: .8 } };
 const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email], STATS[email]?.th); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
 export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC: 2, crA: 2, crC: .5 };   // réglés sur vos avis (v180 : 287 notes, 1 300 votes)
