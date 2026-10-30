@@ -109,9 +109,9 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let w = 0;
   if (r) w = Math.max(-3.2, Math.min(2.8, ((r - st.mu) / st.sd + .35) * 1.25));
-  else if (v === 'super') w = W.aSuper * tempoK(f, email, v);      // ⭐ très envie
-  else if (v === 'oui') w = W.aOui * tempoK(f, email, v);
-  else if (v === 'non') w = -W.aBof * st.bof * (tempo(f.hesite?.[email], st.th) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
+  else if (v === 'super') w = Wf(email).aSuper * tempoK(f, email, v);      // ⭐ très envie
+  else if (v === 'oui') w = Wf(email).aOui * tempoK(f, email, v);
+  else if (v === 'non') w = -Wf(email).aBof * st.bof * (tempo(f.hesite?.[email], st.th) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
   else if (v === 'beurk') w = -1.6 * tempoK(f, email, v);   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
   return w * age(f, email, now);
@@ -140,6 +140,11 @@ export const tempo = (m, th = { vite: 800, lent: 3000 }) => { if (!m || m.ms == 
 const TEMPO = { bof: { immediat: 1.4, lecture: 1, hesite: .45 }, envie: { immediat: 1.25, lecture: 1, hesite: .85 }, non: { immediat: 1.15, lecture: 1, hesite: .8 } };
 const tempoK = (f, email, v) => { const t = tempo(f.hesite?.[email], STATS[email]?.th); if (!t) return 1; const g = v === 'non' ? 'bof' : v === 'beurk' ? 'non' : wants(v) ? 'envie' : ''; return TEMPO[g]?.[t] ?? 1; };
 export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC: 2, crA: 2, crC: .5 };   // réglés sur vos avis (v180 : 287 notes, 1 300 votes)
+// Le réglage de chacun : les mêmes valeurs, ajustées sur sa propre façon de jouer (voir reglage.js). Sans réglage
+// personnel, on garde celles d'au-dessus.
+const WU = {};
+export const setReglage = (email, w) => { if (w) WU[email] = { ...W, ...w }; else delete WU[email]; };
+export const Wf = email => WU[email] || W;
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
@@ -147,7 +152,7 @@ export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu:
   else if (f.seen?.[email]) c = .5;
   else if (v === 'super') c = 2 * tempoK(f, email, v);
   else if (v === 'oui') c = tempoK(f, email, v);
-  else if (v === 'non') c = -W.cBof * st.bof * tempoK(f, email, v);   // bof : pas intéressé, pas curieux d'en savoir plus
+  else if (v === 'non') c = -Wf(email).cBof * st.bof * tempoK(f, email, v);   // bof : pas intéressé, pas curieux d'en savoir plus
   else if (v === 'beurk') c = -1.6 * tempoK(f, email, v);
   if ((f.coeur || []).includes(email)) c += 1;
   return c * age(f, email, now);
@@ -248,7 +253,8 @@ export function critTerm(prof, f) {
 }
 export const twins = prof => [...(prof?.critics || [])].filter(([, c]) => c.n >= 12).sort((a, b) => b[1].adj - a[1].adj);
 // mix : 0 = seulement « vais-je l'aimer ? », 1 = seulement « est-ce que ça m'attire ? ».
-export function score(prof, f, mix = W.mix) {
+export function score(prof, f, mix = Wf(prof?.email).mix) {
+  const W = Wf(prof?.email);
   // la qualité vue par le public qui te ressemble compte beaucoup pour « vais-je l'aimer ? », moins pour « ça m'attire ? »
   const useC = prof?.Cn?.size ? mix : 0, q = quality(f, prof?.src);
   const extra = (q ? (q - 6.8) * (prof?.beta ?? .5) * ((1 - useC) * W.qA + useC * W.qC) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0) + critTerm(prof, f) * ((1 - useC) * W.crA + useC * W.crC);

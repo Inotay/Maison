@@ -605,7 +605,9 @@ async function loadAll() {
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
-    goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
+    goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
+    algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
+  algoApplique();
   await ensureDechets();
   notifyNew();
   duoNotice();
@@ -2414,7 +2416,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v192</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v193</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3902,6 +3904,67 @@ async function soireeSheet() {
   });
   await load();
 }
+// ── Le réglage personnel de l'algorithme ──
+// Chacun joue à Cinder à sa façon (plus ou moins de bofs, de notes, de curiosité) : les valeurs de l'algorithme
+// s'ajustent sur les avis de chacun, dans un calcul à part (reglage.js) qui ne bloque jamais l'écran.
+// Calendrier, compté en temps passé dans Cinder : une première mise au point après 10 minutes, puis trois autres
+// toutes les 30 minutes ; ensuite, une fois stable, tous les 4 jours (s'il y a eu de nouveaux avis).
+// Les seuils de temps (décision rapide, hésitation, geste lent) s'adaptent déjà en continu sur les médianes de chacun.
+const ALGO_PLAN = [10, 40, 70, 100].map(m => m * 60e3);
+function algoLigne() {
+  const r = algoMoi(), min = Math.round((r.temps || 0) / 60e3), etape = r.etape || 0;
+  const quand = r.at ? new Date(r.at).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' }) : '';
+  const t = !r.at ? `Azami se règle sur ta façon de jouer : premier réglage après 10 minutes de Cinder${min ? ` (tu en es à ${min})` : ''}.`
+    : `Réglé sur ta façon de jouer : ${r.dernier === 'ajusté' ? 'valeurs ajustées' : 'valeurs vérifiées'} le ${quand}${etape < ALGO_PLAN.length ? `, prochain réglage après ${Math.round(ALGO_PLAN[etape] / 60e3)} minutes de Cinder (tu en es à ${min})` : ', puis tous les 4 jours'}.`;
+  return `<p class="hint algo-l">${esc(t)}</p>`;
+}
+function algoApplique() {
+  const sig = JSON.stringify(S.members.map(m => S.algoReg?.[m.email]?.w || null));
+  if (sig === algoApplique.sig) return;   // rien de neuf : on ne recalcule pas le goût
+  algoApplique.sig = sig;
+  for (const m of S.members) T.setReglage(m.email, S.algoReg?.[m.email]?.w || null);
+  tasteMemo = null;
+  if (!algoApplique.vu) { algoApplique.vu = true; setTimeout(algoPeutEtre, 20000); }   // une mise au point restée en suspens
+}
+const algoMoi = () => S.algoReg?.[S.me] || {};
+async function algoSauve(v) {
+  S.algoReg = { ...(S.algoReg || {}), [S.me]: v };
+  try { await api.upsert('reglages', { cle: 'algo:' + S.me, valeur: v }); } catch (e) { console.warn('réglage', e); }
+}
+// à la fermeture de Cinder : on ajoute le temps passé, et on lance la mise au point si c'est l'heure
+async function algoTemps() {
+  if (!deck?.actif || !S.me) return;
+  const r = algoMoi(), temps = (r.temps || 0) + Math.round(deck.actif); deck.actif = 0;
+  await algoSauve({ ...r, temps });
+  algoPeutEtre();
+}
+function algoDu() {
+  const r = algoMoi(), etape = r.etape || 0, avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
+  if (etape < ALGO_PLAN.length) return (r.temps || 0) >= ALGO_PLAN[etape];
+  return Date.now() - Date.parse(r.at || 0) > 4 * 864e5 && avis - (r.avis || 0) >= 20;
+}
+let algoTourne = false;
+function algoPeutEtre() {
+  if (algoTourne || DEMO || !S.me || document.getElementById('deck') || !algoDu() || typeof Worker === 'undefined') return;
+  algoTourne = true;
+  const go = () => {
+    let wk; try { wk = new Worker(new URL('./reglage.js', import.meta.url), { type: 'module' }); } catch { algoTourne = false; return; }
+    const keep = ['media', 'gids', 'lang', 'year', 'runtime', 'note', 'traits', 'presse', 'palmares', 'tons', 'critiques', 'votes', 'ratings', 'hesite', 'raisons', 'coeur', 'seen', 'status', 'created_at', 'seen_at', 'reco'];
+    const films = S.films.map(f => Object.fromEntries(keep.filter(k => f[k] != null).map(k => [k, f[k]])));
+    const stop = setTimeout(() => { wk.terminate(); algoTourne = false; }, 5 * 60e3);
+    wk.onmessage = async ({ data }) => {
+      clearTimeout(stop); wk.terminate(); algoTourne = false;
+      const r = algoMoi(), avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
+      const v = { ...r, etape: Math.min(ALGO_PLAN.length, (r.etape || 0) + 1), at: new Date().toISOString(), avis };
+      if (data?.ok) { v.mesure = { avant: data.avant, apres: data.apres }; if (data.adopte) v.w = data.w; v.dernier = data.adopte ? 'ajusté' : 'inchangé'; }
+      else v.dernier = data?.raison || 'pas encore';
+      await algoSauve(v); algoApplique();
+    };
+    wk.onerror = () => { clearTimeout(stop); wk.terminate(); algoTourne = false; };
+    wk.postMessage({ films, email: S.me, depart: algoMoi().w || null });
+  };
+  (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go, { timeout: 5000 });
+}
 // Quelqu'un d'autre a-t-il un avis sur ce film ? (alors il n'est pas à toi seul)
 const othersOn = f => S.members.some(m => m.email !== S.me && (fVotes(f)[m.email] || f.ratings?.[m.email] || f.seen?.[m.email] || (f.coeur || []).includes(m.email) || f.pourquoi?.[m.email]));
 // Le petit ménage : ce qui attend dans ta liste depuis plus de 6 mois.
@@ -3984,7 +4047,7 @@ function tasteCard(email) {
     ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.adj > .22).slice(0, 4), lo = tw.filter(([, c]) => c.adj < .08 && c.n >= 30).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
-    ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
+    ${self ? algoLigne() : ''}${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
     ${self ? '<p class="hint taste-tip">Touche une pastille pour dire « plus de ça » ou « jamais ça ».</p>' : ''}${tools}</div>`;
 }
 function compromisHtml() {
@@ -4110,7 +4173,7 @@ function filmMatchParty(f, host) {
 let deck = null;
 // Faux temps de réflexion : si tu n'étais plus sur ton téléphone (app en arrière-plan, ou aucun geste pendant un long
 // moment), le temps de décision ne veut rien dire et n'est pas compté.
-['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { if (!deck) return; const t = performance.now(); deck.gap = Math.max(deck.gap || 0, t - (deck.act || t)); deck.act = t; }, { passive: true, capture: true }));
+['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { if (!deck) return; const t = performance.now(), d = t - (deck.act || t); deck.gap = Math.max(deck.gap || 0, d); if (document.getElementById('deck') && d < 30000) deck.actif = (deck.actif || 0) + d; deck.act = t; }, { passive: true, capture: true }));
 document.addEventListener('scroll', () => { if (deck) deck.act = performance.now(); }, { passive: true, capture: true });
 document.addEventListener('visibilitychange', () => { if (deck && document.hidden) deck.away = true; });
 // Les cartes déjà passées sous tes yeux (même sans vote) ne reviennent pas avant trois semaines.
@@ -4136,7 +4199,7 @@ async function deckOpen(mood = '') {
     if (b.dataset.d === 'info-close') { deckInfoClose(); return; }
     if (b.dataset.d === 'trailer') { deckTrailer(b); return; }
     deckInfoClose(true);
-    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } }, 250); return; }
+    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } algoTemps(); }, 250); return; }
     if (b.dataset.d === 'vu') { deckAskSeen(); return; }
     if (b.dataset.d !== 'skip') cinderLog(b.dataset.d);
     if (b.dataset.d === 'skip') { deck.asking = false; deckDraw(); return; }
