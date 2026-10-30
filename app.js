@@ -2365,7 +2365,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v185</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v186</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3950,7 +3950,10 @@ async function deckMore(first = false) {
     return;
   }
   const o = other(), t0 = tastes();
-  const pending = first ? S.films.filter(f => f.status === 'a_voir' && o && T.wants(fVotes(f)[o]) && !fVotes(f)[S.me] && !fSeen(f, S.me)) : [];
+  // ce que l'autre veut voir (surtout « très envie ») ou a vu et aimé, et que tu n'as pas encore jugé : prioritaire, mais
+  // pas systématique, et sans le dire (la surprise du match)
+  if (!deck.prio) { const vus = shownGet(); deck.prio = o ? S.films.filter(f => !judged(f) && !vus[fkey(f)] && !deck.keys.has(fkey(f)) && (T.wants(fVotes(f)[o]) && f.status === 'a_voir' || (f.ratings?.[o]?.note || 0) >= 4 || (f.coeur || []).includes(o))) : []; }
+  const pending = deck.prio.filter(f => !deck.keys.has(fkey(f)) && !judged(f));
   const pm = t0.me ? T.prefs(t0.me) : {}, po = t0.other ? T.prefs(t0.other) : {};
   const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws, cos: pm.cos };
   let more = [];
@@ -3962,10 +3965,13 @@ async function deckMore(first = false) {
   const t = tastes(more);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
   const ordered = T.order(more.filter(f => !T.banned(t.me, f)), sc);
-  const ps = pending.sort((a, b) => T.score(t.me, b) - T.score(t.me, a));
-  // les films de l'autre se glissent toutes les trois cartes, pour ne pas tout révéler d'un coup
+  const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
+  const ps = pending.map(f => [f, pw(f)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
+  // les films de l'autre passent en priorité, mais au hasard (environ une carte sur trois, jamais deux d'affilée) ;
+  // le reste attend la pioche suivante
   const mix = [];
-  while (ordered.length || ps.length) { if (ps.length && (mix.length % 3 === 0)) mix.push(ps.shift()); else if (ordered.length) mix.push(ordered.shift()); else mix.push(ps.shift()); }
+  while (ordered.length) { const last = mix[mix.length - 1]; if (ps.length && !ps.includes(last) && Math.random() < .34) mix.push(ps.shift()); else mix.push(ordered.shift()); }
+  if (!mix.length && ps.length) mix.push(...ps.splice(0, 6));
   // la seconde chance : un film sur lequel tu avais hésité (Bof lent, ou fiche ouverte), il y a plus de deux mois et
   // demi, revient une fois, glissé de temps en temps parmi les nouvelles cartes
   if (first && !deck.mood) {
@@ -3996,7 +4002,7 @@ function deckDraw() {
       <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
   };
   const ago = cur._relance ? Math.round((Date.now() - Date.parse(cur.hesite?.[S.me]?.at || cur.created_at || Date.now())) / (30 * 864e5)) : 0;
-  st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (cur._relance && !deck.asking ? `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>` : '') + (theirs && !deck.asking && !cur._relance ? `<p class="dtheirs">Dans la liste de ${esc(nameOf(o))} 🤫</p>` : '');
+  st.innerHTML = (nxt ? card(nxt, 'next') : '') + card(cur, 'top') + (cur._relance && !deck.asking ? `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>` : '');   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
   if (deck.asking) { deckAskSeen(true); return; }
   const el = st.querySelector('.dcard.top'), nx = st.querySelector('.dcard.next');
   // le temps de décision part quand l'affiche est vraiment là, et la carte laisse un peu plus de temps s'il y a du texte à lire
@@ -4133,7 +4139,7 @@ function deckInfoHtml(f) {
   const theirs = o && T.wants(fVotes(f)[o]);
   return `<div class="dm-hero">${f.poster ? `<img class="dm-bg" src="${esc(f.poster)}" alt="" referrerpolicy="no-referrer">` : ''}${fPoster(f, 'dm-poster')}
       <div class="dm-head"><h3>${esc(f.title)}</h3>${f.original && nt(f.original) !== nt(f.title) ? `<p class="dm-orig">${esc(f.original)}</p>` : ''}<p class="dm-meta">${esc(meta)}</p>
-      <div class="dtags">${f.note ? `<em class="dtag note">★ ${String(Math.round(f.note * 10) / 10).replace('.', ',')}</em>` : ''}${where ? '' : f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${theirs ? `<em class="dtag">🤫 Envie de ${esc(nameOf(o))}</em>` : ''}</div></div></div>
+      <div class="dtags">${f.note ? `<em class="dtag note">★ ${String(Math.round(f.note * 10) / 10).replace('.', ',')}</em>` : ''}${where ? '' : f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}</div></div></div>
     <div class="dm-body">
       ${yt ? `<button type="button" class="dm-trailer" data-d="trailer" data-yt="${esc(yt)}" aria-label="Lire la bande-annonce"><img src="https://i.ytimg.com/vi/${esc(yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="dm-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="dm-tl">Bande-annonce</span></button>`
         : f._det === 'load' ? '<div class="dm-trailer wait"><span>Azami cherche la bande-annonce…</span></div>' : ''}
