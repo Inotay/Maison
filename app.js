@@ -836,7 +836,7 @@ async function agendaCall(body) {
 }
 // Tâche datée : la mettre aussi dans le calendrier partagé (iCloud), pour la voir dans Calendrier sur le téléphone.
 const inCal = t => S.agenda.events.some(e => e.title === t.title && evDay(e) === t.due_on);
-const calBtn = t => t.due_on && S.agenda.configured && !inCal(t) ? `<button class="btn ghost small" data-action="task-cal" data-id="${t.id}">📅 Dans le calendrier</button>` : '';
+const calBtn = t => t.due_on && S.agenda.configured && !inCal(t) ? `<button class="btn ghost small" data-action="task-cal" data-id="${t.id}">${icn('cal')} Dans le calendrier</button>` : '';
 function taskEvent(t) {
   if (t.due_time) { const s = new Date(`${t.due_on}T${String(t.due_time).slice(0, 5)}`); return { title: t.title, start: s.toISOString(), end: new Date(s.getTime() + 3600000).toISOString(), allDay: false, notes: 'Depuis Maison' }; }
   const n = new Date(t.due_on + 'T12:00'); n.setDate(n.getDate() + 1);
@@ -1629,6 +1629,38 @@ function morphChildren(from, to) {
   }
   while (a) { const n = a.nextSibling; if (!(a.nodeType === 1 && a.classList.contains('hap'))) from.removeChild(a); a = n; }
 }
+// ── Nos icônes : dessinées pour la maison (trait rond, chaud, un peu dodu), jamais d'émoji ──
+// Toutes en 24×24, couleur héritée du texte, taille 1em : elles suivent la taille de police de leur bouton.
+const IC = {
+  non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
+  bof: '<path d="M4.6 10.2 5 4.2l4.3 3.1h5.4L19 4.2l.4 6c.7 1 1.1 2.2 1.1 3.5 0 3.9-3.8 6.8-8.5 6.8s-8.5-2.9-8.5-6.8c0-1.3.4-2.5 1.1-3.5z"/><path d="M8.3 12.6h2.2M13.5 12.6h2.2M10.6 16.2h2.8"/>',
+  vu: '<path d="M2.6 12S6 5.8 12 5.8 21.4 12 21.4 12 18 18.2 12 18.2 2.6 12 2.6 12z"/><circle cx="12" cy="12" r="3.1" fill="currentColor" stroke="none"/><circle cx="13.2" cy="10.9" r="1" fill="var(--icn-bg, #2A1C15)" stroke="none"/>',
+  tres: '<path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.6l-5.1 2.7 1-5.7-4.1-4 5.7-.8z" fill="currentColor"/>',
+  envie: '<path d="M12 20.2s-7.8-4.7-7.8-10.3A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.8 2.5c0 5.6-7.8 10.3-7.8 10.3z" fill="currentColor"/>',
+  coeur: '<path d="M12 20.2s-7.8-4.7-7.8-10.3A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.8 2.5c0 5.6-7.8 10.3-7.8 10.3z"/>',
+  flamme: '<path d="M12 21.2c-3.9 0-6.6-2.7-6.6-6.3 0-3.5 2.5-5.3 3.7-8.2.8 1.6 1.7 2.4 2.6 2.7.1-3 1.3-5.1 3.2-6.6-.3 2.7.9 4.5 2.3 6.3 1.1 1.4 1.7 3 1.7 5 0 4-2.7 7.1-6.9 7.1z"/><path d="M12 21.2c-1.7 0-2.9-1.1-2.9-2.7 0-1.7 1.4-2.5 2.1-4 1.4 1.1 3.6 2.4 3.6 4.2 0 1.5-1.2 2.5-2.8 2.5z" fill="currentColor" stroke="none"/>',
+  de: '<rect x="4" y="4" width="16" height="16" rx="4.2"/><circle cx="8.6" cy="8.6" r="1.35" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none"/><circle cx="15.4" cy="15.4" r="1.35" fill="currentColor" stroke="none"/>',
+  deux: '<path d="M9.6 20.4s-6.4-3.9-6.4-8.5A3.5 3.5 0 0 1 9.6 9.8a3.5 3.5 0 0 1 6.4 2.1c0 4.6-6.4 8.5-6.4 8.5z"/><path d="M16.6 11.2s-3.6-2.2-3.6-5A2 2 0 0 1 16.6 5a2 2 0 0 1 3.6 1.2c0 2.8-3.6 5-3.6 5z" fill="currentColor" stroke="none"/>',
+  ticket: '<path d="M3.8 8A1.8 1.8 0 0 1 5.6 6.2h12.8A1.8 1.8 0 0 1 20.2 8v2.2a1.9 1.9 0 0 0 0 3.6V16a1.8 1.8 0 0 1-1.8 1.8H5.6A1.8 1.8 0 0 1 3.8 16v-2.2a1.9 1.9 0 0 0 0-3.6z"/><path d="M14.6 7.4v1.4M14.6 11.3v1.4M14.6 15.2v1.4"/>',
+  cal: '<rect x="3.8" y="5.2" width="16.4" height="15" rx="3.2"/><path d="M3.8 10h16.4M8.2 3.2v3.6M15.8 3.2v3.6"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/>',
+  import: '<path d="M4 13.6h4.2l1.4 2.4h4.8l1.4-2.4H20"/><path d="M4 13.6V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4.4L17.8 7"/><path d="M6.2 7 4 13.6"/><path d="M12 3.4v8M9.2 8.8 12 11.6l2.8-2.8"/>',
+  fiole: '<path d="M9.4 3.6h5.2M10.4 3.8v5L5.3 17.7a1.9 1.9 0 0 0 1.7 2.7h10a1.9 1.9 0 0 0 1.7-2.7L13.6 8.8v-5"/><path d="M7.4 14.4c1.6-.9 3.1-.9 4.6 0s3 .9 4.6 0"/>',
+  balai: '<path d="M15.6 3.4 11.8 11"/><path d="M7.4 11.2h8.4l2 8.6H5.2z"/><path d="M9.6 15.2v4.4M13.4 15.2v4.4"/>',
+  pepite: '<path d="M7.2 4.6h9.6l3.6 4.6L12 19.8 3.6 9.2z"/><path d="M3.6 9.2h16.8M9.4 4.6 8.2 9.2 12 19.8l3.8-10.6-1.2-4.6"/>',
+  trophee: '<path d="M8 4h8v5.2a4 4 0 0 1-8 0z"/><path d="M8 6H5.2v1.2A2.8 2.8 0 0 0 8 10M16 6h2.8v1.2A2.8 2.8 0 0 1 16 10M12 13.2V17M8.6 20.2h6.8M9.8 17h4.4"/>',
+  popcorn: '<path d="M5.8 10.2 7.4 20h9.2l1.6-9.8z"/><path d="M10.2 10.2l.4 9.8M13.8 10.2l-.4 9.8"/><path d="M5.8 10.2a2.4 2.4 0 0 1 1.6-4.3 2.7 2.7 0 0 1 4.6-1.4 2.7 2.7 0 0 1 4.6 1.4 2.4 2.4 0 0 1 1.6 4.3"/>',
+  lettre: '<rect x="3.4" y="5.6" width="17.2" height="12.8" rx="2.8"/><path d="m4.2 7 7.8 6 7.8-6"/>',
+  carnet: '<path d="M12 6.6C10 5.1 7 4.6 3.8 5v13.2c3.2-.4 6.2.1 8.2 1.6 2-1.5 5-2 8.2-1.6V5c-3.2-.4-6.2.1-8.2 1.6zM12 6.6v13.2"/>',
+  livres: '<rect x="4" y="4.4" width="4.4" height="15.4" rx="1.2"/><rect x="9.8" y="6.4" width="4.4" height="13.4" rx="1.2"/><path d="m15.6 7.4 3.6-1 3 12.4-3.6 1z"/><path d="M4 8.4h4.4M9.8 9.8h4.4"/>',
+  manette: '<path d="M7.6 8h8.8a4 4 0 0 1 4 4.4l-.4 3.7a2 2 0 0 1-3.4 1.2L15 15.6H9l-1.6 1.7A2 2 0 0 1 4 16.1l-.4-3.7A4 4 0 0 1 7.6 8z"/><path d="M8 10.6v3.2M6.4 12.2h3.2"/><circle cx="15.4" cy="11.4" r="1" fill="currentColor" stroke="none"/><circle cx="17.2" cy="13.2" r="1" fill="currentColor" stroke="none"/>',
+  etincelle: '<path d="M11 3.4c.6 4.4 2.5 6.3 6.9 6.9-4.4.6-6.3 2.5-6.9 6.9-.6-4.4-2.5-6.3-6.9-6.9 4.4-.6 6.3-2.5 6.9-6.9z"/><path d="M18.4 15.4c.2 1.5.8 2.1 2.3 2.3-1.5.2-2.1.8-2.3 2.3-.2-1.5-.8-2.1-2.3-2.3 1.5-.2 2.1-.8 2.3-2.3z" fill="currentColor"/>',
+  plus: '<path d="M10.6 19.6s-7-4.2-7-9.2a3.9 3.9 0 0 1 7-2.3 3.9 3.9 0 0 1 4.6-1.6"/><path d="M17.8 9.6v7M14.3 13.1h7"/>',
+  jamais: '<circle cx="12" cy="12" r="8.4"/><path d="M6.1 6.1l11.8 11.8"/>',
+  film: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.8"/><path d="M7.8 4.6v14.8M16.2 4.6v14.8M3.6 9.6h4.2M3.6 14.4h4.2M16.2 9.6h4.2M16.2 14.4h4.2"/>',
+  tele: '<rect x="3.2" y="6.6" width="17.6" height="12.6" rx="3"/><path d="m8.8 3.4 3.2 3.2 3.2-3.2"/>',
+  chat: '<path d="M4.6 10.2 5 4.2l4.3 3.1h5.4L19 4.2l.4 6c.7 1 1.1 2.2 1.1 3.5 0 3.9-3.8 6.8-8.5 6.8s-8.5-2.9-8.5-6.8c0-1.3.4-2.5 1.1-3.5z"/><path d="M8.6 13.2c.5-.8 1.5-.8 2 0M13.4 13.2c.5-.8 1.5-.8 2 0"/>',
+};
+const icn = (n, cls = '') => `<svg class="icn ${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${IC[n] || ''}</svg>`;
 // ── Nos propres choix : menus, dates, heures et confirmations, dessinés par la maison (jamais les boîtes du téléphone) ──
 const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -2365,7 +2397,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v186</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v187</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3429,7 +3461,7 @@ const fMatch = f => S.members.length >= 2 && S.members.every(m => T.wants(fVotes
 const fMeta = f => [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.runtime ? rDur(f.runtime) : 'Film'), (f.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ');
 const POSTER_W = { fposter: 'w185', sposter: 'w92', iposter: 'w185', tposter: 'w342' };
 const posterSrc = (u, cls) => POSTER_W[cls] ? String(u).replace('/t/p/w342/', `/t/p/${POSTER_W[cls]}/`) : u;
-const fPoster = (f, cls = 'fposter') => f.poster ? `<img class="${cls}" src="${esc(posterSrc(f.poster, cls))}" alt="" ${cls === 'fposter' || cls === 'iposter' ? 'loading="lazy"' : ''} decoding="async" referrerpolicy="no-referrer" data-poster>` : `<span class="${cls} noposter" aria-hidden="true">${f.media === 'tv' ? '📺' : '🎬'}</span>`;
+const fPoster = (f, cls = 'fposter') => f.poster ? `<img class="${cls}" src="${esc(posterSrc(f.poster, cls))}" alt="" ${cls === 'fposter' || cls === 'iposter' ? 'loading="lazy"' : ''} decoding="async" referrerpolicy="no-referrer" data-poster>` : `<span class="${cls} noposter" aria-hidden="true">${icn(f.media === 'tv' ? 'tele' : 'film')}</span>`;
 const fProv = f => (f.providers || []).filter(p => p.kind !== 'location').slice(0, 3).map(p => p.name);
 // Vos abonnements et les salles de Lausanne : où on peut le voir, nous, ce soir.
 const SUBS = [['hbo', 'HBO Max', /hbo|^max$/i], ['disney', 'Disney+', /disney/i], ['apple', 'Apple TV+', /apple tv/i], ['crunchyroll', 'Crunchyroll', /crunchyroll/i], ['netflix', 'Netflix', /netflix/i],
@@ -3451,7 +3483,7 @@ function fWhere(f) {
 }
 function fWhereLine(f) {
   const w = fWhere(f);
-  if (w.salles.length) { const x = w.salles[0]; return `<span class="fwhere salle">🎟 ${esc(x.where === 'Cinémathèque' ? `Cinémathèque, ${x.when || 'bientôt'}` : `${x.where}, ${x.when || 'en ce moment'}`)}</span>`; }
+  if (w.salles.length) { const x = w.salles[0]; return `<span class="fwhere salle">${icn('ticket')} ${esc(x.where === 'Cinémathèque' ? `Cinémathèque, ${x.when || 'bientôt'}` : `${x.where}, ${x.when || 'en ce moment'}`)}</span>`; }
   if (w.chez.length) return `<span class="fwhere chez">✓ Chez vous sur ${esc(w.chez.slice(0, 2).join(', '))}</span>`;
   if (w.loc.length) return `<span class="fwhere">En location sur ${esc(w.loc.slice(0, 2).join(', '))}</span>`;
   if (w.ailleurs.length) return `<span class="fwhere">Sur ${esc(w.ailleurs.slice(0, 2).join(', '))}</span>`;
@@ -3507,18 +3539,18 @@ function fWhereShort(f) {
 // L'affiche d'abord : une grille comme à l'entrée d'un cinéma.
 function cineTile(f, space = 'moi') {
   const v = fVotes(f), o = other(), w = fWhereShort(f);
-  const badge = fMatch(f) ? '<i class="tbadge match" title="Vous en avez envie tous les deux">💞</i>'
+  const badge = fMatch(f) ? `<i class="tbadge match" title="Vous en avez envie tous les deux">${icn('deux')}</i>`
     : space === 'autre' ? (v[S.me] === 'beurk' ? '<i class="tbadge dim">Non pour toi</i>' : v[S.me] === 'non' ? '<i class="tbadge dim">Bof pour toi</i>' : fSeen(f, S.me) ? '<i class="tbadge dim">Déjà vu</i>' : '<i class="tbadge ask">Moi aussi ?</i>')
     : space === 'moi' && o && fSeen(f, S.me) ? '<i class="tbadge">Vu · à montrer</i>' : '';
   const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.traits?.rt || f.runtime) ? rDur(f.traits?.rt || f.runtime) : ''].filter(Boolean).join(' · ');
-  const star = S.members.some(m => v[m.email] === 'super') ? '<i class="tstar" title="Très envie">⭐</i>' : '';
+  const star = S.members.some(m => v[m.email] === 'super') ? `<i class="tstar" title="Très envie">${icn('tres')}</i>` : '';
   return `<li><button type="button" class="ftile" data-action="cine-open" data-id="${f.id}" aria-label="${esc(f.title)}">
     <span class="ftile-p">${fPoster(f, 'tposter')}${badge}${star}${w ? `<i class="twhere ${w[0]}">${esc(w[1])}</i>` : ''}</span>
     <b>${esc(f.title)}</b><small>${esc(sub)}</small></button></li>`;
 }
 function cineCard(f) {
   const v = fVotes(f), o = other();
-  const badge = fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && T.wants(v[o]) && !v[S.me] ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : '';
+  const badge = fMatch(f) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : o && T.wants(v[o]) && !v[S.me] ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : '';
   const prov = fProv(f);
   const rate = f.status === 'vu' ? S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<span class="frate">${esc(m.email === S.me ? 'Toi' : nameOf(m.email))} ${'♥'.repeat(f.ratings[m.email].note)}</span>`).join('') : '';
   return `<li><div class="fcard" data-action="cine-open" data-id="${f.id}" role="button" tabindex="0">${fPoster(f)}<div class="fbody">
@@ -3568,20 +3600,20 @@ function cineSection() {
     const list = t === 'en_cours' ? L.enCours : t === 'vu' ? L.vus : L.nous;
     const empty = t === 'vu' ? 'Vos films vus à deux arriveront ici, avec vos notes : un vrai journal de vos soirées.' : t === 'en_cours' ? 'Rien en cours. « On le regarde » sur un film ou une série pour la mettre ici.' : `Pas encore de film en commun. Lancez Cinder chacun de votre côté : quand vous dites oui tous les deux, il arrive ici.`;
     body = `<div class="seg cine-tabs" role="group" aria-label="À deux">
-      <button data-action="cine-tab" data-t="a_voir" aria-pressed="${t === 'a_voir'}">💞 À voir${L.nous.length ? ` · ${L.nous.length}` : ''}</button>
+      <button data-action="cine-tab" data-t="a_voir" aria-pressed="${t === 'a_voir'}">${icn('deux')} À voir${L.nous.length ? ` · ${L.nous.length}` : ''}</button>
       <button data-action="cine-tab" data-t="en_cours" aria-pressed="${t === 'en_cours'}">En cours${L.enCours.length ? ` · ${L.enCours.length}` : ''}</button>
       <button data-action="cine-tab" data-t="vu" aria-pressed="${t === 'vu'}">Vus${L.vus.length ? ` · ${L.vus.length}` : ''}</button>
-      <button data-action="cine-tab" data-t="salles" aria-pressed="${t === 'salles'}">🎟 Affiche</button></div>
+      <button data-action="cine-tab" data-t="salles" aria-pressed="${t === 'salles'}">${icn('ticket')} Affiche</button></div>
       ${t === 'salles' ? cineSallesHtml() : !list.length ? `<p class="hint cine-empty">${empty}</p>` : t === 'a_voir' ? cineGrid(list, 'nous') : `${t === 'vu' ? journalStats() : ''}<ul class="cine-list ${t === 'vu' ? 'journal' : ''}">${list.map(cineCard).join('')}</ul>`}
       ${t === 'a_voir' ? compromisHtml() + cineIdeasHtml('nous') : ''}`;
   }
   return `<section class="cine" id="cine">
     <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>Ciné à deux</h2>
-      <p>${[L.nous.length ? `${L.nous.length} 💞 en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
-    <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck"><span aria-hidden="true">🔥</span> Cinder</button><button class="btn cta-soir" data-action="cine-soir"><span aria-hidden="true">🎲</span> Ce soir ?</button></div>
+      <p>${[L.nous.length ? `${L.nous.length} ${icn('deux')} en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
+    <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck">${icn('flamme')} Cinder</button><button class="btn cta-soir" data-action="cine-soir">${icn('de')} Ce soir ?</button></div>
     <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Ajouter à ta liste : un film, un lien…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
-    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? '💞 ' : ''}${esc(l)}</span><b>${n}</b></button>`).join('')}</div>
+    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span><b>${n}</b></button>`).join('')}</div>
     ${body}
   </section>`;
 }
@@ -3599,7 +3631,7 @@ function lbMerge(f, lb) {
 async function lbImport(file) {
   const box = document.createElement('div'); box.id = 'ticket';
   document.getElementById('ticket')?.remove();
-  box.innerHTML = `<div class="ticket-card fsheet lbimp" role="dialog" aria-label="Import Letterboxd"><p class="ticket-title">📥 Import Letterboxd</p><p class="ticket-sub lb-msg">Lecture du fichier…</p>
+  box.innerHTML = `<div class="ticket-card fsheet lbimp" role="dialog" aria-label="Import Letterboxd"><p class="ticket-title">${icn('import')} Import Letterboxd</p><p class="ticket-sub lb-msg">Lecture du fichier…</p>
     <div class="lb-bar"><span style="width:0%"></span></div><div class="form-actions"><button class="btn ghost" data-action="sheet-close">Fermer</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
@@ -3643,7 +3675,7 @@ async function lbImport(file) {
 function lbPick() {
   const box = document.createElement('div'); box.id = 'ticket';
   document.getElementById('ticket')?.remove();
-  box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="Import Letterboxd"><p class="ticket-title">📥 Importer Letterboxd</p>
+  box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="Import Letterboxd"><p class="ticket-title">${icn('import')} Importer Letterboxd</p>
     <p class="ticket-sub">Sur le site letterboxd.com (pas l’app) : <b>Settings → Data → Export your data</b>. Tu reçois un fichier ZIP : choisis-le ici, tel quel.</p>
     <p class="hint">Tes films vus, tes notes, tes cœurs et ta watchlist arrivent dans ton espace. Rien n’est envoyé ailleurs.</p>
     <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><label class="btn lb-file">Choisir le fichier<input type="file" accept=".zip,.csv,application/zip,text/csv" hidden></label></div></div>`;
@@ -3688,7 +3720,7 @@ function tasteRule(k, label) {
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card fsheet trule" role="dialog" aria-label="${esc(label)}"><p class="ticket-title">${esc(label)}</p><p class="ticket-sub">Dis à Azami ce que tu en penses. Une règle compte plus que vingt avis.</p>
-    <div class="trule-btns"><button class="btn ${cur === 'boost' ? '' : 'ghost'}" data-kind="boost">💛 Plus de ça</button><button class="btn ${cur === 'ban' ? '' : 'ghost'}" data-kind="ban">🚫 Jamais ça</button></div>
+    <div class="trule-btns"><button class="btn ${cur === 'boost' ? '' : 'ghost'}" data-kind="boost">${icn('plus')} Plus de ça</button><button class="btn ${cur === 'ban' ? '' : 'ghost'}" data-kind="ban">${icn('jamais')} Jamais ça</button></div>
     <div class="form-actions"><button class="link" data-kind="">${cur ? 'Retirer la règle' : 'Laisser Azami décider'}</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) { closeTicket(); return; } const b = e.target.closest('[data-kind]'); if (b) setRule(k, b.dataset.kind || null, label); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
@@ -3699,7 +3731,7 @@ function cineCal(id) {
   const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));   // samedi prochain
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
-  box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="Prévoir une soirée"><p class="ticket-title">📅 ${esc(f.title)}</p><p class="ticket-sub">Une soirée ciné dans votre calendrier${S.agenda?.calendar ? ` « ${esc(S.agenda.calendar)} »` : ''}.</p>
+  box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="Prévoir une soirée"><p class="ticket-title">${icn('cal')} ${esc(f.title)}</p><p class="ticket-sub">Une soirée ciné dans votre calendrier${S.agenda?.calendar ? ` « ${esc(S.agenda.calendar)} »` : ''}.</p>
     <div class="row cal-row"><input class="field" type="date" id="cc-d" value="${isoDate(d)}" required><input class="field" type="time" id="cc-t" value="20:30" required></div>
     <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-c="ok">Ajouter</button></div></div>`;
   box.innerHTML = deNative(box.innerHTML);
@@ -3708,7 +3740,7 @@ function cineCal(id) {
     if (!e.target.closest('[data-c]')) return;
     const day = box.querySelector('#cc-d').value, tm = box.querySelector('#cc-t').value || '20:30'; if (!day) return;
     const s0 = new Date(`${day}T${tm}`), dur = (f.runtime || f.traits?.rt || 120) + 15;
-    const ev = { title: `🎬 ${f.title}`, start: s0.toISOString(), end: new Date(s0.getTime() + dur * 60000).toISOString(), allDay: false, notes: `Soirée ciné à deux, depuis Maison.${fWhere(f).chez.length ? ` Sur ${fWhere(f).chez[0]}.` : ''}` };
+    const ev = { title: `Ciné : ${f.title}`, start: s0.toISOString(), end: new Date(s0.getTime() + dur * 60000).toISOString(), allDay: false, notes: `Soirée ciné à deux, depuis Maison.${fWhere(f).chez.length ? ` Sur ${fWhere(f).chez[0]}.` : ''}` };
     closeTicket();
     if (!S.agenda?.configured) { toast('Le calendrier n’est pas encore relié (onglet Maison, Agenda).'); return; }
     runAgenda(() => agendaCall({ action: 'create', event: ev }), `Soirée prévue le ${new Date(s0).toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' })}`).then(ok => ok && haptic('medium'));
@@ -3722,7 +3754,7 @@ const SIX_MOIS = 182 * 864e5;
 const oldies = () => S.films.filter(f => f.status === 'a_voir' && T.wants(fVotes(f)[S.me]) && !fMatch(f) && Date.now() - Math.max(Date.parse(f.created_at || 0) || 0, Date.parse(f.garde?.[S.me] || 0) || 0) > SIX_MOIS);
 function menageBanner() {
   const l = oldies(); if (l.length < 3) return '';
-  return `<button class="menage-ban" data-action="cine-menage"><span>🧹 ${l.length} films t’attendent depuis plus de 6 mois. Toujours envie ?</span><b aria-hidden="true">›</b></button>`;
+  return `<button class="menage-ban" data-action="cine-menage"><span>${icn('balai')} ${l.length} films t’attendent depuis plus de 6 mois. Toujours envie ?</span><b aria-hidden="true">›</b></button>`;
 }
 function menageOpen() {
   const l = oldies().slice(0, 20); if (!l.length) { closeTicket(); render(); return; }
@@ -3760,7 +3792,7 @@ function tasteCard(email) {
   if (!email) return '';
   const t = tastes(), p = t.by[email]; if (!p) return '';
   const self = email === S.me, who = self ? 'tes' : `les goûts de ${esc(nameOf(email))}`;
-  const tools = self ? `<div class="taste-tools"><button class="btn small" data-action="taste-test">🧪 Test de goût</button><button class="btn small ghost" data-action="lb-import">📥 Importer Letterboxd</button></div>` : '';
+  const tools = self ? `<div class="taste-tools"><button class="btn small" data-action="taste-test">${icn('fiole')} Test de goût</button><button class="btn small ghost" data-action="lb-import">${icn('import')} Importer Letterboxd</button></div>` : '';
   if (p.n < 3) return `<div class="taste"><p class="taste-t">${self ? 'Azami apprend tes goûts' : `Azami ne connaît pas encore ${who}`}</p><p class="hint">Chaque avis compte : ♥ ou ✕ dans Cinder, une note sur un film déjà vu, un coup de cœur. Le plus rapide : le test de goût (2 minutes) ou ton export Letterboxd.</p>${tools}</div>`;
   const top = T.top(p, S.films), reg = gReg(email);
   const chips = (l, cls = '') => l.map(r => self ? `<button type="button" class="tchip ${cls}${reg.boost?.[r[0]] ? ' boost' : ''}" data-action="taste-rule" data-k="${esc(r[0])}" data-l="${esc(r[2])}">${esc(r[2])}</button>` : `<span class="tchip ${cls}">${esc(r[2])}</span>`).join('');
@@ -3786,7 +3818,7 @@ function cineIdeasHtml(space) {
   const t = tastes(S.cineIdeas);
   const list = [...S.cineIdeas].map(f => ({ f, s: space === 'nous' && t.other ? T.scoreBoth(t.me, t.other, f, t.couple) : T.score(t.me, f) })).sort((a, b) => b.s - a.s).slice(0, 10);
   return `<div class="chip-row"><p class="chip-label">${space === 'nous' ? 'Les idées d’Azami pour vous deux' : 'Les idées d’Azami pour toi'}</p><button class="link small" data-action="cine-ideas-more" aria-label="D’autres idées">↻ D’autres</button></div>
-    <div class="cine-ideas">${list.map(({ f }) => `<button type="button" class="idea" data-action="cine-idea" data-i="${S.cineIdeas.indexOf(f)}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.dispo ? '<small class="ichez">✓ chez vous</small>' : f.cinema ? '<small class="ichez">🎟 au ciné</small>' : ''}${T.why(t.me, f, 1)[0] ? `<small class="iwhy">${esc(T.why(t.me, f, 1)[0])}</small>` : ''}<b aria-hidden="true">+</b></button>`).join('')}</div>`;
+    <div class="cine-ideas">${list.map(({ f }) => `<button type="button" class="idea" data-action="cine-idea" data-i="${S.cineIdeas.indexOf(f)}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.dispo ? '<small class="ichez">✓ chez vous</small>' : f.cinema ? `<small class="ichez">${icn('ticket')} au ciné</small>` : ''}${T.why(t.me, f, 1)[0] ? `<small class="iwhy">${esc(T.why(t.me, f, 1)[0])}</small>` : ''}<b aria-hidden="true">+</b></button>`).join('')}</div>`;
 }
 // À l'affiche à Lausanne : Pathé aujourd'hui, Cinémathèque les prochaines semaines.
 function cineSallesHtml() {
@@ -3797,7 +3829,7 @@ function cineSallesHtml() {
   const o = other();
   const state = f => { const v = fVotes(f);
     if (f.status === 'vu' || fSeen(f, S.me)) return ['Vu', 'dim'];
-    if (fMatch(f)) return ['💞 Vous deux', 'hot'];
+    if (fMatch(f)) return ['Vous deux', 'hot'];
     if (f.status === 'en_cours') return ['En cours', 'hot'];
     if (T.wants(v[S.me])) return ['Dans ta liste', 'hot'];
     if (o && T.wants(v[o])) return [`Envie de ${nameOf(o)}`, 'hot'];
@@ -3821,7 +3853,7 @@ function cineCoeurs(only) {
   return rows.map(([e, l]) => `<p class="chip-label">${e === S.me ? 'Tes coups de cœur' : `Les coups de cœur de ${esc(nameOf(e))}`}</p>
     <div class="cine-ideas">${l.map(f => `<button type="button" class="idea" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.status === 'favori' && e !== S.me ? '<b aria-hidden="true">?</b>' : ''}</button>`).join('')}</div>`).join('');
 }
-const GOUT_KIND = { livre: '📚 Livres et BD', jeu: '🎮 Jeux vidéo', autre: '✨ Autres' };
+const GOUT_KIND = { livre: `${icn('livres')} Livres et BD`, jeu: `${icn('manette')} Jeux vidéo`, autre: `${icn('etincelle')} Autres` };
 function cineGouts() {
   const mine = S.gouts.filter(g => g.email === S.me), theirs = S.gouts.filter(g => g.email !== S.me);
   const chips = l => Object.keys(GOUT_KIND).filter(k => l.some(g => g.kind === k)).map(k => `<p class="gout-k">${GOUT_KIND[k]}</p><div class="gout-chips">${l.filter(g => g.kind === k).map(g => `<span class="gout">${esc(g.title)}${g.author ? ` <small>${esc(g.author)}</small>` : ''}${g.email === S.me ? `<button type="button" data-action="gout-del" data-id="${g.id}" aria-label="Retirer ${esc(g.title)}">×</button>` : ''}</span>`).join('')}</div>`).join('');
@@ -3889,7 +3921,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
 function filmMatchParty(f, host) {
   sfx('big'); haptic('heavy'); setTimeout(() => meow(true, .45, 'chirp'), 400);
   const el = document.createElement('div'); el.className = 'fmatch';
-  el.innerHTML = `<div class="fmatch-card">${fPoster(f, 'mposter')}<p class="fmatch-t">C’est un match ! 💞</p><p>Vous avez tous les deux envie de voir <b>${esc(f.title)}</b>.</p><button class="btn" data-x="1">Trop bien</button></div>`;
+  el.innerHTML = `<div class="fmatch-card">${fPoster(f, 'mposter')}<p class="fmatch-t">${icn('deux', 'big')} C’est un match !</p><p>Vous avez tous les deux envie de voir <b>${esc(f.title)}</b>.</p><button class="btn" data-x="1">Trop bien</button></div>`;
   (host || document.body).appendChild(el); burst('confetti', el.querySelector('.fmatch-card'), 36);
   el.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target === el) el.remove(); });
 }
@@ -3905,15 +3937,15 @@ document.addEventListener('visibilitychange', () => { if (deck && document.hidde
 const shownKey = () => 'maison-cine-vus-' + (S.me || '');
 function shownGet() { try { const o = JSON.parse(safeGet(shownKey()) || '{}'), lim = Date.now() - 21 * 864e5; for (const k in o) if (o[k] < lim) delete o[k]; return o; } catch { return {}; } }
 function shownAdd(f) { const o = shownGet(); o[fkey(f)] = Date.now(); const ks = Object.keys(o); if (ks.length > 900) ks.sort((a, b) => o[a] - o[b]).slice(0, ks.length - 900).forEach(k => delete o[k]); safeSet(shownKey(), JSON.stringify(o)); }
-const MOODS = [['', 'Tout'], ['pepites', '💎 Pépites'], ['classiques', 'Classiques'], ['nouveautes', 'Nouveautés'], ['court', 'Moins de 2 h'], ['cine', 'Au ciné'], ['leger', 'Léger'], ['frisson', 'Frisson'], ['romance', 'Romance'], ['animation', 'Animation'], ['sf', 'SF'], ['docu', 'Docu']];
+const MOODS = [['', 'Tout'], ['pepites', `${icn('pepite')} Pépites`], ['classiques', 'Classiques'], ['nouveautes', 'Nouveautés'], ['court', 'Moins de 2 h'], ['cine', 'Au ciné'], ['leger', 'Léger'], ['frisson', 'Frisson'], ['romance', 'Romance'], ['animation', 'Animation'], ['sf', 'SF'], ['docu', 'Docu']];
 async function deckOpen(mood = '') {
   document.getElementById('deck')?.remove();
   stopPropSounds(); lastHdScene = null;
   const box = document.createElement('div'); box.id = 'deck';
-  box.innerHTML = `<div class="deck-top"><button class="link" data-d="close">Fermer</button><b class="cinder-logo">🔥 Cinder</b><span class="deck-n"></span></div>
+  box.innerHTML = `<div class="deck-top"><button class="link" data-d="close">Fermer</button><b class="cinder-logo">${icn('flamme')} Cinder</b><span class="deck-n"></span></div>
     <div class="deck-moods">${MOODS.map(([k, l]) => `<button data-mood="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
     <div class="deck-stack"><p class="hint">Azami mélange les cartes…</p></div>
-    <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas"><span>✕</span><small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé"><span>😐</span><small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu"><span>👁</span><small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie"><span>⭐</span><small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J'ai envie"><span>♥</span><small>Envie</small></button></div>
+    <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas">${icn('non')}<small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé">${icn('bof')}<small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J'ai envie">${icn('envie')}<small>Envie</small></button></div>
     <p class="deck-hint">→ envie · ← bof · ↓ non, j’aime pas · ↑ déjà vu</p>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   box.addEventListener('click', e => {
@@ -3997,7 +4029,7 @@ function deckDraw() {
     const why = cls === 'top' ? T.why(t.me, f, 2) : [], warn = cls === 'top' ? T.warn(t.me, f) : '';
     const sub = [f.year, f.media === 'tv' ? 'Série' : f.runtime ? rDur(f.runtime) : (f.traits?.rt ? rDur(f.traits.rt) : 'Film'), f.traits?.dir?.[0]?.name].filter(Boolean).join(' · ');
     return `<div class="dcard ${cls}">${fPoster(f, 'dposter')}<div class="dinfo">${cls === 'top' ? `<button type="button" class="dinfo-btn" data-d="info" aria-label="Plus d’infos sur ${esc(f.title)}"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>` : ''}<b>${esc(f.title)}</b><span>${esc(sub)}</span>
-      <div class="dtags">${f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${f.note ? `<em class="dtag note">★ ${String(f.note).replace('.', ',')}</em>` : ''}</div>
+      <div class="dtags">${f.cinema || fSalles(f).length ? `<em class="dtag salle">${icn('ticket')} Au cinéma</em>` : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}${f.note ? `<em class="dtag note">★ ${String(f.note).replace('.', ',')}</em>` : ''}</div>
       ${why.length ? `<ul class="dwhy">${why.map(w => `<li>${esc(w)}</li>`).join('')}</ul>` : ''}${warn ? `<p class="dwarn">${esc(warn)}</p>` : ''}
       <p>${esc(f.overview || '')}</p></div><span class="dstamp oui">ENVIE</span><span class="dstamp non">BOF</span><span class="dstamp beurk">NON !</span><span class="dstamp vu">DÉJÀ VU</span></div>`;
   };
@@ -4094,7 +4126,7 @@ function presseRow(f) {
     P.lb != null ? ['Letterboxd', c(P.lb), '/5', ''] : null,
   ].filter(Boolean);
   if (!pills.length) return '';
-  return `<div class="fnotes">${pills.map(([k, v, u, t]) => `<span${t ? ` title="${esc(t)}"` : ''}><small>${k}</small><b>${v}</b>${u ? `<i>${u}</i>` : ''}</span>`).join('')}${P.oscar ? '<span class="osc"><small>Prix</small><b>🏆</b><i>Oscar</i></span>' : (P.prix || 0) >= 10 ? `<span class="osc"><small>Prix</small><b>${P.prix}</b></span>` : ''}</div>`;
+  return `<div class="fnotes">${pills.map(([k, v, u, t]) => `<span${t ? ` title="${esc(t)}"` : ''}><small>${k}</small><b>${v}</b>${u ? `<i>${u}</i>` : ''}</span>`).join('')}${P.oscar ? `<span class="osc"><small>Prix</small><b>${icn('trophee')}</b><i>Oscar</i></span>` : (P.prix || 0) >= 10 ? `<span class="osc"><small>Prix</small><b>${P.prix}</b></span>` : ''}</div>`;
 }
 // Le palmarès en pastilles : top 10 des Cahiers, Sight and Sound, prix et sélections.
 const PRIX_C = { palme: 'Palme d’or', lion: 'Lion d’or', ours: 'Ours d’or', leopard: 'Léopard d’or', oscar_film: 'Oscar du meilleur film', cesar: 'César du meilleur film', annecy: 'Cristal d’Annecy', oscar_inter: 'Oscar du film international', oscar_anim: 'Oscar du film d’animation', cannes_gp: 'Grand prix à Cannes' };
@@ -4139,7 +4171,7 @@ function deckInfoHtml(f) {
   const theirs = o && T.wants(fVotes(f)[o]);
   return `<div class="dm-hero">${f.poster ? `<img class="dm-bg" src="${esc(f.poster)}" alt="" referrerpolicy="no-referrer">` : ''}${fPoster(f, 'dm-poster')}
       <div class="dm-head"><h3>${esc(f.title)}</h3>${f.original && nt(f.original) !== nt(f.title) ? `<p class="dm-orig">${esc(f.original)}</p>` : ''}<p class="dm-meta">${esc(meta)}</p>
-      <div class="dtags">${f.note ? `<em class="dtag note">★ ${String(Math.round(f.note * 10) / 10).replace('.', ',')}</em>` : ''}${where ? '' : f.cinema || fSalles(f).length ? '<em class="dtag salle">🎟 Au cinéma</em>' : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}</div></div></div>
+      <div class="dtags">${f.note ? `<em class="dtag note">★ ${String(Math.round(f.note * 10) / 10).replace('.', ',')}</em>` : ''}${where ? '' : f.cinema || fSalles(f).length ? `<em class="dtag salle">${icn('ticket')} Au cinéma</em>` : f.dispo || fDispo(f) ? '<em class="dtag">✓ Chez vous</em>' : ''}</div></div></div>
     <div class="dm-body">
       ${yt ? `<button type="button" class="dm-trailer" data-d="trailer" data-yt="${esc(yt)}" aria-label="Lire la bande-annonce"><img src="https://i.ytimg.com/vi/${esc(yt)}/hqdefault.jpg" alt="" referrerpolicy="no-referrer"><span class="dm-play" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></span><span class="dm-tl">Bande-annonce</span></button>`
         : f._det === 'load' ? '<div class="dm-trailer wait"><span>Azami cherche la bande-annonce…</span></div>' : ''}
@@ -4248,7 +4280,7 @@ async function cineOpen(id) {
     const o = other(), v = fVotes(f);
     const prov = (f.providers || []);
     const acts = f.status === 'a_voir' ? (T.wants(v[S.me]) ? `<button class="btn" data-action="cine-watch" data-id="${f.id}">On le regarde</button>`
-        : `<button class="btn" data-action="cine-want" data-id="${f.id}">${o && T.wants(v[o]) ? 'Moi aussi 💞' : 'Je veux le voir'}</button><button class="btn ghost" data-action="cine-nope" data-id="${f.id}">Bof</button>`)
+        : `<button class="btn" data-action="cine-want" data-id="${f.id}">${o && T.wants(v[o]) ? 'Moi aussi' : 'Je veux le voir'}</button><button class="btn ghost" data-action="cine-nope" data-id="${f.id}">Bof</button>`)
       + (!fSeen(f, S.me) ? `<button class="btn ghost small" data-action="cine-iseen" data-id="${f.id}">Déjà vu</button>` : '')
       : f.status === 'en_cours' ? `${f.media === 'tv' ? `<button class="btn" data-action="cine-ep" data-id="${f.id}">+1 épisode (${fProg(f)})</button>` : ''}<button class="btn ${f.media === 'tv' ? 'ghost' : ''}" data-action="cine-seen" data-id="${f.id}">${f.media === 'tv' ? 'Série finie' : 'On l’a vu'}</button>`
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
@@ -4259,7 +4291,7 @@ async function cineOpen(id) {
     const box = document.createElement('div'); box.id = 'ticket';
     box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}"><button type="button" class="fsheet-x" data-action="sheet-close" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
       <div class="fsheet-top">${fPoster(f, 'bposter')}<div><p class="ticket-title">${esc(f.title)}</p><p class="ticket-sub">${esc(fMeta(f))}</p>${f.director ? `<p class="ticket-sub">${f.media === 'tv' ? 'Créée par' : 'De'} ${esc(f.director)}</p>` : ''}
-        ${fMatch(f) ? '<span class="fbadge match">💞 Vous deux</span>' : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
+        ${fMatch(f) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
       ${presseRow(f)}${palmaresRow(f)}${tonsRow(f)}
       ${f.overview ? `<p class="fsyn">${esc(f.overview)}</p>` : ''}
       ${critiquesRow(f)}
@@ -4272,7 +4304,7 @@ async function cineOpen(id) {
       ${rates ? `<ul class="frates-big">${rates}</ul>` : ''}
       ${(f.coeur || []).filter(e => e !== S.me).length ? `<p class="fbadge">♥ Coup de cœur de ${esc(nameOf(f.coeur.find(e => e !== S.me)))}</p>` : ''}
       ${(() => { const t = tastes(), w = T.why(t.me, f, 2), x = o && t.other && !fSeen(f, o) ? T.score(t.other, f) : null; return w.length || x != null ? `<div class="fwhy">${w.map(s => `<span>${esc(s)}</span>`).join('')}${x != null && x > 1.2 ? `<span class="for">${esc(nameOf(o))} a de bonnes chances d’aimer</span>` : ''}</div>` : ''; })()}
-      ${f.status !== 'vu' ? `<button class="btn ghost small fcal" data-action="cine-cal" data-id="${f.id}">📅 Prévoir une soirée</button>` : ''}
+      ${f.status !== 'vu' ? `<button class="btn ghost small fcal" data-action="cine-cal" data-id="${f.id}">${icn('cal')} Prévoir une soirée</button>` : ''}
       <label class="chip-label" for="f-pq">Pourquoi tu l’as ajouté</label><input class="field fpq" id="f-pq" data-id="${f.id}" value="${esc(f.pourquoi?.[S.me] || '')}" placeholder="Recommandé par…, vu dans une interview…" maxlength="140">
       ${Object.entries(f.pourquoi || {}).filter(([e, t]) => e !== S.me && t).map(([e, t]) => `<p class="fpq-o">« ${esc(t)} » <small>${esc(nameOf(e))}</small></p>`).join('')}
       <div class="form-actions fsheet-acts">${acts}${heart}</div>
@@ -4352,7 +4384,7 @@ function cineSoir(kind = S.soirKind || '', mood = S.soirMood || '') {
     if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['pop_capsule', 0]], audioCtx.currentTime + .01, .55);
     setTimeout(() => {
       sfx('done');
-      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${fMatch(pick) ? '<span class="fbadge match">💞 Vous deux</span>' : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
+      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
         <div class="form-actions roulette-actions"><button class="btn" data-action="cine-watch" data-id="${pick.id}">On regarde ça !</button><button class="btn ghost" data-again="1">Un autre</button></div>`);
       g.querySelector('[data-again]').addEventListener('click', () => cineSoir(kind));
       burst('sparkle', g.querySelector('.gacha-card'), 12);
@@ -4446,7 +4478,7 @@ function viewCare() {
   };
 
   const tab = S.loisirTab || 'cine';
-  const tabs = `<div class="seg loisirs-tabs" role="tablist" aria-label="Loisirs">${[['cine', '🍿 Ciné'], ['mots', '💌 Petits mots'], ['carnet', '📖 Carnet d’Azami']].map(([k, l]) => `<button role="tab" data-action="loisir-tab" data-t="${k}" aria-pressed="${tab === k}" aria-selected="${tab === k}">${l}${k === 'mots' && unread.length ? ` <b class="nb">${unread.length}</b>` : ''}</button>`).join('')}</div>`;
+  const tabs = `<div class="seg loisirs-tabs" role="tablist" aria-label="Loisirs">${[['cine', `${icn('popcorn')} Ciné`], ['mots', `${icn('lettre')} Petits mots`], ['carnet', `${icn('carnet')} Carnet d’Azami`]].map(([k, l]) => `<button role="tab" data-action="loisir-tab" data-t="${k}" aria-pressed="${tab === k}" aria-selected="${tab === k}">${l}${k === 'mots' && unread.length ? ` <b class="nb">${unread.length}</b>` : ''}</button>`).join('')}</div>`;
   const waiting = unread.length && tab !== 'mots' ? `<button class="mot-attend" data-action="loisir-tab" data-t="mots"><img src="icons/themes/care_${esc(['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(unread[0].kind) ? unread[0].kind : 'merci')}.webp" alt="" width="34" height="34"><span>${unread.length > 1 ? `${unread.length} mots t’attendent` : `Un mot de ${esc(nameOf(unread[0].author))} t’attend`}</span><b aria-hidden="true">›</b></button>` : '';
   if (tab === 'cine') return `${tabs}${waiting}${cineSection()}`;
   if (tab === 'carnet') return `${tabs}${waiting}${carnetSection()}`;
@@ -4533,7 +4565,7 @@ const actions = {
     try { const saved = await filmVote(f, 'oui'); cineUndo(...(filmVote.undo || ['ajout', [], []])); S.cineQ = ''; S.cineRes = null; const qi = document.getElementById('cine-q'); if (qi) qi.value = ''; S.cineSpace = 'moi'; toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter. Réessaie.'); el.disabled = false; } },
   'cine-idea': async el => { const f = S.cineIdeas?.[Number(el.dataset.i)]; if (!f) return; haptic('medium'); S.cineIdeas = S.cineIdeas.filter(x => x !== f); try { const saved = await filmVote(f, 'oui'); toast(`${saved.title} : dans ta liste`); render(); cineUndo(...(filmVote.undo || ['ajout', [], []])); } catch { toast('Pas réussi à l’ajouter.'); } },
   'cine-want': async el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const saved = await filmVote(f, 'oui'); render(); cineUndo(...(filmVote.undo || ['envie', [], []])); if (fMatch(saved)) filmMatchParty(saved); else toast('Dans ta liste'); },
-  'cine-watch': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const back = filmBefore(f, ['status', 'season', 'episode']); const patch = { status: 'en_cours', ...(f.media === 'tv' && !f.season ? { season: 1, episode: 1 } : {}) }; Object.assign(f, patch); S.cineTab = 'en_cours'; S.cineSpace = 'nous'; haptic('medium'); sfx('tick'); run(() => api.update('films', { id: f.id }, patch), 'Bon film ! 🍿').then(ok => ok && cineUndo(`${f.title} : on le regarde`, [back])); },
+  'cine-watch': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const back = filmBefore(f, ['status', 'season', 'episode']); const patch = { status: 'en_cours', ...(f.media === 'tv' && !f.season ? { season: 1, episode: 1 } : {}) }; Object.assign(f, patch); S.cineTab = 'en_cours'; S.cineSpace = 'nous'; haptic('medium'); sfx('tick'); run(() => api.update('films', { id: f.id }, patch), 'Bon film !').then(ok => ok && cineUndo(`${f.title} : on le regarde`, [back])); },
   'cine-ep': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; let season = f.season || 1, episode = (f.episode || 1) + 1;
     const eps = f.episodes; if (Array.isArray(eps) && eps[season - 1] && episode > eps[season - 1]) { season++; episode = 1; }
     cineUndo(`${f.title} : S${season} · É${episode}`, [filmBefore(f, ['season', 'episode'])]);
@@ -5268,5 +5300,5 @@ document.addEventListener('error', e => {
   const img = e.target;
   if (!(img instanceof HTMLImageElement) || !img.hasAttribute('data-poster')) return;
   if (!img.dataset.retry) { img.dataset.retry = '1'; const src = img.src; setTimeout(() => { img.src = src + (src.includes('?') ? '&' : '?') + 'r=1'; }, 1200); return; }
-  const ph = document.createElement('span'); ph.className = img.className + ' noposter'; ph.setAttribute('aria-hidden', 'true'); ph.textContent = '🎬'; img.replaceWith(ph);
+  const ph = document.createElement('span'); ph.className = img.className + ' noposter'; ph.setAttribute('aria-hidden', 'true'); ph.innerHTML = icn('film'); img.replaceWith(ph);
 }, true);
