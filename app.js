@@ -355,7 +355,7 @@ function remoteApi(client) {
     // page par page, dans un ordre stable. Sans ça, la moitié des films manquait (listes, goût, et des films
     // déjà jugés qui revenaient dans Cinder).
     async list(t, o = {}) {
-      const base = () => { let q = client.from(t).select('*'); if (o.gte) q = q.gte(o.gte[0], o.gte[1]); if (o.order) q = q.order(o.order[0], { ascending: o.order[1] }); return q; };
+      const base = () => { let q = client.from(t).select(o.select || '*'); if (o.gte) q = q.gte(o.gte[0], o.gte[1]); if (o.order) q = q.order(o.order[0], { ascending: o.order[1] }); return q; };
       if (o.limit) return ok(await base().limit(o.limit)) || [];
       const first = ok(await base().range(0, 999)) || [];
       if (first.length < 1000) return first;
@@ -609,13 +609,56 @@ function hintsFrom(rows, exact = false) {
 // Les films sont lourds (plus de 4 000, avec presse et critiques) : on ne les relit que s'ils ont changé côté
 // serveur, ou toutes les 5 minutes. Sinon chaque petite action (cocher une course) attendait leur chargement.
 const filmsVoulus = () => !loadAll.filmsAt || loadAll.filmsDirty || Date.now() - loadAll.filmsAt > 5 * 60e3;
+// Les films (plus de 8 000 fiches, 15 Mo) ne sont plus téléchargés à chaque ouverture : une copie vit dans
+// IndexedDB, et on ne demande au serveur que ce qui a changé depuis la dernière fois (updated_at). Une fois par
+// jour, on vérifie aussi les fiches supprimées. L'écran s'affiche sans attendre : les films arrivent juste après.
+const FDB = {
+  open() { return this.p ||= new Promise((res, rej) => { const r = indexedDB.open('maison', 1); r.onupgradeneeded = () => r.result.createObjectStore('films', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  async all() { const db = await this.open(); return new Promise((res, rej) => { const q = db.transaction('films').objectStore('films').getAll(); q.onsuccess = () => res(q.result || []); q.onerror = () => rej(q.error); }); },
+  async put(rows) { if (!rows.length) return; const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('films', 'readwrite'), st = tx.objectStore('films'); rows.forEach(r => st.put(r)); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async del(ids) { if (!ids.length) return; const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('films', 'readwrite'), st = tx.objectStore('films'); ids.forEach(i => st.delete(i)); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+  async clear() { const db = await this.open(); return new Promise((res, rej) => { const tx = db.transaction('films', 'readwrite'); tx.objectStore('films').clear(); tx.oncomplete = res; tx.onerror = () => rej(tx.error); }); },
+};
+let filmsSyncP = null;
+function filmsSync() {
+  if (DEMO) return api.list('films').then(r => { S.films = r; loadAll.filmsAt = Date.now(); loadAll.filmsDirty = false; tasteMemo = null; render(); });
+  return filmsSyncP ||= (async () => {
+    try {
+      const since = safeGet('maison-films-since');
+      let local = [];
+      try { local = since ? await FDB.all() : []; } catch (e) { console.warn('idb', e); }
+      if (local.length && !S.films.length) { S.films = local; tasteMemo = null; render(); }
+      // ce qui a changé depuis la dernière fois (ou tout, la première fois)
+      const rows = await api.list('films', since && local.length ? { gte: ['updated_at', since] } : {});
+      let max = since || '';
+      for (const r of rows) if (r.updated_at && r.updated_at > max) max = r.updated_at;
+      if (rows.length) {
+        if (since && local.length) { const by = new Map(S.films.map(f => [f.id, f])); for (const r of rows) by.set(r.id, r); S.films = [...by.values()]; }
+        else S.films = rows;
+        tasteMemo = null;
+        try { if (!(since && local.length)) await FDB.clear(); await FDB.put(rows); } catch (e) { console.warn('idb', e); }
+      }
+      // une fois par jour : les fiches supprimées côté serveur
+      if (Date.now() - Number(safeGet('maison-films-sweep') || 0) > 864e5 && S.films.length) {
+        const ids = new Set((await api.list('films', { select: 'id' })).map(r => r.id));
+        const gone = S.films.filter(f => !ids.has(f.id)).map(f => f.id);
+        if (gone.length) { S.films = S.films.filter(f => ids.has(f.id)); try { await FDB.del(gone); } catch {} }
+        safeSet('maison-films-sweep', String(Date.now()));
+      }
+      if (max) safeSet('maison-films-since', max);
+      loadAll.filmsAt = Date.now(); loadAll.filmsDirty = false;
+      if (rows.length || !local.length) render();
+    } catch (e) { console.warn('films', e); }
+    finally { filmsSyncP = null; }
+  })();
+}
 async function loadAll() {
   const since = new Date(Date.now() - 30 * DAY).toISOString();
   const [members, tasks, chores, choreLog, expenses, shopping, board, care, hints, wins, plans, pantry, gearRows, help, tipRows, carnet, films, gouts, reglages] = await Promise.all([
     api.list('members'), api.list('tasks'), api.list('chores'), api.list('chore_log', { gte: ['done_at', since] }),
     api.list('expenses', { order: ['spent_on', false], limit: 500 }), api.list('shopping'), api.list('board'), api.list('care_messages'),
     api.list('icon_hints').catch(() => []), api.list('wins', { order: ['done_at', false], limit: 2000 }).catch(() => []),
-    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null), api.list('azami_carnet').catch(() => []), filmsVoulus() ? api.list('films').then(r => { loadAll.filmsAt = Date.now(); loadAll.filmsDirty = false; return r; }).catch(() => null) : Promise.resolve(null), api.list('gouts').catch(() => []), api.list('reglages').catch(() => []),
+    api.list('meal_plans').catch(() => []), api.list('pantry').catch(() => []), api.list('kitchen_gear').catch(() => []), api.list('help_requests').catch(() => []), api.list('user_tips').catch(() => null), api.list('azami_carnet').catch(() => []), Promise.resolve(null), api.list('gouts').catch(() => []), api.list('reglages').catch(() => []),
   ]);
   wins.sort((a, b) => String(b.done_at).localeCompare(String(a.done_at)));
   const achats = wins.filter(w => w.kind === 'achat');
@@ -624,6 +667,7 @@ async function loadAll() {
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), hintsX: hintsFrom(hints, true), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
     goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
+  if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
   await ensureDechets();
   notifyNew();
@@ -2440,7 +2484,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v204</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v205</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

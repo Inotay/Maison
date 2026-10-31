@@ -387,3 +387,9 @@ returns void language sql security definer set search_path = public as $$
   on conflict (jour, qui) do update set appels = azami_usage.appels + 1, tokens_in = azami_usage.tokens_in + excluded.tokens_in, tokens_out = azami_usage.tokens_out + excluded.tokens_out, cout_usd = azami_usage.cout_usd + excluded.cout_usd;
 $$;
 revoke all on function public.azami_compte(date, text, bigint, bigint, numeric) from public, anon, authenticated;
+-- v205 : les films ne sont plus rechargés en entier (15 Mo) à chaque ouverture : l'app garde une copie locale et
+-- ne demande que les lignes modifiées depuis sa dernière visite.
+alter table public.films add column if not exists updated_at timestamptz not null default now();
+create or replace function public.touch_updated_at() returns trigger language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
+create trigger films_touch before update on public.films for each row execute function public.touch_updated_at();
+create index if not exists films_updated_at on public.films (updated_at);
