@@ -1666,6 +1666,9 @@ function morphChildren(from, to) {
 // Toutes en 24×24, couleur héritée du texte, taille 1em : elles suivent la taille de police de leur bouton.
 const IC = {
   non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
+  micro: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
+  envoyer: '<path d="M4 12 20 4l-4 16-4-7z"/><path d="M12 13 20 4"/>',
+  bulle: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"/><path d="M8.5 9.5h7M8.5 12.5h4.5"/>',
   bof: '<path d="M4.6 10.2 5 4.2l4.3 3.1h5.4L19 4.2l.4 6c.7 1 1.1 2.2 1.1 3.5 0 3.9-3.8 6.8-8.5 6.8s-8.5-2.9-8.5-6.8c0-1.3.4-2.5 1.1-3.5z"/><path d="M8.3 12.6h2.2M13.5 12.6h2.2M10.6 16.2h2.8"/>',
   vu: '<path d="M2.6 12S6 5.8 12 5.8 21.4 12 21.4 12 18 18.2 12 18.2 2.6 12 2.6 12z"/><circle cx="12" cy="12" r="3.1" fill="currentColor" stroke="none"/><circle cx="13.2" cy="10.9" r="1" fill="var(--icn-bg, #2A1C15)" stroke="none"/>',
   tres: '<path d="M12 3.6l2.5 5.2 5.7.8-4.1 4 1 5.7L12 16.6l-5.1 2.7 1-5.7-4.1-4 5.7-.8z" fill="currentColor"/>',
@@ -2108,6 +2111,7 @@ function tipSave(k, v = true) {
   api.upsert('user_tips', { email: S.me, seen: S.tips, updated_at: new Date().toISOString() }).catch(e => console.warn('guide', e));
 }
 const guideKey = () => S.view === 'recettes' ? (S.cook ? 'cook' : S.recette ? 'fiche' : 'recettes') : S.view;
+const parleBtn = () => `<button type="button" class="az-parle" data-action="azami-parler" aria-label="Parler à Azami">${icn('bulle')}</button>`;
 const guideBtn = () => GUIDE[guideKey()] ? `<button type="button" class="guide-q" data-action="guide-page" aria-label="Comment ça marche ici ?">?</button>` : '';
 function openTour(i = 0) {
   const st = TOUR[i]; if (!st) return;
@@ -2238,7 +2242,7 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${parleBtn()}</header>${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
   cookSave();
@@ -2432,8 +2436,9 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
+    <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v199</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v200</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4981,9 +4986,185 @@ function viewCare() {
 }
 
 
+// Azami qui parle (v200) ------------------------------------------------------
+// On lui parle par écrit ou au micro ; elle répond avec sa fiche de personnage, sa mémoire (une par personne,
+// gardée dans la base) et un instantané de l'app. Tout passe par la fonction « azami » ; la clé reste côté serveur.
+const AZ_PAGE = { maison: 'accueil', menage: 'ménage', courses: 'courses', recettes: 'recettes', argent: 'argent', nuit: 'loisirs' };
+const AZ_DEMO = ['Mrrr… ici c’est la démo, je n’ai pas mes croquettes ni ma mémoire. Mais je t’écoute quand même.', 'Dans la vraie app, je retiens ce que tu me dis. Là, je fais semblant. Très bien, d’ailleurs.', 'Tu sais que je surveille les voisins depuis la fenêtre ? Rien à signaler aujourd’hui. Un pigeon, peut-être.'];
+async function azamiCall(body) {
+  if (DEMO) {
+    await new Promise(r => setTimeout(r, 700));
+    if (body.action === 'fil') return { fil: [], memoire: 0 };
+    if (body.action === 'memoire') return { lignes: [{ id: '1', texte: `${firstName()} essaie la démo de Maison.`, genre: 'fait' }] };
+    if (body.action === 'parler') return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
+    return { ok: true };
+  }
+  const { data, error } = await sb.functions.invoke('azami', { body });
+  if (error) { let msg = error.message; try { const j = await error.context?.json(); if (j?.error) msg = j.error; } catch {} throw new Error(msg); }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+// L'instantané de l'app qu'elle reçoit avec chaque message : court, et seulement ce qui se dit.
+function azamiContexte() {
+  const l = [], nom = e => e === S.me ? firstName() : nameOf(e);
+  const dues = S.chores.filter(c => choreStatus(c).due).map(c => `${c.title} (${c.turn ? nom(c.turn) : 'vous deux'}${choreStatus(c).late ? ', en retard' : ''})`);
+  l.push(`Corvées à faire : ${dues.length ? dues.slice(0, 8).join(' ; ') : 'aucune'}.`);
+  const todo = S.tasks.filter(t => !t.done);
+  l.push(`Choses à faire : ${todo.length ? todo.slice(0, 10).map(t => `${t.title}${t.assignee ? ` (${nom(t.assignee)})` : ''}${t.due_on ? `, pour le ${t.due_on}` : ''}`).join(' ; ') : 'rien'}.`);
+  const shop = S.shopping.filter(s => !s.checked);
+  l.push(`Courses à acheter : ${shop.length ? shop.slice(0, 20).map(s => s.label).join(', ') : 'liste vide'}.`);
+  if (S.plans?.length) l.push(`Au menu : ${S.plans.map(p => p.title).join(', ')}.`);
+  const net = balances()[S.me] || 0;
+  l.push(Math.abs(net) < .01 ? 'Comptes : vous êtes quittes.' : net > 0 ? `Comptes : ${nameOf(other())} doit ${chf(net)} à ${firstName()}.` : `Comptes : ${firstName()} doit ${chf(-net)} à ${nameOf(other())}.`);
+  const env = (S.films || []).filter(f => f.votes?.[S.me] === 'oui' || f.votes?.[S.me] === 'super').slice(-6).map(f => f.title);
+  if (env.length) l.push(`Derniers films dont ${firstName()} a envie : ${env.join(', ')}.`);
+  const vus = (S.films || []).filter(f => f.ratings?.[S.me]?.note).sort((a, b) => String(b.vuAt || '').localeCompare(String(a.vuAt || ''))).slice(0, 5).map(f => `${f.title} (${noteMot(f.ratings[S.me].note).toLowerCase()})`);
+  if (vus.length) l.push(`Derniers films vus par ${firstName()} : ${vus.join(', ')}.`);
+  const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
+  if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
+  return l.join('\n').slice(0, 3800);
+}
+let chatCur = null;
+// Son costume suit la page : toque en cuisine, lunettes 3D au ciné (la langue tirée n'existe qu'en tenue simple).
+const chatImg = (name) => {
+  const img = chatCur?.box.querySelector('.visite-azami'); if (!img) return;
+  const base = name === 'langue' ? 'visite_' : S.view === 'recettes' ? 'visite_chef_' : S.view === 'nuit' && (S.loisirTab || 'cine') === 'cine' ? 'visite_cine_' : 'visite_';
+  img.src = ['parle', 'ecoute'].includes(name) ? azamiSrc(`v44_${base}${name}`) : (reducedMotion() ? `azami/v44/reactions/statiques/${base}${name}_statique.svg` : `azami/v44/reactions/${base}${name}_anime.svg?${Date.now()}`);
+};
+const chatBubble = (txt, who) => { const p = document.createElement('p'); p.className = `bubble ${who}`; p.textContent = txt; return p; };
+function chatOpen() {
+  clearReaction(); popClose(); document.getElementById('visite-invite')?.remove();
+  document.getElementById('chat')?.remove();
+  const box = document.createElement('div'); box.id = 'chat';
+  const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  box.innerHTML = `<div class="visite-card chat long" role="dialog" aria-modal="true" aria-label="Parler à Azami">
+    <p class="visite-kind">Azami</p><button class="visite-x" data-c="close" aria-label="Fermer">×</button>
+    <img class="visite-azami" src="${azamiSrc('v44_visite_ecoute')}" alt="" width="200" height="200">
+    <div class="visite-talk" aria-live="polite"><p class="chat-wait">…</p></div>
+    <form class="chat-in" autocomplete="off"><textarea id="chat-txt" rows="1" placeholder="Dis-moi…" aria-label="Ton message" enterkeyhint="send"></textarea>${mic ? '<button type="button" class="chat-mic" data-c="mic" aria-label="Parler au micro" aria-pressed="false">' + icn('micro') + '</button>' : ''}<button type="submit" class="chat-send" aria-label="Envoyer">${icn('envoyer')}</button></form>
+    <p class="chat-foot"><button type="button" class="link" data-c="memoire">Ce qu’elle sait de moi</button></p></div>`;
+  document.body.appendChild(box);
+  requestAnimationFrame(() => box.classList.add('on'));
+  haptic('medium');
+  chatCur = { box, busy: false };
+  const talk = box.querySelector('.visite-talk'); visitFollow(talk);
+  const ta = box.querySelector('#chat-txt');
+  const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };
+  ta.addEventListener('input', grow);
+  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } });
+  box.querySelector('.chat-in').addEventListener('submit', e => { e.preventDefault(); chatSend(); });
+  box.addEventListener('click', e => {
+    if (e.target.closest('.visite-azami')) { if (!azamiPet(e.target.closest('.visite-azami'), true)) meow(true, .5, pick(['ronron', 'ronronmrr', 'mrrr'])); return; }
+    if (e.target === box) { chatClose(); return; }
+    const b = e.target.closest('[data-c]'); if (!b) { if (chatCur?.typing) chatCur.skip = true; return; }
+    if (b.dataset.c === 'close') chatClose();
+    if (b.dataset.c === 'mic') chatMic(b);
+    if (b.dataset.c === 'memoire') azamiMemoire();
+  });
+  azamiCall({ action: 'fil' }).then(r => {
+    if (chatCur?.box !== box) return;
+    talk.innerHTML = '';
+    for (const m of r.fil || []) talk.appendChild(chatBubble(m.texte, m.role === 'moi' ? 'me' : 'az'));
+    if (!(r.fil || []).length) { const h = new Date().getHours(); chatSay(h < 5 || h >= 22 ? 'Mrrr… il est tard. Mais je t’écoute, chuchote.' : h < 11 ? `Ohayō ! (bonjour) Tu as bien dormi, ${firstName()} ? Dis-moi.` : 'Tu voulais me dire quelque chose ? Je t’écoute, les oreilles droites.'); }
+    else requestAnimationFrame(() => talk.follow?.());
+  }).catch(e => { talk.innerHTML = ''; talk.appendChild(chatBubble(`Mrrr… je n’entends rien. (${e.message})`, 'az')); });
+}
+function chatClose() {
+  const box = document.getElementById('chat'); if (!box) return;
+  chatCur?.rec?.stop?.();
+  box.classList.remove('on'); setTimeout(() => box.remove(), 320); chatCur = null; haptic(1);
+}
+// Elle écrit lettre par lettre, avec sa petite voix (toucher la carte pour aller plus vite).
+async function chatSay(txt, who = 'az') {
+  const cur = chatCur; if (!cur) return; const talk = cur.box.querySelector('.visite-talk');
+  const p = chatBubble('', who); talk.appendChild(p); talk.follow?.();
+  cur.typing = true; cur.skip = false;
+  if (reducedMotion()) p.textContent = txt;
+  else for (let i = 1, n = 0; i <= txt.length; i++) {
+    if (cur.skip) { p.textContent = txt; break; }
+    p.textContent = txt.slice(0, i); talk.follow?.();
+    const ch = txt[i - 1];
+    if (who === 'az' && /\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
+    await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
+    if (chatCur !== cur) return;
+  }
+  cur.typing = false; talk.follow?.();
+}
+const AZ_HUMEUR = { contente: ['coeur', ['ronron', 'ronronmrr']], joueuse: ['rire', ['chirp', 'gazouille', 'mewmew']], curieuse: ['malice', ['question', 'mrrr']], boudeuse: ['langue', ['grogne']], affamee: ['malice', ['miaou2', 'long']], endormie: ['parle', ['mrrr']], calme: ['parle', ['miaou']] };
+async function chatSend(forced) {
+  const cur = chatCur; if (!cur || cur.busy) return;
+  const ta = cur.box.querySelector('#chat-txt'); const txt = (forced ?? ta.value).trim(); if (!txt) return;
+  ta.value = ''; ta.style.height = 'auto';
+  const talk = cur.box.querySelector('.visite-talk');
+  talk.appendChild(chatBubble(txt, 'me')); talk.follow?.(); haptic(1);
+  cur.busy = true; cur.box.querySelector('.chat-send').disabled = true;
+  const think = chatBubble('', 'az think'); think.innerHTML = '<i></i><i></i><i></i>'; talk.appendChild(think); talk.follow?.();
+  chatImg('ecoute');
+  try {
+    const now = new Date();
+    const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
+    if (chatCur !== cur) return;
+    think.remove();
+    const [img, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
+    chatImg(img === 'parle' ? 'parle' : img); meow(true, .45, pick(sons));
+    await chatSay(r.reponse);
+    if (chatCur !== cur) return;
+    const notes = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude.')];
+    if (notes.length) { const n = document.createElement('p'); n.className = 'chat-note'; n.textContent = notes.join(' · '); talk.appendChild(n); talk.follow?.(); }
+  } catch (e) {
+    if (chatCur !== cur) return;
+    think.remove(); talk.appendChild(chatBubble(`Mrrr… ${e.message}`, 'az')); talk.follow?.();
+  } finally {
+    if (chatCur === cur) { cur.busy = false; cur.box.querySelector('.chat-send').disabled = false; setTimeout(() => chatCur === cur && chatImg('ecoute'), 2400); }
+  }
+}
+// Le micro : la reconnaissance vocale du téléphone (gratuite, hors ligne sur iPhone). Ce qu'on dit s'écrit,
+// puis part tout seul à la fin de la phrase.
+function chatMic(btn) {
+  const cur = chatCur; if (!cur) return;
+  if (cur.rec) { cur.rec.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  const rec = new SR(); rec.lang = 'fr-CH'; rec.interimResults = true; rec.continuous = false;
+  const ta = cur.box.querySelector('#chat-txt'); const avant = ta.value; let fin = '';
+  rec.onresult = e => { let t = ''; for (const r of e.results) { t += r[0].transcript; if (r.isFinal) fin = t; } ta.value = (avant ? avant + ' ' : '') + t; ta.dispatchEvent(new Event('input')); };
+  rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
+  rec.onend = () => { cur.rec = null; btn.setAttribute('aria-pressed', 'false'); btn.classList.remove('on'); if (fin && !avant) chatSend(); };
+  try { rec.start(); cur.rec = rec; btn.setAttribute('aria-pressed', 'true'); btn.classList.add('on'); haptic('medium'); sfx('tick'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
+}
+// La page « Ce qu'Azami sait de moi » : sa mémoire sur moi, ligne par ligne, à corriger ou effacer.
+async function azamiMemoire() {
+  document.getElementById('azmem')?.remove();
+  const box = document.createElement('div'); box.id = 'azmem';
+  box.innerHTML = `<div class="visite-card long" role="dialog" aria-modal="true" aria-label="Ce qu’Azami sait de moi"><p class="visite-kind">Sa mémoire</p><button class="visite-x" data-m="close" aria-label="Fermer">×</button><h2>Ce qu’Azami sait de ${esc(firstName())}</h2><p class="chat-wait">…</p></div>`;
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  const card = box.querySelector('.visite-card');
+  const close = () => { box.classList.remove('on'); setTimeout(() => box.remove(), 320); };
+  box.addEventListener('click', async e => {
+    if (e.target === box) return close();
+    const b = e.target.closest('[data-m]'); if (!b) return;
+    if (b.dataset.m === 'close') close();
+    if (b.dataset.m === 'oublier') { b.closest('li').classList.add('gone'); try { await azamiCall({ action: 'oublier', id: b.dataset.id }); haptic(1); } catch (err) { toast(err.message); } }
+    if (b.dataset.m === 'fil') {   // deux pressions : la première demande confirmation
+      if (!b.dataset.sur) { b.dataset.sur = '1'; b.textContent = 'Sûr ? Toucher encore pour effacer'; setTimeout(() => { delete b.dataset.sur; b.textContent = 'Effacer notre conversation'; }, 4000); return; }
+      try { await azamiCall({ action: 'effacer_fil' }); toast('Conversation effacée'); document.querySelector('#chat .visite-talk')?.replaceChildren(); close(); } catch (err) { toast(err.message); }
+    }
+  });
+  try {
+    const [r, notes] = await Promise.all([azamiCall({ action: 'memoire' }), DEMO ? [] : api.list('azami_pour_claude').catch(() => [])]);
+    const GENRE = { fait: 'Sur toi', gout: 'Tes goûts', projet: 'Tes projets', entourage: 'Ton entourage', demande: 'Ce que tu lui as demandé' };
+    const groupes = {}; for (const l of r.lignes || []) (groupes[GENRE[l.genre] || 'Sur toi'] ||= []).push(l);
+    card.querySelector('.chat-wait').outerHTML = `${(r.lignes || []).length ? Object.entries(groupes).map(([g, ls]) => `<h3>${esc(g)}</h3><ul class="azmem-l">${ls.map(l => `<li><span>${esc(l.texte)}</span><button class="azmem-x" data-m="oublier" data-id="${esc(l.id)}" aria-label="Oublier">×</button></li>`).join('')}</ul>`).join('') : '<p class="hint">Elle ne sait rien encore. Parle-lui, elle retiendra ce qui compte.</p>'}
+      ${notes.length ? `<h3>Transmis à Claude</h3><ul class="azmem-l notes">${notes.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(n => `<li><span>${esc(n.texte)}</span><small>${esc(nameOf(n.de))} · ${esc(ago(n.at))}${n.lu_at ? ' · lu' : ''}</small></li>`).join('')}</ul>` : ''}
+      <p class="visite-note"><button class="link" data-m="fil">Effacer notre conversation</button></p>`;
+  } catch (e) { card.querySelector('.chat-wait').textContent = `Mrrr… ${e.message}`; }
+}
+
+
 // Actions --------------------------------------------------------------------
 
 const actions = {
+  'azami-parler': () => chatOpen(),
+  'azami-memoire': () => azamiMemoire(),
 
   'guide-page': () => openGuidePage(),
   'guide-tour': () => { closeTicket(); openTour(0); },

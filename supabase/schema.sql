@@ -357,3 +357,33 @@ begin
 end $$;
 revoke all on function public.soiree_places() from public, anon, authenticated;
 create trigger soiree_places before insert on public.soiree_votes for each row execute function public.soiree_places();
+
+-- Azami qui parle (v200) ---------------------------------------------------------
+-- Sa mémoire : une ligne par chose retenue. « qui » est l'adresse du membre concerné, ou 'azami' pour ce
+-- qu'elle sait d'elle-même (son humeur, son journal). Chacun ne lit et n'efface que SA mémoire ; le reste
+-- passe par la fonction « azami » (clé de service). Sa fiche de personnage vit dans reglages ('azami:fiche').
+create table if not exists public.azami_memoire (id uuid primary key default gen_random_uuid(), qui text not null, texte text not null, genre text not null default 'fait', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create index if not exists azami_memoire_qui on public.azami_memoire (qui, created_at);
+alter table public.azami_memoire enable row level security;
+create policy own_rows on public.azami_memoire for select to authenticated using ((select is_member()) and qui = lower((select auth.jwt()) ->> 'email'));
+create policy own_delete on public.azami_memoire for delete to authenticated using ((select is_member()) and qui = lower((select auth.jwt()) ->> 'email'));
+-- Le fil de discussion de chacun avec elle (privé : l'autre ne le lit jamais).
+create table if not exists public.azami_messages (id bigint generated always as identity primary key, qui text not null, role text not null check (role in ('moi', 'azami')), texte text not null, at timestamptz not null default now());
+create index if not exists azami_messages_qui on public.azami_messages (qui, at);
+alter table public.azami_messages enable row level security;
+create policy own_rows on public.azami_messages for select to authenticated using ((select is_member()) and qui = lower((select auth.jwt()) ->> 'email'));
+-- Le carnet pour Claude : ce qu'on dit à Azami à propos de l'app (idées, bugs). Commun aux deux.
+create table if not exists public.azami_pour_claude (id uuid primary key default gen_random_uuid(), de text not null, texte text not null, at timestamptz not null default now(), lu_at timestamptz);
+alter table public.azami_pour_claude enable row level security;
+create policy shared_all on public.azami_pour_claude for all to authenticated using ((select is_member())) with check ((select is_member()));
+-- Ce qu'elle coûte, jour par jour (plafond vérifié par la fonction).
+create table if not exists public.azami_usage (jour date not null, qui text not null, appels int not null default 0, tokens_in bigint not null default 0, tokens_out bigint not null default 0, cout_usd numeric(10, 5) not null default 0, primary key (jour, qui));
+alter table public.azami_usage enable row level security;
+create policy shared_read on public.azami_usage for select to authenticated using ((select is_member()));
+-- Le compteur du jour d'Azami, incrémenté sans course entre deux appels (réservé à la fonction).
+create or replace function public.azami_compte(p_jour date, p_qui text, p_in bigint, p_out bigint, p_cout numeric)
+returns void language sql security definer set search_path = public as $$
+  insert into public.azami_usage (jour, qui, appels, tokens_in, tokens_out, cout_usd) values (p_jour, p_qui, 1, p_in, p_out, p_cout)
+  on conflict (jour, qui) do update set appels = azami_usage.appels + 1, tokens_in = azami_usage.tokens_in + excluded.tokens_in, tokens_out = azami_usage.tokens_out + excluded.tokens_out, cout_usd = azami_usage.cout_usd + excluded.cout_usd;
+$$;
+revoke all on function public.azami_compte(date, text, bigint, bigint, numeric) from public, anon, authenticated;
