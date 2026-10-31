@@ -2507,7 +2507,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v209</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v210</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5124,7 +5124,7 @@ const azamiBulle = () => {
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
-const azamiPied = () => `${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
+const azamiPied = () => `${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
 // La suite d'une longue réponse, sous l'en-tête.
 // La bulle à nous, sous l'en-tête, dessinée comme la sienne : on y écrit, ou on y parle.
 const azamiMienne = () => {
@@ -5249,13 +5249,16 @@ const azamiNuage = (() => {
   }
   // la queue pointue : un triangle blanc cerné dont la base rentre dans l'ovale, et un cache blanc qui efface le
   // trait de l'ovale juste sous la queue (jamais au-delà du contour)
-  function queue(w, h, mode, r) {
+  function queue(w, h, mode, r, ex) {
     const j = (v, k = 1.6) => (v + (r() - .5) * k).toFixed(1);
-    // base sur le bord (deux points), pointe ; le bord de l'ovale est à ~3 px du cadre
-    const [b1, b2, tip] = mode === 'c' ? [[w - 4, h * .34], [w - 8, h * .58], [w + 26, h * .5]]
-      : mode === 'r' ? [[w - 134, 4], [w - 108, 4], [w - 104, -28]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
-    const mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2, dx = tip[0] - mx, dy = tip[1] - my, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const dedans = p => [p[0] - ux * 8, p[1] - uy * 8], dehors = (p, q) => [p[0] + ux * 6 + (q[0] - p[0]) * .15, p[1] + uy * 6 + (q[1] - p[1]) * .15];
+    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3;
+    const pt = t => { const c = Math.cos(t), sn = Math.sin(t); return [cx + a * Math.sign(c) * Math.abs(c) ** ex, cy + b * Math.sign(sn) * Math.abs(sn) ** ex]; };
+    // deux points de base sur le contour, et la pointe un peu plus loin dans la même direction
+    const [t1, t2] = mode === 'c' ? [-.3, .22] : mode === 'r' ? [-1.25, -.95] : [-1.75, -1.4];
+    const b1 = pt(t1), b2 = pt(t2), mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
+    const dx = mx - cx, dy = my - cy, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const tip = mode === 'c' ? [mx + 28, my + 10] : [mx + ux * 26 + 6, my + uy * 26];
+    const dedans = p => [p[0] - ux * 8, p[1] - uy * 8], dehors = (p, q) => [p[0] + ux * 5 + (q[0] - p[0]) * .22, p[1] + uy * 5 + (q[1] - p[1]) * .22];
     const i1 = dedans(b1), i2 = dedans(b2), o1 = dehors(b1, b2), o2 = dehors(b2, b1);
     return `<path class="nz" d="M${j(i1[0])},${j(i1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(i2[0])},${j(i2[1])}"/><path class="nb" d="M${i1[0]},${i1[1]} L${i2[0]},${i2[1]} L${o2[0]},${o2[1]} L${o1[0]},${o1[1]}Z"/>`;
   }
@@ -5278,8 +5281,8 @@ const azamiNuage = (() => {
       }
       const ex = mode === 'c' ? .78 : .92;   // à côté d'elle : un peu carré pour loger le texte ; en grand : un vrai ovale
       const d = trace(w, h, r, 1.4, ex);
-      const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 5 + i * 2, .8 + i * .04)}"/>`).join('') : '';
-      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4, ex)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r) : ''}${grib}`;
+      const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 2.5 + i, ex)}"/>`).join('') : '';
+      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4, ex)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r, ex) : ''}${grib}`;
     });
     svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
   }
@@ -5323,7 +5326,6 @@ async function azamiEnvoyer(txt) {
     const now = new Date();
     const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
     AZ.busy = false; AZ.bulle = r.reponse; AZ.humeur = r.humeur || ''; AZ.choix = (r.choix || []).slice(0, 3); AZ.k++; safeSet('maison-az-bulle', r.reponse);
-    AZ.note = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude')].join(' · ');
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
     const img = document.querySelector('.hd img.azami');
@@ -6131,6 +6133,10 @@ document.addEventListener('input', e => {
 });
 
 
+// Le clavier de l'iPhone fait glisser la page quand il s'ouvre et la laisse n'importe où quand il part :
+// on retient où elle était, et on l'y remet.
+document.addEventListener('focusin', e => { if (e.target?.id === 'az-in') AZ.scrollY = window.scrollY; });
+document.addEventListener('focusout', e => { if (e.target?.id === 'az-in' && AZ.scrollY != null) { const y = AZ.scrollY; setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 60); setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 350); } });
 // Dans la bulle à Azami, Entrée envoie (Maj+Entrée pour une nouvelle ligne).
 document.addEventListener('keydown', e => { if (e.target?.id === 'az-in' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form?.requestSubmit(); } });
 document.addEventListener('submit', e => {
