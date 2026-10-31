@@ -2009,6 +2009,7 @@ svg.az-nuage .nz2 { fill: none; stroke: #2A1C15; stroke-width: 1.1; opacity: .35
 .az-appel { all: unset; cursor: pointer; position: relative; isolation: isolate; justify-self: end; min-width: 0; padding: 6px 18px; font-family: 'Patrick Hand', sans-serif; font-size: 22px; line-height: 1; letter-spacing: .1em; color: #8A7E70; animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both, bulle-flotte 3.6s ease-in-out .4s infinite; }
 .cote .az-appel { justify-self: end; margin-right: 6px; }
 .az-elle .az-txt { white-space: pre-wrap; }
+.az-txt .pas { visibility: hidden; }
 .az-note { display: block; margin-top: 4px; font-size: 15px; color: #8A7E70; }
 .az-x { all: unset; cursor: pointer; position: absolute; top: 9px; right: 14px; width: 26px; height: 26px; display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #B5AA9C; }
 .az-elle.suite .az-x { top: 12px; right: 30px; }

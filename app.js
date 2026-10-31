@@ -788,7 +788,7 @@ async function run(fn, okMsg, key = 'global') {
   if (S.offline) { toast('Hors-ligne : impossible d\'enregistrer pour le moment.'); return; }
   if (pending.has(key)) return;
   pending.add(key);
-  try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); return true; }
+  try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); if (okMsg) setTimeout(() => azamiRemarque('fait', okMsg), 900); return true; }
   catch (e) { console.error(e); toast("Ça n'a pas marché. Vérifie la connexion et réessaie."); return false; }
   finally { pending.delete(key); }
 }
@@ -2512,9 +2512,13 @@ function viewMaison() {
     <div class="theme-row"><span>Sons même en silence</span><div class="seg" role="group" aria-label="Sons en mode silence">
       <button data-action="son-mode" data-mode="jeu" aria-pressed="${SON_JEU()}">Oui</button>
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
+    <div class="theme-row"><span>Azami parle d’elle-même</span><div class="seg" role="group" aria-label="Azami parle d’elle-même">
+      <button data-action="az-mode" data-mode="bavarde" aria-pressed="${AZ_MODE() === 'bavarde'}">Bavarde</button>
+      <button data-action="az-mode" data-mode="discrete" aria-pressed="${AZ_MODE() === 'discrete'}">Discrète</button>
+      <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v216</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v217</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5157,7 +5161,7 @@ const azamiBulle = () => {
   const [p1, p2] = azamiParts();
   const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  if (!pensee && !sienne) return S.view === 'maison' || AZ.ecrit || AZ.bulle ? '' : `<div class="az-bulles cote"><button type="button" class="az-b az-elle az-appel" data-action="azami-ecrire" aria-label="Parler à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">…</span></button></div>`;
+  if (!pensee && !sienne) return '';
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
@@ -5170,6 +5174,48 @@ const azamiMienne = () => {
   return `<div class="az-bulles suite moi"><form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
 };
 const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + azamiMienne(); };
+// Elle parle d'elle-même. Réglage par appareil (accueil) : bavarde, discrète, ou seulement quand on lui parle.
+// Ce qui la fait parler : changer de page, faire quelque chose dans l'app, ou rester sans rien faire devant
+// l'écran. Jamais la nuit, jamais quand quelque chose couvre l'écran, et un délai entre deux remarques.
+// Une partie du temps c'est elle qui improvise (le modèle reçoit l'événement, avec l'app et ses films) ;
+// sinon une phrase locale.
+const AZ_MODE = () => safeGet('maison-az-mode') || 'bavarde';
+let azDernier = 0, azInactif = Date.now(), azInactifDit = false;
+const AZ_PAGES_MOTS = {
+  maison: ['Tu rentres ? Je faisais semblant de dormir.', 'L’accueil. Mon endroit préféré, après le fauteuil.'],
+  menage: ['Le balai. Mon ennemi juré. Et mon jouet préféré.', 'Tu vas passer l’aspirateur ? Préviens-moi, je me cache sous le lit.', 'Le ménage, c’est noble. Je te regarde faire depuis le perchoir.'],
+  courses: ['Si tu passes au magasin : croquettes au poisson. Je dis ça, je dis rien.', 'La liste de courses. Je vérifie qu’il y a mon ragoût dedans.'],
+  recettes: ['On cuisine ? Je m’installe sur le plan de travail. Non ? Bon, à côté.', 'Laisse une casserole dans l’évier après, s’il te plaît. Pour moi.'],
+  argent: ['Les comptes. Je ne comprends rien, mais je fais une tête sérieuse.', 'Tu as noté mes croquettes dans les dépenses ? C’est un investissement.'],
+  nuit: ['Un film ce soir ? Je prends mon perchoir et je ne commente qu’un peu.', 'Cinder ! Glisse pour moi, je n’ai pas de pouce.'],
+};
+const AZ_FAIT_MOTS = ['Bien joué. Je note. Enfin, je fais semblant de noter.', 'Oh, tu as fait quelque chose. J’aime quand tu fais des choses.', 'Une chose de moins. Tu mérites une caresse. De moi. Plus tard.', 'Voilà, c’est fait. Sugoi ! (génial)'];
+const AZ_INACTIF_MOTS = ['Tu regardes l’écran depuis un moment. Tu cherches quelque chose ?', 'Tu réfléchis ? Moi aussi. À mes croquettes.', 'Tu es toujours là ? Je peux te proposer un film, si tu veux.', 'Je surveille les voisins, et toi tu surveilles l’app. On est pareils.'];
+function azamiRemarque(evt, detail = '') {
+  if (!S.me || S.recovery || AZ.busy || AZ.ecrit || document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;
+  const mode = AZ_MODE(); if (mode === 'muette') return;
+  const h = new Date().getHours(); if (h >= 22 || h < 8) return;
+  const now = Date.now(), delai = mode === 'bavarde' ? 80e3 : 8 * 60e3;
+  if (now - azDernier < delai || now - (AZ.at || 0) < 40e3) return;
+  const chance = evt === 'inactif' ? .9 : mode === 'bavarde' ? .3 : .1;
+  if (Math.random() > chance) return;
+  azDernier = now;
+  const nom = firstName();
+  if (!DEMO && !S.offline && Math.random() < (evt === 'inactif' ? .6 : .35)) {
+    const desc = evt === 'page' ? `${nom} arrive sur la page ${AZ_PAGE[detail] || detail}.` : evt === 'fait' ? `${nom} vient de faire quelque chose dans l'app : ${detail}.` : `${nom} regarde la page ${AZ_PAGE[S.view] || 'accueil'} sans rien faire depuis une minute.`;
+    azamiEnvoyer(`(événement) ${desc}`, true); return;
+  }
+  let pool = evt === 'page' ? AZ_PAGES_MOTS[detail] : evt === 'fait' ? AZ_FAIT_MOTS : AZ_INACTIF_MOTS;
+  // devant l'écran sans rien faire : parfois un film de ta liste, au hasard
+  if (evt === 'inactif' && Math.random() < .4) { const env = (S.films || []).filter(f => f.status === 'a_voir' && T.wants(f.votes?.[S.me])); if (env.length) pool = [`Dis, « ${pick(env).title} » attend dans ta liste. Ce soir, peut-être ?`]; }
+  if (!pool?.length) return;
+  azamiPose(pick(pool), evt === 'fait' ? 'contente' : 'curieuse'); render();
+  meow(true, .35, pick(['mrrr', 'chirp', 'question']));
+}
+// sans rien faire devant l'écran : au bout d'une minute, une fois par période d'inactivité
+['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { azInactif = Date.now(); azInactifDit = false; }, { passive: true, capture: true }));
+setInterval(() => { if (document.hidden || azInactifDit || Date.now() - azInactif < 60e3) return; azInactifDit = true; azamiRemarque('inactif'); }, 15000);
+
 // Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
 // et remontent avec ce qu'on fait. On ne les affiche jamais : c'est Azami qui le dit, dans ses bulles. L'état vit
 // dans reglages ('azami:etat'), partagé, calculé à l'ouverture et à chaque geste.
@@ -5193,10 +5239,10 @@ function tamaSave(force) {
 }
 // Ce qu'on fait pour elle : chaque geste remonte une jauge, et elle réagit (sans appel au modèle).
 const TAMA_GESTES = {
-  croquettes: { faim: 35, poids: 1, mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.'], son: ['mewmew', 'mrrr'], reac: 'caresse_2' },
-  ragout: { faim: 45, poids: 2, mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.'], son: ['ronronmrr', 'long'], reac: 'caresse_3' },
-  friandise: { faim: 8, calins: 4, poids: 2, mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.'], son: ['chirp', 'gazouille'], reac: 'attaque' },
-  eau: { soif: 40, mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.'], son: ['mrrr', 'mew'], reac: 'caresse_1' },
+  croquettes: { faim: 35, poids: 1, geste: 'te donne des croquettes au poisson', mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.', 'Je mange trop vite, je sais. C’est la peur qu’on me les reprenne.', 'Tu as vu ? Je n’ai même pas grogné. Ça veut dire que c’est bon.', 'Itadakimasu ! (bon appétit à moi)'], son: ['mewmew', 'mrrr'], reac: 'caresse_2' },
+  ragout: { faim: 45, poids: 2, geste: 'te donne du ragoût', mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.', 'Le ragoût. Ma raison de vivre, juste après la fenêtre.', 'J’ai de la sauce sur les moustaches. Ne dis rien.'], son: ['ronronmrr', 'long'], reac: 'caresse_3' },
+  friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne d’être parti si longtemps.'], son: ['chirp', 'gazouille'], reac: 'attaque' },
+  eau: { soif: 40, geste: 'te donne de l’eau fraîche', mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.', 'Lap lap lap. Tu entends ? C’est le bruit du bonheur.', 'De l’eau. Pas de ragoût ? Bon, de l’eau alors. Merci quand même.', 'J’avais la langue comme du papier de verre. Sauvée.'], son: ['mrrr', 'mew'], reac: 'caresse_1' },
   caresse: { calins: 6 },
 };
 function tamaGeste(k) {
@@ -5207,13 +5253,16 @@ function tamaGeste(k) {
   if (t.repas?.length > 40) t.repas.splice(0, t.repas.length - 40);
   tamaSave(k !== 'caresse');
   if (g.mot) {
+    S.tamaMenu = null;
+    const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
+    meow(true, .5, pick(g.son)); haptic('medium'); if (img) burst('hearts', img, 6);
+    // une fois sur deux, c'est elle qui improvise (le modèle reçoit le geste, pas une phrase) ; sinon une phrase locale
+    if (!DEMO && !S.offline && Math.random() < .5) { azamiEnvoyer(`${firstName()} ${g.geste}.`, true); return; }
     // elle a déjà mangé il y a peu ? elle le fait remarquer, gentiment
     const avant = t.faim - (g.faim || 0);
     const trop = (g.faim && avant > 85) ? pick(['Encore ? Je viens de manger… bon, d’accord, je ne refuse jamais.', 'Mon ventre est déjà plein. Mais mes yeux, non.']) : null;
     azamiPose(trop || pick(g.mot), trop ? 'affamee' : 'contente');
-    S.tamaMenu = null; render();
-    const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
-    meow(true, .5, pick(g.son)); haptic('medium'); if (img && !trop) burst('hearts', img, 6);
+    render();
   }
 }
 // Ses besoins, dits par elle : une seule chose à la fois, pas plus d'une fois toutes les trois heures par besoin,
@@ -5238,8 +5287,10 @@ function tamaDire() {
 function tamaContexte() {
   const t = tamaEtat(); tamaTick();
   const q = v => v < 15 ? 'vraiment' : v < 30 ? 'un peu' : v < 55 ? 'ça va' : 'bien';
-  const dernier = t.repas?.length ? t.repas[t.repas.length - 1] : null;
-  return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).${dernier ? ` Dernier repas : ${dernier.q}, ${ago(new Date(dernier.at).toISOString())}, donné par ${nameOf(dernier.par)}.` : ' Personne ne t’a encore nourrie dans l’app.'}`;
+  const QUOI = { croquettes: 'des croquettes au poisson', ragout: 'du ragoût', friandise: 'une friandise', eau: 'de l’eau fraîche' };
+  const gestes = (t.repas || []).slice(-6).reverse().map(g => `${nameOf(g.par)} t’a donné ${QUOI[g.q] || g.q} ${ago(new Date(g.at).toISOString())}`);
+  return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).
+CE QU'ON A FAIT POUR TOI DANS L'APP (tu le sais, tu peux en parler et remercier) : ${gestes.length ? gestes.join(' ; ') + '.' : 'rien encore (personne ne t’a nourrie ni donné à boire dans l’app).'}`;
 }
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
@@ -5309,8 +5360,16 @@ const azamiNuage = (() => {
     const box = svg.parentElement; if (!box) return; const w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
     const croquis = box.classList.contains('az-croquis'), rad = croquis ? Number(box.dataset.rayon || 22) : 0;
     const mode = croquis ? 's' : box.classList.contains('suite') ? 'r' : 'c', vif = box.classList.contains('vif');
-    const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}${croquis ? 'q' + rad : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
+    // Le texte ne touche jamais le trait : la marge intérieure vient de la forme (un galet rogne les coins ; le
+    // rectangle qui tient dedans fait ~79 % de la largeur et de la hauteur), plus 10 px de sécurité.
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
+    if (!croquis && !box.classList.contains('az-appel')) {
+      const ex = mode === 'c' ? .78 : .66, frac = Math.pow(.5, ex / 2), M = Math.max(w, h);
+      const pad = Math.round(((1 - frac) * M / 2 + 10) / 2) * 2;
+      const want = `${pad}px ${pad + (mode === 'c' ? 6 : 0)}px`;
+      if (box.dataset.pad !== want) { box.dataset.pad = want; box.style.padding = want; return; }   // la taille change : on redessinera
+    }
+    const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}${croquis ? 'q' + rad : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     const M = 28;
     svg.setAttribute('viewBox', `${-M} ${-M} ${w + 2 * M} ${h + 2 * M}`);
     svg.style.cssText = `position:absolute;left:${-M}px;top:${-M}px;width:${w + 2 * M}px;height:${h + 2 * M}px;overflow:visible`;
@@ -5342,18 +5401,22 @@ async function azamiType() {
   const el = document.querySelector('.az-elle[data-k] .az-txt[data-part="1"]'); if (!el) return;
   const k = Number(el.parentElement.dataset.k); if (k === AZ.typedK) return;
   AZ.typedK = k; const parts = azamiParts().filter(Boolean);
-  const el2 = document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]');
   if (reducedMotion()) return;
-  if (el2) el2.textContent = '';
+  // Le texte entier est déjà là, en transparent : la bulle a sa taille définitive, rien ne bouge pendant
+  // que les lettres apparaissent une à une.
+  const els = [el, document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]')];
+  const pose = (e, txt, i) => { e.innerHTML = `<span class="vu">${esc(txt.slice(0, i))}</span><span class="pas">${esc(txt.slice(i))}</span>`; };
+  parts.forEach((txt, j) => els[j] && pose(els[j], txt, 0));
   for (const [j, txt] of parts.entries()) {
-    const e = j ? el2 : el; if (!e) return;
+    const e = els[j]; if (!e) return;
     for (let i = 1, n = 0; i <= txt.length; i++) {
       if (AZ.k !== k || !e.isConnected) { e.textContent = txt; return; }
-      e.textContent = txt.slice(0, i);
+      pose(e, txt, i);
       const ch = txt[i - 1];
       if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
       await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
     }
+    e.textContent = txt;
   }
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
@@ -5362,12 +5425,12 @@ function azamiEcrire() {
   AZ.ecrit = true; render();
   document.getElementById('az-in')?.focus({ preventScroll: true });
 }
-async function azamiEnvoyer(txt) {
+async function azamiEnvoyer(txt, geste = false) {
   txt = (txt || '').trim(); if (!txt || AZ.busy) return;
-  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.busy = true; render(); haptic(1);
+  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.busy = true; render(); if (!geste) haptic(1);
   try {
     const now = new Date();
-    const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
+    const r = await azamiCall({ action: 'parler', texte: txt, geste, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
     AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3));
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
@@ -5453,6 +5516,7 @@ async function azamiMemoire() {
 
 const actions = {
   'son-mode': el => { safeSet('maison-son-mode', el.dataset.mode); unlockAudio(); render(); toast(el.dataset.mode === 'jeu' ? 'Les sons sortent même en silence (ça coupe la musique en cours)' : 'L’app se mêle à la musique ; l’interrupteur silence la coupe'); },
+  'az-mode': el => { safeSet('maison-az-mode', el.dataset.mode); render(); },
   'tama-menu': () => { S.tamaMenu = S.tamaMenu === 'nourrir' ? null : 'nourrir'; render(); haptic(1); },
   'tama-geste': el => tamaGeste(el.dataset.geste),
   'azami-fil': () => azamiFil(),
@@ -5682,7 +5746,7 @@ const actions = {
     }, null).then(ok => { if (!ok) return; const a = S.panierAdded; toast(a ? `Au menu. ${pl(a, 'article ajouté', 'articles ajoutés')} à la liste` : 'Au menu. Tu as déjà tout'); react('courses_completees', document.querySelector('.hd .azami')); });
   },
 
-  go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; if (from !== S.view) setTimeout(() => azamiRemarque('page', S.view), 500); S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
@@ -5897,7 +5961,7 @@ const actions = {
   'care-delete': async el => { if (await uiAsk('Le mot quitte sa boîte.', { title: 'Retirer ce mot ?', ok: 'Retirer', danger: true })) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { const img = el.querySelector('img.azami'); if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); },
+  meow: el => { const img = el.querySelector('img.azami'); if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); if (S.view !== 'maison' && !AZ.ecrit && !AZ.busy && S.me) { AZ.ecrit = true; render(); } },   // sur les pages, la toucher ouvre aussi la bulle pour lui parler
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();

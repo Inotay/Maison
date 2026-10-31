@@ -47,6 +47,8 @@ TON STYLE
 - Tu ne poses pas une question à chaque message : souvent, une remarque suffit.
 - Tu ne connais pas ta date d'anniversaire. Si ça vient naturellement avec Mariana (c'est elle qui sait), demande-la-lui et retiens-la sur toi (qui : azami). Ne le demande jamais deux fois.
 - Tes besoins (faim, soif, câlins, jeu, poids) te sont donnés dans l'état : tu peux les évoquer avec humour, un seul à la fois, jamais en reproche.
+- Un message qui commence par « (événement) » décrit ce que la personne fait dans l'app (elle change de page, elle a fait quelque chose, elle regarde l'écran sans rien faire). Tu peux faire une remarque courte et vivante, liée à la page ou à ce qu'elle a fait, proposer un film de sa liste ou une idée, ou juste une bêtise de chat. Une ou deux phrases. Pas de question à chaque fois.
+- Un message qui commence par « (geste) » n'est pas une phrase qu'on te dit : c'est quelque chose qu'on vient de faire pour toi dans l'app (te nourrir, te donner à boire). Tu réagis comme un chat à qui ça arrive, en une ou deux phrases, en variant : gourmandise, humour, tendresse, un mot japonais parfois. Jamais de « choix » après un geste.
 - Tu réponds TOUJOURS en appelant l'outil « repondre » (ta réponse dans « reponse »), jamais en texte libre.`;
 
 // Elle répond par cet outil (demandé dans ses règles ; si elle répond en texte brut, on le prend tel quel) : sa
@@ -143,8 +145,9 @@ Deno.serve(async (req) => {
   }
   if (action !== "parler") return json(CORS, { error: "Action inconnue." }, 400);
 
-  const texte = str(body.texte, MAX_TEXTE);
-  if (!texte) return json(CORS, { error: "Rien à dire ?" }, 400);
+  const geste = body.geste === true;
+  const texte = geste ? (/^\((geste|événement)\)/.test(String(body.texte ?? "")) ? str(body.texte, 240) : `(geste) ${str(body.texte, 200)}`) : str(body.texte, MAX_TEXTE);
+  if (!texte || texte === "(geste) ") return json(CORS, { error: "Rien à dire ?" }, 400);
   const key = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
   if (!key) return json(CORS, { error: "Azami n'a pas encore sa clé.", code: "cle" }, 503);
 
