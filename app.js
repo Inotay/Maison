@@ -2510,7 +2510,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v212</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v213</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5109,7 +5109,35 @@ function azamiContexte() {
 // On touche sa bulle, ou « Parler » dans sa barre, pour lui répondre dans une bulle à nous, écrite ou au micro.
 // Elle peut proposer des réponses rapides (oui / non) ; un petit crayon permet d'écrire quand même. Sa dernière
 // bulle suit de page en page ; ses réponses déclenchent ses réactions habituelles, avec l'accessoire de la page.
-const AZ = { bulle: safeGet('maison-az-bulle') || '', choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
+const AZ = { bulle: safeGet('maison-az-bulle') || '', at: Number(safeGet('maison-az-at') || 0), choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
+// Une bulle d'elle : on retient le texte et l'heure (une vieille bulle n'est jamais réaffichée au retour).
+function azamiPose(texte, humeur = 'calme', choix = []) {
+  AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.k++; AZ.at = Date.now();
+  safeSet('maison-az-bulle', texte); safeSet('maison-az-at', String(AZ.at));
+}
+// Quand on quitte l'app et qu'on revient : sa bulle d'avant disparaît. Si on est parti un moment, elle réagit
+// (souvent, pas toujours), selon le temps passé, l'heure et son état. Jamais entre 22 h et 8 h.
+let azamiVu = Date.now();
+const AZ_RETOUR = {
+  court: ['Oh, tu reviens ! Je n’ai pas bougé. Enfin presque.', 'Re. J’ai gardé ta place au chaud.', 'Tu étais où ? Non, laisse, je sais : pas avec moi.'],
+  long: ['Oh ! Tu es là ! J’ai cru que tu avais déménagé.', 'Okaeri ! (bon retour) J’ai surveillé la fenêtre tout ce temps.', 'Enfin. J’ai dormi, mangé, redormi. Et toi ?'],
+  matin: ['Ohayō ! (bonjour) Tu as bien dormi ? Moi j’ai pris ta place dans le lit.', 'Bonjour toi. Première chose : mes croquettes. Deuxième chose : bonjour.'],
+  soir: ['Bonsoir. Tu rentres tard. Je ne juge pas. Un peu.', 'Konbanwa ! (bonsoir) On regarde un film ce soir ?'],
+  faim: ['Tu reviens ! Et mon ventre aussi, il gargouille depuis tout à l’heure.', 'Oh, c’est toi ! Dis, ma gamelle est vide. Je dis ça…'],
+};
+function azamiRetour() {
+  const now = Date.now(), parti = now - azamiVu; azamiVu = now;
+  if (parti < 3 * 60e3) return;                                    // un aller-retour rapide : rien ne change
+  if (AZ.bulle && now - (AZ.at || 0) > 10 * 60e3 && !AZ.busy && !AZ.ecrit) { AZ.bulle = ''; AZ.choix = []; safeSet('maison-az-bulle', ''); }
+  const h = new Date().getHours(); if (h >= 22 || h < 8 || !S.me) { render(); return; }
+  if (parti < 15 * 60e3 || Math.random() < .3) { render(); return; }   // parfois elle ne dit rien, c'est très bien aussi
+  const t = tamaEtat(); tamaTick();
+  const pool = t.faim < 30 && Math.random() < .6 ? 'faim' : parti > 8 * 36e5 ? (h < 11 ? 'matin' : h >= 19 ? 'soir' : 'long') : 'court';
+  azamiPose(pick(AZ_RETOUR[pool]), pool === 'faim' ? 'affamee' : 'contente');
+  render(); meow(true, .45, pick(pool === 'faim' ? ['question', 'miaou2'] : ['chirp', 'trille', 'mewmew']));
+  const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'caresse_1', 2500);
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) azamiVu = Date.now(); else setTimeout(azamiRetour, 400); });
 // Ce qu'elle dit, coupé en deux si c'est long : le début à côté d'elle, la suite dans une bulle sous l'en-tête.
 function azamiParts() {
   const t = AZ.bulle || ''; if (t.length <= 80) return [t, ''];
@@ -5176,7 +5204,7 @@ function tamaGeste(k) {
     // elle a déjà mangé il y a peu ? elle le fait remarquer, gentiment
     const avant = t.faim - (g.faim || 0);
     const trop = (g.faim && avant > 85) ? pick(['Encore ? Je viens de manger… bon, d’accord, je ne refuse jamais.', 'Mon ventre est déjà plein. Mais mes yeux, non.']) : null;
-    AZ.bulle = trop || pick(g.mot); AZ.choix = []; AZ.note = ''; AZ.humeur = trop ? 'affamee' : 'contente'; AZ.k++; safeSet('maison-az-bulle', AZ.bulle);
+    azamiPose(trop || pick(g.mot), trop ? 'affamee' : 'contente');
     S.tamaMenu = null; render();
     const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
     meow(true, .5, pick(g.son)); haptic('medium'); if (img && !trop) burst('hearts', img, 6);
@@ -5197,7 +5225,7 @@ function tamaDire() {
   const besoin = ['faim', 'soif', 'calins', 'jeu'].filter(k => (t[k] ?? 70) < 30 && now - (t.dit?.[k] || 0) > 3 * 36e5).sort((a, b) => (t[a] ?? 70) - (t[b] ?? 70))[0];
   if (!besoin || (AZ.bulle && now - (AZ.at || 0) < 20 * 60e3)) return;
   (t.dit ||= {})[besoin] = now; tamaSave();
-  AZ.bulle = pick(TAMA_MOTS[besoin]); AZ.choix = []; AZ.note = ''; AZ.humeur = besoin === 'faim' ? 'affamee' : besoin === 'calins' ? 'contente' : 'curieuse'; AZ.k++; AZ.at = now; safeSet('maison-az-bulle', AZ.bulle);
+  azamiPose(pick(TAMA_MOTS[besoin]), besoin === 'faim' ? 'affamee' : besoin === 'calins' ? 'contente' : 'curieuse');
   render(); if (besoin === 'faim') meow(true, .4, 'question');
 }
 // Ce qu'elle sait de son propre état, pour en parler elle-même quand on lui parle.
@@ -5334,7 +5362,7 @@ async function azamiEnvoyer(txt) {
   try {
     const now = new Date();
     const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
-    AZ.busy = false; AZ.bulle = r.reponse; AZ.humeur = r.humeur || ''; AZ.choix = (r.choix || []).slice(0, 3); AZ.k++; safeSet('maison-az-bulle', r.reponse);
+    AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3));
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
     const img = document.querySelector('.hd img.azami');
@@ -5342,10 +5370,12 @@ async function azamiEnvoyer(txt) {
     meow(true, .45, pick(sons));
     if (r.humeur === 'contente' && img) burst('hearts', img, 8);
   } catch (e) {
-    AZ.busy = false; AZ.bulle = `Mrrr… ${e.message}`; AZ.k++; render();
+    AZ.busy = false; azamiPose(`Mrrr… ${e.message}`, 'boudeuse'); render();
   }
 }
 function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
+// Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée.
+if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); }
 // Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la bulle, puis part tout seul.
 function azamiMic() {
   if (AZ.rec) { AZ.rec.stop(); return; }
@@ -5399,7 +5429,7 @@ async function azamiMemoire() {
     if (b.dataset.m === 'oublier') { b.closest('li').classList.add('gone'); try { await azamiCall({ action: 'oublier', id: b.dataset.id }); haptic(1); } catch (err) { toast(err.message); } }
     if (b.dataset.m === 'fil') {   // deux pressions : la première demande confirmation
       if (!b.dataset.sur) { b.dataset.sur = '1'; b.textContent = 'Sûr ? Toucher encore pour effacer'; setTimeout(() => { delete b.dataset.sur; b.textContent = 'Effacer notre conversation'; }, 4000); return; }
-      try { await azamiCall({ action: 'effacer_fil' }); toast('Conversation effacée'); AZ.bulle = ''; AZ.moi = ''; safeSet('maison-az-bulle', ''); safeSet('maison-az-moi', ''); render(); close(); } catch (err) { toast(err.message); }
+      try { await azamiCall({ action: 'effacer_fil' }); toast('Conversation effacée'); AZ.bulle = ''; safeSet('maison-az-bulle', ''); render(); close(); } catch (err) { toast(err.message); }
     }
   });
   try {
