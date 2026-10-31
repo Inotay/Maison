@@ -90,9 +90,11 @@ html[data-theme="brun"] .hd-kicker, html[data-theme="brun"] h2 { color: #E0CFB8;
 html[data-theme="brun"] .picker { background: var(--seal); }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+/* Rien ne dépasse sur les côtés : la page ne se laisse pas tirer de gauche à droite (les bulles et la barre
+   d'Azami, dessinées un peu plus larges que leur boîte, ne comptent pas). */
+html { -webkit-text-size-adjust: 100%; overflow-x: clip; }
 body {
-  margin: 0;
+  margin: 0; overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font: 600 16px/1.45 var(--sans);
