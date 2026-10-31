@@ -2243,7 +2243,7 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' || !azamiBulle().includes('cote') ? '' : azamiBulle()}</header>${S.view === 'maison' || azamiBulle().includes('cote') ? '' : azamiBulle()}${azamiBarre()}${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
   azamiType(); azamiNuage();
@@ -2410,10 +2410,9 @@ function viewMaison() {
   const ne = S.agenda.configured ? nextEvent() : null;
   if (ne) lines.push([`${relDay(evDay(ne))} · ${ne.title}`, ne.allDay ? 'journée' : evTime(ne.start), 'agenda', false]);
 
-  return `<header class="hd centered">
+  return `<header class="hd row accueil"><div><p class="hd-kicker">${esc(date)}</p><h1>${hello} ${esc(firstName())}</h1></div>
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
-    ${azamiBulle()}
-    <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
+    ${azamiBulle()}</header>
     ${recapCard()}${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
     <div class="glance">${lines.map(([label, num, to, late]) =>
@@ -2441,7 +2440,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v203</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v204</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4050,8 +4049,9 @@ function jaugeBind(el, onChange) {
 // ── Renoter à la chaîne ──
 // Les notes données avec les cœurs (1 à 5) se refont une à une avec la jauge : on lâche la jauge, c'est enregistré,
 // le film suivant arrive. L'ancienne note reste visible en petit, comme repère.
+const renoteFait = new Set();   // renotés pendant cette session, quoi qu'en dise une liste rechargée trop tôt
 function renote() {
-  const list = S.films.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j).sort((a, b) => String(vuAt(b)).localeCompare(String(vuAt(a))));
+  const list = S.films.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j && !renoteFait.has(f.id)).sort((a, b) => String(vuAt(b)).localeCompare(String(vuAt(a))));
   if (!list.length) { toast('Tout est déjà noté avec la jauge'); return; }
   document.getElementById('renote')?.remove();
   const box = document.createElement('div'); box.id = 'renote';
@@ -4074,7 +4074,10 @@ function renote() {
   const save = (f, v) => {
     const prev = { ...(f.ratings?.[S.me] || {}) };
     const ratings = { ...(f.ratings || {}), [S.me]: { ...prev, note: v, j: 1 } };
-    f.ratings = ratings; hist.push([f, prev]); tasteMemo = null;
+    f.ratings = ratings; hist.push([f, prev]); tasteMemo = null; renoteFait.add(f.id);
+    // la liste des films a pu être rechargée entre-temps (chaque note déclenche un rafraîchissement) : on met
+    // aussi à jour l'exemplaire courant, sinon le film revenait dans la file à l'ouverture suivante
+    const cur = S.films.find(x => x.id === f.id); if (cur && cur !== f) cur.ratings = ratings;
     api.update('films', { id: f.id }, { ratings }).catch(() => toast('Pas enregistré, réessaie.'));
     box.querySelector('.rn-card')?.classList.add('out');
     setTimeout(() => { i++; draw(); }, 180);
@@ -5035,18 +5038,27 @@ function azamiContexte() {
 // On touche sa bulle, ou « Parler » dans sa barre, pour lui répondre dans une bulle à nous, écrite ou au micro.
 // Elle peut proposer des réponses rapides (oui / non) ; un petit crayon permet d'écrire quand même. Sa dernière
 // bulle suit de page en page ; ses réponses déclenchent ses réactions habituelles, avec l'accessoire de la page.
-const AZ = { bulle: safeGet('maison-az-bulle') || '', choix: [], note: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
+const AZ = { bulle: safeGet('maison-az-bulle') || '', choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
+// Ce qu'elle dit, coupé en deux si c'est long : le début à côté d'elle, la suite dans une bulle sous l'en-tête.
+function azamiParts() {
+  const t = AZ.bulle || ''; if (t.length <= 70) return [t, ''];
+  const m = t.slice(0, 70).match(/^[\s\S]*[.!?…]\s/); const i = m ? m[0].length : t.lastIndexOf(' ', 60);
+  return i > 20 ? [t.slice(0, i).trim(), t.slice(i).trim()] : [t, ''];
+}
 const azamiBulle = () => {
   if (!S.me || S.recovery) return '';
   const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
-  // sur les pages, la place à côté d'elle est petite : la bulle à nous remplace la sienne le temps d'écrire
-  const sienne = !AZ.busy && AZ.bulle && !(AZ.ecrit && S.view !== 'maison') ? `<div class="az-b az-elle" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
+  const [p1, p2] = azamiParts();
+  const sienne = !AZ.busy && AZ.bulle && !AZ.ecrit ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const mienne = AZ.ecrit && !AZ.busy ? `<form class="az-b az-moi" data-form="azami"><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></span></form>` : '';
   if (!pensee && !sienne && !mienne) return '';
-  const court = AZ.bulle.length <= 70 && !AZ.choix.length && !AZ.note && !mienne;
-  return `<div class="az-bulles ${S.view === 'maison' ? 'dessous' : court ? 'cote' : 'dessous droite'}">${pensee}${sienne}${mienne}</div>`;
+  return `<div class="az-bulles cote">${pensee}${sienne}${mienne}</div>`;
 };
+// Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
+const azamiPied = () => `${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
+// La suite d'une longue réponse, sous l'en-tête.
+const azamiSuite = () => { const [, p2] = azamiParts(); return !S.me || S.recovery || AZ.busy || AZ.ecrit || !p2 ? '' : `<div class="az-bulles suite"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="2">${esc(p2)}</span>${azamiPied()}</div></div>`; };
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role="group" aria-label="Azami">
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
@@ -5055,13 +5067,12 @@ const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role=
 // image par image (trois dessins qui alternent, comme du stop motion). Redessinée quand la bulle change de taille.
 const azamiNuage = (() => {
   const rnd = (seed => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; });
-  // un tracé fermé passant par des points bruités autour d'un rond aplati (superellipse), lissé en courbes
-  function trace(w, h, r, amp) {
-    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3, n = Math.max(14, Math.round((w + h) / 22)), pts = [];
+  // un ovale à main levée : des points bruités autour d'une ellipse un peu aplatie, lissés en courbes
+  function trace(w, h, r, amp, ex = .8) {
+    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3, n = Math.max(14, Math.round((w + h) / 20)), pts = [];
     for (let i = 0; i < n; i++) {
       const t = i / n * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
-      const x = cx + a * Math.sign(c) * Math.abs(c) ** .62 + (r() - .5) * amp, y = cy + b * Math.sign(s) * Math.abs(s) ** .62 + (r() - .5) * amp;
-      pts.push([x, y]);
+      pts.push([cx + a * Math.sign(c) * Math.abs(c) ** ex + (r() - .5) * amp, cy + b * Math.sign(s) * Math.abs(s) ** ex + (r() - .5) * amp]);
     }
     let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
     for (let i = 0; i < n; i++) {
@@ -5071,24 +5082,31 @@ const azamiNuage = (() => {
     }
     return d + 'Z';
   }
-  const rond = (x, y, rad, r, amp) => trace(rad * 2, rad * 2, r, amp).replace(/(-?\d+\.?\d*),(-?\d+\.?\d*)/g, (_, a, b) => `${(Number(a) + x - rad).toFixed(1)},${(Number(b) + y - rad).toFixed(1)}`);
+  // la queue pointue : un triangle blanc cerné, dont la base efface le trait de l'ovale
+  function queue(w, h, mode, r) {
+    const j = (v, k = 1.6) => (v + (r() - .5) * k).toFixed(1);
+    const [b1, b2, tip] = mode === 'c' ? [[w - 4, h * .5], [w - 8, h * .7], [w + 24, h * .86]]
+      : mode === 'r' ? [[w - 54, 4], [w - 30, 4], [w - 16, -22]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
+    return `<path class="nz" d="M${j(b1[0])},${j(b1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(b2[0])},${j(b2[1])}"/><path class="nb" d="M${b1[0]},${b1[1]} L${b2[0]},${b2[1]}"/>`;
+  }
   let timer = 0, frame = 0;
   function dessine(svg) {
     const box = svg.parentElement, w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
-    const cle = `${w}x${h}:${box.closest('.dessous') ? 'd' : 'c'}${box.closest('.droite') ? 'r' : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
+    const mode = box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
+    const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
-    const M = 14, dessous = !!box.closest('.dessous');
+    const M = 28;
     svg.setAttribute('viewBox', `${-M} ${-M} ${w + 2 * M} ${h + 2 * M}`);
     svg.style.cssText = `position:absolute;left:${-M}px;top:${-M}px;width:${w + 2 * M}px;height:${h + 2 * M}px;overflow:visible`;
     const frames = [0, 1, 2].map(k => {
       const r = rnd(7 + k * 31 + w);
-      // la queue : deux petits ronds vers elle (à droite sur les pages, en haut sur l'accueil)
-      const droite = !!box.closest('.droite');
-      const q = droite ? [[w - 34, -11, 6.5], [w - 22, -22, 4]] : dessous ? [[w / 2 + 2, -11, 6.5], [w / 2 - 7, -22, 4]] : [[w + 9, 24, 6.5], [w + 20, 36, 4]];
-      return `<path class="nz" d="${trace(w, h, r, 3.2)}"/><path class="nz" d="${rond(...q[0], r, 1.6)}"/><path class="nz" d="${rond(...q[1], r, 1.2)}"/><path class="nz2" d="${trace(w, h, rnd(99 + k * 17 + h), 2.2)}"/>`;
+      // énervée ou excitée : plusieurs traits qui se chevauchent, comme gribouillés vite
+      // un trait d'encre assuré : l'ovale, puis le même tracé à peine décalé pour l'épaisseur qui varie
+      const d = trace(w, h, r, 1.4);
+      const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 5 + i * 2, .8 + i * .04)}"/>`).join('') : '';
+      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode === 'c' ? queue(w, h, mode, r) : ''}${grib}`;
     });
     svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
-    svg.dataset.frames = '3';
   }
   function tick() { frame = (frame + 1) % 3; document.querySelectorAll('svg.az-nuage').forEach(s => s.dataset.f = frame); }
   return () => {
@@ -5100,16 +5118,21 @@ const azamiNuage = (() => {
 })();
 // Sa réponse s'écrit lettre par lettre, avec sa petite voix (toucher la bulle pour aller plus vite).
 async function azamiType() {
-  const el = document.querySelector('.az-elle[data-k] .az-txt'); if (!el) return;
+  const el = document.querySelector('.az-elle[data-k] .az-txt[data-part="1"]'); if (!el) return;
   const k = Number(el.parentElement.dataset.k); if (k === AZ.typedK) return;
-  AZ.typedK = k; const txt = AZ.bulle;
-  if (reducedMotion()) { el.textContent = txt; return; }
-  for (let i = 1, n = 0; i <= txt.length; i++) {
-    if (AZ.k !== k || !el.isConnected) { el.textContent = txt; return; }
-    el.textContent = txt.slice(0, i);
-    const ch = txt[i - 1];
-    if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
-    await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
+  AZ.typedK = k; const parts = azamiParts().filter(Boolean);
+  const el2 = document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]');
+  if (reducedMotion()) return;
+  if (el2) el2.textContent = '';
+  for (const [j, txt] of parts.entries()) {
+    const e = j ? document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]') : el; if (!e) return;
+    for (let i = 1, n = 0; i <= txt.length; i++) {
+      if (AZ.k !== k || !e.isConnected) { e.textContent = txt; return; }
+      e.textContent = txt.slice(0, i);
+      const ch = txt[i - 1];
+      if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
+      await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
+    }
   }
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
@@ -5124,7 +5147,7 @@ async function azamiEnvoyer(txt) {
   try {
     const now = new Date();
     const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
-    AZ.busy = false; AZ.bulle = r.reponse; AZ.choix = (r.choix || []).slice(0, 3); AZ.k++; safeSet('maison-az-bulle', r.reponse);
+    AZ.busy = false; AZ.bulle = r.reponse; AZ.humeur = r.humeur || ''; AZ.choix = (r.choix || []).slice(0, 3); AZ.k++; safeSet('maison-az-bulle', r.reponse);
     AZ.note = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude')].join(' · ');
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
