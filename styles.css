@@ -1988,7 +1988,7 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .az-bulles { grid-area: bulle; display: grid; gap: 8px; align-self: end; padding: 4px 10px 10px 2px; min-width: 0; }
 .az-bulles.suite { display: block; margin: -2px 0 var(--s4); padding: 0 6px; }
 .az-bulles.seule { margin-top: 6px; }
-.az-elle.suite { width: 100%; border-radius: 40px; padding: 20px 34px; font-size: 20px; }
+.az-elle.suite { width: 100%; border-radius: 50%; padding: 7% 12% 8%; font-size: 20px; }
 .hd.row:has(+ .az-bulles.seule) { margin-bottom: 18px; }
 .hd.row.accueil .azami, .hd.row.accueil .azami-btn { width: 164px; }
 .hd.row.accueil .azami { height: 182px; transform: scale(1.18); transform-origin: 50% 85%; }
@@ -2002,13 +2002,15 @@ svg.az-nuage { position: absolute; z-index: -1; pointer-events: none; }
 svg.az-nuage .nf { display: none; }
 svg.az-nuage[data-f="0"] .nf[data-f="0"], svg.az-nuage[data-f="1"] .nf[data-f="1"], svg.az-nuage[data-f="2"] .nf[data-f="2"], svg.az-nuage:not([data-f]) .nf[data-f="0"] { display: block; }
 svg.az-nuage .nz { fill: #FFFDF8; stroke: #22170F; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
-svg.az-nuage .nb { fill: none; stroke: #fff; stroke-width: 5; stroke-linecap: butt; }   /* efface le trait sous la queue */
+svg.az-nuage .nb { fill: #FFFDF8; stroke: none; }   /* cache blanc sous la queue */
 svg.az-nuage .ng { fill: none; stroke: #22170F; stroke-width: 1.4; opacity: .7; }   /* gribouillis des bulles énervées */
 svg.az-nuage .nz2 { fill: none; stroke: #2A1C15; stroke-width: 1.1; opacity: .35; }   /* un second trait, plus léger : le brouillon */
 .cote .az-elle { justify-self: start; transform-origin: 100% 60%; }
+.az-appel { all: unset; cursor: pointer; position: relative; isolation: isolate; justify-self: end; min-width: 0; padding: 6px 18px; font-family: 'Patrick Hand', sans-serif; font-size: 22px; line-height: 1; letter-spacing: .1em; color: #8A7E70; animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both, bulle-flotte 3.6s ease-in-out .4s infinite; }
+.cote .az-appel { justify-self: end; margin-right: 6px; }
 .az-elle .az-txt { white-space: pre-wrap; }
 .az-note { display: block; margin-top: 4px; font-size: 15px; color: #8A7E70; }
-.az-x { all: unset; cursor: pointer; position: absolute; top: 8px; right: 12px; width: 26px; height: 26px; display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #B5AA9C; }
+.az-x { all: unset; cursor: pointer; position: absolute; top: 10px; right: 16px; width: 26px; height: 26px; display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #B5AA9C; }
 .az-choix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
 .dessous .az-choix { justify-content: center; }
 .az-choix button { all: unset; cursor: pointer; padding: 6px 14px; border-radius: 999px; background: #2A1C15; color: #fff; font-family: 'Patrick Hand', sans-serif; font-size: 18px; -webkit-tap-highlight-color: transparent; }
@@ -2021,7 +2023,8 @@ svg.az-nuage .nz2 { fill: none; stroke: #2A1C15; stroke-width: 1.1; opacity: .35
 .az-pense i:nth-child(2) { animation-delay: .18s; } .az-pense i:nth-child(3) { animation-delay: .36s; }
 @keyframes think { 0%, 100% { transform: translateY(0); opacity: .35; } 50% { transform: translateY(-4px); opacity: .9; } }
 /* la bulle à nous : dessinée comme la sienne, on y écrit ou on y parle */
-.az-moi { display: flex; align-items: flex-end; gap: 6px; cursor: text; text-align: left; padding: 10px 10px 10px 20px; background: #FFFDF8; border: 2.5px solid #22170F; border-radius: 22px; box-shadow: 0 4px 0 rgba(42, 28, 21, .14); animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both; }
+.az-moi { position: relative; isolation: isolate; display: flex; align-items: flex-end; gap: 6px; cursor: text; text-align: left; padding: 12px 10px 12px 20px; background: transparent; animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both; }
+svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 .az-bulles.moi { margin-top: 6px; }
 #az-in { flex: 1; min-width: 0; border: 0; background: transparent; color: #2A1C15; font: inherit; font-size: 20px; line-height: 1.25; padding: 4px 0; resize: none; outline: none; max-height: 120px; field-sizing: content; }
 #az-in::placeholder { color: #B5AA9C; }
@@ -2033,10 +2036,10 @@ svg.az-nuage .nz2 { fill: none; stroke: #2A1C15; stroke-width: 1.1; opacity: .35
 .az-send { background: #2A1C15; color: #fff; }
 .az-send.ghost { background: transparent; color: #B5AA9C; font-size: 20px; font-weight: 800; }
 /* la barre du tamagotchi */
-.az-barre { display: flex; gap: 6px; margin: -6px 0 var(--s4); padding: 4px; border-radius: 999px; background: var(--surface); border: 2px solid var(--line); }
-.az-barre button { all: unset; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; border-radius: 999px; font-weight: 900; font-size: 14px; color: var(--muted); -webkit-tap-highlight-color: transparent; }
-.az-barre button:active { background: var(--line); color: var(--text); }
-.az-barre .icn { width: 18px; height: 18px; }
+.az-barre { position: relative; isolation: isolate; display: flex; gap: 6px; margin: 2px 0 var(--s4); padding: 6px; background: transparent; }
+.az-barre button { all: unset; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 999px; font-family: 'Patrick Hand', sans-serif; font-size: 19px; color: #2A1C15; -webkit-tap-highlight-color: transparent; }
+.az-barre button:active { background: rgba(42, 28, 21, .08); }
+.az-barre .icn { width: 20px; height: 20px; }
 /* l'historique, dans une feuille */
 #chat, #azmem { position: fixed; inset: 0; z-index: 86; display: flex; align-items: flex-end; justify-content: center; background: rgba(20, 30, 40, 0); transition: background .3s; }
 #chat.on, #azmem.on { background: rgba(20, 30, 40, .55); }

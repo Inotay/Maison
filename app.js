@@ -2502,7 +2502,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v207</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v208</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5114,7 +5114,7 @@ const azamiBulle = () => {
   const [p1, p2] = azamiParts();
   const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  if (!pensee && !sienne) return '';
+  if (!pensee && !sienne) return S.view === 'maison' || AZ.ecrit ? '' : `<div class="az-bulles cote"><button type="button" class="az-b az-elle az-appel" data-action="azami-ecrire" aria-label="Parler à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">…</span></button></div>`;
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
@@ -5124,11 +5124,11 @@ const azamiPied = () => `${AZ.note ? `<small class="az-note">${esc(AZ.note)}</sm
 const azamiMienne = () => {
   if (!AZ.ecrit || AZ.busy) return '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  return `<div class="az-bulles suite moi"><form class="az-b az-moi" data-form="azami"><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
+  return `<div class="az-bulles suite moi"><form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
 };
 const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + azamiMienne(); };
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
-const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role="group" aria-label="Azami">
+const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
   <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>`;
 // La bulle d'Azami est dessinée à main levée : un rond un peu bancal, tracé à l'encre, dont le trait tremble
@@ -5150,18 +5150,39 @@ const azamiNuage = (() => {
     }
     return d + 'Z';
   }
-  // la queue pointue : un triangle blanc cerné, dont la base efface le trait de l'ovale
+  // un rectangle arrondi à main levée (la forme des cartes de l'app, redessinée au feutre)
+  function rect(w, h, rad, r, amp) {
+    const pts = [], R = Math.min(rad, w / 2 - 2, h / 2 - 2), i0 = 3, x0 = i0, y0 = i0, x1 = w - i0, y1 = h - i0;
+    const seg = (ax, ay, bx, by) => { const n = Math.max(2, Math.round(Math.hypot(bx - ax, by - ay) / 16)); for (let i = 0; i < n; i++) { const t = i / n; pts.push([ax + (bx - ax) * t, ay + (by - ay) * t]); } };
+    const arc = (cx, cy, a0) => { for (let i = 0; i < 4; i++) { const a = a0 + i / 4 * Math.PI / 2; pts.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); } };
+    seg(x0 + R, y0, x1 - R, y0); arc(x1 - R, y0 + R, -Math.PI / 2); seg(x1, y0 + R, x1, y1 - R); arc(x1 - R, y1 - R, 0); seg(x1 - R, y1, x0 + R, y1); arc(x0 + R, y1 - R, Math.PI / 2); seg(x0, y1 - R, x0, y0 + R); arc(x0 + R, y0 + R, Math.PI);
+    const q = pts.map(([x, y]) => [x + (r() - .5) * amp, y + (r() - .5) * amp]), n = q.length;
+    let d = `M${q[0][0].toFixed(1)},${q[0][1].toFixed(1)}`;
+    for (let i = 0; i < n; i++) {
+      const p0 = q[(i - 1 + n) % n], p1 = q[i], p2 = q[(i + 1) % n], p3 = q[(i + 2) % n];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d + 'Z';
+  }
+  // la queue pointue : un triangle blanc cerné dont la base rentre dans l'ovale, et un cache blanc qui efface le
+  // trait de l'ovale juste sous la queue (jamais au-delà du contour)
   function queue(w, h, mode, r) {
     const j = (v, k = 1.6) => (v + (r() - .5) * k).toFixed(1);
-    const [b1, b2, tip] = mode === 'c' ? [[w - 3, h * .32], [w - 7, h * .56], [w + 26, h * .5]]
-      : mode === 'r' ? [[w - 134, 3], [w - 108, 3], [w - 104, -28]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
-    return `<path class="nz" d="M${j(b1[0])},${j(b1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(b2[0])},${j(b2[1])}"/><path class="nb" d="M${b1[0]},${b1[1]} L${b2[0]},${b2[1]}"/>`;
+    // base sur le bord (deux points), pointe ; le bord de l'ovale est à ~3 px du cadre
+    const [b1, b2, tip] = mode === 'c' ? [[w - 4, h * .34], [w - 8, h * .58], [w + 26, h * .5]]
+      : mode === 'r' ? [[w - 134, 4], [w - 108, 4], [w - 104, -28]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
+    const mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2, dx = tip[0] - mx, dy = tip[1] - my, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const dedans = p => [p[0] - ux * 8, p[1] - uy * 8], dehors = (p, q) => [p[0] + ux * 6 + (q[0] - p[0]) * .15, p[1] + uy * 6 + (q[1] - p[1]) * .15];
+    const i1 = dedans(b1), i2 = dedans(b2), o1 = dehors(b1, b2), o2 = dehors(b2, b1);
+    return `<path class="nz" d="M${j(i1[0])},${j(i1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(i2[0])},${j(i2[1])}"/><path class="nb" d="M${i1[0]},${i1[1]} L${i2[0]},${i2[1]} L${o2[0]},${o2[1]} L${o1[0]},${o1[1]}Z"/>`;
   }
   let timer = 0, frame = 0;
   function dessine(svg) {
-    const box = svg.parentElement, w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
-    const mode = box.classList.contains('az-moi') ? 's' : box.closest('.seule') ? 'r' : box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
-    const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
+    const box = svg.parentElement; if (!box) return; const w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
+    const croquis = box.classList.contains('az-croquis'), rad = croquis ? Number(box.dataset.rayon || 22) : 0;
+    const mode = croquis ? 's' : box.closest('.seule') ? 'r' : box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
+    const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}${croquis ? 'q' + rad : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
     const M = 28;
     svg.setAttribute('viewBox', `${-M} ${-M} ${w + 2 * M} ${h + 2 * M}`);
@@ -5170,9 +5191,13 @@ const azamiNuage = (() => {
       const r = rnd(7 + k * 31 + w);
       // énervée ou excitée : plusieurs traits qui se chevauchent, comme gribouillés vite
       // un trait d'encre assuré : l'ovale, puis le même tracé à peine décalé pour l'épaisseur qui varie
-      const d = trace(w, h, r, 1.4);
+      if (croquis) {   // la forme de l'app, redessinée au feutre par une main d'enfant : deux passages, un peu tremblés
+        return `<path class="nz" d="${rect(w, h, rad, r, 2.6)}"/><path class="nz fin" d="${rect(w, h, rad, rnd(3 + k * 5 + w), 2.2)}" transform="translate(${(r() - .5) * 2},${(r() - .5) * 2})"/>`;
+      }
+      const ex = mode === 'c' ? .78 : .92;   // à côté d'elle : un peu carré pour loger le texte ; en grand : un vrai ovale
+      const d = trace(w, h, r, 1.4, ex);
       const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 5 + i * 2, .8 + i * .04)}"/>`).join('') : '';
-      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r) : ''}${grib}`;
+      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4, ex)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r) : ''}${grib}`;
     });
     svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
   }
