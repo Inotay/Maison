@@ -2010,7 +2010,8 @@ svg.az-nuage .nz2 { fill: none; stroke: #2A1C15; stroke-width: 1.1; opacity: .35
 .cote .az-appel { justify-self: end; margin-right: 6px; }
 .az-elle .az-txt { white-space: pre-wrap; }
 .az-note { display: block; margin-top: 4px; font-size: 15px; color: #8A7E70; }
-.az-x { all: unset; cursor: pointer; position: absolute; top: 10px; right: 16px; width: 26px; height: 26px; display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #B5AA9C; }
+.az-x { all: unset; cursor: pointer; position: absolute; top: 9px; right: 14px; width: 26px; height: 26px; display: grid; place-items: center; font-size: 18px; font-weight: 800; color: #B5AA9C; }
+.az-elle.suite .az-x { top: 12px; right: 30px; }
 .az-choix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; align-items: center; }
 .dessous .az-choix { justify-content: center; }
 .az-choix button { all: unset; cursor: pointer; padding: 6px 14px; border-radius: 999px; background: #2A1C15; color: #fff; font-family: 'Patrick Hand', sans-serif; font-size: 18px; -webkit-tap-highlight-color: transparent; }
