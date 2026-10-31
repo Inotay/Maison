@@ -2419,7 +2419,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v196</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v197</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3617,7 +3617,7 @@ function cineCard(f) {
   const v = fVotes(f), o = other();
   const badge = fMatch(f) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : o && T.wants(v[o]) && !v[S.me] ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : '';
   const prov = fProv(f);
-  const rate = f.status === 'vu' ? S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<span class="frate">${esc(m.email === S.me ? 'Toi' : nameOf(m.email))} ${'♥'.repeat(f.ratings[m.email].note)}</span>`).join('') : '';
+  const rate = f.status === 'vu' ? S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<span class="frate">${esc(m.email === S.me ? 'Toi' : nameOf(m.email))} ${noteMini(f.ratings[m.email].note)}</span>`).join('') : '';
   return `<li><div class="fcard" data-action="cine-open" data-id="${f.id}" role="button" tabindex="0">${fPoster(f)}<div class="fbody">
     <b class="ftitle">${esc(f.title)}</b><span class="fmeta">${esc(fMeta(f))}</span>
     ${f.status === 'vu' ? '' : badge + fWhereLine(f)}
@@ -3976,6 +3976,100 @@ function algoPeutEtre() {
   };
   (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go, { timeout: 5000 });
 }
+// ── La jauge de note : on la touche ou on la glisse, de 0,5 à 5 au dixième près ──
+// Tout bouge par transformations (aucun recalcul de mise en page) et une seule fois par image : c'est fluide.
+const JMIN = .5, JMAX = 5;
+const noteMot = v => v >= 4.8 ? 'Chef-d’œuvre' : v >= 4.2 ? 'Adoré' : v >= 3.5 ? 'Aimé' : v >= 2.7 ? 'Moyen' : v >= 1.8 ? 'Pas aimé' : 'Détesté';
+const noteTxt = v => String(Math.round(v * 10) / 10).replace('.', ',');
+// petite jauge en lecture seule (listes, fiches)
+const noteMini = (v, cls = '') => v ? `<span class="nmini ${cls}" aria-label="${noteTxt(v)} sur 5"><i style="--p:${Math.max(0, Math.min(1, (v - JMIN) / (JMAX - JMIN))).toFixed(3)}"></i><b>${noteTxt(v)}</b></span>` : '';
+function jauge(v = 0) {
+  return `<div class="jauge${v ? ' set' : ''}" role="slider" tabindex="0" aria-label="Ta note" aria-valuemin="${JMIN}" aria-valuemax="${JMAX}" aria-valuenow="${v || ''}" aria-valuetext="${v ? `${noteTxt(v)} sur 5, ${noteMot(v)}` : 'pas encore noté'}" data-v="${v || ''}">
+    <div class="j-word" aria-hidden="true">${v ? noteMot(v) : 'Glisse ou touche pour noter'}</div>
+    <div class="j-track"><div class="j-grad"></div><div class="j-mask"></div><div class="j-ticks">${[1, 2, 3, 4].map(n => `<i style="left:calc(22px + (100% - 44px) * ${((n - JMIN) / (JMAX - JMIN)).toFixed(4)})"></i>`).join('')}</div><div class="j-thumb"><b>${v ? noteTxt(v) : ''}</b></div></div>
+    <div class="j-ends" aria-hidden="true"><span>Détesté</span><span>Moyen</span><span>Adoré</span></div></div>`;
+}
+function jaugeBind(el, onChange) {
+  const tr = el.querySelector('.j-track'), th = el.querySelector('.j-thumb'), mask = el.querySelector('.j-mask'), word = el.querySelector('.j-word'), num = th.querySelector('b');
+  let v = Number(el.dataset.v) || 0, raf = 0, w = 0, tw = 0, lastInt = Math.floor(v), lastWord = word.textContent, drag = false;
+  const measure = () => { w = tr.clientWidth; tw = th.offsetWidth; };
+  const paint = () => {
+    raf = 0; if (!w) measure();
+    const p = v ? (v - JMIN) / (JMAX - JMIN) : 0;
+    th.style.transform = `translate3d(${p * (w - tw)}px, 0, 0)`;
+    mask.style.transform = `translate3d(${(p * (w - tw) + tw / 2)}px, 0, 0)`;
+    num.textContent = v ? noteTxt(v) : '';
+    const mot = v ? noteMot(v) : lastWord; if (mot !== lastWord) { word.textContent = mot; lastWord = mot; }
+    // la couleur suit la note : de la prune (détesté) au rouge Maison, puis à l'or (adoré)
+    el.style.setProperty('--jh', String(Math.round(290 + p * 115) % 360));
+  };
+  const set = (nv, final) => {
+    nv = Math.max(JMIN, Math.min(JMAX, Math.round(nv * 10) / 10));
+    if (nv === v && !final) return;
+    const i = Math.floor(nv); if (v && i !== lastInt) { haptic(1); } lastInt = i;
+    v = nv; el.dataset.v = v; el.classList.add('set');
+    el.setAttribute('aria-valuenow', v); el.setAttribute('aria-valuetext', `${noteTxt(v)} sur 5, ${noteMot(v)}`);
+    if (!raf) raf = requestAnimationFrame(paint);
+    onChange?.(v, final);
+  };
+  const at = x => { const r = tr.getBoundingClientRect(); return JMIN + Math.max(0, Math.min(1, (x - r.left - tw / 2) / Math.max(1, r.width - tw))) * (JMAX - JMIN); };
+  el.addEventListener('pointerdown', e => {
+    if (e.button > 0) return; e.stopPropagation(); measure(); drag = true; el.classList.add('drag');
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    set(at(e.clientX), false);
+  });
+  el.addEventListener('pointermove', e => { if (!drag) return; e.preventDefault(); e.stopPropagation(); set(at(e.clientX), false); });
+  const up = e => { if (!drag) return; drag = false; el.classList.remove('drag'); e?.stopPropagation?.(); set(v, true); };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  el.addEventListener('keydown', e => { const d = { ArrowRight: .1, ArrowUp: .1, ArrowLeft: -.1, ArrowDown: -.1 }[e.key]; if (d) { e.preventDefault(); set((v || 3) + d, true); } });
+  requestAnimationFrame(() => { measure(); paint(); });
+  return { get: () => v };
+}
+// ── Renoter à la chaîne ──
+// Les notes données avec les cœurs (1 à 5) se refont une à une avec la jauge : on lâche la jauge, c'est enregistré,
+// le film suivant arrive. L'ancienne note reste visible en petit, comme repère.
+function renote() {
+  const list = S.films.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j).sort((a, b) => String(vuAt(b)).localeCompare(String(vuAt(a))));
+  if (!list.length) { toast('Tout est déjà noté avec la jauge'); return; }
+  document.getElementById('renote')?.remove();
+  const box = document.createElement('div'); box.id = 'renote';
+  let i = 0, timer = 0;
+  const hist = [];
+  const draw = () => {
+    clearTimeout(timer);
+    const f = list[i];
+    if (!f) { box.innerHTML = `<div class="rn-top"><button class="link" data-rn="close">Fermer</button><span></span></div><div class="rn-fin"><b>C’est fait !</b><p>${hist.length} films renotés. Azami en tient compte tout de suite.</p><button class="btn" data-rn="close">Terminer</button></div>`; return; }
+    const old = f.ratings[S.me].note;
+    box.innerHTML = `<div class="rn-top"><button class="link" data-rn="close">Fermer</button><span class="rn-n">${i + 1} / ${list.length}</span></div>
+      <div class="rn-card">${fPoster(f, 'rn-poster')}<div class="rn-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.traits?.dir?.[0]?.name || f.director].filter(Boolean).join(' · '))}</small><small class="rn-old">Avant : ${noteTxt(old)} sur 5</small></div></div>
+      ${jauge(0)}
+      <div class="rn-acts"><button class="btn ghost" data-rn="back" ${hist.length ? '' : 'disabled'}>Retour</button><button class="btn ghost" data-rn="skip">Garder ${noteTxt(old)}</button></div>`;
+    const j = box.querySelector('.jauge');
+    jaugeBind(j, (v, fin) => { clearTimeout(timer); if (fin) timer = setTimeout(() => save(f, v), 650); });
+    // l'ancienne note, en petit repère sur la jauge
+    j.querySelector('.j-track').insertAdjacentHTML('beforeend', `<i class="rn-mark" style="left:calc(22px + (100% - 44px) * ${((old - JMIN) / (JMAX - JMIN)).toFixed(4)})"></i>`);
+  };
+  const save = (f, v) => {
+    const prev = { ...(f.ratings?.[S.me] || {}) };
+    const ratings = { ...(f.ratings || {}), [S.me]: { ...prev, note: v, j: 1 } };
+    f.ratings = ratings; hist.push([f, prev]); tasteMemo = null;
+    api.update('films', { id: f.id }, { ratings }).catch(() => toast('Pas enregistré, réessaie.'));
+    box.querySelector('.rn-card')?.classList.add('out');
+    setTimeout(() => { i++; draw(); }, 180);
+  };
+  box.addEventListener('click', e => {
+    const b = e.target.closest('[data-rn]'); if (!b) return;
+    const k = b.dataset.rn;
+    if (k === 'close') { clearTimeout(timer); box.classList.remove('on'); setTimeout(() => { box.remove(); render(); }, 220); return; }
+    if (k === 'skip') { const f = list[i]; save(f, f.ratings[S.me].note); return; }
+    if (k === 'back' && hist.length) {
+      clearTimeout(timer); const [f, prev] = hist.pop();
+      f.ratings = { ...(f.ratings || {}), [S.me]: prev }; api.update('films', { id: f.id }, { ratings: f.ratings }).catch(() => {});
+      i = list.indexOf(f); draw();
+    }
+  });
+  document.body.appendChild(box); draw(); requestAnimationFrame(() => box.classList.add('on'));
+}
 // Quelqu'un d'autre a-t-il un avis sur ce film ? (alors il n'est pas à toi seul)
 const othersOn = f => S.members.some(m => m.email !== S.me && (fVotes(f)[m.email] || f.ratings?.[m.email] || f.seen?.[m.email] || (f.coeur || []).includes(m.email) || f.pourquoi?.[m.email]));
 // Le petit ménage : ce qui attend dans ta liste depuis plus de 6 mois.
@@ -4013,19 +4107,21 @@ function mesVusHtml(list) {
   const so = S.vusS || 'note', o = other(), max = S.vusMax || 40;
   const byDate = (a, b) => String(vuAt(b)).localeCompare(String(vuAt(a)));
   const l = [...list].sort(so === 'note' ? (a, b) => ((b.ratings?.[S.me]?.note || 0) - (a.ratings?.[S.me]?.note || 0)) || byDate(a, b) : byDate);
-  const hearts = n => `<span class="hearts" aria-label="${n} sur 5">${'♥'.repeat(n)}<i>${'♥'.repeat(5 - n)}</i></span>`;
+  const hearts = n => noteMini(n, 'big');
   const row = f => { const me = f.ratings?.[S.me]?.note || 0, ot = o && f.ratings?.[o]?.note;
-    return `<li><button type="button" class="vurow" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'sposter')}<span class="vu-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.status === 'vu' ? 'vu à deux' : '', vuAt(f) ? vuDay(vuAt(f)) : ''].filter(Boolean).join(' · '))}</small></span><span class="vu-n">${me ? hearts(me) : '<small>à noter</small>'}${ot ? `<small>${esc(nameOf(o))} ${'♥'.repeat(ot)}</small>` : ''}</span></button></li>`; };
+    return `<li><button type="button" class="vurow" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'sposter')}<span class="vu-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.status === 'vu' ? 'vu à deux' : '', vuAt(f) ? vuDay(vuAt(f)) : ''].filter(Boolean).join(' · '))}</small></span><span class="vu-n">${me ? hearts(me) : '<small>à noter</small>'}${ot ? `<small>${esc(nameOf(o))} ${noteTxt(ot)}</small>` : ''}</span></button></li>`; };
   let out = '', last = null;
   for (const f of l.slice(0, max)) {
-    const n = f.ratings?.[S.me]?.note || 0;
-    if (so === 'note' && n !== last) { out += `${last === null ? '' : '</ul>'}<p class="chip-label vu-h">${NOTE_L[n]} <small>${l.filter(x => (x.ratings?.[S.me]?.note || 0) === n).length}</small></p><ul class="vulist">`; last = n; }
+    const n = Math.round(f.ratings?.[S.me]?.note || 0);
+    if (so === 'note' && n !== last) { out += `${last === null ? '' : '</ul>'}<p class="chip-label vu-h">${NOTE_L[n]} <small>${l.filter(x => Math.round(x.ratings?.[S.me]?.note || 0) === n).length}</small></p><ul class="vulist">`; last = n; }
     else if (so !== 'note' && last === null) { out += '<ul class="vulist">'; last = 1; }
     out += row(f);
   }
   out += '</ul>';
   const sortb = `<div class="vu-sort" role="group" aria-label="Trier"><button data-action="vus-sort" data-s="note" aria-pressed="${so === 'note'}">Par note</button><button data-action="vus-sort" data-s="date" aria-pressed="${so === 'date'}">Les plus récents</button></div>`;
-  return sortb + out + (l.length > max ? `<button class="btn ghost wide cine-more" data-action="vus-more">Voir les ${l.length - max} autres</button>` : '');
+  const aRevoir = list.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j).length;
+  const renote = aRevoir ? `<button type="button" class="link renote-l" data-action="renote">Renoter à la chaîne avec la jauge · ${aRevoir}</button>` : '';
+  return renote + sortb + out + (l.length > max ? `<button class="btn ghost wide cine-more" data-action="vus-more">Voir les ${l.length - max} autres</button>` : '');
 }
 function journalStats() {
   const vus = S.films.filter(f => f.status === 'vu'); if (vus.length < 3) return '';
@@ -4156,7 +4252,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
     const back = filmBefore(ex, ['votes', 'seen', 'ratings']);
     const patch = vote ? { votes: { ...fVotes(ex), [S.me]: vote } } : {};
     if (meta) patch.hesite = { ...(ex.hesite || {}), [S.me]: meta };
-    if (seenNote) { patch.seen = { ...(ex.seen || {}), [S.me]: true }; patch.ratings = { ...(ex.ratings || {}), [S.me]: { ...(ex.ratings?.[S.me] || {}), note: seenNote } }; }
+    if (seenNote) { patch.seen = { ...(ex.seen || {}), [S.me]: true }; patch.ratings = { ...(ex.ratings || {}), [S.me]: { ...(ex.ratings?.[S.me] || {}), note: seenNote, j: 1 } }; }
     if (!ex.traits && item.traits) Object.assign(patch, { traits: item.traits, gids: item.gids || ex.gids || [], lang: item.lang || ex.lang, note: item.note || ex.note });
     if (!ex.presse && item.presse) patch.presse = item.presse;
     Object.assign(ex, patch); await api.update('films', { id: ex.id }, patch);
@@ -4166,7 +4262,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
   const full = enrich ? await filmEnrich(item) : item;
   const row = { tmdb_id: full.tmdb_id || null, media: full.media === 'tv' ? 'tv' : 'movie', title: full.title, year: full.year || null, poster: full.poster || null, overview: full.overview || null,
     runtime: full.runtime || null, seasons: full.seasons || null, genres: full.genres || [], director: full.director || null, providers: full.providers || [], trailer: full.trailer || null, votes: vote ? { [S.me]: vote } : {}, status: 'a_voir', coeur: [], original: full.original || null, added_by: S.me,
-    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, hesite: meta ? { [S.me]: meta } : null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote } } : {} };
+    gids: full.gids || [], lang: full.lang || null, note: full.note || null, traits: full.traits || null, presse: full.presse || null, hesite: meta ? { [S.me]: meta } : null, seen: seenNote ? { [S.me]: true } : {}, ratings: seenNote ? { [S.me]: { note: seenNote, j: 1 } } : {} };
   const r = await api.insert('films', row);
   const saved = { ...row, ...(r || {}), status: 'a_voir', created_at: new Date().toISOString() };
   S.films.push(saved); filmVote.undo = [label, [], saved.id ? [['films', saved.id]] : []]; (filmVote.undoFor ||= new Map()).set(k, filmVote.undo); return saved;
@@ -4203,7 +4299,7 @@ async function deckOpen(mood = '') {
     <p class="deck-hint">→ envie · ← bof · ↓ non, j’aime pas · ↑ déjà vu</p>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   box.addEventListener('click', e => {
-    const n = e.target.closest('[data-note]'); if (n) { deckSeen(Number(n.dataset.note)); return; }
+    const n = e.target.closest('[data-seen-ok]'); if (n) { if (!n.disabled) deckSeen(Number(n.dataset.note)); return; }
     const b = e.target.closest('[data-d], [data-mood]'); if (!b) return;
     if (b.dataset.mood !== undefined) { deckOpen(b.dataset.mood); return; }
     if (b.dataset.d === 'info') { deckInfo(); return; }
@@ -4222,7 +4318,7 @@ async function deckOpen(mood = '') {
   // un geste horizontal (ou vers le bas) referme la bulle et emmène la carte.
   let fw = null, fwAt = 0;
   box.addEventListener('pointerdown', e => {
-    const ov = e.target.closest('.dseen, .dwhyask, .fmatch'); fw = ov && deck?.swipe && !e.button ? { x: e.clientX, y: e.clientY, id: e.pointerId, ov, on: false } : null;
+    const ov = !e.target.closest('.jauge') && e.target.closest('.dseen, .dwhyask, .fmatch'); fw = ov && deck?.swipe && !e.button ? { x: e.clientX, y: e.clientY, id: e.pointerId, ov, on: false } : null;
   }, true);
   box.addEventListener('pointermove', e => {
     if (!fw || e.pointerId !== fw.id) return;
@@ -4542,8 +4638,10 @@ function deckAskSeen(redraw = false) {
   const st = deck.box.querySelector('.deck-stack');
   st.querySelector('.dseen')?.remove();
   st.insertAdjacentHTML('beforeend', `<div class="dseen" role="dialog" aria-label="Tu l’as vu"><p class="dseen-t">Tu as vu <b>${esc(f.title)}</b>. Alors ?</p>
-    <div class="dseen-notes">${[[1, 'Détesté'], [2, 'Pas aimé'], [3, 'Moyen'], [4, 'Aimé'], [5, 'Adoré']].map(([n, l]) => `<button data-note="${n}"><span>${'♥'.repeat(n)}</span><small>${l}</small></button>`).join('')}</div>
-    <button class="link" data-d="skip">Annuler</button></div>`);
+    ${jauge(0)}
+    <div class="dseen-acts"><button class="link" data-d="skip">Annuler</button><button class="btn dseen-ok" data-seen-ok disabled>C’est noté</button></div></div>`);
+  const box = st.querySelector('.dseen'), ok = box.querySelector('[data-seen-ok]');
+  jaugeBind(box.querySelector('.jauge'), (v, fin) => { ok.disabled = false; ok.dataset.note = v; ok.textContent = `C’est noté · ${noteTxt(v)}`; });
 }
 async function deckSeen(note) {
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');
@@ -4649,7 +4747,7 @@ async function cineOpen(id) {
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
       : `<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Changer ma note</button>`;
     const heart = `<button class="fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}" aria-label="${(f.coeur || []).includes(S.me) ? 'Retirer de mes coups de cœur' : 'Mettre dans mes coups de cœur'}"><span aria-hidden="true">${(f.coeur || []).includes(S.me) ? '♥' : '♡'}</span><small>Coup de cœur</small></button>`;
-    const rates = S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> <span class="hearts">${'♥'.repeat(f.ratings[m.email].note)}${'♡'.repeat(5 - f.ratings[m.email].note)}</span>${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
+    const rates = S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> ${noteMini(f.ratings[m.email].note, 'big')}${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
     document.getElementById('ticket')?.remove();
     const box = document.createElement('div'); box.id = 'ticket';
     box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}"><button type="button" class="fsheet-x" data-action="sheet-close" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
@@ -4691,16 +4789,16 @@ function cineRate(id, solo = false) {
   const box = document.createElement('div'); box.id = 'ticket';
   const draw = () => {
     box.innerHTML = `<div class="ticket-card fsheet frate-sheet" role="dialog" aria-label="Alors ?">${fPoster(f, 'rateposter')}<p class="ticket-title">Alors, ${esc(f.title)} ?</p><p class="ticket-sub">${solo ? 'Tu l’as déjà vu : ta note apprend à Azami ce que tu aimes, et ce que tu n’aimes pas.' : 'Ta note et un petit mot, pour votre journal à deux.'}</p>
-      <div class="hearts-pick">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" aria-label="${n} sur 5" aria-pressed="${n <= note}">${n <= note ? '♥' : '♡'}</button>`).join('')}</div>
+      ${jauge(note)}
       <textarea class="area" id="f-mot" placeholder="Un petit mot (facultatif) : la scène préférée, ce qui t’a fait rire…">${esc(mine.mot || '')}</textarea>
       <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-r="ok" ${note ? '' : 'disabled'}>Enregistrer</button></div></div>`;
   };
   draw();
+  jaugeBind(box.querySelector('.jauge'), v => { note = v; const b = box.querySelector('[data-r="ok"]'); if (b) b.disabled = false; });
   box.addEventListener('click', async e => {
     if (e.target === box) { closeTicket(); return; }
-    const h = e.target.closest('[data-n]'); if (h) { const mot = box.querySelector('#f-mot')?.value; note = Number(h.dataset.n); haptic(1); draw(); box.querySelector('#f-mot').value = mot; return; }
     if (e.target.closest('[data-r="ok"]')) {
-      const ratings = { ...(f.ratings || {}), [S.me]: { note, mot: box.querySelector('#f-mot').value.trim() } };
+      const ratings = { ...(f.ratings || {}), [S.me]: { note, j: 1, mot: box.querySelector('#f-mot').value.trim() } };
       const back = filmBefore(f, ['ratings', 'seen', 'status', 'seen_at']);
       if (solo) { const patch = { ratings, seen: { ...(f.seen || {}), [S.me]: true } }; Object.assign(f, patch); closeTicket(); run(() => api.update('films', { id: f.id }, patch), 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : noté`, [back])); return; }
       const first = f.status !== 'vu';
@@ -4921,6 +5019,7 @@ const actions = {
   'cine-space': el => { S.cineSpace = el.dataset.s; safeSet(SPACE_KEY, S.cineSpace); haptic(1); render(); },
   'cine-nope': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); filmVote(f, 'non', false).then(() => { toast('Noté : pas pour toi.'); render(); cineUndo(...(filmVote.undo || ['bof', [], []])); }); },
   'cine-iseen': el => cineRate(el.dataset.id, true),
+  renote: () => renote(),
   'moi-tab': el => { S.cineMoi = el.dataset.t; haptic(1); render(); },
   'vus-sort': el => { S.vusS = el.dataset.s; S.vusMax = 40; haptic(1); render(); },
   'vus-more': () => { S.vusMax = (S.vusMax || 40) + 60; render(); },
