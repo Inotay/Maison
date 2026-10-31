@@ -2243,10 +2243,10 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiBarre()}${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' || !azamiBulle().includes('cote') ? '' : azamiBulle()}</header>${S.view === 'maison' || azamiBulle().includes('cote') ? '' : azamiBulle()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType();
+  azamiType(); azamiNuage();
   cookSave();
   propEnter();
   deepLink();
@@ -2441,7 +2441,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v202</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v203</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5040,16 +5040,64 @@ const azamiBulle = () => {
   if (!S.me || S.recovery) return '';
   const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
   // sur les pages, la place à côté d'elle est petite : la bulle à nous remplace la sienne le temps d'écrire
-  const sienne = !AZ.busy && AZ.bulle && !(AZ.ecrit && S.view !== 'maison') ? `<div class="az-b az-elle" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
+  const sienne = !AZ.busy && AZ.bulle && !(AZ.ecrit && S.view !== 'maison') ? `<div class="az-b az-elle" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   const mienne = AZ.ecrit && !AZ.busy ? `<form class="az-b az-moi" data-form="azami"><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></span></form>` : '';
   if (!pensee && !sienne && !mienne) return '';
-  return `<div class="az-bulles ${S.view === 'maison' ? 'dessous' : 'cote'}">${pensee}${sienne}${mienne}</div>`;
+  const court = AZ.bulle.length <= 70 && !AZ.choix.length && !AZ.note && !mienne;
+  return `<div class="az-bulles ${S.view === 'maison' ? 'dessous' : court ? 'cote' : 'dessous droite'}">${pensee}${sienne}${mienne}</div>`;
 };
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role="group" aria-label="Azami">
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
   <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>`;
+// La bulle d'Azami est dessinée à main levée : un rond un peu bancal, tracé à l'encre, dont le trait tremble
+// image par image (trois dessins qui alternent, comme du stop motion). Redessinée quand la bulle change de taille.
+const azamiNuage = (() => {
+  const rnd = (seed => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; });
+  // un tracé fermé passant par des points bruités autour d'un rond aplati (superellipse), lissé en courbes
+  function trace(w, h, r, amp) {
+    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3, n = Math.max(14, Math.round((w + h) / 22)), pts = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / n * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
+      const x = cx + a * Math.sign(c) * Math.abs(c) ** .62 + (r() - .5) * amp, y = cy + b * Math.sign(s) * Math.abs(s) ** .62 + (r() - .5) * amp;
+      pts.push([x, y]);
+    }
+    let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+    for (let i = 0; i < n; i++) {
+      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d += `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+    }
+    return d + 'Z';
+  }
+  const rond = (x, y, rad, r, amp) => trace(rad * 2, rad * 2, r, amp).replace(/(-?\d+\.?\d*),(-?\d+\.?\d*)/g, (_, a, b) => `${(Number(a) + x - rad).toFixed(1)},${(Number(b) + y - rad).toFixed(1)}`);
+  let timer = 0, frame = 0;
+  function dessine(svg) {
+    const box = svg.parentElement, w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
+    const cle = `${w}x${h}:${box.closest('.dessous') ? 'd' : 'c'}${box.closest('.droite') ? 'r' : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
+    if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
+    const M = 14, dessous = !!box.closest('.dessous');
+    svg.setAttribute('viewBox', `${-M} ${-M} ${w + 2 * M} ${h + 2 * M}`);
+    svg.style.cssText = `position:absolute;left:${-M}px;top:${-M}px;width:${w + 2 * M}px;height:${h + 2 * M}px;overflow:visible`;
+    const frames = [0, 1, 2].map(k => {
+      const r = rnd(7 + k * 31 + w);
+      // la queue : deux petits ronds vers elle (à droite sur les pages, en haut sur l'accueil)
+      const droite = !!box.closest('.droite');
+      const q = droite ? [[w - 34, -11, 6.5], [w - 22, -22, 4]] : dessous ? [[w / 2 + 2, -11, 6.5], [w / 2 - 7, -22, 4]] : [[w + 9, 24, 6.5], [w + 20, 36, 4]];
+      return `<path class="nz" d="${trace(w, h, r, 3.2)}"/><path class="nz" d="${rond(...q[0], r, 1.6)}"/><path class="nz" d="${rond(...q[1], r, 1.2)}"/><path class="nz2" d="${trace(w, h, rnd(99 + k * 17 + h), 2.2)}"/>`;
+    });
+    svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
+    svg.dataset.frames = '3';
+  }
+  function tick() { frame = (frame + 1) % 3; document.querySelectorAll('svg.az-nuage').forEach(s => s.dataset.f = frame); }
+  return () => {
+    const svgs = document.querySelectorAll('svg.az-nuage');
+    svgs.forEach(dessine);
+    if (svgs.length && !timer && !reducedMotion()) timer = setInterval(tick, 160);
+    if (!svgs.length && timer) { clearInterval(timer); timer = 0; }
+  };
+})();
 // Sa réponse s'écrit lettre par lettre, avec sa petite voix (toucher la bulle pour aller plus vite).
 async function azamiType() {
   const el = document.querySelector('.az-elle[data-k] .az-txt'); if (!el) return;
