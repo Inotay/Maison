@@ -2088,5 +2088,5 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 #poubelle.ouverte { transform: translate(-50%, 0) scale(1.08); }
 
 /* le japonais dans ses bulles : touchable, ça le prononce */
-.az-elle .jp { all: unset; cursor: pointer; font: inherit; font-size: 1.12em; color: #2A1C15; border-bottom: 2px dotted #C8951E; padding: 0 2px; -webkit-tap-highlight-color: transparent; }
+.az-elle .jp { all: unset; cursor: pointer; white-space: nowrap; font: inherit; font-size: 1.12em; color: #2A1C15; border-bottom: 2px dotted #C8951E; padding: 0 2px; -webkit-tap-highlight-color: transparent; }
 .az-elle .jp:active { background: rgba(247, 201, 72, .35); }

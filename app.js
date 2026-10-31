@@ -5417,7 +5417,7 @@ const jpDire = txt => {
   try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'ja-JP'; u.rate = .85; const v = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang)); if (v) u.voice = v; speechSynthesis.speak(u); haptic(1); } catch {}
 };
 // dans ses bulles, ce qui est écrit en japonais devient touchable (ça le prononce)
-const jpWrap = html => html.replace(/[぀-ヿ一-龯ー]+/g, m => `<button type="button" class="jp" data-action="jp-dire" data-txt="${m}">${m}</button>`);
+const jpWrap = html => html.replace(/([\u3040-\u30ff\u4e00-\u9faf\u30fc]+)([,.!?;:]?)/g, (_, m, p) => `<button type="button" class="jp" data-action="jp-dire" data-txt="${m}">${m}${p}</button>`);
 function jpAujourdhui() {
   if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || AZ.bulle || azamiNuit()) return false;
   const j = JP(), jour = isoDate(new Date()); if (j.jour === jour) return false;
