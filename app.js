@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v217</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v218</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5139,7 +5139,7 @@ function azamiRetour() {
   const now = Date.now(), parti = now - azamiVu; azamiVu = now;
   if (parti < 3 * 60e3) return;                                    // un aller-retour rapide : rien ne change
   if (AZ.bulle && now - (AZ.at || 0) > 10 * 60e3 && !AZ.busy && !AZ.ecrit) { AZ.bulle = ''; AZ.choix = []; safeSet('maison-az-bulle', ''); }
-  const h = new Date().getHours(); if (h >= 22 || h < 8 || !S.me) { render(); return; }
+  const h = new Date().getHours(); if (azamiNuit() || !S.me) { render(); return; }
   if (parti < 15 * 60e3 || Math.random() < .3) { render(); return; }   // parfois elle ne dit rien, c'est très bien aussi
   const t = tamaEtat(); tamaTick();
   const pool = t.faim < 30 && Math.random() < .6 ? 'faim' : parti > 8 * 36e5 ? (h < 11 ? 'matin' : h >= 19 ? 'soir' : 'long') : 'court';
@@ -5180,6 +5180,9 @@ const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.rec
 // Une partie du temps c'est elle qui improvise (le modèle reçoit l'événement, avec l'app et ses films) ;
 // sinon une phrase locale.
 const AZ_MODE = () => safeGet('maison-az-mode') || 'bavarde';
+// Ses heures de calme (22 h à 8 h). Levées exceptionnellement ce soir, le temps d'essayer (jusqu'au 1er novembre 8 h).
+const AZ_VEILLE = Date.parse('2026-11-01T08:00:00+01:00');
+const azamiNuit = () => { if (Date.now() < AZ_VEILLE) return false; const h = new Date().getHours(); return h >= 22 || h < 8; };
 let azDernier = 0, azInactif = Date.now(), azInactifDit = false;
 const AZ_PAGES_MOTS = {
   maison: ['Tu rentres ? Je faisais semblant de dormir.', 'L’accueil. Mon endroit préféré, après le fauteuil.'],
@@ -5194,7 +5197,7 @@ const AZ_INACTIF_MOTS = ['Tu regardes l’écran depuis un moment. Tu cherches q
 function azamiRemarque(evt, detail = '') {
   if (!S.me || S.recovery || AZ.busy || AZ.ecrit || document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;
   const mode = AZ_MODE(); if (mode === 'muette') return;
-  const h = new Date().getHours(); if (h >= 22 || h < 8) return;
+  if (azamiNuit()) return;
   const now = Date.now(), delai = mode === 'bavarde' ? 80e3 : 8 * 60e3;
   if (now - azDernier < delai || now - (AZ.at || 0) < 40e3) return;
   const chance = evt === 'inactif' ? .9 : mode === 'bavarde' ? .3 : .1;
@@ -5274,8 +5277,7 @@ const TAMA_MOTS = {
   jeu: ['Je m’ennuie un peu. Les voisins ne passent même pas.', 'On joue ? Même cinq minutes. Même trois.'],
 };
 function tamaDire() {
-  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit) return;
-  const heure = new Date().getHours(); if (heure >= 22 || heure < 8) return;
+  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || azamiNuit()) return;
   const t = tamaEtat(), now = Date.now();
   const besoin = ['faim', 'soif', 'calins', 'jeu'].filter(k => (t[k] ?? 70) < 30 && now - (t.dit?.[k] || 0) > 3 * 36e5).sort((a, b) => (t[a] ?? 70) - (t[b] ?? 70))[0];
   if (!besoin || (AZ.bulle && now - (AZ.at || 0) < 20 * 60e3)) return;
