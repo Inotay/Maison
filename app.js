@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v222</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v223</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5416,10 +5416,10 @@ const azamiNuage = (() => {
   // trait de l'ovale juste sous la queue (jamais au-delà du contour)
   // où part la queue selon la position de la bulle : à droite vers elle, en haut à droite, ou en haut
   function queue(w, h, mode, ex) {
-    const [t1, t2] = mode === 'c' ? [-.32, .2] : mode === 'r' ? [-1.05, -.78] : [-1.75, -1.4];
+    const [t1, t2] = mode === 'c' ? [-.32, .2] : mode === 'r' ? [-1.45, -1.15] : [-1.75, -1.4];   // en grand : la base sous sa tête (vers 70 % de la largeur)
     const b1 = ptEll(w, h, ex, t1), b2 = ptEll(w, h, ex, t2), mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
     const dx = mx - w / 2, dy = my - h / 2, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const tip = mode === 'c' ? [mx + 28, my + 12] : mode === 'r' ? [mx + 30, my - 30] : [mx + ux * 26 + 6, my + uy * 26];   // en grand : vers sa tête, en haut à droite
+    const tip = mode === 'c' ? [mx + 28, my + 12] : mode === 'r' ? [mx + 8, my - 34] : [mx + ux * 26 + 6, my + uy * 26];   // en grand : droit vers sa tête
     return { t1, t2, tip };
   }
   let timer = 0, frame = 0;
