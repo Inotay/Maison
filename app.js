@@ -1728,6 +1728,9 @@ function morphChildren(from, to) {
 const IC = {
   non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
   horloge: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  poisson: '<path d="M3.5 12c2.5-3.5 5.5-5 9-5 3 0 5.5 2 7 5-1.5 3-4 5-7 5-3.5 0-6.5-1.5-9-5z"/><path d="M19.5 12l2.5-3v6z"/><circle cx="7.5" cy="11.5" r=".7" fill="currentColor"/><path d="M12 7.5c-1 1.5-1 7.5 0 9"/>',
+  marmite: '<path d="M5 10h14l-1 8.5a2 2 0 0 1-2 1.5H8a2 2 0 0 1-2-1.5z"/><path d="M3 10h18M8 10V8.5a4 4 0 0 1 8 0V10"/><path d="M9.5 5.5c0-1 .8-1 .8-2M13.5 5.5c0-1 .8-1 .8-2"/>',
+  friandise: '<path d="M8 9.5a2.5 2.5 0 1 1 3 2.4v.2a2.5 2.5 0 1 1-3 0v-.2A2.5 2.5 0 0 1 8 9.5z" transform="rotate(-35 11 12)"/><path d="M14.5 6.5l1.2-1.2M17.5 9.5l1.2-1.2M15 10.5l2.5-2.5"/>',
   gamelle: '<path d="M4 12h16l-1.5 6.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M7 12c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="10" cy="10" r=".6"/><circle cx="13.5" cy="9.2" r=".6"/>',
   eau: '<path d="M12 3.5c3 4 6 7 6 10.5a6 6 0 0 1-12 0c0-3.5 3-6.5 6-10.5z"/><path d="M9 14.5a3 3 0 0 0 2 2.8"/>',
   crayon: '<path d="M4 20l4.2-1 10.3-10.3a1.8 1.8 0 0 0 0-2.5l-.7-.7a1.8 1.8 0 0 0-2.5 0L5 15.8z"/><path d="M13.5 7.2l3.3 3.3"/>',
@@ -2507,7 +2510,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v210</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v211</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5210,9 +5213,9 @@ const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div
   <button type="button" data-action="tama-menu" aria-expanded="${S.tamaMenu === 'nourrir'}">${icn('gamelle')}<span>Nourrir</span></button>
   <button type="button" data-action="tama-geste" data-geste="eau">${icn('eau')}<span>Boire</span></button>
   <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>${S.tamaMenu === 'nourrir' ? `<div class="az-menu az-croquis" data-rayon="20"><svg class="az-nuage" aria-hidden="true"></svg>
-  <button type="button" data-action="tama-geste" data-geste="croquettes">🐟<span>Croquettes au poisson</span></button>
-  <button type="button" data-action="tama-geste" data-geste="ragout">🍲<span>Ragoût</span></button>
-  <button type="button" data-action="tama-geste" data-geste="friandise">🍬<span>Friandise</span></button></div>` : ''}`;
+  <button type="button" data-action="tama-geste" data-geste="croquettes">${icn('poisson')}<span>Croquettes au poisson</span></button>
+  <button type="button" data-action="tama-geste" data-geste="ragout">${icn('marmite')}<span>Ragoût</span></button>
+  <button type="button" data-action="tama-geste" data-geste="friandise">${icn('friandise')}<span>Friandise</span></button></div>` : ''}`;
 // La bulle d'Azami est dessinée à main levée : un rond un peu bancal, tracé à l'encre, dont le trait tremble
 // image par image (trois dessins qui alternent, comme du stop motion). Redessinée quand la bulle change de taille.
 const azamiNuage = (() => {
