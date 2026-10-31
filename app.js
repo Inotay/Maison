@@ -1369,7 +1369,7 @@ function visitOpen(id, replay = false) {
   const v = VISITES.find(x => x.id === id); if (!v) return;
   document.getElementById('visite-invite')?.remove();
   clearReaction(); popClose();
-  document.getElementById('visite')?.remove();
+  document.getElementById('visite')?.remove(); azamiChut();
   const box = document.createElement('div'); box.id = 'visite';
   box.innerHTML = `<div class="visite-card ${v.kind === 'secret' ? 'rare' : ''}" role="dialog" aria-modal="true" aria-label="Azami te parle">
     <p class="visite-kind">${esc(VISIT_KIND[v.kind] || 'Azami')}${replay ? ' · dans votre carnet' : ''}</p><button class="visite-x" data-v="close" aria-label="${replay ? 'Fermer' : 'Plus tard'}">×</button>
@@ -1960,7 +1960,11 @@ function stopPropSounds() {
   try { propRun.buses?.forEach(b => b.disconnect()); } catch {}
   propRun.io?.disconnect(); propRun.timers.forEach(clearTimeout); propRun = null;
 }
+// Quelque chose couvre l'écran (renotage, visite, historique, mémoire) : ses bruitages s'arrêtent ; ils
+// reprendront au prochain rendu, quand la feuille sera fermée.
+function azamiChut() { stopPropSounds(); lastHdScene = null; }
 function propEnter() {
+  if (document.querySelector('#renote, #visite, #chat, #azmem')) return;   // une feuille couvre l'écran : silence
   if (document.getElementById('deck')) return;   // pendant Cinder, Azami se tait
   const img = document.querySelector('.hd img.azami');
   const sc = img ? Object.keys(azamiImgs).find(k => azamiImgs[k] === img) : null;
@@ -2510,7 +2514,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v213</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v214</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4120,10 +4124,11 @@ function jaugeBind(el, onChange) {
 // Les notes données avec les cœurs (1 à 5) se refont une à une avec la jauge : on lâche la jauge, c'est enregistré,
 // le film suivant arrive. L'ancienne note reste visible en petit, comme repère.
 const renoteFait = new Set();   // renotés pendant cette session, quoi qu'en dise une liste rechargée trop tôt
-function renote() {
+async function renote() {
+  if (filmsSyncP) { toast('Un instant, je mets les films à jour…'); await filmsSyncP; }   // jamais sur une copie locale en retard
   const list = S.films.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j && !renoteFait.has(f.id)).sort((a, b) => String(vuAt(b)).localeCompare(String(vuAt(a))));
   if (!list.length) { toast('Tout est déjà noté avec la jauge'); return; }
-  document.getElementById('renote')?.remove();
+  document.getElementById('renote')?.remove(); azamiChut();
   const box = document.createElement('div'); box.id = 'renote';
   let i = 0, timer = 0;
   const hist = [];
@@ -4148,6 +4153,7 @@ function renote() {
     // la liste des films a pu être rechargée entre-temps (chaque note déclenche un rafraîchissement) : on met
     // aussi à jour l'exemplaire courant, sinon le film revenait dans la file à l'ouverture suivante
     const cur = S.films.find(x => x.id === f.id); if (cur && cur !== f) cur.ratings = ratings;
+    if (!DEMO) FDB.put([{ ...(cur || f) }]).catch(() => {});   // la copie locale aussi, pour la prochaine ouverture
     api.update('films', { id: f.id }, { ratings }).catch(() => toast('Pas enregistré, réessaie.'));
     box.querySelector('.rn-card')?.classList.add('out');
     setTimeout(() => { i++; draw(); }, 180);
@@ -5390,7 +5396,7 @@ function azamiMic() {
 const chatBubble = (txt, who) => { const p = document.createElement('p'); p.className = `bubble ${who}`; p.textContent = txt; return p; };
 // L'historique : tout ce que vous vous êtes dit, dans une feuille.
 function azamiFil() {
-  document.getElementById('chat')?.remove();
+  document.getElementById('chat')?.remove(); azamiChut();
   const box = document.createElement('div'); box.id = 'chat';
   box.innerHTML = `<div class="visite-card chat long" role="dialog" aria-modal="true" aria-label="Nos conversations">
     <p class="visite-kind">Nos conversations</p><button class="visite-x" data-c="close" aria-label="Fermer">×</button>
@@ -5400,7 +5406,7 @@ function azamiFil() {
   requestAnimationFrame(() => box.classList.add('on'));
   haptic('medium');
   const talk = box.querySelector('.visite-talk');
-  const close = () => { box.classList.remove('on'); setTimeout(() => box.remove(), 320); };
+  const close = () => { box.classList.remove('on'); setTimeout(() => { box.remove(); render(); }, 320); };
   box.addEventListener('click', e => {
     if (e.target === box) return close();
     const b = e.target.closest('[data-c]'); if (!b) return;
@@ -5416,12 +5422,12 @@ function azamiFil() {
 }
 // La page « Ce qu'Azami sait de moi » : sa mémoire sur moi, ligne par ligne, à corriger ou effacer.
 async function azamiMemoire() {
-  document.getElementById('azmem')?.remove();
+  document.getElementById('azmem')?.remove(); azamiChut();
   const box = document.createElement('div'); box.id = 'azmem';
   box.innerHTML = `<div class="visite-card long" role="dialog" aria-modal="true" aria-label="Ce qu’Azami sait de moi"><p class="visite-kind">Sa mémoire</p><button class="visite-x" data-m="close" aria-label="Fermer">×</button><h2>Ce qu’Azami sait de ${esc(firstName())}</h2><p class="chat-wait">…</p></div>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   const card = box.querySelector('.visite-card');
-  const close = () => { box.classList.remove('on'); setTimeout(() => box.remove(), 320); };
+  const close = () => { box.classList.remove('on'); setTimeout(() => { box.remove(); render(); }, 320); };
   box.addEventListener('click', async e => {
     if (e.target === box) return close();
     const b = e.target.closest('[data-m]'); if (!b) return;
