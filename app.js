@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v219</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v220</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5159,6 +5159,7 @@ const azamiBulle = () => {
   if (!S.me || S.recovery) return '';
   const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
   const [p1, p2] = azamiParts();
+  if (AZ.ecrit && !AZ.busy) return `<div class="az-bulles cote">${azamiMienne(true)}</div>`;   // on écrit : la bulle à nous prend sa place, en haut
   const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   if (!pensee && !sienne) return '';
@@ -5168,12 +5169,12 @@ const azamiBulle = () => {
 const azamiPied = () => `${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
 // La suite d'une longue réponse, sous l'en-tête.
 // La bulle à nous, sous l'en-tête, dessinée comme la sienne : on y écrit, ou on y parle.
-const azamiMienne = () => {
+const azamiMienne = (dedans = false) => {
   if (!AZ.ecrit || AZ.busy) return '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  return `<div class="az-bulles suite moi"><form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
+  return `${dedans ? '' : '<div class="az-bulles suite moi">'}<form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form>${dedans ? '' : '</div>'}`;
 };
-const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + azamiMienne(); };
+const azamiSuite = () => { let [p1, p2] = azamiParts(); if (AZ.ecrit && !AZ.busy && AZ.bulle) { p2 = AZ.bulle; p1 = ''; } return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'} ${AZ.ecrit ? 'sous' : ''}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + (AZ.ecrit ? '' : azamiMienne()); };
 // Elle parle d'elle-même. Réglage par appareil (accueil) : bavarde, discrète, ou seulement quand on lui parle.
 // Ce qui la fait parler : changer de page, faire quelque chose dans l'app, ou rester sans rien faire devant
 // l'écran. Jamais la nuit, jamais quand quelque chose couvre l'écran, et un délai entre deux remarques.
@@ -5356,10 +5357,10 @@ const azamiNuage = (() => {
   // trait de l'ovale juste sous la queue (jamais au-delà du contour)
   // où part la queue selon la position de la bulle : à droite vers elle, en haut à droite, ou en haut
   function queue(w, h, mode, ex) {
-    const [t1, t2] = mode === 'c' ? [-.32, .2] : mode === 'r' ? [-1.25, -.95] : [-1.75, -1.4];
+    const [t1, t2] = mode === 'c' ? [-.32, .2] : mode === 'r' ? [-1.05, -.78] : [-1.75, -1.4];
     const b1 = ptEll(w, h, ex, t1), b2 = ptEll(w, h, ex, t2), mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
     const dx = mx - w / 2, dy = my - h / 2, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const tip = mode === 'c' ? [mx + 28, my + 12] : [mx + ux * 26 + 6, my + uy * 26];
+    const tip = mode === 'c' ? [mx + 28, my + 12] : mode === 'r' ? [mx + 30, my - 30] : [mx + ux * 26 + 6, my + uy * 26];   // en grand : vers sa tête, en haut à droite
     return { t1, t2, tip };
   }
   let timer = 0, frame = 0;
@@ -5412,24 +5413,25 @@ async function azamiType() {
   // Le texte entier est déjà là, en transparent : la bulle a sa taille définitive, rien ne bouge pendant
   // que les lettres apparaissent une à une.
   const els = [el, document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]')];
-  const pose = (e, txt, i) => { e.innerHTML = `<span class="vu">${esc(txt.slice(0, i))}</span><span class="pas">${esc(txt.slice(i))}</span>`; };
-  parts.forEach((txt, j) => els[j] && pose(els[j], txt, 0));
+  const prep = (e, txt) => { e.innerHTML = '<span class="vu"></span><span class="pas"></span>'; e.lastChild.textContent = txt; e.closest('.az-elle')?.classList.add('tape'); return [e.firstChild, e.lastChild]; };
+  const spans = parts.map((txt, j) => els[j] ? prep(els[j], txt) : null);
   for (const [j, txt] of parts.entries()) {
-    const e = els[j]; if (!e) return;
+    const e = els[j]; if (!e) return; const [vu, pas] = spans[j];
     for (let i = 1, n = 0; i <= txt.length; i++) {
       if (AZ.k !== k || !e.isConnected) { e.textContent = txt; return; }
-      pose(e, txt, i);
+      vu.textContent = txt.slice(0, i); pas.textContent = txt.slice(i);
       const ch = txt[i - 1];
       if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
       await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
     }
-    e.textContent = txt;
+    e.textContent = txt; e.closest('.az-elle')?.classList.remove('tape');
   }
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
 const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['retour', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
 function azamiEcrire() {
   AZ.ecrit = true; render();
+  window.scrollTo({ top: 0, behavior: 'instant' });   // la bulle pour écrire est en haut : rien à faire défiler pour le clavier
   document.getElementById('az-in')?.focus({ preventScroll: true });
 }
 async function azamiEnvoyer(txt, geste = false) {
@@ -6251,8 +6253,7 @@ document.addEventListener('input', e => {
 
 // Le clavier de l'iPhone fait glisser la page quand il s'ouvre et la laisse n'importe où quand il part :
 // on retient où elle était, et on l'y remet.
-document.addEventListener('focusin', e => { if (e.target?.id === 'az-in') AZ.scrollY = window.scrollY; });
-document.addEventListener('focusout', e => { if (e.target?.id === 'az-in' && AZ.scrollY != null) { const y = AZ.scrollY; setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 60); setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 350); } });
+document.addEventListener('focusout', e => { if (e.target?.id === 'az-in') setTimeout(() => { if (!document.activeElement || document.activeElement === document.body) window.scrollTo({ top: 0, behavior: 'instant' }); }, 80); });
 // Dans la bulle à Azami, Entrée envoie (Maj+Entrée pour une nouvelle ligne).
 document.addEventListener('keydown', e => { if (e.target?.id === 'az-in' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form?.requestSubmit(); } });
 document.addEventListener('submit', e => {
