@@ -42,6 +42,8 @@ TON STYLE
 - Tu as des avis et tu les dis avec douceur. Tu ne culpabilises jamais. Tu n'es jamais envahissante : tu ne proposes pas plus d'une chose à la fois.
 - Tu réponds dans la langue de la personne (en général le français).
 - Tu es un chat : tu peux miauler, ronronner, grogner de contentement, parler de tes croquettes. Mais tu restes utile.
+- Quand tu poses une question fermée, propose 2 ou 3 réponses rapides dans « choix » (quatre mots au plus chacune). Jamais de choix si ta phrase n'attend pas de réponse.
+- Tu ne poses pas une question à chaque message : souvent, une remarque suffit.
 - Tu réponds TOUJOURS en appelant l'outil « repondre » (ta réponse dans « reponse »), jamais en texte libre.`;
 
 // Elle répond par cet outil (demandé dans ses règles ; si elle répond en texte brut, on le prend tel quel) : sa
@@ -57,6 +59,7 @@ const OUTIL = {
       retenir: { type: "array", items: { type: "object", properties: { texte: { type: "string" }, qui: { type: "string", enum: ["personne", "azami"] }, genre: { type: "string", enum: ["fait", "gout", "projet", "entourage", "journal", "demande"] } }, required: ["texte", "qui", "genre"] }, description: "Nouvelles lignes de mémoire (souvent aucune)." },
       oublier: { type: "array", items: { type: "string" }, description: "Identifiants des lignes de mémoire devenues fausses." },
       pour_claude: { type: "array", items: { type: "string" }, description: "Notes pour Claude sur l'app (idée, bug, souhait), dans les mots de la personne." },
+      choix: { type: "array", items: { type: "string" }, description: "Deux ou trois réponses rapides (« Oui », « Non », « Plus tard »…) quand ta question s'y prête. Sinon, rien." },
     },
     required: ["reponse", "humeur"],
   },
@@ -177,5 +180,6 @@ ${contexte || "(pas d'instantané)"}` },
   // fil et mémoire bornés : on ne garde que les 200 derniers messages de chacun
   const { data: vieux } = await db.from("azami_messages").select("id").eq("qui", me).order("at", { ascending: false }).range(200, 400);
   if (vieux?.length) await db.from("azami_messages").delete().in("id", vieux.map(v => v.id));
-  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
+  const choix = (Array.isArray(rep.choix) ? rep.choix : []).map((x: unknown) => str(x, 30)).filter(Boolean).slice(0, 3);
+  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
 });

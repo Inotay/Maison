@@ -1666,6 +1666,8 @@ function morphChildren(from, to) {
 // Toutes en 24×24, couleur héritée du texte, taille 1em : elles suivent la taille de police de leur bouton.
 const IC = {
   non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
+  horloge: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  crayon: '<path d="M4 20l4.2-1 10.3-10.3a1.8 1.8 0 0 0 0-2.5l-.7-.7a1.8 1.8 0 0 0-2.5 0L5 15.8z"/><path d="M13.5 7.2l3.3 3.3"/>',
   micro: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
   envoyer: '<path d="M4 12 20 4l-4 16-4-7z"/><path d="M12 13 20 4"/>',
   bulle: '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17H6.5A2.5 2.5 0 0 1 4 14.5z"/><path d="M8.5 9.5h7M8.5 12.5h4.5"/>',
@@ -2241,7 +2243,7 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${S.view === 'maison' ? '' : azamiDire()}${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
   azamiType();
@@ -2410,7 +2412,7 @@ function viewMaison() {
 
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
-    ${azamiDire()}
+    ${azamiBulle()}
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     ${recapCard()}${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
@@ -2439,7 +2441,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v201</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v202</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5029,25 +5031,33 @@ function azamiContexte() {
 // permet de lui écrire ou de lui parler. Sa dernière réponse vous suit de page en page ; l'historique est à un
 // toucher (le petit bouton à gauche de la ligne). Ses réponses déclenchent ses réactions habituelles, avec les
 // accessoires de la page (balai, toque, tirelire…).
-const AZ = { bulle: safeGet('maison-az-bulle') || '', moi: safeGet('maison-az-moi') || '', note: '', busy: false, k: 0, typedK: 0, rec: null };
-function azamiDire() {
+// Pas de boîte de chat : Azami parle dans une bulle à côté d'elle (à gauche sur les pages, dessous sur l'accueil).
+// On touche sa bulle, ou « Parler » dans sa barre, pour lui répondre dans une bulle à nous, écrite ou au micro.
+// Elle peut proposer des réponses rapides (oui / non) ; un petit crayon permet d'écrire quand même. Sa dernière
+// bulle suit de page en page ; ses réponses déclenchent ses réactions habituelles, avec l'accessoire de la page.
+const AZ = { bulle: safeGet('maison-az-bulle') || '', choix: [], note: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
+const azamiBulle = () => {
   if (!S.me || S.recovery) return '';
+  const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
+  // sur les pages, la place à côté d'elle est petite : la bulle à nous remplace la sienne le temps d'écrire
+  const sienne = !AZ.busy && AZ.bulle && !(AZ.ecrit && S.view !== 'maison') ? `<div class="az-b az-elle" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  return `<section class="az-dire ${S.view === 'maison' ? 'centre' : ''}" aria-label="Azami">
-    ${AZ.moi ? `<p class="az-moi">${esc(AZ.moi)}</p>` : ''}
-    ${AZ.busy ? '<div class="az-bulle think" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : AZ.bulle ? `<div class="az-bulle" data-k="${AZ.k}"><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}</div>` : ''}
-    <form class="az-in" data-form="azami"><button type="button" class="az-h" data-action="azami-fil" aria-label="Nos conversations">${icn('bulle')}</button><input id="az-in" data-keep type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Dis quelque chose à Azami…" aria-label="Dire quelque chose à Azami">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></form>
-  </section>`;
-}
+  const mienne = AZ.ecrit && !AZ.busy ? `<form class="az-b az-moi" data-form="azami"><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></span></form>` : '';
+  if (!pensee && !sienne && !mienne) return '';
+  return `<div class="az-bulles ${S.view === 'maison' ? 'dessous' : 'cote'}">${pensee}${sienne}${mienne}</div>`;
+};
+// La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
+const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role="group" aria-label="Azami">
+  <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
+  <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>`;
 // Sa réponse s'écrit lettre par lettre, avec sa petite voix (toucher la bulle pour aller plus vite).
 async function azamiType() {
-  const el = document.querySelector('.az-bulle[data-k] .az-txt'); if (!el) return;
+  const el = document.querySelector('.az-elle[data-k] .az-txt'); if (!el) return;
   const k = Number(el.parentElement.dataset.k); if (k === AZ.typedK) return;
-  AZ.typedK = k; const txt = AZ.bulle; let skip = false;
-  el.parentElement.addEventListener('click', () => { skip = true; }, { once: true });
+  AZ.typedK = k; const txt = AZ.bulle;
   if (reducedMotion()) { el.textContent = txt; return; }
   for (let i = 1, n = 0; i <= txt.length; i++) {
-    if (skip || AZ.k !== k) { el.textContent = txt; return; }
+    if (AZ.k !== k || !el.isConnected) { el.textContent = txt; return; }
     el.textContent = txt.slice(0, i);
     const ch = txt[i - 1];
     if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
@@ -5056,13 +5066,17 @@ async function azamiType() {
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
 const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['retour', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
+function azamiEcrire() {
+  AZ.ecrit = true; render();
+  const t = document.getElementById('az-in'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'nearest' }); }
+}
 async function azamiEnvoyer(txt) {
   txt = (txt || '').trim(); if (!txt || AZ.busy) return;
-  AZ.moi = txt; AZ.note = ''; AZ.busy = true; safeSet('maison-az-moi', txt); render(); haptic(1);
+  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.busy = true; render(); haptic(1);
   try {
     const now = new Date();
     const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
-    AZ.busy = false; AZ.bulle = r.reponse; AZ.k++; safeSet('maison-az-bulle', r.reponse);
+    AZ.busy = false; AZ.bulle = r.reponse; AZ.choix = (r.choix || []).slice(0, 3); AZ.k++; safeSet('maison-az-bulle', r.reponse);
     AZ.note = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude')].join(' · ');
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
@@ -5074,7 +5088,8 @@ async function azamiEnvoyer(txt) {
     AZ.busy = false; AZ.bulle = `Mrrr… ${e.message}`; AZ.k++; render();
   }
 }
-// Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la ligne, puis part tout seul.
+function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
+// Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la bulle, puis part tout seul.
 function azamiMic() {
   if (AZ.rec) { AZ.rec.stop(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
@@ -5146,6 +5161,9 @@ async function azamiMemoire() {
 const actions = {
   'azami-fil': () => azamiFil(),
   'azami-mic': () => azamiMic(),
+  'azami-ecrire': () => azamiEcrire(),
+  'azami-choix': el => azamiEnvoyer(el.dataset.txt),
+  'azami-fermer': () => azamiFermer(),
   'azami-memoire': () => azamiMemoire(),
 
   'guide-page': () => openGuidePage(),
@@ -5863,6 +5881,8 @@ document.addEventListener('input', e => {
 });
 
 
+// Dans la bulle à Azami, Entrée envoie (Maj+Entrée pour une nouvelle ligne).
+document.addEventListener('keydown', e => { if (e.target?.id === 'az-in' && e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form?.requestSubmit(); } });
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]');
   if (!f) return;
