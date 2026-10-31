@@ -2433,7 +2433,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v198</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v199</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3990,39 +3990,39 @@ function algoPeutEtre() {
   };
   (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go, { timeout: 5000 });
 }
-// ── La jauge de note : on la touche ou on la glisse, de 0,5 à 5 au dixième près ──
+// ── La jauge de note : on la touche ou on la glisse, sans crans ni chiffres (chaque position compte) ──
 // Tout bouge par transformations (aucun recalcul de mise en page) et une seule fois par image : c'est fluide.
 const JMIN = .5, JMAX = 5;
 const noteMot = v => v >= 4.8 ? 'Chef-d’œuvre' : v >= 4.2 ? 'Adoré' : v >= 3.5 ? 'Aimé' : v >= 2.7 ? 'Moyen' : v >= 1.8 ? 'Pas aimé' : 'Détesté';
 const noteTxt = v => String(Math.round(v * 10) / 10).replace('.', ',');
 // petite jauge en lecture seule (listes, fiches)
-const noteMini = (v, cls = '') => v ? `<span class="nmini ${cls}" aria-label="${noteTxt(v)} sur 5"><i style="--p:${Math.max(0, Math.min(1, (v - JMIN) / (JMAX - JMIN))).toFixed(3)}"></i><b>${noteTxt(v)}</b></span>` : '';
+const noteMini = (v, cls = '') => v ? `<span class="nmini ${cls}" aria-label="${noteMot(v)}" title="${noteMot(v)}"><i style="--p:${Math.max(.02, Math.min(1, (v - JMIN) / (JMAX - JMIN))).toFixed(3)}"></i></span>` : '';
 function jauge(v = 0) {
-  return `<div class="jauge${v ? ' set' : ''}" role="slider" tabindex="0" aria-label="Ta note" aria-valuemin="${JMIN}" aria-valuemax="${JMAX}" aria-valuenow="${v || ''}" aria-valuetext="${v ? `${noteTxt(v)} sur 5, ${noteMot(v)}` : 'pas encore noté'}" data-v="${v || ''}">
+  return `<div class="jauge${v ? ' set' : ''}" role="slider" tabindex="0" aria-label="Ta note" aria-valuemin="${JMIN}" aria-valuemax="${JMAX}" aria-valuenow="${v || ''}" aria-valuetext="${v ? noteMot(v) : 'pas encore noté'}" data-v="${v || ''}">
     <div class="j-word" aria-hidden="true">${v ? noteMot(v) : 'Glisse ou touche pour noter'}</div>
-    <div class="j-track"><div class="j-grad"></div><div class="j-mask"></div><div class="j-ticks">${[1, 2, 3, 4].map(n => `<i style="left:calc(22px + (100% - 44px) * ${((n - JMIN) / (JMAX - JMIN)).toFixed(4)})"></i>`).join('')}</div><div class="j-thumb"><b>${v ? noteTxt(v) : ''}</b></div></div>
+    <div class="j-track"><div class="j-grad"></div><div class="j-mask"></div><div class="j-thumb"><b></b></div></div>
     <div class="j-ends" aria-hidden="true"><span>Détesté</span><span>Moyen</span><span>Adoré</span></div></div>`;
 }
 function jaugeBind(el, onChange) {
   const tr = el.querySelector('.j-track'), th = el.querySelector('.j-thumb'), mask = el.querySelector('.j-mask'), word = el.querySelector('.j-word'), num = th.querySelector('b');
-  let v = Number(el.dataset.v) || 0, raf = 0, w = 0, tw = 0, lastInt = Math.floor(v), lastWord = word.textContent, drag = false;
+  let v = Number(el.dataset.v) || 0, raf = 0, w = 0, tw = 0, lastWord = word.textContent, drag = false;
   const measure = () => { w = tr.clientWidth; tw = th.offsetWidth; };
   const paint = () => {
     raf = 0; if (!w) measure();
     const p = v ? (v - JMIN) / (JMAX - JMIN) : 0;
     th.style.transform = `translate3d(${p * (w - tw)}px, 0, 0)`;
     mask.style.transform = `translate3d(${(p * (w - tw) + tw / 2)}px, 0, 0)`;
-    num.textContent = v ? noteTxt(v) : '';
+    num.textContent = '';
     const mot = v ? noteMot(v) : lastWord; if (mot !== lastWord) { word.textContent = mot; lastWord = mot; }
     // la couleur suit la note : de la prune (détesté) au rouge Maison, puis à l'or (adoré)
     el.style.setProperty('--jh', String(Math.round(290 + p * 115) % 360));
   };
   const set = (nv, final) => {
-    nv = Math.max(JMIN, Math.min(JMAX, Math.round(nv * 10) / 10));
+    nv = Math.max(JMIN, Math.min(JMAX, Math.round(nv * 1000) / 1000));   // continu : chaque pixel compte
     if (nv === v && !final) return;
-    const i = Math.floor(nv); if (v && i !== lastInt) { haptic(1); } lastInt = i;
+    const mw = noteMot(nv); if (v && mw !== noteMot(v)) haptic(1);   // un petit toc quand le mot change, pas de crans
     v = nv; el.dataset.v = v; el.classList.add('set');
-    el.setAttribute('aria-valuenow', v); el.setAttribute('aria-valuetext', `${noteTxt(v)} sur 5, ${noteMot(v)}`);
+    el.setAttribute('aria-valuenow', v); el.setAttribute('aria-valuetext', noteMot(v));
     if (!raf) raf = requestAnimationFrame(paint);
     onChange?.(v, final);
   };
@@ -4035,7 +4035,7 @@ function jaugeBind(el, onChange) {
   el.addEventListener('pointermove', e => { if (!drag) return; e.preventDefault(); e.stopPropagation(); set(at(e.clientX), false); });
   const up = e => { if (!drag) return; drag = false; el.classList.remove('drag'); e?.stopPropagation?.(); set(v, true); };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
-  el.addEventListener('keydown', e => { const d = { ArrowRight: .1, ArrowUp: .1, ArrowLeft: -.1, ArrowDown: -.1 }[e.key]; if (d) { e.preventDefault(); set((v || 3) + d, true); } });
+  el.addEventListener('keydown', e => { const d = { ArrowRight: .05, ArrowUp: .05, ArrowLeft: -.05, ArrowDown: -.05 }[e.key]; if (d) { e.preventDefault(); set((v || 3) + d, true); } });
   requestAnimationFrame(() => { measure(); paint(); });
   return { get: () => v };
 }
@@ -4055,9 +4055,9 @@ function renote() {
     if (!f) { box.innerHTML = `<div class="rn-top"><button class="link" data-rn="close">Fermer</button><span></span></div><div class="rn-fin"><b>C’est fait !</b><p>${hist.length} films renotés. Azami en tient compte tout de suite.</p><button class="btn" data-rn="close">Terminer</button></div>`; return; }
     const old = f.ratings[S.me].note;
     box.innerHTML = `<div class="rn-top"><button class="link" data-rn="close">Fermer</button><span class="rn-n">${i + 1} / ${list.length}</span></div>
-      <div class="rn-card">${fPoster(f, 'rn-poster')}<div class="rn-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.traits?.dir?.[0]?.name || f.director].filter(Boolean).join(' · '))}</small><small class="rn-old">Avant : ${noteTxt(old)} sur 5</small></div></div>
+      <div class="rn-card">${fPoster(f, 'rn-poster')}<div class="rn-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.traits?.dir?.[0]?.name || f.director].filter(Boolean).join(' · '))}</small><small class="rn-old">Avant : ${noteMot(old).toLowerCase()} (le trait blanc)</small></div></div>
       ${jauge(0)}
-      <div class="rn-acts"><button class="btn ghost" data-rn="back" ${hist.length ? '' : 'disabled'}>Retour</button><button class="btn ghost" data-rn="skip">Garder ${noteTxt(old)}</button></div>`;
+      <div class="rn-acts"><button class="btn ghost" data-rn="back" ${hist.length ? '' : 'disabled'}>Retour</button><button class="btn ghost" data-rn="skip">Garder comme avant</button></div>`;
     const j = box.querySelector('.jauge');
     jaugeBind(j, (v, fin) => { clearTimeout(timer); if (fin) timer = setTimeout(() => save(f, v), 650); });
     // l'ancienne note, en petit repère sur la jauge
@@ -4123,11 +4123,12 @@ function mesVusHtml(list) {
   const l = [...list].sort(so === 'note' ? (a, b) => ((b.ratings?.[S.me]?.note || 0) - (a.ratings?.[S.me]?.note || 0)) || byDate(a, b) : byDate);
   const hearts = n => noteMini(n, 'big');
   const row = f => { const me = f.ratings?.[S.me]?.note || 0, ot = o && f.ratings?.[o]?.note;
-    return `<li><button type="button" class="vurow" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'sposter')}<span class="vu-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.status === 'vu' ? 'vu à deux' : '', vuAt(f) ? vuDay(vuAt(f)) : ''].filter(Boolean).join(' · '))}</small></span><span class="vu-n">${me ? hearts(me) : '<small>à noter</small>'}${ot ? `<small>${esc(nameOf(o))} ${noteTxt(ot)}</small>` : ''}</span></button></li>`; };
+    return `<li><button type="button" class="vurow" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'sposter')}<span class="vu-t"><b>${esc(f.title)}</b><small>${esc([f.year, f.status === 'vu' ? 'vu à deux' : '', vuAt(f) ? vuDay(vuAt(f)) : ''].filter(Boolean).join(' · '))}</small></span><span class="vu-n">${me ? hearts(me) : '<small>à noter</small>'}${ot ? `<small>${esc(nameOf(o))} ${noteMini(ot)}</small>` : ''}</span></button></li>`; };
   let out = '', last = null;
   for (const f of l.slice(0, max)) {
-    const n = Math.round(f.ratings?.[S.me]?.note || 0);
-    if (so === 'note' && n !== last) { out += `${last === null ? '' : '</ul>'}<p class="chip-label vu-h">${NOTE_L[n]} <small>${l.filter(x => Math.round(x.ratings?.[S.me]?.note || 0) === n).length}</small></p><ul class="vulist">`; last = n; }
+    const gm = x => x.ratings?.[S.me]?.note ? noteMot(x.ratings[S.me].note) : 'Pas encore notés';
+    const n = gm(f);
+    if (so === 'note' && n !== last) { out += `${last === null ? '' : '</ul>'}<p class="chip-label vu-h">${n} <small>${l.filter(x => gm(x) === n).length}</small></p><ul class="vulist">`; last = n; }
     else if (so !== 'note' && last === null) { out += '<ul class="vulist">'; last = 1; }
     out += row(f);
   }
@@ -4655,7 +4656,7 @@ function deckAskSeen(redraw = false) {
     ${jauge(0)}
     <div class="dseen-acts"><button class="link" data-d="skip">Annuler</button><button class="btn dseen-ok" data-seen-ok disabled>C’est noté</button></div></div>`);
   const box = st.querySelector('.dseen'), ok = box.querySelector('[data-seen-ok]');
-  jaugeBind(box.querySelector('.jauge'), (v, fin) => { ok.disabled = false; ok.dataset.note = v; ok.textContent = `C’est noté · ${noteTxt(v)}`; });
+  jaugeBind(box.querySelector('.jauge'), (v, fin) => { ok.disabled = false; ok.dataset.note = v; ok.textContent = `C’est noté · ${noteMot(v)}`; });
 }
 async function deckSeen(note) {
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');

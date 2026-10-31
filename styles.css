@@ -1971,3 +1971,7 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 #renote .btn.ghost { background: rgba(250,243,232,.08); color: #FAF3E8; border: 2px solid rgba(250,243,232,.25); box-shadow: none; }
 #renote .btn.ghost:disabled { opacity: .35; }
 .shops-t { margin: 8px 0 2px; font-size: 13px; font-weight: 800; color: var(--muted, #6b5a52); } .shops-t small { font-weight: 600; opacity: .8; }
+/* jauge sans chiffres : la bulle devient un simple rond */
+.j-thumb b { width: 30px; height: 30px; border: 4px solid hsl(var(--jh) 70% 55%); }
+.nmini i { width: 52px; }
+.nmini.big i { width: 72px; }
