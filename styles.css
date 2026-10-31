@@ -1988,7 +1988,7 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .az-bulles { grid-area: bulle; display: grid; gap: 8px; align-self: end; padding: 4px 10px 10px 2px; min-width: 0; }
 .az-bulles.suite { display: block; margin: -2px 0 var(--s4); padding: 0 6px; }
 .az-bulles.seule { margin-top: 6px; }
-.az-elle.suite { width: 100%; border-radius: 50%; padding: 7% 12% 8%; font-size: 20px; }
+.az-elle.suite { width: 100%; border-radius: 48px; padding: 28px 34px 26px; font-size: 20px; text-wrap: balance; }
 .hd.row:has(+ .az-bulles.seule) { margin-bottom: 18px; }
 .hd.row.accueil .azami, .hd.row.accueil .azami-btn { width: 164px; }
 .hd.row.accueil .azami { height: 182px; transform: scale(1.18); transform-origin: 50% 85%; }

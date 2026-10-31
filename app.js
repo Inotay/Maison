@@ -2514,7 +2514,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v214</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v215</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5157,7 +5157,7 @@ const azamiBulle = () => {
   const [p1, p2] = azamiParts();
   const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  if (!pensee && !sienne) return S.view === 'maison' || AZ.ecrit ? '' : `<div class="az-bulles cote"><button type="button" class="az-b az-elle az-appel" data-action="azami-ecrire" aria-label="Parler à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">…</span></button></div>`;
+  if (!pensee && !sienne) return S.view === 'maison' || AZ.ecrit || AZ.bulle ? '' : `<div class="az-bulles cote"><button type="button" class="az-b az-elle az-appel" data-action="azami-ecrire" aria-label="Parler à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt">…</span></button></div>`;
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
@@ -5308,7 +5308,7 @@ const azamiNuage = (() => {
   function dessine(svg) {
     const box = svg.parentElement; if (!box) return; const w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
     const croquis = box.classList.contains('az-croquis'), rad = croquis ? Number(box.dataset.rayon || 22) : 0;
-    const mode = croquis ? 's' : box.closest('.seule') ? 'r' : box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
+    const mode = croquis ? 's' : box.classList.contains('suite') ? 'r' : 'c', vif = box.classList.contains('vif');
     const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}${croquis ? 'q' + rad : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
     const M = 28;
@@ -5321,7 +5321,7 @@ const azamiNuage = (() => {
       if (croquis) {   // la forme de l'app, redessinée au feutre par une main d'enfant : deux passages, un peu tremblés
         return `<path class="nz" d="${rect(w, h, rad, r, 2.6)}"/><path class="nz fin" d="${rect(w, h, rad, rnd(3 + k * 5 + w), 2.2)}" transform="translate(${(r() - .5) * 2},${(r() - .5) * 2})"/>`;
       }
-      const ex = mode === 'c' ? .78 : .92;   // à côté d'elle : un peu carré pour loger le texte ; en grand : un vrai ovale
+      const ex = mode === 'c' ? .78 : .66;   // des flancs assez droits et des coins ronds : un galet qui épouse un bloc de texte
       const q = mode !== 's' ? queue(w, h, mode, ex) : null;
       const d = trace(w, h, r, 1.4, ex, q);
       const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 2.5 + i, ex, q)}"/>`).join('') : '';
