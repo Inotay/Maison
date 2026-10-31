@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v221</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v222</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5130,6 +5130,20 @@ const AZ = { bulle: safeGet('maison-az-bulle') || '', at: Number(safeGet('maison
 function azamiPose(texte, humeur = 'calme', choix = []) {
   AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.k++; AZ.at = Date.now();
   safeSet('maison-az-bulle', texte); safeSet('maison-az-at', String(AZ.at));
+  azamiEnvol();
+}
+// Une bulle ne reste pas : le temps qu'elle l'écrive, le temps de la lire (plus long avec une question ou des
+// boutons), puis elle s'efface. Si on écrit pendant ce temps, elle attend.
+function azamiEnvol() {
+  clearTimeout(AZ.envolT);
+  const k = AZ.k, n = (AZ.bulle || '').length;
+  const delai = Math.min(45e3, Math.max(7e3, n * 30 + 2500 + n * 60)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 25e3 : 0);
+  AZ.envolT = setTimeout(function fin() {
+    if (AZ.k !== k || !AZ.bulle) return;
+    if (AZ.ecrit || AZ.busy || document.activeElement?.id === 'az-in') { AZ.envolT = setTimeout(fin, 5000); return; }
+    document.querySelectorAll('.az-elle').forEach(e => e.classList.add('part'));
+    setTimeout(() => { if (AZ.k !== k) return; AZ.bulle = ''; AZ.choix = []; AZ.action = null; safeSet('maison-az-bulle', ''); render(); }, 420);
+  }, delai);
 }
 // Quand on quitte l'app et qu'on revient : sa bulle d'avant disparaît. Si on est parti un moment, elle réagit
 // (souvent, pas toujours), selon le temps passé, l'heure et son état. Jamais entre 22 h et 8 h.

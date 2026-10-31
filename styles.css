@@ -1993,7 +1993,9 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .hd.row.accueil h1 { font-size: clamp(26px, 8vw, 34px); }
 .az-b { position: relative; max-width: 100%; padding: 11px 14px; border-radius: 20px; font-size: 16px; font-weight: 700; line-height: 1.38; animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both; }
 @keyframes bulle-in { from { transform: scale(.6) translateY(8px); opacity: 0; } }
-.az-elle.tape { animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both; }   /* pas de flottement pendant qu'elle écrit */
+.az-elle.tape { animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both; }
+.az-elle.part { animation: bulle-out .4s ease-in both; pointer-events: none; }
+@keyframes bulle-out { to { transform: scale(.7); opacity: 0; } }   /* pas de flottement pendant qu'elle écrit */
 .az-elle { background: transparent; isolation: isolate; color: #2A1C15; cursor: pointer; padding: 20px 30px 20px 28px; border-radius: 50%; text-align: center; min-width: 150px; font-family: 'Patrick Hand', 'Nunito', sans-serif; font-weight: 400; font-size: 19px; line-height: 1.2; letter-spacing: .01em; text-wrap: balance; animation: bulle-in .38s cubic-bezier(.34, 1.45, .64, 1) both, bulle-flotte 3.6s ease-in-out .4s infinite; }
 @keyframes bulle-flotte { 0%, 100% { translate: 0 0; rotate: 0deg; } 50% { translate: 0 -2px; rotate: -.5deg; } }
 /* le dessin de la bulle (SVG généré) : trois tracés qui alternent, comme du stop motion */
