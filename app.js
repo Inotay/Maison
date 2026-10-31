@@ -247,7 +247,7 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 //   mode lecture (une piste muette tourne en boucle), ce qui interrompt une musique en cours ;
 // - « mix » : l'app se mélange à la musique qui joue, mais l'interrupteur silence la coupe.
 const SON_JEU = () => safeGet('maison-son-mode') !== 'mix';
-const SILENCE_WAV = 'data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+const SILENCE_WAV = 'sounds/silence.wav';   // (un fichier : la politique de sécurité de la page interdit les médias en data:)
 let silentEl = null;
 function pisteMuette(on) {
   if (!on) { silentEl?.pause(); return; }
@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v224</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v225</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5085,6 +5085,8 @@ async function azamiCall(body) {
     if (body.action === 'parler') {
       const m = String(body.texte).match(/^(?:ajoute|mets)\s+(?:du |de la |des |de l’|de l'|le |la |les |un |une )?(.+?)\s*(?:aux courses|à la liste)?\.?$/i);
       if (m) return { reponse: `Je mets « ${m[1]} » sur la liste. Avec mes croquettes juste à côté.`, humeur: 'contente', action: { type: 'course', texte: m[1], demande: true }, retenu: [], notes: [] };
+      const d = String(body.texte).match(/^(?:dis|fais)[^:]*?(?:à|a)\s+\w+\s+(?:que\s+|de ma part\s*:?\s*)?(.+)$/i);
+      if (d) return { reponse: `Je lui porte ça dans ma gueule : « ${d[1]} ».`, humeur: 'contente', action: { type: 'message', texte: d[1], demande: true }, retenu: [], notes: [] };
       if (/menu|mang/i.test(body.texte)) return { reponse: 'Des pâtes à la sauce tomate ce soir ? Je te les mets au menu ?', humeur: 'curieuse', action: { type: 'menu', texte: 'Pâtes à la sauce tomate', demande: false }, retenu: [], notes: [] };
       return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
     }
@@ -5240,25 +5242,26 @@ function azTrouve(liste, titre, champ) {
 async function azamiAgir(a) {
   if (!a || !S.me) return false;
   const texte = String(a.texte || '').trim(); if (!texte) return false;
-  const cle = 'azami-' + Date.now();
-  let ok = false;
+  // (sans passer par run() : il refuse dès que l'app se croit hors ligne, ce qui faisait échouer en boucle)
+  let ok = false, pourquoi = '';
   try {
-    if (a.type === 'course') ok = await run(() => api.insert('shopping', { label: texte, icon: iconFor(texte, 'shopping', S.hints), shop: guessShop(texte) }), null, cle);
-    else if (a.type === 'tache') ok = await run(() => api.insert('tasks', { title: texte, assignee: a.pour === 'moi' ? S.me : a.pour === 'autre' ? other() : null, due_on: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : null, icon: iconFor(texte, 'task', S.hints) }), null, cle);
-    else if (a.type === 'tache_cocher') { const t = azTrouve(S.tasks.filter(x => !x.done), texte, 'title'); if (!t) { azamiPose(`Je ne trouve pas « ${texte} » dans les choses à faire. Tu l’as déjà faite ?`, 'curieuse'); render(); return false; } ok = await run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, null, cle); }
-    else if (a.type === 'menu') { const r = azTrouve(RECETTES, texte, 'titre'); if (!r) { azamiPose(`Je ne connais pas de recette « ${texte} ». Tu veux que je cherche autre chose ?`, 'curieuse'); render(); return false; } ok = await run(() => api.insert('meal_plans', { recipe: r.id, title: r.titre, persons: 2, created_by: S.me }), null, cle); }
-    else if (a.type === 'message') { if (!other()) return false; ok = await run(() => api.insert('care_messages', { recipient: other(), kind: 'azami', body: texte, wants_talk: false }), null, cle); }
+    if (a.type === 'course') await api.insert('shopping', { label: texte, icon: iconFor(texte, 'shopping', S.hints), shop: guessShop(texte) });
+    else if (a.type === 'tache') await api.insert('tasks', { title: texte, assignee: a.pour === 'moi' ? S.me : a.pour === 'autre' ? other() : null, due_on: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : null, icon: iconFor(texte, 'task', S.hints) });
+    else if (a.type === 'tache_cocher') { const t = azTrouve(S.tasks.filter(x => !x.done), texte, 'title'); if (!t) { azamiPose(`Je ne trouve pas « ${texte} » dans les choses à faire. Tu l’as déjà faite ?`, 'curieuse'); render(); return false; } await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }
+    else if (a.type === 'menu') { const r = azTrouve(RECETTES, texte, 'titre'); if (!r) { azamiPose(`Je ne connais pas de recette « ${texte} ». Tu veux que je cherche autre chose ?`, 'curieuse'); render(); return false; } await api.insert('meal_plans', { recipe: r.id, title: r.titre, persons: 2, created_by: S.me }); }
+    else if (a.type === 'message') { if (!other()) return false; await api.insert('care_messages', { recipient: other(), kind: 'azami', body: texte, wants_talk: false }); }
     else if (a.type === 'film') {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
-      await filmVote(it, 'oui'); ok = true;
-    }
-  } catch (e) { console.warn('azami agir', e); ok = false; }
+      await filmVote(it, 'oui');
+    } else return false;
+    ok = true; loadSeq++; await loadAll().catch(() => {}); render();
+  } catch (e) { console.warn('azami agir', e); ok = false; pourquoi = String(e?.message || e).slice(0, 80); }
   if (ok) {
     azamiPose(pick(AZ_FAIT[a.type] || ['C’est fait.']), 'contente'); render();
     sfx('done'); haptic('medium');
     const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'caresse_2', 2500); if (img) burst('sparkle', img, 8);
-  } else { azamiPose('Mrrr… mes pattes ont glissé, ça n’a pas marché. Réessaie ?', 'boudeuse'); render(); }
+  } else { azamiPose(`Mrrr… mes pattes ont glissé, ça n’a pas marché.${pourquoi ? ` (${pourquoi})` : ''}`, 'boudeuse'); render(); }
   return ok;
 }
 
