@@ -2317,7 +2317,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage(); if (!azamiCourrier()) tamaDire();
+  azamiType(); azamiNuage(); crottesPlace(); if (!azamiCourrier()) tamaDire();
   cookSave();
   propEnter();
   deepLink();
@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v225</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v226</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5314,6 +5314,95 @@ function azamiRemarque(evt, detail = '') {
 // sans rien faire devant l'écran : au bout d'une minute, une fois par période d'inactivité
 ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { azInactif = Date.now(); azInactifDit = false; }, { passive: true, capture: true }));
 setInterval(() => { if (document.hidden || azInactifDit || Date.now() - azInactif < 60e3) return; azInactifDit = true; azamiRemarque('inactif'); }, 15000);
+setInterval(() => { if (!document.hidden && S.me && tamaTick()) { tamaSave(); crottesPlace(); } }, 60000);
+
+// Les crottes (étape 4, point 3). Elles arrivent surtout dans la demi-heure après un repas, juste avant ses
+// zoomies (22 h, 7 h), sinon au hasard toutes les ~10 h ; calculées à l'ouverture comme le reste (donc aussi
+// pendant une absence). Posées sur une page au hasard, à un emplacement libre de l'en-tête (jamais sur un
+// bouton), jusqu'à six. On en prend une au doigt : la poubelle apparaît et s'ouvre ; on la glisse dedans.
+const CROTTE_SLOTS = [[.50, .88], [.63, .66], [.40, .58], [.88, .98], [.30, .26], [.58, .34]];
+const CROTTE_PAGES = ['maison', 'menage', 'courses', 'recettes', 'argent', 'nuit'];
+function crotteSpawn(t, n) {
+  t.crottes ||= [];
+  for (let i = 0; i < n && t.crottes.length < 6; i++) {
+    const libres = CROTTE_PAGES.flatMap(p => CROTTE_SLOTS.map((_, k) => `${p}:${k}`)).filter(k => !t.crottes.some(c => `${c.page}:${c.slot}` === k));
+    if (!libres.length) return;
+    const [page, slot] = pick(libres).split(':');
+    t.crottes.push({ id: Math.random().toString(36).slice(2, 8), page, slot: Number(slot), v: Math.floor(Math.random() * 3), at: Date.now(), dx: Math.round((Math.random() - .5) * 20), dy: Math.round((Math.random() - .5) * 10) });
+  }
+}
+// Appelé par tamaTick avec le temps écoulé : décide des nouvelles crottes.
+function crotteTick(t, avant, apres) {
+  let n = 0;
+  // après un repas (une seule crotte par repas), si la demi-heure est passée
+  for (const r of t.repas || []) if (!r.caca && r.q !== 'eau' && apres - r.at > 30 * 60e3) { r.caca = true; n++; }
+  // juste avant les zoomies : 21 h 45 et 6 h 45, pour chaque passage de ces heures entre avant et après
+  for (let d = new Date(avant); d.getTime() < apres; d = new Date(d.getTime() + 36e5)) {
+    for (const [h, m] of [[21, 45], [6, 45]]) { const z = new Date(d); z.setHours(h, m, 0, 0); if (z.getTime() > avant && z.getTime() <= apres && Math.random() < .7) n++; }
+  }
+  // et le hasard : en moyenne une toutes les dix heures
+  const heures = (apres - avant) / 36e5; if (Math.random() < Math.min(.9, heures / 10)) n++;
+  if (n) crotteSpawn(t, n);
+}
+// Le dessin au feutre : trois petites galettes empilées, un trait d'encre, deux petites volutes.
+function crotteSvg(v) {
+  const r = (a, b) => (a + Math.random() * (b - a)).toFixed(1);
+  const g = v === 0 ? '#7A4A2A' : v === 1 ? '#6E4226' : '#86573A';
+  return `<svg viewBox="0 0 40 36" width="34" height="31" aria-hidden="true"><g fill="${g}" stroke="#22170F" stroke-width="2" stroke-linejoin="round"><ellipse cx="20" cy="29" rx="${r(14, 16)}" ry="${r(5.5, 6.5)}"/><ellipse cx="${r(19, 21)}" cy="21" rx="${r(10, 11.5)}" ry="${r(5, 6)}"/><ellipse cx="${r(19.5, 21.5)}" cy="14" rx="${r(6.5, 7.5)}" ry="${r(4, 5)}"/><path d="M${r(19, 22)},11 c1,-3 -1,-5 ${r(1, 3)},-7" fill="none" stroke-linecap="round"/></g><g fill="none" stroke="#22170F" stroke-width="1.3" stroke-linecap="round" opacity=".55"><path d="M6,12 c-1,-3 1,-4 0,-7"/><path d="M34,10 c1,-3 -1,-4 0,-7"/></g></svg>`;
+}
+const POUBELLE_SVG = `<svg viewBox="0 0 90 100" width="90" height="100" aria-hidden="true"><g class="pb-corps" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M16,30 l5,62 c0,3 2,5 5,5 h38 c3,0 5,-2 5,-5 l5,-62 z"/><path d="M30,42 l2,44 M45,42 v44 M60,42 l-2,44" opacity=".5" stroke-width="2.5"/></g><g class="pb-couvercle" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M10,30 c0,-5 4,-8 9,-8 h52 c5,0 9,3 9,8 z"/><path d="M38,22 c0,-4 3,-6 7,-6 c4,0 7,2 7,6" fill="none"/></g></svg>`;
+let crotteDrag = null;
+function crottesPlace() {
+  const hd = document.querySelector('.hd'); if (!hd || !S.me) return;
+  const t = tamaEtat();
+  if (/azami=crottes/.test(location.search) && !crottesPlace.essai) { crottesPlace.essai = 1; t.crottes = []; for (let i = 0; i < 4; i++) crotteSpawn(t, 1), t.crottes[t.crottes.length - 1].page = S.view; }   // pour essayer : ?azami=crottes
+  const ici = (t.crottes || []).filter(c => c.page === S.view);
+  hd.querySelectorAll('.crotte').forEach(e => { if (!ici.some(c => c.id === e.dataset.id)) e.remove(); });
+  for (const c of ici) {
+    if (hd.querySelector(`.crotte[data-id="${c.id}"]`)) continue;
+    const el = document.createElement('button'); el.type = 'button'; el.className = 'crotte'; el.dataset.id = c.id; el.setAttribute('aria-label', 'Une crotte d’Azami : glisse-la dans la poubelle');
+    const [x, y] = CROTTE_SLOTS[c.slot] || [.5, .8];
+    el.style.left = `calc(${(x * 100).toFixed(1)}% + ${c.dx || 0}px)`; el.style.top = `calc(${(y * 100).toFixed(1)}% + ${c.dy || 0}px)`;
+    el.innerHTML = crotteSvg(c.v);
+    el.addEventListener('pointerdown', crottePrend);
+    hd.appendChild(el);
+  }
+}
+function crottePrend(e) {
+  if (crotteDrag) return;
+  const el = e.currentTarget, id = el.dataset.id; e.preventDefault();
+  const r = el.getBoundingClientRect();
+  const ghost = el.cloneNode(true); ghost.className = 'crotte vole'; ghost.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px`;
+  document.body.appendChild(ghost); el.classList.add('prise');
+  const bin = document.createElement('div'); bin.id = 'poubelle'; bin.innerHTML = POUBELLE_SVG; document.body.appendChild(bin);
+  requestAnimationFrame(() => bin.classList.add('on'));
+  haptic('medium'); sfx('tick');
+  crotteDrag = { id, el, ghost, bin, ox: e.clientX - r.left, oy: e.clientY - r.top, dedans: false };
+  const move = ev => {
+    const d = crotteDrag; if (!d) return;
+    d.ghost.style.left = `${ev.clientX - d.ox}px`; d.ghost.style.top = `${ev.clientY - d.oy}px`;
+    const b = d.bin.getBoundingClientRect(), dedans = ev.clientX > b.left - 20 && ev.clientX < b.right + 20 && ev.clientY > b.top - 30 && ev.clientY < b.bottom + 10;
+    if (dedans !== d.dedans) { d.dedans = dedans; d.bin.classList.toggle('ouverte', dedans); if (dedans) haptic(1); }
+  };
+  const fin = ev => {
+    document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', fin); document.removeEventListener('pointercancel', fin);
+    const d = crotteDrag; crotteDrag = null; if (!d) return;
+    if (d.dedans) {
+      // dans la poubelle : la crotte tombe, le couvercle se referme, propreté +1
+      const b = d.bin.getBoundingClientRect(); d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 20}px`; d.ghost.style.transform = 'scale(.4)'; d.ghost.style.opacity = '0';
+      setTimeout(() => { d.bin.classList.remove('ouverte'); sfx('done'); haptic('heavy'); }, 160);
+      setTimeout(() => { d.ghost.remove(); d.bin.classList.remove('on'); setTimeout(() => d.bin.remove(), 300); }, 420);
+      const t = tamaEtat(); t.crottes = (t.crottes || []).filter(c => c.id !== d.id); t.proprete = clamp100((t.proprete ?? 100) + 20); tamaSave(true); d.el.remove();
+      if (Math.random() < .35) { azamiPose(pick(['Merci… C’était pas moi. Enfin si. Mais merci.', 'Tu ramasses, je regarde. C’est notre contrat.', 'Kirei ! (propre) Je peux refaire des bêtises maintenant.']), 'contente'); render(); }
+    } else {
+      // relâchée ailleurs : elle retombe à sa place
+      const r = d.el.getBoundingClientRect(); d.ghost.style.transition = 'left .25s cubic-bezier(.34,1.4,.64,1), top .25s cubic-bezier(.34,1.4,.64,1)'; d.ghost.style.left = `${r.left}px`; d.ghost.style.top = `${r.top}px`;
+      setTimeout(() => { d.ghost.remove(); d.el.classList.remove('prise'); }, 260);
+      d.bin.classList.remove('on'); setTimeout(() => d.bin.remove(), 300);
+    }
+  };
+  document.addEventListener('pointermove', move); document.addEventListener('pointerup', fin); document.addEventListener('pointercancel', fin);
+}
 
 // Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
 // et remontent avec ce qu'on fait. On ne les affiche jamais : c'est Azami qui le dit, dans ses bulles. L'état vit
@@ -5323,10 +5412,11 @@ const TAMA_BAISSE = { faim: 4, soif: 3, calins: 3, jeu: 2 };   // par heure
 const tamaEtat = () => S.tama ||= TAMA_DEF();
 const clamp100 = v => Math.max(0, Math.min(100, Math.round(v)));
 function tamaTick() {
-  const t = tamaEtat(), now = Date.now(), h = Math.max(0, (now - (t.maj || now)) / 36e5);
+  const t = tamaEtat(), now = Date.now(), avant = t.maj || now, h = Math.max(0, (now - avant) / 36e5);
   if (h < .05) return false;
   const heure = new Date().getHours(), folie = heure === 7 || heure >= 22;
   for (const [k, par] of Object.entries(TAMA_BAISSE)) t[k] = clamp100((t[k] ?? 70) - par * h * (k === 'faim' && folie ? 1.5 : 1));
+  crotteTick(t, avant, now);
   t.maj = now;
   return true;
 }
@@ -5342,15 +5432,17 @@ const TAMA_GESTES = {
   ragout: { faim: 45, poids: 2, geste: 'te donne du ragoût', mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.', 'Le ragoût. Ma raison de vivre, juste après la fenêtre.', 'J’ai de la sauce sur les moustaches. Ne dis rien.'], son: ['ronronmrr', 'long'], reac: 'caresse_3' },
   friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne d’être parti si longtemps.'], son: ['chirp', 'gazouille'], reac: 'attaque' },
   eau: { soif: 40, geste: 'te donne de l’eau fraîche', mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.', 'Lap lap lap. Tu entends ? C’est le bruit du bonheur.', 'De l’eau. Pas de ragoût ? Bon, de l’eau alors. Merci quand même.', 'J’avais la langue comme du papier de verre. Sauvée.'], son: ['mrrr', 'mew'], reac: 'caresse_1' },
-  caresse: { calins: 6 },
+  caresse: { calins: 6, rare: ['Mrrr… juste là, oui. Encore un peu.', 'Ronron. Tu as le droit de continuer.', 'Je ne bouge pas. C’est un ordre.', 'Encore. Non, pas là. Là. Voilà.', 'Si tu t’arrêtes, je grogne. Gentiment.'], folie: ['ATTAQUE DE LA MAIN. Pardon. C’est l’heure.', 'Mordillage ! Je joue, je joue.'] },
 };
 function tamaGeste(k) {
   const g = TAMA_GESTES[k]; if (!g) return;
   const t = tamaEtat(); tamaTick();
   for (const j of ['faim', 'soif', 'calins', 'jeu', 'poids']) if (g[j]) t[j] = clamp100((t[j] ?? 50) + g[j]);
-  if (k !== 'caresse') (t.repas ||= []).push({ q: k, at: Date.now(), par: S.me });
+  if (k !== 'caresse') (t.repas ||= []).push({ q: k, at: Date.now(), par: S.me, caca: k === 'eau' });
   if (t.repas?.length > 40) t.repas.splice(0, t.repas.length - 40);
   tamaSave(k !== 'caresse');
+  // une caresse : rarement, elle le dit (une fois sur huit ; à ses heures de folie, c'est plutôt une attaque)
+  if (k === 'caresse' && !AZ.bulle && !AZ.busy && !AZ.ecrit && Math.random() < .12) { azamiPose(pick(azamiFolie() ? g.folie : g.rare), azamiFolie() ? 'joueuse' : 'contente'); render(); }
   if (g.mot) {
     S.tamaMenu = null;
     const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
@@ -5388,6 +5480,7 @@ function tamaContexte() {
   const QUOI = { croquettes: 'des croquettes au poisson', ragout: 'du ragoût', friandise: 'une friandise', eau: 'de l’eau fraîche' };
   const gestes = (t.repas || []).slice(-6).reverse().map(g => `${nameOf(g.par)} t’a donné ${QUOI[g.q] || g.q} ${ago(new Date(g.at).toISOString())}`);
   return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).
+CROTTES À RAMASSER : ${(t.crottes || []).length} (${(t.crottes || []).length ? 'tu es un peu gênée, tu peux le dire avec humour' : 'tout est propre'}).
 CE QU'ON A FAIT POUR TOI DANS L'APP (tu le sais, tu peux en parler et remercier) : ${gestes.length ? gestes.join(' ; ') + '.' : 'rien encore (personne ne t’a nourrie ni donné à boire dans l’app).'}`;
 }
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
