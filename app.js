@@ -40,6 +40,16 @@ function azamiImg(scene) {
   if (!azamiImgs[scene]) {
     const img = new Image(512, 512);
     img.className = `azami ${scene.startsWith('v44_') ? 'v44' : ''}`; img.decoding = 'sync'; img.src = azamiSrc(scene);
+    // Si un chargement échoue (réseau qui coupe, appli mise en veille pendant le chargement), l'image restait
+    // cassée pour toute la session (un point d'interrogation à la place d'Azami) : on réessaie, puis on prend
+    // la version fixe de la scène.
+    let essais = 0;
+    img.addEventListener('error', () => {
+      essais++;
+      if (essais <= 3) setTimeout(() => { delete img.dataset.caresse; img.src = `${azamiSrc(scene)}?r=${Date.now()}`; }, 600 * essais);
+      else if (essais === 4) img.src = `azami/v44/statiques/azami_${scene}_statique.svg`;
+    });
+    img.addEventListener('load', () => { if (!img.src.includes('/reactions/')) essais = 0; });
     azamiImgs[scene] = img;
   }
   return azamiImgs[scene];
@@ -104,6 +114,7 @@ document.addEventListener('touchend', () => {
 });
 let sheetDrag = null;
 function closeTicket() { const b = document.getElementById('ticket'); if (!b) return; b.classList.remove('on'); setTimeout(() => b.remove(), 300); S.ticket = null; }
+document.addEventListener('visibilitychange', () => { if (document.hidden) return; for (const [sc, img] of Object.entries(azamiImgs)) if (img.complete && !img.naturalWidth) img.src = `${azamiSrc(sc)}?r=${Date.now()}`; });
 function placeAzami() {
   document.querySelectorAll('.azami-slot').forEach(slot => {
     const img = azamiImg(slot.dataset.scene); img.alt = slot.dataset.alt;
@@ -529,10 +540,10 @@ const labelOf = (type, row) => type === 'tasks' || type === 'chores' || type ===
 // Icône enregistrée, sauf si c'était l'icône large d'un thème qui a depuis une icône plus précise (« t:pates » → « t:lasagnes »).
 function refined(type, row) {
   if (!row.icon || !row.icon.startsWith('t:')) return row.icon;
-  const r = classify(labelOf(type, row) || '', S.hints);
+  const r = classify(labelOf(type, row) || '', S.hintsX || S.hints);
   return r && PARENT[r.id] === row.icon.slice(2) ? `t:${r.id}` : row.icon;
 }
-const iconOf = (type, row) => (row.icon && !(isVariant(row.icon) && !variantSrc(row.icon)) ? refined(type, row) : null) || iconFor(labelOf(type, row), ctxOf[type], S.hints);
+const iconOf = (type, row) => (row.icon && !(isVariant(row.icon) && !variantSrc(row.icon)) ? refined(type, row) : null) || iconFor(labelOf(type, row), ctxOf[type], S.hintsX || S.hints);
 
 // Variantes personnalisées ---------------------------------------------------
 // Qui « porte » l'élément : la personne assignée, à qui c'est le tour, qui a payé, qui l'a fait.
@@ -540,7 +551,7 @@ const ownerOf = (type, row) => ({ tasks: row.assignee, chores: row.turn, expense
 const personOf = email => { const m = S.members.find(x => x.email === email); return m ? personKey(m.name) : null; };
 // L'icône stockée est-elle celle que l'app a choisie seule (et non un choix à la main) ?
 function autoTheme(label, stored, ctx) {
-  const r = classify(label, S.hints);
+  const r = classify(label, S.hintsX || S.hints);
   if (r && r.id === 'hint') return null;          // appris d'un choix manuel : on le respecte
   if (!r) return null;
   if (!stored) return r.id;
@@ -581,11 +592,14 @@ function iconPicker(type, row) {
   }).join('');
   return `<div class="picker" role="group" aria-label="Choisir une icône">${people}<p class="picker-head">Thèmes</p>${withImg.map(btn).join('')}${noImg.map(btn).join('')}</div>`;
 }
-function hintsFrom(rows) {
+// exact : seulement les choix faits pour ce libellé précis. Les mots appris (« ~cuisine ») servent à deviner
+// l'icône d'un NOUVEL élément ; ils ne changent jamais l'icône d'un élément déjà là (sinon choisir l'icône de
+// « Nettoyer la cuisine » changeait celle de toutes les tâches avec « nettoyer »).
+function hintsFrom(rows, exact = false) {
   const h = {};
   for (const r of rows) {
     h[r.word] = r.icon;
-    for (const tok of r.word.split(' ')) if (tok.length >= 4) h['~' + tok] = r.icon;
+    if (!exact) for (const tok of r.word.split(' ')) if (tok.length >= 4) h['~' + tok] = r.icon;
   }
   return h;
 }
@@ -607,7 +621,7 @@ async function loadAll() {
   const achats = wins.filter(w => w.kind === 'achat');
   wins.splice(0, wins.length, ...wins.filter(w => w.kind !== 'achat'));
   loadAgenda();
-  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
+  Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), hintsX: hintsFrom(hints, true), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
     goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
   algoApplique();
@@ -907,7 +921,7 @@ const PRIO = { vital: 0, important: 1, normal: 2, later: 3 };
 const PRIO_LABEL = { vital: 'Vitale', important: 'Importante', normal: 'Normale', later: 'Peut attendre' };
 const VITAL_THEMES = { azami: ['litiere', 'croquettes', 'patee', 'gamelle', 'fontaine', 'veto', 'vaccinchat', 'antipuces', 'vermifuge'], sante: ['pharmacie', 'ordonnance', 'paracetamol', 'ibuprofene'], payer: ['facture', 'facture_qr', 'ebill', 'impots', 'lamal', 'serafe', 'fiduciaire', 'urgent'] };
 const IMPORTANT_THEMES = ['poubelle', 'dechets', 'vaisselle', 'lavevaisselle', 'lessive', 'courses', 'medecin', 'sante', 'rdv', 'orp', 'travail', 'admin', 'identite', 'passeport', 'gerance', 'banque', 'virement', 'courrier', 'recommande'];
-const themeChain = label => { const r = classify(label || '', S.hints); const out = []; let id = r && r.id !== 'hint' ? r.id : null; while (id && out.length < 4) { out.push(id); id = PARENT[id]; } return out; };
+const themeChain = label => { const r = classify(label || '', S.hintsX || S.hints); const out = []; let id = r && r.id !== 'hint' ? r.id : null; while (id && out.length < 4) { out.push(id); id = PARENT[id]; } return out; };
 // Priorité d'un élément : choisie à la main, sinon devinée (et la raison, pour rassurer).
 function prioOf(kind, row) {
   const late = kind === 'task' ? row.due_on && row.due_on < isoDate(new Date()) : choreStatus(row).late;
@@ -2419,7 +2433,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v197</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v198</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2496,7 +2510,7 @@ function viewAgenda() {
     if (e.kind) return houseItem(e);
     if (S.edit?.id === e.id) return `<li class="item editing">${editEvent(e)}</li>`;
     const ongoing = (e.allDay ? e.start < today : e.start < new Date().toISOString());
-    return `<li class="item ev ${ongoing ? 'ongoing' : ''}">${iconHtml(iconFor(e.title, 'task', S.hints))}<div class="item-main"><div class="item-title">${esc(e.title)}</div><div class="item-meta">${esc(evWhen(e))}${e.place ? `, ${esc(e.place)}` : ''}${e.recurring ? ', se répète' : ''}</div></div>
+    return `<li class="item ev ${ongoing ? 'ongoing' : ''}">${iconHtml(iconFor(e.title, 'task', S.hintsX || S.hints))}<div class="item-main"><div class="item-title">${esc(e.title)}</div><div class="item-meta">${esc(evWhen(e))}${e.place ? `, ${esc(e.place)}` : ''}${e.recurring ? ', se répète' : ''}</div></div>
       <button class="more" id="more-${esc(e.id)}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${esc(e.id)}">⋯</button>
       ${S.open === e.id ? `<div class="item-actions">${e.recurring ? '<span class="hint">Les événements qui se répètent se modifient dans l\'app Calendrier.</span>' : `<button class="btn ghost small" data-action="ev-edit" data-id="${esc(e.id)}">Modifier</button><button class="btn ghost small" data-action="ev-delete" data-id="${esc(e.id)}">Supprimer</button>`}</div>` : ''}</li>`;
   };
@@ -2874,7 +2888,7 @@ function guessShop(label) { const r = classify(label, S.hints); return (r && (SH
 const shopsOf = s => { const v = String(s.shop || '').split(',').filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
 
 // Rayons : la liste suit le tour du magasin (fruits et légumes d'abord, surgelés à la fin…).
-const shopTheme = s => (String(s.icon || '').startsWith('t:') ? s.icon.slice(2) : null) || classify(s.label, S.hints)?.id || null;
+const shopTheme = s => (String(s.icon || '').startsWith('t:') ? s.icon.slice(2) : null) || classify(s.label, S.hintsX || S.hints)?.id || null;
 const aisleFor = (shop, s) => aisleOf(shop, shopTheme(s), PARENT);
 // Article inconnu : au supermarché, avec l'épicerie ; un objet connu mais hors rayons alimentaires, à la fin.
 const aisleRank = (shop, s) => { const a = aisleFor(shop, s); return a ? a[0] : shop === 'super' && !shopTheme(s) ? 5.5 : 99; };
@@ -2906,7 +2920,7 @@ function viewCourses() {
     <button class="more" id="more-${s.id}" aria-label="Options" aria-expanded="${S.open === s.id}" data-action="more" data-id="${s.id}">⋯</button>
     ${iconPicker('shopping', s)}
     ${S.open === s.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="shopping" data-id="${s.id}">Modifier</button><button class="btn ghost small" data-action="shop-delete" data-id="${s.id}">Retirer</button></div>
-      <div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopsOf(s).includes(k)}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
+      <p class="shops-t">Où l’acheter <small>(plusieurs possibles)</small></p><div class="item-actions shops">${SHOPS.map(([k, l]) => `<button class="btn ghost small" data-action="shop-where" data-id="${s.id}" data-shop="${k}" aria-pressed="${shopsOf(s).includes(k)}">${esc(l)}</button>`).join('')}</div>` : ''}</li>`;
   return `<header class="hd row"><div><p class="hd-kicker">${mode ? `Je suis : ${esc(modeLabel)}` : todo.length ? pl(todo.length, 'article', 'articles') : 'Liste vide'}</p><h1>Courses</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_courses', 'Azami fouille le panier')}</button></header>
     <form class="form row" data-form="shop">
       <div class="grow"><label class="sr" for="shop-label">Article</label>
@@ -5251,11 +5265,11 @@ const actions = {
     // un toucher range l'article à cet endroit (il quitte l'ancien) ; s'il était à plusieurs endroits, toucher l'un
     // d'eux le retire de celui-là
     const cur = shopsOf(s); const k = el.dataset.shop;
-    const next = cur.includes(k) ? (cur.length > 1 ? cur.filter(x => x !== k) : cur) : [k];
-    if (next.join(',') === cur.join(',')) return;
-    s.shop = next.join(','); haptic(1); S.open = null; render();
-    const lab = SHOPS.find(x => x[0] === next[0])?.[1];
-    run(() => api.update('shopping', { id: s.id }, { shop: s.shop }), next.length === 1 ? `Rangé : ${lab}` : '', 'shop-' + s.id);
+    // plusieurs endroits possibles : un toucher ajoute ou retire celui-là (il en reste toujours au moins un)
+    const next = cur.includes(k) ? cur.filter(x => x !== k) : [...cur, k];
+    if (!next.length) { toast('Il faut au moins un endroit : touche d’abord le bon, puis retire celui-ci'); return; }
+    s.shop = SHOPS.map(x => x[0]).filter(x => next.includes(x)).join(','); haptic(1); render();
+    const val = s.shop; run(() => api.update('shopping', { id: s.id }, { shop: val }), '', 'shop-' + s.id + '-' + Date.now());
   },
   'shop-delete': el => { S.open = null; run(() => api.remove('shopping', { id: el.dataset.id }), 'Retiré de la liste'); },
   edit: el => { S.edit = { type: el.dataset.type, id: el.dataset.id }; S.open = null; S.pick = null; S.chips = {}; render(); document.querySelector('.edit input, .edit textarea')?.focus(); },

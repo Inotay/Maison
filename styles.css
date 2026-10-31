@@ -1970,3 +1970,4 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .cine .renote-l, .renote-l { color: #C9B7C6; font-weight: 700; font-size: 13px; text-decoration-color: rgba(201,183,198,.4); }
 #renote .btn.ghost { background: rgba(250,243,232,.08); color: #FAF3E8; border: 2px solid rgba(250,243,232,.25); box-shadow: none; }
 #renote .btn.ghost:disabled { opacity: .35; }
+.shops-t { margin: 8px 0 2px; font-size: 13px; font-weight: 800; color: var(--muted, #6b5a52); } .shops-t small { font-weight: 600; opacity: .8; }

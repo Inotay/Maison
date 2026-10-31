@@ -219,6 +219,7 @@ export function react(id, anchor) {
   if (reactionEl) { reactionEl.remove(); reactionEl = null; }
   const img = document.createElement('img');
   img.className = 'reaction'; img.alt = ''; img.src = reactionSrc(id);
+  img.onerror = () => { if (reactionEl === img) reactionEl = null; img.remove(); };   // jamais d'image cassée à l'écran
   const r = anchor?.getBoundingClientRect();
   const size = 120;
   const top = r ? Math.max(8, Math.min(innerHeight - size - 90, r.top + r.height / 2 - size / 2)) : innerHeight * .3;
@@ -239,6 +240,7 @@ export function celebrate({ title, sub = '', level = 'big', badge = null, reacti
   box.id = 'cele'; box.setAttribute('aria-hidden', 'true');
   // Scène « reussite » V4.4 en secours, montée le temps de la fête puis retirée (jamais en boucle permanente).
   box.innerHTML = `<div class="cele-flash"></div><div class="cele-card"><div class="cele-pair"><img class="cele-azami" src="${REACTION_MS[reaction] ? reactionSrc(reaction) : (reduced() ? 'azami/v44/statiques/azami_v44_reussite_statique.svg' : `azami/v44/azami_v44_reussite_anime.svg?${Date.now()}`)}" alt="">${badge ? `<img class="cele-badge" src="${badge}" alt="">` : ''}</div><p class="cele-title">${title || 'Bravo !'}</p>${sub ? `<p class="cele-sub">${sub}</p>` : ''}</div>`;
+  box.querySelector('.cele-azami')?.addEventListener('error', e => { e.target.style.visibility = 'hidden'; });
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   burst('confetti', null, level === 'big' ? 40 : 24);
