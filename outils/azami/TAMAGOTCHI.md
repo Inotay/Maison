@@ -11,7 +11,8 @@ Tout ce qui touche au tamagotchi est sur l'accueil (sa barre, ses crottes, sa ga
 - câlins : baisse de ~3 par heure ; une caresse = +6 (les caresses sur elle comptent, sur toutes les pages).
 - jeu / fenêtre : baisse de ~2 par heure ; une partie = +25, regarder par la fenêtre avec elle = +15.
 - poids : monte avec les friandises, redescend avec le jeu. Jamais de pénalité : elle parle juste de son bide.
-- forme (fatigue) : elle dort la nuit (22 h à 8 h hors folie) et fait des siestes ; on ne la gère pas, ça donne son humeur.
+- forme (fatigue) : elle dort de minuit à 7 h (aucune initiative) et fait des siestes ; de 22 h à minuit et de 7 h à 8 h,
+  c'est la folie : elle court, elle embête, elle parle deux fois plus. On ne la gère pas, ça donne son humeur.
 - humeur = combinaison des quatre + ce qu'on lui a dit. Elle l'exprime, on ne l'affiche pas.
 
 Serveur : une ligne `azami_etat` (jsonb) partagée : jauges, dernière mise à jour, crottes (positions), journal.

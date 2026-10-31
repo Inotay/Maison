@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v218</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v219</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5180,9 +5180,11 @@ const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.rec
 // Une partie du temps c'est elle qui improvise (le modèle reçoit l'événement, avec l'app et ses films) ;
 // sinon une phrase locale.
 const AZ_MODE = () => safeGet('maison-az-mode') || 'bavarde';
-// Ses heures de calme (22 h à 8 h). Levées exceptionnellement ce soir, le temps d'essayer (jusqu'au 1er novembre 8 h).
-const AZ_VEILLE = Date.parse('2026-11-01T08:00:00+01:00');
-const azamiNuit = () => { if (Date.now() < AZ_VEILLE) return false; const h = new Date().getHours(); return h >= 22 || h < 8; };
+// Ses heures : calme de minuit à 7 h (elle dort, aucune initiative) ; folie de 22 h à minuit et de 7 h à 8 h
+// (elle court partout, elle embête, elle parle deux fois plus).
+const azamiNuit = () => { const h = new Date().getHours(); return h < 7; };
+const azamiFolie = () => { const h = new Date().getHours(); return h === 7 || h >= 22; };
+const AZ_FOLIE_MOTS = ['ATTAQUE ! Pardon. C’est l’heure, je ne contrôle rien.', 'Je viens de faire trois fois le tour du salon. Pourquoi ? Aucune idée.', 'Tes pieds bougent sous la couette ? Ils sont à moi maintenant.', 'Grrrr. C’est un grognement de joie. Je joue. Avec ton visage, idéalement.', 'Je gratte le fauteuil. Je sais. Je ne peux pas m’en empêcher. C’est l’heure.', 'Lance-moi quelque chose. N’importe quoi. Une chaussette. VITE.'];
 let azDernier = 0, azInactif = Date.now(), azInactifDit = false;
 const AZ_PAGES_MOTS = {
   maison: ['Tu rentres ? Je faisais semblant de dormir.', 'L’accueil. Mon endroit préféré, après le fauteuil.'],
@@ -5198,9 +5200,10 @@ function azamiRemarque(evt, detail = '') {
   if (!S.me || S.recovery || AZ.busy || AZ.ecrit || document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;
   const mode = AZ_MODE(); if (mode === 'muette') return;
   if (azamiNuit()) return;
-  const now = Date.now(), delai = mode === 'bavarde' ? 80e3 : 8 * 60e3;
+  const folie = azamiFolie();
+  const now = Date.now(), delai = (mode === 'bavarde' ? 80e3 : 8 * 60e3) / (folie ? 2 : 1);
   if (now - azDernier < delai || now - (AZ.at || 0) < 40e3) return;
-  const chance = evt === 'inactif' ? .9 : mode === 'bavarde' ? .3 : .1;
+  const chance = evt === 'inactif' ? .9 : (mode === 'bavarde' ? .3 : .1) * (folie ? 2 : 1);
   if (Math.random() > chance) return;
   azDernier = now;
   const nom = firstName();
@@ -5211,9 +5214,11 @@ function azamiRemarque(evt, detail = '') {
   let pool = evt === 'page' ? AZ_PAGES_MOTS[detail] : evt === 'fait' ? AZ_FAIT_MOTS : AZ_INACTIF_MOTS;
   // devant l'écran sans rien faire : parfois un film de ta liste, au hasard
   if (evt === 'inactif' && Math.random() < .4) { const env = (S.films || []).filter(f => f.status === 'a_voir' && T.wants(f.votes?.[S.me])); if (env.length) pool = [`Dis, « ${pick(env).title} » attend dans ta liste. Ce soir, peut-être ?`]; }
+  if (folie && Math.random() < .5) pool = AZ_FOLIE_MOTS;   // à ses heures de folie, elle embête
   if (!pool?.length) return;
-  azamiPose(pick(pool), evt === 'fait' ? 'contente' : 'curieuse'); render();
-  meow(true, .35, pick(['mrrr', 'chirp', 'question']));
+  azamiPose(pick(pool), folie ? 'joueuse' : evt === 'fait' ? 'contente' : 'curieuse'); render();
+  meow(true, folie ? .5 : .35, pick(folie ? ['grogne', 'chirp', 'mewmew', 'gazouille'] : ['mrrr', 'chirp', 'question']));
+  if (folie) { const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'attaque', 1750); }
 }
 // sans rien faire devant l'écran : au bout d'une minute, une fois par période d'inactivité
 ['pointerdown', 'keydown', 'scroll', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { azInactif = Date.now(); azInactifDit = false; }, { passive: true, capture: true }));
