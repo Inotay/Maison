@@ -56,6 +56,13 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - gargouille (ventre), croquettes (crounch), ragoût (slurp), poubelle (couvercle, « plop »), ronron déjà là,
   grognement de contentement (siamois) déjà là.
 
+## Ce qui est branché (v228)
+- Nourrir / Boire jouent mange, ragoût, friandise, boit. Quand elle dit qu'elle a faim : faim quelques secondes.
+- Sur l'accueil, son état remplace sa scène : dort (minuit à 7 h, et en sieste : 20 min après un ragoût, ou parfois
+  l'après-midi), boude (faim sous 12, ou 4 crottes et plus), faim (faim sous 25). Un geste la réveille, sauf le ragoût.
+- Aux heures de folie, elle traverse parfois l'écran en courant (zoomies), au plus toutes les 90 s.
+- Pour essayer en démo : ?azami=tama:dort (boude, faim, zoomies).
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.

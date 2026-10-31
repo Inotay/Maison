@@ -1722,7 +1722,7 @@ function morphChildren(from, to) {
     from.insertBefore(b, a); b = nb;
     // l'ancien nœud sera réutilisé plus loin s'il correspond, sinon retiré à la fin
   }
-  while (a) { const n = a.nextSibling; if (!(a.nodeType === 1 && a.classList.contains('hap'))) from.removeChild(a); a = n; }
+  while (a) { const n = a.nextSibling; if (!(a.nodeType === 1 && (a.classList.contains('hap') || a.classList.contains('crotte')))) from.removeChild(a); a = n; }   // les crottes restent posées entre deux rendus (sinon elles réapparaissent en sautillant)
 }
 // ── Nos icônes : dessinées pour la maison (trait rond, chaud, un peu dodu), jamais d'émoji ──
 // Toutes en 24×24, couleur héritée du texte, taille 1em : elles suivent la taille de police de leur bouton.
@@ -1971,12 +1971,13 @@ function propEnter() {
   const sc = img ? Object.keys(azamiImgs).find(k => azamiImgs[k] === img) : null;
   if (sc === lastHdScene) return;
   lastHdScene = sc; stopPropSounds();
-  if (!sc || !CUES[sc] || reducedMotion() || img.dataset.caresse || document.body.classList.contains('azami-away')) return;
+  if (!sc || !CUES[sc] || reducedMotion() || img.dataset.caresse || img.dataset.tama || document.body.classList.contains('azami-away')) return;
   propStart(img, sc, true);
 }
 // Après une réaction (caresse, coup de patte, retour) : la scène reprend du début, avec ses bruitages.
 function restoreScene(img, back) {
   const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
+  if (img.dataset.tama && img === document.querySelector('.hd img.azami')) { img.src = reactSrc(img.dataset.tama); return; }
   if (sc && CUES[sc] && img === document.querySelector('.hd img.azami') && !reducedMotion()) { stopPropSounds(); lastHdScene = sc; propStart(img, sc, false); }
   else img.src = back;
 }
@@ -2318,7 +2319,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage(); crottesPlace(); if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
+  azamiType(); azamiNuage(); crottesPlace(); tamaScene(); if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
   deepLink();
@@ -2519,7 +2520,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v227</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v228</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5477,10 +5478,10 @@ function tamaSave(force) {
 }
 // Ce qu'on fait pour elle : chaque geste remonte une jauge, et elle réagit (sans appel au modèle).
 const TAMA_GESTES = {
-  croquettes: { faim: 35, poids: 1, geste: 'te donne des croquettes au poisson', mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.', 'Je mange trop vite, je sais. C’est la peur qu’on me les reprenne.', 'Tu as vu ? Je n’ai même pas grogné. Ça veut dire que c’est bon.', 'Itadakimasu ! (bon appétit à moi)'], son: ['mewmew', 'mrrr'], reac: 'caresse_2' },
-  ragout: { faim: 45, poids: 2, geste: 'te donne du ragoût', mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.', 'Le ragoût. Ma raison de vivre, juste après la fenêtre.', 'J’ai de la sauce sur les moustaches. Ne dis rien.'], son: ['ronronmrr', 'long'], reac: 'caresse_3' },
-  friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne d’être parti si longtemps.'], son: ['chirp', 'gazouille'], reac: 'attaque' },
-  eau: { soif: 40, geste: 'te donne de l’eau fraîche', mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.', 'Lap lap lap. Tu entends ? C’est le bruit du bonheur.', 'De l’eau. Pas de ragoût ? Bon, de l’eau alors. Merci quand même.', 'J’avais la langue comme du papier de verre. Sauvée.'], son: ['mrrr', 'mew'], reac: 'caresse_1' },
+  croquettes: { faim: 35, poids: 1, geste: 'te donne des croquettes au poisson', mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.', 'Je mange trop vite, je sais. C’est la peur qu’on me les reprenne.', 'Tu as vu ? Je n’ai même pas grogné. Ça veut dire que c’est bon.', 'Itadakimasu ! (bon appétit à moi)'], son: ['mewmew', 'mrrr'], reac: 'mange', ms: 5200 },
+  ragout: { faim: 45, poids: 2, geste: 'te donne du ragoût', mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.', 'Le ragoût. Ma raison de vivre, juste après la fenêtre.', 'J’ai de la sauce sur les moustaches. Ne dis rien.'], son: ['ronronmrr', 'long'], reac: 'ragout', ms: 5600 },
+  friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne d’être parti si longtemps.'], son: ['chirp', 'gazouille'], reac: 'friandise', ms: 3600 },
+  eau: { soif: 40, geste: 'te donne de l’eau fraîche', mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.', 'Lap lap lap. Tu entends ? C’est le bruit du bonheur.', 'De l’eau. Pas de ragoût ? Bon, de l’eau alors. Merci quand même.', 'J’avais la langue comme du papier de verre. Sauvée.'], son: ['mrrr', 'mew'], reac: 'boit', ms: 4600 },
   caresse: { calins: 6, rare: ['Mrrr… juste là, oui. Encore un peu.', 'Ronron. Tu as le droit de continuer.', 'Je ne bouge pas. C’est un ordre.', 'Encore. Non, pas là. Là. Voilà.', 'Si tu t’arrêtes, je grogne. Gentiment.'], folie: ['ATTAQUE DE LA MAIN. Pardon. C’est l’heure.', 'Mordillage ! Je joue, je joue.'] },
 };
 function tamaGeste(k) {
@@ -5488,13 +5489,14 @@ function tamaGeste(k) {
   const t = tamaEtat(); tamaTick();
   for (const j of ['faim', 'soif', 'calins', 'jeu', 'poids']) if (g[j]) t[j] = clamp100((t[j] ?? 50) + g[j]);
   if (k !== 'caresse') (t.repas ||= []).push({ q: k, at: Date.now(), par: S.me, caca: k === 'eau' });
+  if (k === 'ragout') { t.sieste = Date.now() + 20 * 60e3; t.siesteAt = Date.now(); } else t.sieste = 0;   // le ragoût appelle la sieste ; le reste la réveille
   if (t.repas?.length > 40) t.repas.splice(0, t.repas.length - 40);
   tamaSave(k !== 'caresse');
   // une caresse : rarement, elle le dit (une fois sur huit ; à ses heures de folie, c'est plutôt une attaque)
   if (k === 'caresse' && !AZ.bulle && !AZ.busy && !AZ.ecrit && Math.random() < .12) { azamiPose(pick(azamiFolie() ? g.folie : g.rare), azamiFolie() ? 'joueuse' : 'contente'); render(); }
   if (g.mot) {
     S.tamaMenu = null;
-    const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
+    const img = document.querySelector('.hd img.azami'); if (img) playOnImg(img, g.reac, g.ms || 2500);
     meow(true, .5, pick(g.son)); haptic('medium'); if (img) burst('hearts', img, 6);
     // une fois sur deux, c'est elle qui improvise (le modèle reçoit le geste, pas une phrase) ; sinon une phrase locale
     if (!DEMO && !S.offline && Math.random() < .5) { azamiEnvoyer(`${firstName()} ${g.geste}.`, true); return; }
@@ -5520,7 +5522,29 @@ function tamaDire() {
   if (!besoin || (AZ.bulle && now - (AZ.at || 0) < 20 * 60e3)) return;
   (t.dit ||= {})[besoin] = now; tamaSave();
   azamiPose(pick(TAMA_MOTS[besoin]), besoin === 'faim' ? 'affamee' : besoin === 'calins' ? 'contente' : 'curieuse');
-  render(); if (besoin === 'faim') meow(true, .4, 'question');
+  render(); if (besoin === 'faim') { meow(true, .4, 'question'); playOnImg(document.querySelector('.hd img.azami'), 'faim', 8000); }
+}
+// Son état, visible sur l'accueil sans un mot : elle dort la nuit, boude quand on l'a oubliée (ou que ça sent
+// la crotte), fixe sa gamelle vide quand elle a vraiment faim. Aux heures de folie, elle traverse parfois l'écran
+// en courant. Après une réaction (caresse, repas), elle revient à cet état.
+let zoomiesAt = 0;
+function tamaScene() {
+  const img = document.querySelector('.hd img.azami'); if (!img) return;
+  const t = tamaEtat();
+  const essai = DEMO && /azami=tama:/.test(location.search) ? location.search.match(/azami=tama:(\w+)/)[1] : null;   // pour essayer : ?azami=tama:dort
+  // une sieste : après un ragoût, ou parfois l'après-midi (25 min, pas plus d'une toutes les trois heures)
+  const now = Date.now(), h = new Date().getHours();
+  if (!(now < (t.sieste || 0)) && h >= 13 && h < 18 && now - (t.siesteAt || 0) > 3 * 36e5 && Math.random() < .15) { t.sieste = now + 25 * 60e3; t.siesteAt = now; tamaSave(); }
+  const etat = S.view !== 'maison' || !S.me || S.recovery ? null
+    : essai ? (essai === 'zoomies' ? null : essai)
+    : azamiNuit() || now < (t.sieste || 0) ? 'dort'
+    : (t.faim < 12 || (t.crottes || []).length >= 4) ? 'boude'
+    : t.faim < 25 ? 'faim' : null;
+  if (etat !== (img.dataset.tama || null)) {
+    if (etat) img.dataset.tama = etat; else delete img.dataset.tama;
+    if (!img.dataset.caresse) { if (etat) { stopPropSounds(); img.src = reactSrc(etat); } else restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos')); }
+  }
+  if (!etat && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); }
 }
 // Ce qu'elle sait de son propre état, pour en parler elle-même quand on lui parle.
 function tamaContexte() {
@@ -5660,7 +5684,7 @@ async function azamiType() {
   }
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
-const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['retour', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
+const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['faim', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
 function azamiEcrire() {
   AZ.ecrit = true; render();
   window.scrollTo({ top: 0, behavior: 'instant' });   // la bulle pour écrire est en haut : rien à faire défiler pour le clavier
@@ -5679,7 +5703,7 @@ async function azamiEnvoyer(txt, geste = false) {
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
     const img = document.querySelector('.hd img.azami');
-    if (img && reac && !img.dataset.caresse) playOnImg(img, reac, 2500);
+    if (img && reac && !img.dataset.caresse) playOnImg(img, reac, reac === 'faim' ? 4000 : 2500);
     meow(true, .45, pick(sons));
     if (r.humeur === 'contente' && img) burst('hearts', img, 8);
   } catch (e) {
