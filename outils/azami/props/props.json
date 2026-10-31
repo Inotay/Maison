@@ -1,0 +1,130 @@
+{
+"prop-food": {
+"svg": "<g id=\"prop-food\"><ellipse cx=\"359\" cy=\"389\" rx=\"58\" ry=\"15\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"5\" /><ellipse cx=\"359\" cy=\"378\" rx=\"33\" ry=\"13\" fill=\"#E7AD6C\" stroke=\"#172B42\" stroke-width=\"4\" /><path d=\"M347 371q-8 -15 7 -20 M365 371q-5 -12 6 -17\" stroke=\"#5D9C66\" stroke-width=\"6\" fill=\"none\" /></g>",
+"src": "a_finir_vite_anime.svg"
+},
+"prop-alert": {
+"svg": "<g id=\"prop-alert\"><path d=\"M410 285l2 22 -2 20\" stroke=\"#ED776C\" stroke-width=\"8\" stroke-linecap=\"round\" /><circle cx=\"410\" cy=\"338\" r=\"5\" fill=\"#ED776C\" /></g>",
+"src": "a_finir_vite_anime.svg"
+},
+"prop-oops": {
+"svg": "<g id=\"prop-oops\"><path d=\"M364 332l7 22 -7 22 -7 -22Z\" fill=\"#ED776C\" stroke=\"#172B42\" stroke-width=\"4\" /><circle cx=\"364\" cy=\"387\" r=\"4\" fill=\"#ED776C\" /></g>",
+"src": "annuler_anime.svg"
+},
+"prop-heart": {
+"svg": "<g id=\"prop-heart\"><path d=\"M350 321q-15 -17 -22 -6 -8 12 22 32 30 -20 22 -32 -7 -11 -22 6\" fill=\"#ED776C\" /></g>",
+"src": "caresse_1_anime.svg"
+},
+"prop-spark": {
+"svg": "<g id=\"prop-spark\"><path d=\"M366 305l6 13 13 6 -13 6 -6 13 -6 -13 -13 -6 13 -6Z\" fill=\"#FFC84B\" /></g>",
+"src": "caresse_2_anime.svg"
+},
+"prop-purr": {
+"svg": "<g id=\"prop-purr\"><path d=\"M361 331q-9 -8 0 -16 10 -8 0 -17 M383 338q-9 -8 0 -16 10 -8 0 -17\" stroke=\"#FFC84B\" stroke-width=\"6\" stroke-linecap=\"round\" fill=\"none\" /></g>",
+"src": "caresse_3_anime.svg"
+},
+"prop-scale": {
+"svg": "<g id=\"prop-scale\"><path d=\"M353 311v78 M318 389h70 M320 331h67\" stroke=\"#172B42\" stroke-width=\"7\" stroke-linecap=\"round\" /><circle cx=\"353\" cy=\"312\" r=\"9\" fill=\"#FFC84B\" stroke=\"#172B42\" stroke-width=\"4\" /><path d=\"M326 332l-15 35h31Z M380 332l-15 35h31Z\" fill=\"#FFC84B\" stroke=\"#172B42\" stroke-width=\"4\" /></g>",
+"src": "comptes_equilibres_anime.svg"
+},
+"prop-sparkle": {
+"svg": "<g id=\"prop-sparkle\"><path d=\"M341 289l10 23 22 8 -22 8 -10 23 -9 -23 -22 -8 22 -8Z M407 338l5 12 12 5 -12 5 -5 13 -5 -13 -12 -5 12 -5Z\" fill=\"#FFC84B\" /></g>",
+"src": "corvee_terminee_anime.svg"
+},
+"prop-basket": {
+"svg": "<g id=\"prop-basket\"><path d=\"M298 337h107l-13 58h-79Z\" fill=\"#E1B977\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M324 335Q349 287 378 335\" fill=\"none\" stroke=\"#A6764D\" stroke-width=\"8\" /><path d=\"M321 352v31m27 -31v31m25 -31v31\" stroke=\"#C48F55\" stroke-width=\"5\" /></g>",
+"src": "courses_completees_anime.svg"
+},
+"prop-veg": {
+"svg": "<g id=\"prop-veg\"><path d=\"M341 329q-20 -28 -12 -42 25 10 25 42\" fill=\"#5FA873\" stroke=\"#172B42\" stroke-width=\"4\" /><circle cx=\"366\" cy=\"326\" r=\"15\" fill=\"#ED776C\" stroke=\"#172B42\" stroke-width=\"4\" /></g>",
+"src": "courses_completees_anime.svg"
+},
+"prop-star": {
+"svg": "<g id=\"prop-star\"><path d=\"M353 301l12 24 28 4 -20 20 5 27 -25 -13 -25 13 5 -27 -20 -20 28 -4Z\" fill=\"#FFC84B\" stroke=\"#172B42\" stroke-width=\"5\" /></g>",
+"src": "fete_reussites_anime.svg"
+},
+"prop-confetti": {
+"svg": "<g id=\"prop-confetti\" stroke-width=\"7\" stroke-linecap=\"round\"><path d=\"M284 297l-9 -10 M415 293l12 -18 M430 369l18 7\" stroke=\"#ED776C\" /><path d=\"M308 261l-4 -16 M398 256l7 -17 M427 334l17 -6\" stroke=\"#FFC84B\" /><path d=\"M321 407l-4 12 M388 408l7 11\" stroke=\"#70C3ED\" /></g>",
+"src": "fete_reussites_anime.svg"
+},
+"prop-washer": {
+"svg": "<g id=\"prop-washer\"><rect x=\"300\" y=\"310\" width=\"108\" height=\"96\" rx=\"13\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"6\" /><rect x=\"309\" y=\"322\" width=\"91\" height=\"14\" rx=\"4\" fill=\"#B3D6E5\" /><circle cx=\"354\" cy=\"368\" r=\"32\" fill=\"#77B4D5\" stroke=\"#172B42\" stroke-width=\"5\" /><circle cx=\"354\" cy=\"368\" r=\"21\" fill=\"#BEE5F2\" stroke=\"#172B42\" stroke-width=\"3\" /><g id=\"prop-drum\"><path d=\"M337 366q18 -17 33 0 -18 16 -33 0Z\" fill=\"#528DB3\" /><path d=\"M346 348q21 18 0 37\" stroke=\"#EDF9FF\" stroke-width=\"5\" fill=\"none\" /></g></g>",
+"src": "machine_lancee_anime.svg"
+},
+"prop-drum": {
+"svg": "<g id=\"prop-drum\"><path d=\"M337 366q18 -17 33 0 -18 16 -33 0Z\" fill=\"#528DB3\" /><path d=\"M346 348q21 18 0 37\" stroke=\"#EDF9FF\" stroke-width=\"5\" fill=\"none\" /></g>",
+"src": "machine_lancee_anime.svg"
+},
+"prop-timer": {
+"svg": "<g id=\"prop-timer\"><circle cx=\"364\" cy=\"359\" r=\"39\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"6\" /><path d=\"M347 311h34m-17 10v-13 M364 359l15 -13 M364 359l0 21\" stroke=\"#172B42\" stroke-width=\"6\" stroke-linecap=\"round\" /><circle cx=\"364\" cy=\"359\" r=\"5\" fill=\"#ED776C\" /></g>",
+"src": "minuteur_fini_anime.svg"
+},
+"prop-mail": {
+"svg": "<g id=\"prop-mail\"><rect x=\"301\" y=\"337\" width=\"97\" height=\"59\" rx=\"7\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M307 342l42 29 42 -29\" fill=\"none\" stroke=\"#D7A679\" stroke-width=\"5\" /></g>",
+"src": "mot_envoye_anime.svg"
+},
+"prop-plate": {
+"svg": "<g id=\"prop-plate\"><ellipse cx=\"346\" cy=\"384\" rx=\"62\" ry=\"16\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M297 376q48 -58 97 0\" fill=\"#E4AE66\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M321 349q8 -25 15 0 M351 348q12 -28 18 0\" fill=\"none\" stroke=\"#5DA56D\" stroke-width=\"8\" stroke-linecap=\"round\" /></g>",
+"src": "recette_reussie_anime.svg"
+},
+"prop-wave": {
+"svg": "<g id=\"prop-wave\"><path d=\"M328 350q-4 -26 5 -29 8 -3 10 17v-44q3 -8 9 -4l6 40 3 -40q3 -10 11 -5l2 43q6 -29 15 -24 8 7 -4 33 24 -20 28 -12 7 15 -26 40 -13 18 -42 7Z\" fill=\"#F4DBB4\" stroke=\"#172B42\" stroke-width=\"5\" stroke-linejoin=\"round\" /></g>",
+"src": "surprise_coucou_anime.svg"
+},
+"prop-check": {
+"svg": "<g id=\"prop-check\"><rect x=\"305\" y=\"324\" width=\"73\" height=\"71\" rx=\"13\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"6\" /><path d=\"M322 361l14 13 26 -32\" fill=\"none\" stroke=\"#51B575\" stroke-width=\"10\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /></g>",
+"src": "tache_cochee_anime.svg"
+},
+"prop-coin": {
+"svg": "<g id=\"prop-coin\"><circle cx=\"333\" cy=\"359\" r=\"27\" fill=\"#D99E27\" stroke=\"#172B42\" stroke-width=\"6\" /><circle cx=\"333\" cy=\"359\" r=\"21\" fill=\"#FFD561\" stroke=\"#E1AD32\" stroke-width=\"3\" /><path d=\"M324 363Q335 348 342 364 M325 354 Q333 343 343 354\" stroke=\"#BB812C\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\" /></g>",
+"src": "azami_v41_argent_anime.svg"
+},
+"prop-coin-spark": {
+"svg": "<g id=\"prop-coin-spark\"><path d=\"M397 293l6 13 13 6 -13 6 -6 13 -6 -13 -13 -6 13 -6Z\" fill=\"#FFC84B\" /></g>",
+"src": "azami_v41_argent_anime.svg"
+},
+"prop-envelope": {
+"svg": "<g id=\"prop-envelope\"><rect x=\"243\" y=\"332\" width=\"112\" height=\"66\" rx=\"9\" fill=\"#FFF2D9\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M248 339l50 36 50 -36\" stroke=\"#D6A578\" stroke-width=\"5\" fill=\"none\" stroke-linecap=\"round\" stroke-linejoin=\"round\" /><path d=\"M244 387l37 -28 M354 387l-37 -28\" stroke=\"#D6A578\" stroke-width=\"4\" /></g>",
+"src": "azami_v41_care_anime.svg"
+},
+"prop-leek": {
+"svg": "<g id=\"prop-leek\"><path d=\"M327 295 Q332 237 347 208 Q369 225 363 277Z\" fill=\"#4C9A6F\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M340 293 Q351 248 385 225 Q396 260 365 299Z\" fill=\"#6AB27D\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M352 328 L358 268\" stroke=\"#FFF2D9\" stroke-width=\"11\" stroke-linecap=\"round\" /></g>",
+"src": "azami_v41_courses_anime.svg"
+},
+"prop-bag": {
+"svg": "<g id=\"prop-bag\"><path d=\"M263 277 L382 277 L375 397 Q325 405 272 396Z\" fill=\"#F2C98A\" stroke=\"#172B42\" stroke-width=\"6\" stroke-linejoin=\"round\" /><path d=\"M266 286 Q324 302 379 283\" fill=\"none\" stroke=\"#D8A965\" stroke-width=\"5\" /><path d=\"M293 284 Q287 245 316 244 Q344 244 338 284\" fill=\"none\" stroke=\"#9F714A\" stroke-width=\"8\" stroke-linecap=\"round\" /><path d=\"M286 321 Q324 337 364 317\" fill=\"none\" stroke=\"#E0B87A\" stroke-width=\"5\" /></g>",
+"src": "azami_v41_courses_anime.svg"
+},
+"prop-leaf-spark": {
+"svg": "<g id=\"prop-leaf-spark\"><path d=\"M415 246l4 10 10 4 -10 4 -4 10 -4 -10 -10 -4 10 -4Z\" fill=\"#FFC84B\" /></g>",
+"src": "azami_v41_courses_anime.svg"
+},
+"prop-pan": {
+"svg": "<g id=\"prop-pan\"><path d=\"M290 317h105v56q-6 25 -52 25 -47 0 -53 -25Z\" fill=\"#7BB6D1\" stroke=\"#172B42\" stroke-width=\"6\" /><path d=\"M278 318h131\" stroke=\"#172B42\" stroke-width=\"10\" stroke-linecap=\"round\" /><path d=\"M399 331h48\" stroke=\"#172B42\" stroke-width=\"12\" stroke-linecap=\"round\" /><path d=\"M314 348h59\" stroke=\"#CBE9F5\" stroke-width=\"5\" stroke-linecap=\"round\" /></g>",
+"src": "azami_v41_cuisine_anime.svg"
+},
+"prop-steam": {
+"svg": "<g id=\"prop-steam\" fill=\"none\" stroke=\"#FFF2D9\" stroke-width=\"7\" stroke-linecap=\"round\"><path d=\"M316 303q-14 -16 2 -31 12 -12 0 -26\" /><path d=\"M350 300q-10 -17 6 -30 10 -10 -1 -25\" /><path d=\"M378 305q-10 -18 3 -28 8 -9 0 -17\" /></g>",
+"src": "azami_v41_cuisine_anime.svg"
+},
+"prop-spoon": {
+"svg": "<g id=\"prop-spoon\"><path d=\"M439 224 L404 317\" stroke=\"#B98F63\" stroke-width=\"9\" stroke-linecap=\"round\" /><ellipse cx=\"446\" cy=\"213\" rx=\"10\" ry=\"21\" transform=\"rotate(22 446 213)\" fill=\"#C8D7E1\" stroke=\"#172B42\" stroke-width=\"4\" /></g>",
+"src": "azami_v41_cuisine_anime.svg"
+},
+"prop-broom": {
+"svg": "<g id=\"prop-broom\"><path d=\"M272 215 L248 355\" stroke=\"#987243\" stroke-width=\"12\" stroke-linecap=\"round\" /><path d=\"M233 348 Q259 344 279 354 L292 387 Q251 409 215 383Z\" fill=\"#E6BC70\" stroke=\"#172B42\" stroke-width=\"5\" stroke-linejoin=\"round\" /><path d=\"M230 365 L221 385 M246 369 L240 393 M266 370 L269 397 M277 367 L290 387\" stroke=\"#BD8B4F\" stroke-width=\"4\" stroke-linecap=\"round\" /></g>",
+"src": "azami_v41_menage_anime.svg"
+},
+"prop-dust": {
+"svg": "<g id=\"prop-dust\"><circle cx=\"348\" cy=\"353\" r=\"8\" fill=\"#FFC84B\" /><circle cx=\"376\" cy=\"330\" r=\"5\" fill=\"#FFF2D9\" /><path d=\"M356 299l5 10 10 4 -10 4 -5 10 -5 -10 -10 -4 10 -4Z\" fill=\"#FFC84B\" /><path d=\"M395 360l3 7 8 3 -8 3 -3 8 -3 -8 -8 -3 8 -3Z\" fill=\"#FFF2D9\" /></g>",
+"src": "azami_v41_menage_anime.svg"
+},
+"prop-trophy": {
+"svg": "<g id=\"prop-trophy\"><path d=\"M287 324h79v36q-2 25 -38 27 -39 -3 -41 -27Z\" fill=\"#FFC84B\" stroke=\"#172B42\" stroke-width=\"5\" /><path d=\"M288 332q-36 -7 -25 19 7 18 30 9 M365 332q35 -8 26 20 -9 15 -30 9\" fill=\"none\" stroke=\"#172B42\" stroke-width=\"6\" /><path d=\"M326 383v15m-22 0h45\" stroke=\"#172B42\" stroke-width=\"7\" stroke-linecap=\"round\" /><path d=\"M326 333l6 11 12 1 -9 9 2 11 -11 -6 -11 6 2 -11 -9 -9 12 -1Z\" fill=\"#FFF2D9\" /></g>",
+"src": "azami_v41_reussite_anime.svg"
+},
+"prop-glory": {
+"svg": "<g id=\"prop-glory\"><path d=\"M345 188l9 21 22 8 -22 9 -9 23 -9 -23 -21 -9 21 -8Z M406 250l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5Z\" fill=\"#FFC84B\" /></g>",
+"src": "azami_v41_reussite_anime.svg"
+}
+}
