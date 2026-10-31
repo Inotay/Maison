@@ -2518,7 +2518,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v220</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v221</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5082,7 +5082,12 @@ async function azamiCall(body) {
     await new Promise(r => setTimeout(r, 700));
     if (body.action === 'fil') return { fil: [], memoire: 0 };
     if (body.action === 'memoire') return { lignes: [{ id: '1', texte: `${firstName()} essaie la démo de Maison.`, genre: 'fait' }] };
-    if (body.action === 'parler') return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
+    if (body.action === 'parler') {
+      const m = String(body.texte).match(/^(?:ajoute|mets)\s+(?:du |de la |des |de l’|de l'|le |la |les |un |une )?(.+?)\s*(?:aux courses|à la liste)?\.?$/i);
+      if (m) return { reponse: `Je mets « ${m[1]} » sur la liste. Avec mes croquettes juste à côté.`, humeur: 'contente', action: { type: 'course', texte: m[1], demande: true }, retenu: [], notes: [] };
+      if (/menu|mang/i.test(body.texte)) return { reponse: 'Des pâtes à la sauce tomate ce soir ? Je te les mets au menu ?', humeur: 'curieuse', action: { type: 'menu', texte: 'Pâtes à la sauce tomate', demande: false }, retenu: [], notes: [] };
+      return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
+    }
     return { ok: true };
   }
   const { data, error } = await sb.functions.invoke('azami', { body });
@@ -5109,7 +5114,8 @@ function azamiContexte() {
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
   l.push(tamaContexte());
-  return l.join('\n').slice(0, 3800);
+  if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
+  return l.join('\n').slice(0, 14000);
 }
 // La conversation vit sur la page : l'Azami de l'en-tête parle dans une bulle sous elle, et une petite ligne
 // permet de lui écrire ou de lui parler. Sa dernière réponse vous suit de page en page ; l'historique est à un
@@ -5166,7 +5172,7 @@ const azamiBulle = () => {
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
-const azamiPied = () => `${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
+const azamiPied = () => AZ.action ? `<span class="az-choix"><button type="button" data-action="azami-oui">Oui, vas-y</button><button type="button" data-action="azami-non">Non merci</button></span>` : `${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
 // La suite d'une longue réponse, sous l'en-tête.
 // La bulle à nous, sous l'en-tête, dessinée comme la sienne : on y écrit, ou on y parle.
 const azamiMienne = (dedans = false) => {
@@ -5175,6 +5181,45 @@ const azamiMienne = (dedans = false) => {
   return `${dedans ? '' : '<div class="az-bulles suite moi">'}<form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form>${dedans ? '' : '</div>'}`;
 };
 const azamiSuite = () => { let [p1, p2] = azamiParts(); if (AZ.ecrit && !AZ.busy && AZ.bulle) { p2 = AZ.bulle; p1 = ''; } return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'} ${AZ.ecrit ? 'sous' : ''}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + (AZ.ecrit ? '' : azamiMienne()); };
+// Étape 2 : elle agit dans l'app. Quand c'est la personne qui le demande, elle le fait tout de suite ; quand
+// c'est elle qui propose, elle attend un oui (deux boutons dans sa bulle). Tout se fait ici, dans l'app, avec les
+// mêmes gestes que les vôtres (icônes, magasin deviné, réussites) ; l'argent reste en lecture seule.
+const AZ_FAIT = {
+  course: ['C’est sur la liste. Avec mes croquettes juste à côté, par hasard.', 'Ajouté aux courses. Je surveille le panier.'],
+  tache: ['Notée. Je te la rappellerai avec douceur. Ou pas.', 'C’est dans la liste des choses à faire. Courage.'],
+  tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
+  menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
+  film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
+};
+const azNorm = s => norm(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+function azTrouve(liste, titre, champ) {
+  const q = azNorm(titre); if (!q) return null;
+  return liste.find(x => azNorm(x[champ]) === q) || liste.find(x => azNorm(x[champ]).includes(q) || q.includes(azNorm(x[champ]))) || null;
+}
+async function azamiAgir(a) {
+  if (!a || !S.me) return false;
+  const texte = String(a.texte || '').trim(); if (!texte) return false;
+  const cle = 'azami-' + Date.now();
+  let ok = false;
+  try {
+    if (a.type === 'course') ok = await run(() => api.insert('shopping', { label: texte, icon: iconFor(texte, 'shopping', S.hints), shop: guessShop(texte) }), null, cle);
+    else if (a.type === 'tache') ok = await run(() => api.insert('tasks', { title: texte, assignee: a.pour === 'moi' ? S.me : a.pour === 'autre' ? other() : null, due_on: /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : null, icon: iconFor(texte, 'task', S.hints) }), null, cle);
+    else if (a.type === 'tache_cocher') { const t = azTrouve(S.tasks.filter(x => !x.done), texte, 'title'); if (!t) { azamiPose(`Je ne trouve pas « ${texte} » dans les choses à faire. Tu l’as déjà faite ?`, 'curieuse'); render(); return false; } ok = await run(async () => { await api.update('tasks', { id: t.id }, { done: true, done_at: new Date().toISOString() }); await win('task', t.title, 1, t.icon); }, null, cle); }
+    else if (a.type === 'menu') { const r = azTrouve(RECETTES, texte, 'titre'); if (!r) { azamiPose(`Je ne connais pas de recette « ${texte} ». Tu veux que je cherche autre chose ?`, 'curieuse'); render(); return false; } ok = await run(() => api.insert('meal_plans', { recipe: r.id, title: r.titre, persons: 2, created_by: S.me }), null, cle); }
+    else if (a.type === 'film') {
+      const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
+      const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
+      await filmVote(it, 'oui'); ok = true;
+    }
+  } catch (e) { console.warn('azami agir', e); ok = false; }
+  if (ok) {
+    azamiPose(pick(AZ_FAIT[a.type] || ['C’est fait.']), 'contente'); render();
+    sfx('done'); haptic('medium');
+    const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'caresse_2', 2500); if (img) burst('sparkle', img, 8);
+  } else { azamiPose('Mrrr… mes pattes ont glissé, ça n’a pas marché. Réessaie ?', 'boudeuse'); render(); }
+  return ok;
+}
+
 // Elle parle d'elle-même. Réglage par appareil (accueil) : bavarde, discrète, ou seulement quand on lui parle.
 // Ce qui la fait parler : changer de page, faire quelque chose dans l'app, ou rester sans rien faire devant
 // l'écran. Jamais la nuit, jamais quand quelque chose couvre l'écran, et un délai entre deux remarques.
@@ -5436,11 +5481,14 @@ function azamiEcrire() {
 }
 async function azamiEnvoyer(txt, geste = false) {
   txt = (txt || '').trim(); if (!txt || AZ.busy) return;
-  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.busy = true; render(); if (!geste) haptic(1);
+  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.action = null; AZ.busy = true; render(); if (!geste) haptic(1);
   try {
     const now = new Date();
+    azamiContexte.texte = txt;
     const r = await azamiCall({ action: 'parler', texte: txt, geste, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
     AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3));
+    AZ.action = r.action && r.action.type ? r.action : null;
+    if (AZ.action && AZ.action.demande) { const a = AZ.action; AZ.action = null; render(); await azamiAgir(a); return; }   // demandé par la personne : tout de suite
     render();
     const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
     const img = document.querySelector('.hd img.azami');
@@ -5451,7 +5499,7 @@ async function azamiEnvoyer(txt, geste = false) {
     AZ.busy = false; azamiPose(`Mrrr… ${e.message}`, 'boudeuse'); render();
   }
 }
-function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
+function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.action = null; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
 // Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée.
 if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); }
 // Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la bulle, puis part tout seul.
@@ -5532,6 +5580,8 @@ const actions = {
   'azami-mic': () => azamiMic(),
   'azami-ecrire': () => azamiEcrire(),
   'azami-choix': el => azamiEnvoyer(el.dataset.txt),
+  'azami-oui': async () => { const a = AZ.action; AZ.action = null; haptic(1); await azamiAgir(a); },
+  'azami-non': () => { AZ.action = null; azamiPose(pick(['D’accord, je laisse. Je n’insiste jamais. Presque jamais.', 'Bon. Je range l’idée dans ma mémoire à moi.']), 'calme'); render(); },
   'azami-fermer': () => azamiFermer(),
   'azami-ecrire-non': () => { AZ.ecrit = false; AZ.rec?.stop?.(); render(); },
   'azami-memoire': () => azamiMemoire(),

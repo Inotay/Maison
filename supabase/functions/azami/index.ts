@@ -14,7 +14,7 @@ const cors = (req: Request) => {
 const MODELE = "claude-sonnet-5-5";
 const PRIX = { in: 2, out: 10, cacheW: 2.5, cacheR: 0.2 };          // dollars par million de tokens
 const PLAFOND_JOUR_USD = 2, PLAFOND_APPELS = 120;                    // pour toute la maison / par personne
-const MAX_TEXTE = 1500, MAX_CONTEXTE = 4000, FIL = 24, MEMOIRE = 80;
+const MAX_TEXTE = 1500, MAX_CONTEXTE = 14000, FIL = 24, MEMOIRE = 80;
 
 const str = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, " ").trim().slice(0, n);
 const json = (CORS: Record<string, string>, body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
@@ -26,7 +26,9 @@ TA SITUATION
 - Tu parles avec UNE personne à la fois : celle indiquée dans « Qui te parle ». Tu la tutoies et tu l'appelles par son prénom.
 - Tu vois un instantané de l'app (ce qui est à faire, les courses, le menu, les comptes…). Tu peux en parler, répondre aux questions dessus, remarquer ce que l'autre a fait dans l'app.
 - Tu as accès à TOUTE la collection de films de la maison avec l'outil « chercher_films » : dès qu'on te parle d'un film précis, d'une liste ou de ce que quelqu'un a vu, cherche avant de répondre (jamais « je n'ai pas accès »). L'instantané ne montre qu'un aperçu.
-- Pour l'instant tu ne peux rien modifier dans l'app. Si on te demande d'ajouter, cocher, changer quelque chose : dis gentiment que tes pattes n'y arrivent pas encore, mais que ça vient bientôt.
+- Tu peux AGIR dans l'app avec « action » : ajouter un article aux courses (course), ajouter une chose à faire (tache), cocher une chose à faire (tache_cocher, avec son titre tel qu'il apparaît), mettre une recette au menu (menu, avec un titre EXACT de la liste RECETTES DE L'APP), ajouter un film à la liste d'envies (film). Une seule action par message.
+- Quand la personne te le demande (« ajoute du lait », « coche la lessive »), demande=true : tu le fais et tu dis que c'est fait, en une phrase. Quand c'est toi qui proposes (« je te le mets au menu ? »), demande=false : tu poses la question, elle aura un bouton oui / non ; ne mets pas de « choix » en plus.
+- L'argent : tu regardes, tu commentes, tu ne modifies jamais. Les corvées (ménage) : pas encore.
 - Tu ne répètes jamais à l'un ce que l'autre t'a dit en privé. Tu n'as d'ailleurs accès qu'au fil de la personne qui te parle.
 - Tu peux recommander des films, de la musique, des jeux, des livres : en t'appuyant sur ce que tu sais de ses goûts, et en lui demandant ses coups de cœur quand ça vient naturellement, jamais en questionnaire.
 - Le japonais : un mot ou une petite expression de temps en temps, avec la traduction entre parenthèses. Si on te demande un mot ou une leçon, tu donnes le mot en kana, en romaji et sa traduction.
@@ -65,6 +67,7 @@ const OUTIL = {
       oublier: { type: "array", items: { type: "string" }, description: "Identifiants des lignes de mémoire devenues fausses." },
       pour_claude: { type: "array", items: { type: "string" }, description: "Notes pour Claude sur l'app (idée, bug, souhait), dans les mots de la personne." },
       choix: { type: "array", items: { type: "string" }, description: "Deux ou trois réponses rapides (« Oui », « Non », « Plus tard »…) quand ta question s'y prête. Sinon, rien." },
+      action: { type: "object", properties: { type: { type: "string", enum: ["course", "tache", "tache_cocher", "menu", "film"] }, texte: { type: "string", description: "L'article, le titre de la tâche, le titre exact de la recette, ou le titre du film." }, pour: { type: "string", enum: ["moi", "autre", "nous"], description: "Pour une tâche : à qui." }, date: { type: "string", description: "Pour une tâche : AAAA-MM-JJ, si une date est dite." }, annee: { type: "integer", description: "Pour un film : l'année si connue." }, demande: { type: "boolean", description: "true si la personne te l'a demandé explicitement (tu le fais tout de suite) ; false si c'est toi qui proposes (elle aura un bouton oui / non)." } }, required: ["type", "texte", "demande"], description: "Une action dans l'app, une seule par message, seulement si elle a du sens." },
     },
     required: ["reponse", "humeur"],
   },
@@ -235,5 +238,8 @@ ${contexte || "(pas d'instantané)"}` },
   const { data: vieux } = await db.from("azami_messages").select("id").eq("qui", me).order("at", { ascending: false }).range(200, 400);
   if (vieux?.length) await db.from("azami_messages").delete().in("id", vieux.map(v => v.id));
   const choix = (Array.isArray(rep.choix) ? rep.choix : []).map((x: unknown) => str(x, 30)).filter(Boolean).slice(0, 3);
-  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
+  const ac = rep.action && typeof rep.action === "object" ? rep.action as Record<string, unknown> : null;
+  const action = ac && ["course", "tache", "tache_cocher", "menu", "film"].includes(String(ac.type)) && str(ac.texte, 120)
+    ? { type: String(ac.type), texte: str(ac.texte, 120), pour: ["moi", "autre", "nous"].includes(String(ac.pour)) ? String(ac.pour) : "nous", date: /^\d{4}-\d{2}-\d{2}$/.test(String(ac.date ?? "")) ? String(ac.date) : null, annee: Number.isInteger(ac.annee) ? ac.annee : null, demande: ac.demande === true } : null;
+  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, action, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
 });
