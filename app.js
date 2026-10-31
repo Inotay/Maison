@@ -242,9 +242,23 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 // Conséquence assumée : interrupteur silencieux enclenché = pas de sons de l'app, comme un jeu.
 // (L'ancienne astuce de la piste muette en boucle rendait les sons audibles en mode silence,
 // mais prenait la main sur la musique en cours.)
+// Deux réglages possibles (accueil → « Sons même en silence ») :
+// - « jeu » (par défaut) : les sons sortent même avec l'interrupteur silence, comme un jeu ; pour ça, iOS passe en
+//   mode lecture (une piste muette tourne en boucle), ce qui interrompt une musique en cours ;
+// - « mix » : l'app se mélange à la musique qui joue, mais l'interrupteur silence la coupe.
+const SON_JEU = () => safeGet('maison-son-mode') !== 'mix';
+const SILENCE_WAV = 'data:audio/wav;base64,UklGRsQPAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YaAPAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA';
+let silentEl = null;
+function pisteMuette(on) {
+  if (!on) { silentEl?.pause(); return; }
+  if (!silentEl) { silentEl = new Audio(SILENCE_WAV); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); document.addEventListener('visibilitychange', () => { if (!silentEl) return; if (document.hidden) silentEl.pause(); else if (SON_JEU() && SOUNDS) silentEl.play().catch(() => {}); }); }
+  if (silentEl.paused) silentEl.play().catch(() => {});
+}
 function unlockAudio() {
   try {
-    if (navigator.audioSession && navigator.audioSession.type !== 'ambient') navigator.audioSession.type = 'ambient';
+    const jeu = SON_JEU() && SOUNDS;
+    if (navigator.audioSession) { const t = jeu ? 'playback' : 'ambient'; if (navigator.audioSession.type !== t) navigator.audioSession.type = t; }
+    pisteMuette(jeu);
     const c = ctxAudio(); if (c.state === 'suspended') c.resume().then(() => propRun && propSound(propRun)).catch(() => {});
   } catch {}
 }
@@ -297,6 +311,7 @@ setInterval(() => {
   if (!MEOWS || !meowFile || !touched || document.hidden) return;
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   if (!document.querySelector('img.azami')) return;
+  if (document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;   // quelque chose couvre l'écran : elle se tait
   const t = Date.now();
   if (t - lastAmbient < 40000) return;
   if (Math.random() < 0.2) { lastAmbient = t; meow(true, .25); }
@@ -2482,9 +2497,12 @@ function viewMaison() {
       <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
+    <div class="theme-row"><span>Sons même en silence</span><div class="seg" role="group" aria-label="Sons en mode silence">
+      <button data-action="son-mode" data-mode="jeu" aria-pressed="${SON_JEU()}">Oui</button>
+      <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v205</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v206</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5040,7 +5058,7 @@ function viewCare() {
 // On lui parle par écrit ou au micro ; elle répond avec sa fiche de personnage, sa mémoire (une par personne,
 // gardée dans la base) et un instantané de l'app. Tout passe par la fonction « azami » ; la clé reste côté serveur.
 const AZ_PAGE = { maison: 'accueil', menage: 'ménage', courses: 'courses', recettes: 'recettes', argent: 'argent', nuit: 'loisirs' };
-const AZ_DEMO = ['Mrrr… ici c’est la démo, je n’ai pas mes croquettes ni ma mémoire. Mais je t’écoute quand même.', 'Dans la vraie app, je retiens ce que tu me dis. Là, je fais semblant. Très bien, d’ailleurs.', 'Tu sais que je surveille les voisins depuis la fenêtre ? Rien à signaler aujourd’hui. Un pigeon, peut-être.'];
+const AZ_DEMO = ['Pas encore, je vois toujours les mêmes cinq films : Jojo Rabbit, Gangs of New York, Man on the Moon, Her et Psychose. Mulholland Drive n’est pas dans ta liste, mes pattes n’y arrivent pas. Je viens de le noter dans ma mémoire à moi, avec ton 4 sur 5.', 'Mrrr… ici c’est la démo, je n’ai pas mes croquettes ni ma mémoire. Mais je t’écoute quand même.', 'Dans la vraie app, je retiens ce que tu me dis. Là, je fais semblant. Très bien, d’ailleurs.', 'Tu sais que je surveille les voisins depuis la fenêtre ? Rien à signaler aujourd’hui. Un pigeon, peut-être.'];
 async function azamiCall(body) {
   if (DEMO) {
     await new Promise(r => setTimeout(r, 700));
@@ -5085,24 +5103,30 @@ function azamiContexte() {
 const AZ = { bulle: safeGet('maison-az-bulle') || '', choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
 // Ce qu'elle dit, coupé en deux si c'est long : le début à côté d'elle, la suite dans une bulle sous l'en-tête.
 function azamiParts() {
-  const t = AZ.bulle || ''; if (t.length <= 70) return [t, ''];
-  const m = t.slice(0, 70).match(/^[\s\S]*[.!?…]\s/); const i = m ? m[0].length : t.lastIndexOf(' ', 60);
-  return i > 20 ? [t.slice(0, i).trim(), t.slice(i).trim()] : [t, ''];
+  const t = AZ.bulle || ''; if (t.length <= 80) return [t, ''];
+  // une première phrase courte reste à côté d'elle, la suite dessous ; sinon tout va dessous (jamais de coupure au milieu d'une phrase)
+  const m = t.match(/^[^.!?…]{8,60}[.!?…]+\s/);
+  return m ? [m[0].trim(), t.slice(m[0].length).trim()] : ['', t];
 }
 const azamiBulle = () => {
   if (!S.me || S.recovery) return '';
   const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
   const [p1, p2] = azamiParts();
-  const sienne = !AZ.busy && AZ.bulle && !AZ.ecrit ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
+  const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  const mienne = AZ.ecrit && !AZ.busy ? `<form class="az-b az-moi" data-form="azami"><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></span></form>` : '';
-  if (!pensee && !sienne && !mienne) return '';
-  return `<div class="az-bulles cote">${pensee}${sienne}${mienne}</div>`;
+  if (!pensee && !sienne) return '';
+  return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
 };
 // Le bas de sa dernière bulle : ce qu'elle retient, et ses réponses rapides.
 const azamiPied = () => `${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}${AZ.choix.length ? `<span class="az-choix">${AZ.choix.map(c => `<button type="button" data-action="azami-choix" data-txt="${esc(c)}">${esc(c)}</button>`).join('')}<button type="button" class="az-crayon" data-action="azami-ecrire" aria-label="Écrire autre chose">${icn('crayon')}</button></span>` : ''}`;
 // La suite d'une longue réponse, sous l'en-tête.
-const azamiSuite = () => { const [, p2] = azamiParts(); return !S.me || S.recovery || AZ.busy || AZ.ecrit || !p2 ? '' : `<div class="az-bulles suite"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="2">${esc(p2)}</span>${azamiPied()}</div></div>`; };
+// La bulle à nous, sous l'en-tête, dessinée comme la sienne : on y écrit, ou on y parle.
+const azamiMienne = () => {
+  if (!AZ.ecrit || AZ.busy) return '';
+  const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  return `<div class="az-bulles suite moi"><form class="az-b az-elle az-moi suite" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
+};
+const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + azamiMienne(); };
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery ? '' : `<div class="az-barre" role="group" aria-label="Azami">
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
@@ -5129,14 +5153,14 @@ const azamiNuage = (() => {
   // la queue pointue : un triangle blanc cerné, dont la base efface le trait de l'ovale
   function queue(w, h, mode, r) {
     const j = (v, k = 1.6) => (v + (r() - .5) * k).toFixed(1);
-    const [b1, b2, tip] = mode === 'c' ? [[w - 4, h * .5], [w - 8, h * .7], [w + 24, h * .86]]
-      : mode === 'r' ? [[w - 54, 4], [w - 30, 4], [w - 16, -22]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
+    const [b1, b2, tip] = mode === 'c' ? [[w - 3, h * .32], [w - 7, h * .56], [w + 26, h * .5]]
+      : mode === 'r' ? [[w - 134, 3], [w - 108, 3], [w - 104, -28]] : [[w / 2 - 14, 4], [w / 2 + 10, 4], [w / 2 + 6, -22]];
     return `<path class="nz" d="M${j(b1[0])},${j(b1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(b2[0])},${j(b2[1])}"/><path class="nb" d="M${b1[0]},${b1[1]} L${b2[0]},${b2[1]}"/>`;
   }
   let timer = 0, frame = 0;
   function dessine(svg) {
     const box = svg.parentElement, w = box.offsetWidth, h = box.offsetHeight; if (!w || !h) return;
-    const mode = box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
+    const mode = box.classList.contains('az-moi') ? 's' : box.closest('.seule') ? 'r' : box.classList.contains('suite') ? 's' : 'c', vif = box.classList.contains('vif');
     const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
     const M = 28;
@@ -5148,7 +5172,7 @@ const azamiNuage = (() => {
       // un trait d'encre assuré : l'ovale, puis le même tracé à peine décalé pour l'épaisseur qui varie
       const d = trace(w, h, r, 1.4);
       const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 5 + i * 2, .8 + i * .04)}"/>`).join('') : '';
-      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode === 'c' ? queue(w, h, mode, r) : ''}${grib}`;
+      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r) : ''}${grib}`;
     });
     svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
   }
@@ -5169,7 +5193,7 @@ async function azamiType() {
   if (reducedMotion()) return;
   if (el2) el2.textContent = '';
   for (const [j, txt] of parts.entries()) {
-    const e = j ? document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]') : el; if (!e) return;
+    const e = j ? el2 : el; if (!e) return;
     for (let i = 1, n = 0; i <= txt.length; i++) {
       if (AZ.k !== k || !e.isConnected) { e.textContent = txt; return; }
       e.textContent = txt.slice(0, i);
@@ -5183,7 +5207,7 @@ async function azamiType() {
 const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['retour', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
 function azamiEcrire() {
   AZ.ecrit = true; render();
-  const t = document.getElementById('az-in'); if (t) { t.focus({ preventScroll: true }); t.scrollIntoView({ block: 'nearest' }); }
+  document.getElementById('az-in')?.focus({ preventScroll: true });
 }
 async function azamiEnvoyer(txt) {
   txt = (txt || '').trim(); if (!txt || AZ.busy) return;
@@ -5274,11 +5298,13 @@ async function azamiMemoire() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
+  'son-mode': el => { safeSet('maison-son-mode', el.dataset.mode); unlockAudio(); render(); toast(el.dataset.mode === 'jeu' ? 'Les sons sortent même en silence (ça coupe la musique en cours)' : 'L’app se mêle à la musique ; l’interrupteur silence la coupe'); },
   'azami-fil': () => azamiFil(),
   'azami-mic': () => azamiMic(),
   'azami-ecrire': () => azamiEcrire(),
   'azami-choix': el => azamiEnvoyer(el.dataset.txt),
   'azami-fermer': () => azamiFermer(),
+  'azami-ecrire-non': () => { AZ.ecrit = false; AZ.rec?.stop?.(); render(); },
   'azami-memoire': () => azamiMemoire(),
 
   'guide-page': () => openGuidePage(),

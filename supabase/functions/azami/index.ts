@@ -25,6 +25,7 @@ TA SITUATION
 - Tu es l'Azami de l'app « Maison », l'app du foyer de Yatoni et Mariana (ménage, courses, recettes, argent, loisirs et films). Tu en es la majordome.
 - Tu parles avec UNE personne à la fois : celle indiquée dans « Qui te parle ». Tu la tutoies et tu l'appelles par son prénom.
 - Tu vois un instantané de l'app (ce qui est à faire, les courses, le menu, les comptes…). Tu peux en parler, répondre aux questions dessus, remarquer ce que l'autre a fait dans l'app.
+- Tu as accès à TOUTE la collection de films de la maison avec l'outil « chercher_films » : dès qu'on te parle d'un film précis, d'une liste ou de ce que quelqu'un a vu, cherche avant de répondre (jamais « je n'ai pas accès »). L'instantané ne montre qu'un aperçu.
 - Pour l'instant tu ne peux rien modifier dans l'app. Si on te demande d'ajouter, cocher, changer quelque chose : dis gentiment que tes pattes n'y arrivent pas encore, mais que ça vient bientôt.
 - Tu ne répètes jamais à l'un ce que l'autre t'a dit en privé. Tu n'as d'ailleurs accès qu'au fil de la personne qui te parle.
 - Tu peux recommander des films, de la musique, des jeux, des livres : en t'appuyant sur ce que tu sais de ses goûts, et en lui demandant ses coups de cœur quand ça vient naturellement, jamais en questionnaire.
@@ -64,6 +65,41 @@ const OUTIL = {
     required: ["reponse", "humeur"],
   },
 };
+
+// Son second outil : chercher dans toute la collection de films de la maison (titre, listes de chacun).
+const OUTIL_FILMS = {
+  name: "chercher_films",
+  description: "Cherche dans la collection de films et séries de la maison (plus de 8 000 fiches : envies, vus et notés, écartés, propositions). Utilise-le dès qu'on te parle d'un film précis ou d'une liste.",
+  input_schema: {
+    type: "object",
+    properties: {
+      titre: { type: "string", description: "Un bout de titre à chercher (facultatif)." },
+      liste: { type: "string", enum: ["tous", "envies", "vus", "ecartes", "a_deux"], description: "tous : toute la collection ; envies : ce que la personne a envie de voir ; vus : ce qu'elle a vu et noté ; ecartes : ce qu'elle a écarté ; a_deux : les envies communes." },
+      qui: { type: "string", enum: ["personne", "autre"], description: "La personne qui te parle (défaut) ou l'autre membre." },
+      limite: { type: "integer", description: "Nombre de fiches au plus (défaut 15, maximum 40)." },
+    },
+  },
+};
+const MOT = (n: number) => n >= 4.8 ? "chef-d'œuvre" : n >= 4.2 ? "adoré" : n >= 3.5 ? "aimé" : n >= 2.7 ? "moyen" : n >= 1.8 ? "pas aimé" : "détesté";
+async function chercherFilms(db: ReturnType<typeof createClient>, me: string, autreEmail: string, inp: Record<string, unknown>) {
+  const qui = inp.qui === "autre" && autreEmail ? autreEmail : me, liste = String(inp.liste ?? "tous"), lim = Math.min(40, Math.max(1, Number(inp.limite) || 15));
+  let q = db.from("films").select("title, year, media, status, director, genres, votes, ratings, seen, seen_at, created_at");
+  const titre = str(inp.titre, 60);
+  if (titre) q = q.ilike("title", `%${titre.replace(/[%_]/g, " ")}%`);
+  if (liste === "envies") q = q.filter(`votes->>${qui}`, "in", '("oui","super")').eq("status", "a_voir");
+  if (liste === "vus") q = q.not(`ratings->${qui}`, "is", null).order("seen_at", { ascending: false, nullsFirst: false });
+  if (liste === "ecartes") q = q.filter(`votes->>${qui}`, "eq", "non");
+  if (liste === "a_deux") q = q.filter(`votes->>${me}`, "in", '("oui","super")').filter(`votes->>${autreEmail || me}`, "in", '("oui","super")').eq("status", "a_voir");
+  if (!titre && liste === "tous") q = q.order("created_at", { ascending: false });
+  const { data, error } = await q.limit(lim);
+  if (error) return `Erreur de recherche : ${error.message}`;
+  if (!data?.length) return "Rien trouvé.";
+  const nom = (e: string) => e === me ? "la personne" : "l'autre";
+  return data.map((f: Record<string, any>) => {
+    const avis = [me, autreEmail].filter(Boolean).map(e => { const n = f.ratings?.[e]?.note; const v = f.votes?.[e]; return n ? `${nom(e)} : vu, ${MOT(Number(n))} (${Number(n).toFixed(1)}/5)` : v ? `${nom(e)} : ${v === "non" ? "écarté" : v === "super" ? "très envie" : v === "oui" ? "envie" : v}` : f.seen?.[e] ? `${nom(e)} : vu` : ""; }).filter(Boolean).join(" ; ");
+    return `- ${f.title}${f.year ? ` (${f.year})` : ""}${f.media === "tv" ? ", série" : ""}${f.director ? `, de ${f.director}` : ""}${(f.genres ?? []).length ? ` [${(f.genres as string[]).slice(0, 3).join(", ")}]` : ""} — ${f.status === "vu" ? "vu" : f.status === "a_voir" ? "dans la liste à voir" : f.status === "en_cours" ? "en cours" : f.status === "non" ? "écarté" : f.status}${avis ? ` ; ${avis}` : ""}`;
+  }).join("\n");
+}
 
 Deno.serve(async (req) => {
   const CORS = cors(req);
@@ -139,7 +175,7 @@ ${lignes(mem)}
 CE QUE TU SAIS DE TOI (tes propres notes) :
 ${lignes([...(memAz ?? [])].reverse())}
 
-L'APP EN CE MOMENT :
+L'APP EN CE MOMENT (aperçu ; la collection complète est dans chercher_films) :
 ${contexte || "(pas d'instantané)"}` },
   ];
   const messages = [...(fil ?? [])].reverse().map(m => ({ role: m.role === "moi" ? "user" : "assistant", content: m.texte }));
@@ -148,23 +184,36 @@ ${contexte || "(pas d'instantané)"}` },
   for (const m of [...messages, { role: "user", content: texte }]) { const d = fondu[fondu.length - 1]; if (d && d.role === m.role) d.content += "\n" + m.content; else fondu.push({ ...m }); }
   if (fondu[0]?.role !== "user") fondu.shift();
 
-  let r: Response;
-  try {
-    r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELE, max_tokens: 600, system: systeme, messages: fondu, tools: [OUTIL], tool_choice: { type: "auto" } }),
-    });
-  } catch (e) { console.error(e); return json(CORS, { error: "Azami n'entend rien (réseau)." }, 502); }
-  const j = await r.json();
-  if (!r.ok) { console.error(j); return json(CORS, { error: j?.error?.message ? `Azami est perdue : ${str(j.error.message, 160)}` : "Azami est perdue." }, 502); }
-  const outil = (j.content ?? []).find((c: { type: string }) => c.type === "tool_use");
+  // Elle peut chercher dans les films avant de répondre (trois recherches au plus), puis elle répond.
+  const convo: Record<string, unknown>[] = [...fondu];
+  let j: Record<string, any> = {}, cout = 0;
+  const u: Record<string, number> = {};
+  for (let tour = 0; tour < 4; tour++) {
+    let r: Response;
+    try {
+      r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODELE, max_tokens: 700, system: systeme, messages: convo, tools: [OUTIL, OUTIL_FILMS], tool_choice: { type: "auto" } }),
+      });
+    } catch (e) { console.error(e); return json(CORS, { error: "Azami n'entend rien (réseau)." }, 502); }
+    j = await r.json();
+    if (!r.ok) { console.error(j); return json(CORS, { error: j?.error?.message ? `Azami est perdue : ${str(j.error.message, 160)}` : "Azami est perdue." }, 502); }
+    const us = j.usage ?? {};
+    for (const k of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]) u[k] = (u[k] ?? 0) + (us[k] ?? 0);
+    cout += ((us.input_tokens ?? 0) * PRIX.in + (us.output_tokens ?? 0) * PRIX.out + (us.cache_creation_input_tokens ?? 0) * PRIX.cacheW + (us.cache_read_input_tokens ?? 0) * PRIX.cacheR) / 1e6;
+    const recherches = (j.content ?? []).filter((c: { type: string; name?: string }) => c.type === "tool_use" && c.name === "chercher_films");
+    if (!recherches.length || tour === 3) break;
+    convo.push({ role: "assistant", content: j.content });
+    const results = [];
+    for (const t of recherches) results.push({ type: "tool_result", tool_use_id: t.id, content: await chercherFilms(db, me, autre?.email ?? "", t.input ?? {}) });
+    convo.push({ role: "user", content: results });
+  }
+  const outil = (j.content ?? []).find((c: { type: string; name?: string }) => c.type === "tool_use" && c.name === "repondre");
   const rep = outil?.input ?? {};
   const reponse = str(rep.reponse, 2000) || str((j.content ?? []).find((c: { type: string }) => c.type === "text")?.text, 2000) || "Mrrr… (elle s'est endormie en plein milieu)";
 
   // ── Ce qu'elle garde ──
-  const u = j.usage ?? {};
-  const cout = ((u.input_tokens ?? 0) * PRIX.in + (u.output_tokens ?? 0) * PRIX.out + (u.cache_creation_input_tokens ?? 0) * PRIX.cacheW + (u.cache_read_input_tokens ?? 0) * PRIX.cacheR) / 1e6;
   const retenu: string[] = [], notes: string[] = [];
   const aRetenir = (Array.isArray(rep.retenir) ? rep.retenir : []).slice(0, 6);
   const aOublier = (Array.isArray(rep.oublier) ? rep.oublier : []).filter((x: unknown) => /^[0-9a-f-]{36}$/.test(String(x))).slice(0, 6);
