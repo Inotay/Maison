@@ -1977,32 +1977,41 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .nmini.big i { width: 72px; }
 
 /* Azami qui parle (v200) ------------------------------------------------ */
+/* La conversation vit sur la page, sous l'Azami de l'en-tête : sa bulle, ce qu'on lui a dit, et une ligne pour lui écrire. */
+.az-dire { position: relative; display: grid; gap: 8px; margin: -4px 0 var(--s4); }
+.hd.centered .az-dire { margin: -10px 0 12px; text-align: left; }
+.az-moi { margin: 0; justify-self: end; max-width: 82%; padding: 7px 12px; border-radius: 16px; border-bottom-right-radius: 5px; background: var(--surface); border: 2px solid var(--line); font-size: 15px; font-weight: 700; line-height: 1.3; animation: pop-in .3s ease both; }
+.az-bulle { position: relative; justify-self: end; max-width: 92%; padding: 11px 14px; border-radius: 20px; border-top-right-radius: 6px; background: #F7C948; color: #2A1C15; box-shadow: 0 3px 0 #C8951E; font-size: 16px; font-weight: 700; line-height: 1.38; animation: pop-in .3s cubic-bezier(.34, 1.4, .64, 1) both; }
+.az-bulle::before { content: ''; position: absolute; top: -9px; right: 26px; border: 9px solid transparent; border-top: 0; border-bottom-color: #F7C948; }
+.az-dire.centre .az-bulle { justify-self: center; text-align: center; border-radius: 20px; }
+.az-dire.centre .az-bulle::before { right: calc(50% - 9px); }
+.az-dire.centre .az-moi { justify-self: center; }
+.az-bulle .az-txt { white-space: pre-wrap; }
+.az-note { display: block; margin-top: 6px; font-size: 12px; font-weight: 800; color: #7A5A10; }
+.az-bulle.think { display: flex; gap: 5px; padding: 14px 16px; min-width: 0; }
+.az-bulle.think i { width: 8px; height: 8px; border-radius: 50%; background: #2A1C15; opacity: .35; animation: think 1.1s ease-in-out infinite; }
+.az-bulle.think i:nth-child(2) { animation-delay: .18s; } .az-bulle.think i:nth-child(3) { animation-delay: .36s; }
+@keyframes think { 0%, 100% { transform: translateY(0); opacity: .35; } 50% { transform: translateY(-4px); opacity: .9; } }
+.az-in { display: flex; align-items: center; gap: 2px; padding: 3px 4px; border-radius: 999px; background: var(--surface); border: 2px solid var(--line); transition: border-color .2s, box-shadow .2s; }
+.az-in:focus-within { border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 15%, transparent); }
+#az-in { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; font-weight: 700; padding: 8px 6px; outline: none; }
+#az-in::placeholder { color: var(--muted); font-weight: 700; }
+.az-h, .az-mic, .az-send { all: unset; cursor: pointer; flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); -webkit-tap-highlight-color: transparent; }
+.az-h .icn, .az-mic .icn, .az-send .icn { width: 20px; height: 20px; }
+.az-mic:active, .az-h:active { background: var(--line); }
+.az-mic.on { background: #E7505A; color: #fff; animation: mic-pulse 1.1s ease-in-out infinite; }
+@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231, 80, 90, .45); } 50% { box-shadow: 0 0 0 8px rgba(231, 80, 90, 0); } }
+.az-send { display: none; background: var(--ink); color: var(--bg); }
+.az-in:has(#az-in:not(:placeholder-shown)) .az-send { display: grid; }
+.az-in:has(#az-in:not(:placeholder-shown)) .az-mic { display: none; }
+/* l'historique, dans une feuille */
 #chat, #azmem { position: fixed; inset: 0; z-index: 86; display: flex; align-items: flex-end; justify-content: center; background: rgba(20, 30, 40, 0); transition: background .3s; }
 #chat.on, #azmem.on { background: rgba(20, 30, 40, .55); }
 #chat.on .visite-card, #azmem.on .visite-card { transform: none; }
 .visite-card.chat { height: calc(100dvh - var(--safe-t) - 12px); }
-.visite-card.chat .visite-talk { padding-bottom: 6px; }
 .chat-wait { margin: auto; text-align: center; color: var(--muted); font-size: 24px; }
-.chat-in { flex: none; display: flex; align-items: flex-end; gap: 8px; padding-top: 8px; border-top: 2px solid var(--line); }
-#chat-txt { flex: 1; min-width: 0; resize: none; padding: 11px 14px; border-radius: 20px; border: 2px solid var(--line); background: var(--surface); color: var(--text); font: inherit; font-size: 17px; line-height: 1.3; max-height: 120px; outline: none; }
-#chat-txt:focus { border-color: var(--ink); }
-.chat-mic, .chat-send { all: unset; cursor: pointer; flex: none; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; border: 2px solid var(--line); background: var(--surface); color: var(--text); -webkit-tap-highlight-color: transparent; }
-.chat-mic .icn, .chat-send .icn { width: 22px; height: 22px; }
-.chat-send { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.chat-send:disabled { opacity: .45; }
-.chat-mic.on { background: #E7505A; border-color: #E7505A; color: #fff; animation: mic-pulse 1.1s ease-in-out infinite; }
-@keyframes mic-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(231, 80, 90, .45); } 50% { box-shadow: 0 0 0 9px rgba(231, 80, 90, 0); } }
-.chat-foot { margin: 8px 0 0; text-align: center; font-size: 13px; }
+.chat-foot { margin: 8px 0 0; text-align: center; font-size: 13px; flex: none; }
 .chat-foot .link { color: var(--muted); }
-.bubble.think { display: flex; gap: 5px; padding: 14px 16px; }
-.bubble.think i { width: 8px; height: 8px; border-radius: 50%; background: #2A1C15; opacity: .35; animation: think 1.1s ease-in-out infinite; }
-.bubble.think i:nth-child(2) { animation-delay: .18s; } .bubble.think i:nth-child(3) { animation-delay: .36s; }
-@keyframes think { 0%, 100% { transform: translateY(0); opacity: .35; } 50% { transform: translateY(-4px); opacity: .9; } }
-.chat-note { margin: -2px 0 0; align-self: flex-start; font-size: 12px; color: var(--muted); padding: 0 6px; }
-.az-parle { position: absolute; top: 4px; right: 36px; z-index: 2; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: var(--muted); cursor: pointer; display: grid; place-items: center; padding: 0; opacity: .85; }
-.hd:not(:has(.guide-q)) .az-parle { right: 0; }
-.az-parle .icn { width: 16px; height: 16px; }
-.az-parle:active { transform: scale(.92); }
 #azmem .visite-card h2 { margin: 6px 0 2px; font-size: 22px; }
 #azmem .visite-card h3 { margin: 14px 0 4px; font-size: 12px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 #azmem .visite-card { overflow-y: auto; }
@@ -2013,4 +2022,4 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .azmem-l li.gone { opacity: 0; transform: scale(.96); pointer-events: none; }
 .azmem-x { all: unset; cursor: pointer; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); font-size: 20px; font-weight: 800; }
 .azmem-x:active { background: var(--line); }
-@media (prefers-reduced-motion: reduce) { .chat-mic.on, .bubble.think i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .az-mic.on, .az-bulle.think i, .az-bulle, .az-moi { animation: none; } }

@@ -2111,7 +2111,6 @@ function tipSave(k, v = true) {
   api.upsert('user_tips', { email: S.me, seen: S.tips, updated_at: new Date().toISOString() }).catch(e => console.warn('guide', e));
 }
 const guideKey = () => S.view === 'recettes' ? (S.cook ? 'cook' : S.recette ? 'fiche' : 'recettes') : S.view;
-const parleBtn = () => `<button type="button" class="az-parle" data-action="azami-parler" aria-label="Parler à Azami">${icn('bulle')}</button>`;
 const guideBtn = () => GUIDE[guideKey()] ? `<button type="button" class="guide-q" data-action="guide-page" aria-label="Comment ça marche ici ?">?</button>` : '';
 function openTour(i = 0) {
   const st = TOUR[i]; if (!st) return;
@@ -2242,9 +2241,10 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${parleBtn()}</header>${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}</header>${S.view === 'maison' ? '' : azamiDire()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
+  azamiType();
   cookSave();
   propEnter();
   deepLink();
@@ -2410,6 +2410,7 @@ function viewMaison() {
 
   return `<header class="hd centered">
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
+    ${azamiDire()}
     <h1>${hello} ${esc(firstName())}</h1><p class="hd-kicker">${esc(date)}</p></header>
     ${recapCard()}${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
@@ -2438,7 +2439,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v200</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v201</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5024,112 +5025,92 @@ function azamiContexte() {
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
   return l.join('\n').slice(0, 3800);
 }
-let chatCur = null;
-// Son costume suit la page : toque en cuisine, lunettes 3D au ciné (la langue tirée n'existe qu'en tenue simple).
-const chatImg = (name) => {
-  const img = chatCur?.box.querySelector('.visite-azami'); if (!img) return;
-  const base = name === 'langue' ? 'visite_' : S.view === 'recettes' ? 'visite_chef_' : S.view === 'nuit' && (S.loisirTab || 'cine') === 'cine' ? 'visite_cine_' : 'visite_';
-  img.src = ['parle', 'ecoute'].includes(name) ? azamiSrc(`v44_${base}${name}`) : (reducedMotion() ? `azami/v44/reactions/statiques/${base}${name}_statique.svg` : `azami/v44/reactions/${base}${name}_anime.svg?${Date.now()}`);
-};
+// La conversation vit sur la page : l'Azami de l'en-tête parle dans une bulle sous elle, et une petite ligne
+// permet de lui écrire ou de lui parler. Sa dernière réponse vous suit de page en page ; l'historique est à un
+// toucher (le petit bouton à gauche de la ligne). Ses réponses déclenchent ses réactions habituelles, avec les
+// accessoires de la page (balai, toque, tirelire…).
+const AZ = { bulle: safeGet('maison-az-bulle') || '', moi: safeGet('maison-az-moi') || '', note: '', busy: false, k: 0, typedK: 0, rec: null };
+function azamiDire() {
+  if (!S.me || S.recovery) return '';
+  const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  return `<section class="az-dire ${S.view === 'maison' ? 'centre' : ''}" aria-label="Azami">
+    ${AZ.moi ? `<p class="az-moi">${esc(AZ.moi)}</p>` : ''}
+    ${AZ.busy ? '<div class="az-bulle think" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : AZ.bulle ? `<div class="az-bulle" data-k="${AZ.k}"><span class="az-txt">${esc(AZ.bulle)}</span>${AZ.note ? `<small class="az-note">${esc(AZ.note)}</small>` : ''}</div>` : ''}
+    <form class="az-in" data-form="azami"><button type="button" class="az-h" data-action="azami-fil" aria-label="Nos conversations">${icn('bulle')}</button><input id="az-in" data-keep type="text" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Dis quelque chose à Azami…" aria-label="Dire quelque chose à Azami">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button></form>
+  </section>`;
+}
+// Sa réponse s'écrit lettre par lettre, avec sa petite voix (toucher la bulle pour aller plus vite).
+async function azamiType() {
+  const el = document.querySelector('.az-bulle[data-k] .az-txt'); if (!el) return;
+  const k = Number(el.parentElement.dataset.k); if (k === AZ.typedK) return;
+  AZ.typedK = k; const txt = AZ.bulle; let skip = false;
+  el.parentElement.addEventListener('click', () => { skip = true; }, { once: true });
+  if (reducedMotion()) { el.textContent = txt; return; }
+  for (let i = 1, n = 0; i <= txt.length; i++) {
+    if (skip || AZ.k !== k) { el.textContent = txt; return; }
+    el.textContent = txt.slice(0, i);
+    const ch = txt[i - 1];
+    if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
+    await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
+  }
+}
+// Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
+const AZ_HUMEUR = { contente: ['caresse_2', ['ronron', 'ronronmrr']], joueuse: ['attaque', ['chirp', 'gazouille', 'mewmew']], curieuse: ['caresse_1', ['question', 'mrrr']], boudeuse: ['crache', ['grogne']], affamee: ['retour', ['miaou2', 'long']], endormie: [null, ['mrrr']], calme: [null, ['miaou']] };
+async function azamiEnvoyer(txt) {
+  txt = (txt || '').trim(); if (!txt || AZ.busy) return;
+  AZ.moi = txt; AZ.note = ''; AZ.busy = true; safeSet('maison-az-moi', txt); render(); haptic(1);
+  try {
+    const now = new Date();
+    const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
+    AZ.busy = false; AZ.bulle = r.reponse; AZ.k++; safeSet('maison-az-bulle', r.reponse);
+    AZ.note = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude')].join(' · ');
+    render();
+    const [reac, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
+    const img = document.querySelector('.hd img.azami');
+    if (img && reac && !img.dataset.caresse) playOnImg(img, reac, 2500);
+    meow(true, .45, pick(sons));
+    if (r.humeur === 'contente' && img) burst('hearts', img, 8);
+  } catch (e) {
+    AZ.busy = false; AZ.bulle = `Mrrr… ${e.message}`; AZ.k++; render();
+  }
+}
+// Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la ligne, puis part tout seul.
+function azamiMic() {
+  if (AZ.rec) { AZ.rec.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  const rec = new SR(); rec.lang = 'fr-CH'; rec.interimResults = true; rec.continuous = false;
+  const champ = () => document.getElementById('az-in'); const avant = champ()?.value || ''; let fin = '';
+  rec.onresult = e => { let t = ''; for (const r of e.results) { t += r[0].transcript; if (r.isFinal) fin = t; } const c = champ(); if (c) c.value = (avant ? avant + ' ' : '') + t; };
+  rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
+  rec.onend = () => { AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); if (fin && !avant) { const c = champ(); if (c) c.value = ''; azamiEnvoyer(fin); } };
+  try { rec.start(); AZ.rec = rec; document.querySelector('.az-mic')?.classList.add('on'); haptic('medium'); sfx('tick'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
+}
 const chatBubble = (txt, who) => { const p = document.createElement('p'); p.className = `bubble ${who}`; p.textContent = txt; return p; };
-function chatOpen() {
-  clearReaction(); popClose(); document.getElementById('visite-invite')?.remove();
+// L'historique : tout ce que vous vous êtes dit, dans une feuille.
+function azamiFil() {
   document.getElementById('chat')?.remove();
   const box = document.createElement('div'); box.id = 'chat';
-  const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  box.innerHTML = `<div class="visite-card chat long" role="dialog" aria-modal="true" aria-label="Parler à Azami">
-    <p class="visite-kind">Azami</p><button class="visite-x" data-c="close" aria-label="Fermer">×</button>
-    <img class="visite-azami" src="${azamiSrc('v44_visite_ecoute')}" alt="" width="200" height="200">
-    <div class="visite-talk" aria-live="polite"><p class="chat-wait">…</p></div>
-    <form class="chat-in" autocomplete="off"><textarea id="chat-txt" rows="1" placeholder="Dis-moi…" aria-label="Ton message" enterkeyhint="send"></textarea>${mic ? '<button type="button" class="chat-mic" data-c="mic" aria-label="Parler au micro" aria-pressed="false">' + icn('micro') + '</button>' : ''}<button type="submit" class="chat-send" aria-label="Envoyer">${icn('envoyer')}</button></form>
+  box.innerHTML = `<div class="visite-card chat long" role="dialog" aria-modal="true" aria-label="Nos conversations">
+    <p class="visite-kind">Nos conversations</p><button class="visite-x" data-c="close" aria-label="Fermer">×</button>
+    <div class="visite-talk"><p class="chat-wait">…</p></div>
     <p class="chat-foot"><button type="button" class="link" data-c="memoire">Ce qu’elle sait de moi</button></p></div>`;
   document.body.appendChild(box);
   requestAnimationFrame(() => box.classList.add('on'));
   haptic('medium');
-  chatCur = { box, busy: false };
-  const talk = box.querySelector('.visite-talk'); visitFollow(talk);
-  const ta = box.querySelector('#chat-txt');
-  const grow = () => { ta.style.height = 'auto'; ta.style.height = Math.min(120, ta.scrollHeight) + 'px'; };
-  ta.addEventListener('input', grow);
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); } });
-  box.querySelector('.chat-in').addEventListener('submit', e => { e.preventDefault(); chatSend(); });
+  const talk = box.querySelector('.visite-talk');
+  const close = () => { box.classList.remove('on'); setTimeout(() => box.remove(), 320); };
   box.addEventListener('click', e => {
-    if (e.target.closest('.visite-azami')) { if (!azamiPet(e.target.closest('.visite-azami'), true)) meow(true, .5, pick(['ronron', 'ronronmrr', 'mrrr'])); return; }
-    if (e.target === box) { chatClose(); return; }
-    const b = e.target.closest('[data-c]'); if (!b) { if (chatCur?.typing) chatCur.skip = true; return; }
-    if (b.dataset.c === 'close') chatClose();
-    if (b.dataset.c === 'mic') chatMic(b);
+    if (e.target === box) return close();
+    const b = e.target.closest('[data-c]'); if (!b) return;
+    if (b.dataset.c === 'close') close();
     if (b.dataset.c === 'memoire') azamiMemoire();
   });
   azamiCall({ action: 'fil' }).then(r => {
-    if (chatCur?.box !== box) return;
     talk.innerHTML = '';
     for (const m of r.fil || []) talk.appendChild(chatBubble(m.texte, m.role === 'moi' ? 'me' : 'az'));
-    if (!(r.fil || []).length) { const h = new Date().getHours(); chatSay(h < 5 || h >= 22 ? 'Mrrr… il est tard. Mais je t’écoute, chuchote.' : h < 11 ? `Ohayō ! (bonjour) Tu as bien dormi, ${firstName()} ? Dis-moi.` : 'Tu voulais me dire quelque chose ? Je t’écoute, les oreilles droites.'); }
-    else requestAnimationFrame(() => talk.follow?.());
+    if (!(r.fil || []).length) talk.appendChild(chatBubble('Rien encore. Dis-moi quelque chose sur une page, je suis là.', 'az'));
+    requestAnimationFrame(() => { talk.scrollTop = talk.scrollHeight; });
   }).catch(e => { talk.innerHTML = ''; talk.appendChild(chatBubble(`Mrrr… je n’entends rien. (${e.message})`, 'az')); });
-}
-function chatClose() {
-  const box = document.getElementById('chat'); if (!box) return;
-  chatCur?.rec?.stop?.();
-  box.classList.remove('on'); setTimeout(() => box.remove(), 320); chatCur = null; haptic(1);
-}
-// Elle écrit lettre par lettre, avec sa petite voix (toucher la carte pour aller plus vite).
-async function chatSay(txt, who = 'az') {
-  const cur = chatCur; if (!cur) return; const talk = cur.box.querySelector('.visite-talk');
-  const p = chatBubble('', who); talk.appendChild(p); talk.follow?.();
-  cur.typing = true; cur.skip = false;
-  if (reducedMotion()) p.textContent = txt;
-  else for (let i = 1, n = 0; i <= txt.length; i++) {
-    if (cur.skip) { p.textContent = txt; break; }
-    p.textContent = txt.slice(0, i); talk.follow?.();
-    const ch = txt[i - 1];
-    if (who === 'az' && /\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
-    await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
-    if (chatCur !== cur) return;
-  }
-  cur.typing = false; talk.follow?.();
-}
-const AZ_HUMEUR = { contente: ['coeur', ['ronron', 'ronronmrr']], joueuse: ['rire', ['chirp', 'gazouille', 'mewmew']], curieuse: ['malice', ['question', 'mrrr']], boudeuse: ['langue', ['grogne']], affamee: ['malice', ['miaou2', 'long']], endormie: ['parle', ['mrrr']], calme: ['parle', ['miaou']] };
-async function chatSend(forced) {
-  const cur = chatCur; if (!cur || cur.busy) return;
-  const ta = cur.box.querySelector('#chat-txt'); const txt = (forced ?? ta.value).trim(); if (!txt) return;
-  ta.value = ''; ta.style.height = 'auto';
-  const talk = cur.box.querySelector('.visite-talk');
-  talk.appendChild(chatBubble(txt, 'me')); talk.follow?.(); haptic(1);
-  cur.busy = true; cur.box.querySelector('.chat-send').disabled = true;
-  const think = chatBubble('', 'az think'); think.innerHTML = '<i></i><i></i><i></i>'; talk.appendChild(think); talk.follow?.();
-  chatImg('ecoute');
-  try {
-    const now = new Date();
-    const r = await azamiCall({ action: 'parler', texte: txt, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
-    if (chatCur !== cur) return;
-    think.remove();
-    const [img, sons] = AZ_HUMEUR[r.humeur] || AZ_HUMEUR.calme;
-    chatImg(img === 'parle' ? 'parle' : img); meow(true, .45, pick(sons));
-    await chatSay(r.reponse);
-    if (chatCur !== cur) return;
-    const notes = [...(r.retenu || []).map(t => `Elle retient : ${t}`), ...(r.notes || []).map(() => 'Transmis à Claude.')];
-    if (notes.length) { const n = document.createElement('p'); n.className = 'chat-note'; n.textContent = notes.join(' · '); talk.appendChild(n); talk.follow?.(); }
-  } catch (e) {
-    if (chatCur !== cur) return;
-    think.remove(); talk.appendChild(chatBubble(`Mrrr… ${e.message}`, 'az')); talk.follow?.();
-  } finally {
-    if (chatCur === cur) { cur.busy = false; cur.box.querySelector('.chat-send').disabled = false; setTimeout(() => chatCur === cur && chatImg('ecoute'), 2400); }
-  }
-}
-// Le micro : la reconnaissance vocale du téléphone (gratuite, hors ligne sur iPhone). Ce qu'on dit s'écrit,
-// puis part tout seul à la fin de la phrase.
-function chatMic(btn) {
-  const cur = chatCur; if (!cur) return;
-  if (cur.rec) { cur.rec.stop(); return; }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
-  const rec = new SR(); rec.lang = 'fr-CH'; rec.interimResults = true; rec.continuous = false;
-  const ta = cur.box.querySelector('#chat-txt'); const avant = ta.value; let fin = '';
-  rec.onresult = e => { let t = ''; for (const r of e.results) { t += r[0].transcript; if (r.isFinal) fin = t; } ta.value = (avant ? avant + ' ' : '') + t; ta.dispatchEvent(new Event('input')); };
-  rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
-  rec.onend = () => { cur.rec = null; btn.setAttribute('aria-pressed', 'false'); btn.classList.remove('on'); if (fin && !avant) chatSend(); };
-  try { rec.start(); cur.rec = rec; btn.setAttribute('aria-pressed', 'true'); btn.classList.add('on'); haptic('medium'); sfx('tick'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
 }
 // La page « Ce qu'Azami sait de moi » : sa mémoire sur moi, ligne par ligne, à corriger ou effacer.
 async function azamiMemoire() {
@@ -5146,7 +5127,7 @@ async function azamiMemoire() {
     if (b.dataset.m === 'oublier') { b.closest('li').classList.add('gone'); try { await azamiCall({ action: 'oublier', id: b.dataset.id }); haptic(1); } catch (err) { toast(err.message); } }
     if (b.dataset.m === 'fil') {   // deux pressions : la première demande confirmation
       if (!b.dataset.sur) { b.dataset.sur = '1'; b.textContent = 'Sûr ? Toucher encore pour effacer'; setTimeout(() => { delete b.dataset.sur; b.textContent = 'Effacer notre conversation'; }, 4000); return; }
-      try { await azamiCall({ action: 'effacer_fil' }); toast('Conversation effacée'); document.querySelector('#chat .visite-talk')?.replaceChildren(); close(); } catch (err) { toast(err.message); }
+      try { await azamiCall({ action: 'effacer_fil' }); toast('Conversation effacée'); AZ.bulle = ''; AZ.moi = ''; safeSet('maison-az-bulle', ''); safeSet('maison-az-moi', ''); render(); close(); } catch (err) { toast(err.message); }
     }
   });
   try {
@@ -5163,7 +5144,8 @@ async function azamiMemoire() {
 // Actions --------------------------------------------------------------------
 
 const actions = {
-  'azami-parler': () => chatOpen(),
+  'azami-fil': () => azamiFil(),
+  'azami-mic': () => azamiMic(),
   'azami-memoire': () => azamiMemoire(),
 
   'guide-page': () => openGuidePage(),
@@ -5621,6 +5603,7 @@ const actions = {
 };
 
 const forms = {
+  azami: f => { const i = f.querySelector('#az-in'); const t = i.value; i.value = ''; azamiEnvoyer(t); },
   async login(f) {
     const email = f.email.value.trim().toLowerCase();
     S.login.email = email;
