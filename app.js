@@ -9,6 +9,7 @@ import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
+import { MOTS, HIRA, exemple } from './jp.js';
 // Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
 let VISITES = [], visitesP = null;
 const loadVisites = () => visitesP ||= import('./visites.js').then(m => { VISITES = m.VISITES; }).catch(e => { visitesP = null; console.warn('visites', e); });
@@ -2317,7 +2318,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage(); crottesPlace(); if (!azamiCourrier()) tamaDire();
+  azamiType(); azamiNuage(); crottesPlace(); if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
   deepLink();
@@ -2518,7 +2519,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v226</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v227</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5116,6 +5117,7 @@ function azamiContexte() {
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
+  { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   l.push(tamaContexte());
   if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
   return l.join('\n').slice(0, 14000);
@@ -5131,7 +5133,7 @@ function azamiContexte() {
 const AZ = { bulle: safeGet('maison-az-bulle') || '', at: Number(safeGet('maison-az-at') || 0), choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
 // Une bulle d'elle : on retient le texte et l'heure (une vieille bulle n'est jamais réaffichée au retour).
 function azamiPose(texte, humeur = 'calme', choix = []) {
-  AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.courrier = null; AZ.k++; AZ.at = Date.now();
+  AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.courrier = null; if (!choix.length) AZ.quiz = null; AZ.k++; AZ.at = Date.now();
   safeSet('maison-az-bulle', texte); safeSet('maison-az-at', String(AZ.at));
   azamiEnvol();
 }
@@ -5208,7 +5210,7 @@ const azamiBulle = () => {
   const pensee = AZ.busy ? '<div class="az-b az-pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></div>' : '';
   const [p1, p2] = azamiParts();
   if (AZ.ecrit && !AZ.busy) return `<div class="az-bulles cote">${azamiMienne(true)}</div>`;   // on écrit : la bulle à nous prend sa place, en haut
-  const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
+  const sienne = !AZ.busy && p1 ? `<div class="az-b az-elle ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="1">${AZ.typedK === AZ.k ? jpWrap(esc(p1)) : esc(p1)}</span>${p2 ? '' : azamiPied()}<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>` : '';
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   if (!pensee && !sienne) return '';
   return `<div class="az-bulles cote">${pensee}${sienne}</div>`;
@@ -5222,7 +5224,7 @@ const azamiMienne = (dedans = false) => {
   const mic = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   return `${dedans ? '' : '<div class="az-bulles suite moi">'}<form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form>${dedans ? '' : '</div>'}`;
 };
-const azamiSuite = () => { let [p1, p2] = azamiParts(); if (AZ.ecrit && !AZ.busy && AZ.bulle) { p2 = AZ.bulle; p1 = ''; } return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'} ${AZ.ecrit ? 'sous' : ''}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + (AZ.ecrit ? '' : azamiMienne()); };
+const azamiSuite = () => { let [p1, p2] = azamiParts(); if (AZ.ecrit && !AZ.busy && AZ.bulle) { p2 = AZ.bulle; p1 = ''; } return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'} ${AZ.ecrit ? 'sous' : ''}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${AZ.typedK === AZ.k ? jpWrap(esc(p2)) : esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + (AZ.ecrit ? '' : azamiMienne()); };
 // Étape 2 : elle agit dans l'app. Quand c'est la personne qui le demande, elle le fait tout de suite ; quand
 // c'est elle qui propose, elle attend un oui (deux boutons dans sa bulle). Tout se fait ici, dans l'app, avec les
 // mêmes gestes que les vôtres (icônes, magasin deviné, réussites) ; l'argent reste en lecture seule.
@@ -5402,6 +5404,53 @@ function crottePrend(e) {
     }
   };
   document.addEventListener('pointermove', move); document.addEventListener('pointerup', fin); document.addEventListener('pointercancel', fin);
+}
+
+// Le japonais (étape 5). Le mot du jour (lié à la page quand c'est possible), un hiragana nouveau trois fois par
+// semaine avec un petit jeu, la révision des mots déjà vus ; la prononciation en touchant n'importe quel mot
+// japonais dans ses bulles (la voix japonaise du téléphone). Chacun son carnet (sur l'appareil), et elle sait ce
+// que tu as appris quand on lui parle.
+const JP = () => { try { return JSON.parse(safeGet('maison-jp') || '{}'); } catch { return {}; } };
+const jpSave = j => safeSet('maison-jp', JSON.stringify(j));
+const jpDire = txt => {
+  if (!('speechSynthesis' in window)) { toast('Pas de voix japonaise sur cet appareil.'); return; }
+  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(txt); u.lang = 'ja-JP'; u.rate = .85; const v = speechSynthesis.getVoices().find(v => /^ja/i.test(v.lang)); if (v) u.voice = v; speechSynthesis.speak(u); haptic(1); } catch {}
+};
+// dans ses bulles, ce qui est écrit en japonais devient touchable (ça le prononce)
+const jpWrap = html => html.replace(/[぀-ヿ一-龯ー]+/g, m => `<button type="button" class="jp" data-action="jp-dire" data-txt="${m}">${m}</button>`);
+function jpAujourdhui() {
+  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || AZ.bulle || azamiNuit()) return false;
+  const j = JP(), jour = isoDate(new Date()); if (j.jour === jour) return false;
+  const heure = new Date().getHours(); if (heure < 9) return false;   // le mot du jour attend que la journée commence
+  j.jour = jour; j.mots ||= []; j.hira ||= [];
+  const wd = new Date().getDay();
+  // lundi, mercredi, vendredi : un hiragana nouveau ; les autres jours, un mot ; de temps en temps, une révision
+  if ([1, 3, 5].includes(wd) && j.hira.length < HIRA.length && Math.random() < .8) {
+    const [h, r] = HIRA[j.hira.length]; j.hira.push(h); jpSave(j);
+    const ex = exemple(h);
+    AZ.jp = { k: h }; azamiPose(`Nouveau hiragana : ${h}, ça se lit « ${r} ».${ex ? ` Comme dans ${ex.k} (${ex.r}, ${ex.f}).` : ''} Touche-le pour l’entendre.`, 'curieuse'); render();
+    return true;
+  }
+  if (j.mots.length >= 3 && Math.random() < .3) {   // révision : un mot déjà vu, trois sens au choix
+    const m = MOTS.find(x => x.k === pick(j.mots)); if (m) { jpSave(j); return jpQuiz(m); }
+  }
+  const pool = MOTS.filter(m => !j.mots.includes(m.k)); if (!pool.length) { jpSave(j); return false; }
+  const ici = pool.filter(m => m.p === S.view), m = pick(ici.length && Math.random() < .7 ? ici : pool);
+  j.mots.push(m.k); jpSave(j);
+  AZ.jp = { k: m.k }; azamiPose(`Le mot du jour : ${m.k} (${m.r}), ${m.f}. Touche-le pour l’entendre.`, 'curieuse'); render();
+  return true;
+}
+// un petit jeu : trois sens, un seul bon (ou trois hiragana pour une lecture)
+function jpQuiz(m) {
+  const autres = MOTS.filter(x => x.k !== m.k).sort(() => Math.random() - .5).slice(0, 2).map(x => x.f);
+  AZ.quiz = { bon: m.f, k: m.k, r: m.r }; azamiPose(`Tu te souviens ? ${m.k} (${m.r}), ça veut dire…`, 'joueuse', [m.f, ...autres].sort(() => Math.random() - .5)); render();
+  return true;
+}
+function jpReponse(txt) {
+  const q = AZ.quiz; AZ.quiz = null; if (!q) return;
+  if (txt === q.bon) { azamiPose(pick([`Sugoi ! ${q.k}, c’est bien « ${q.bon} ». Tu progresses plus vite que moi avec la poubelle.`, `Oui ! ${q.k} = ${q.bon}. Je ronronne de fierté.`]), 'contente'); sfx('done'); }
+  else azamiPose(`Presque. ${q.k} (${q.r}), c’est « ${q.bon} ». On le reverra, promis.`, 'calme');
+  render();
 }
 
 // Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
@@ -5592,7 +5641,7 @@ async function azamiType() {
   const el = document.querySelector('.az-elle[data-k] .az-txt[data-part="1"]'); if (!el) return;
   const k = Number(el.parentElement.dataset.k); if (k === AZ.typedK) return;
   AZ.typedK = k; const parts = azamiParts().filter(Boolean);
-  if (reducedMotion()) return;
+  if (reducedMotion()) { els.forEach((e, j) => { if (e && parts[j]) e.innerHTML = jpWrap(esc(parts[j])); }); return; }
   // Le texte entier est déjà là, en transparent : la bulle a sa taille définitive, rien ne bouge pendant
   // que les lettres apparaissent une à une.
   const els = [el, document.querySelector('.az-elle[data-k] .az-txt[data-part="2"]')];
@@ -5607,7 +5656,7 @@ async function azamiType() {
       if (/\p{L}/u.test(ch) && n++ % 2 === 0) voixAzami(ch, /\?\s*$/.test(txt) && i > txt.length - 8 ? .14 : 0);
       await new Promise(r => setTimeout(r, /[.!?…]/.test(ch) ? 220 : /[,;:]/.test(ch) ? 120 : 22));
     }
-    e.textContent = txt; e.closest('.az-elle')?.classList.remove('tape');
+    e.innerHTML = jpWrap(esc(txt)); e.closest('.az-elle')?.classList.remove('tape');
   }
 }
 // Son humeur en répondant → sa réaction sur la page (avec l'accessoire de la page) et son miaulement.
@@ -5717,7 +5766,8 @@ const actions = {
   'azami-fil': () => azamiFil(),
   'azami-mic': () => azamiMic(),
   'azami-ecrire': () => azamiEcrire(),
-  'azami-choix': el => azamiEnvoyer(el.dataset.txt),
+  'azami-choix': el => AZ.quiz ? jpReponse(el.dataset.txt) : azamiEnvoyer(el.dataset.txt),
+  'jp-dire': el => jpDire(el.dataset.txt),
   'azami-lire': () => { const id = AZ.courrier; AZ.courrier = null; AZ.bulle = ''; safeSet('maison-az-bulle', ''); S.loisirTab = 'mots'; S.openLetter = id; S.view = 'nuit'; render(); window.scrollTo(0, 0); },
   'azami-oui': async () => { const a = AZ.action; AZ.action = null; haptic(1); await azamiAgir(a); },
   'azami-non': () => { AZ.action = null; azamiPose(pick(['D’accord, je laisse. Je n’insiste jamais. Presque jamais.', 'Bon. Je range l’idée dans ma mémoire à moi.']), 'calme'); render(); },
