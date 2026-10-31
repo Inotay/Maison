@@ -2520,7 +2520,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v229</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v230</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5143,7 +5143,8 @@ function azamiPose(texte, humeur = 'calme', choix = []) {
 function azamiEnvol() {
   clearTimeout(AZ.envolT);
   const k = AZ.k, n = (AZ.bulle || '').length;
-  const delai = Math.min(45e3, Math.max(7e3, n * 30 + 2500 + n * 60)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 25e3 : 0);
+  // le temps déjà passé compte (bulle retrouvée après un rechargement, retour dans l'app) : au moins 4 s quand même
+  const delai = Math.max(4e3, Math.min(45e3, Math.max(7e3, n * 30 + 2500 + n * 60)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 25e3 : 0) - Math.max(0, Date.now() - (AZ.at || Date.now())));
   AZ.envolT = setTimeout(function fin() {
     if (AZ.k !== k || !AZ.bulle) return;
     if (AZ.ecrit || AZ.busy || document.activeElement?.id === 'az-in') { AZ.envolT = setTimeout(fin, 5000); return; }
@@ -5180,6 +5181,7 @@ function azamiDepuis() {
 }
 function azamiRetour() {
   const now = Date.now(), parti = now - azamiVu; azamiVu = now;
+  if (AZ.bulle) azamiEnvol();   // le téléphone gèle les minuteurs en arrière-plan : on relance celui de la bulle
   if (parti > 3 * 60e3 && azamiCourrier()) return;
   if (parti < 3 * 60e3) return;                                    // un aller-retour rapide : rien ne change
   if (AZ.bulle && now - (AZ.at || 0) > 10 * 60e3 && !AZ.busy && !AZ.ecrit) { AZ.bulle = ''; AZ.choix = []; safeSet('maison-az-bulle', ''); }
@@ -5711,8 +5713,9 @@ async function azamiEnvoyer(txt, geste = false) {
   }
 }
 function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.action = null; AZ.courrier = null; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
-// Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée.
-if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); }
+// Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée ; une plus récente finit son temps, puis s'efface
+// (sans ça, une bulle retrouvée après un rechargement restait là pour de bon).
+if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); } else if (AZ.bulle) azamiEnvol();
 // Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la bulle, puis part tout seul.
 function azamiMic() {
   if (AZ.rec) { AZ.rec.stop(); return; }
