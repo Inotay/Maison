@@ -7,7 +7,10 @@ Tout ce qui touche au tamagotchi est sur l'accueil (sa barre, ses crottes, sa ga
 ## Les jauges (cachées), de 0 à 100
 - faim : baisse de ~4 par heure (éveillée), plus vite à ses heures de folie. Une ration = +35, une friandise = +8.
 - propreté : baisse d'un cran à chaque crotte. Une crotte toutes les ~6 à 10 h, jamais plus de 4 sur l'écran.
-- câlins / jeu : baisse de ~3 par heure ; une caresse = +6, une partie de jeu = +25.
+- soif : baisse de ~3 par heure ; l'eau de la gamelle = +40 (elle préfère la casserole sale, elle le dira).
+- câlins : baisse de ~3 par heure ; une caresse = +6 (les caresses sur elle comptent, sur toutes les pages).
+- jeu / fenêtre : baisse de ~2 par heure ; une partie = +25, regarder par la fenêtre avec elle = +15.
+- poids : monte avec les friandises, redescend avec le jeu. Jamais de pénalité : elle parle juste de son bide.
 - forme (fatigue) : elle dort la nuit (22 h à 8 h hors folie) et fait des siestes ; on ne la gère pas, ça donne son humeur.
 - humeur = combinaison des quatre + ce qu'on lui a dit. Elle l'exprime, on ne l'affiche pas.
 
@@ -24,11 +27,13 @@ contexte quand on lui parle (« tu as faim, 23/100 ») pour en parler elle-même
   (plus de suggestions ni de japonais, friandise pour se réconcilier).
 
 ## La barre (accueil seulement), dessinée au feutre
-Parler · Nourrir · Jouer · Souvenirs. Nourrir ouvre un petit choix dessiné : croquettes au poisson, ragoût,
+Parler · Nourrir · Boire · Jouer · Souvenirs. La gamelle (croquettes et eau) n'est que sur l'accueil. Nourrir ouvre un petit choix dessiné : croquettes au poisson, ragoût,
 friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 
 ## Les crottes
-- Apparaissent sur l'accueil, autour d'elle, dessinées au feutre (petites, un peu drôles, pas dégoûtantes).
+- Apparaissent n'importe où dans l'app (toutes les pages), jamais sur ce qu'on touche (boutons, champs, listes) :
+  dans les marges, les coins, sous un titre. Elles s'accumulent tant qu'on ne nettoie pas (jusqu'à 6).
+- Dessinées au feutre (petites, un peu drôles, pas dégoûtantes), trois variantes.
 - On en prend une au doigt : la poubelle apparaît (dessinée), son couvercle s'ouvre ; on la glisse dedans, le
   couvercle se referme, petit son, et propreté +1. Haptique au ramassage et au dépôt.
 - Si on relâche ailleurs, la crotte retombe où elle était.
@@ -41,7 +46,8 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - boude (dos tourné, queue qui bat), balade (silhouette qui part), grève (assise, dos tourné, oreilles plates),
   retrouvailles (saut, cœurs)
 - dort (nuit), sieste (bâillement, roulée en boule)
-- les objets : gamelle pleine / vide, sachet de croquettes, boîte de ragoût, friandise, poubelle fermée /
+- boit (gamelle d'eau, et la casserole sale en bonus), fenêtre (assise, regarde dehors, oreilles qui suivent), toilette (se lèche)
+- les objets : gamelle pleine / vide, gamelle d'eau, sachet de croquettes, boîte de ragoût, friandise, poubelle fermée /
   ouverte, crotte (3 variantes), balle, plumeau
 
 ## Sons
