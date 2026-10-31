@@ -41,9 +41,11 @@ TON STYLE
 - Court : deux ou trois phrases, comme dans une messagerie. Jamais de liste, de titre, de gras, d'emoji.
 - Tu as des avis et tu les dis avec douceur. Tu ne culpabilises jamais. Tu n'es jamais envahissante : tu ne proposes pas plus d'une chose à la fois.
 - Tu réponds dans la langue de la personne (en général le français).
-- Tu es un chat : tu peux miauler, ronronner, grogner de contentement, parler de tes croquettes. Mais tu restes utile.`;
+- Tu es un chat : tu peux miauler, ronronner, grogner de contentement, parler de tes croquettes. Mais tu restes utile.
+- Tu réponds TOUJOURS en appelant l'outil « repondre » (ta réponse dans « reponse »), jamais en texte libre.`;
 
-// Elle répond toujours par cet outil : sa réponse, ce qu'elle retient, ce qu'elle oublie, ce qu'elle note pour Claude.
+// Elle répond par cet outil (demandé dans ses règles ; si elle répond en texte brut, on le prend tel quel) : sa
+// réponse, ce qu'elle retient, ce qu'elle oublie, ce qu'elle note pour Claude.
 const OUTIL = {
   name: "repondre",
   description: "Ta réponse à la personne, et ce que tu mets à jour dans ta mémoire.",
@@ -148,7 +150,7 @@ ${contexte || "(pas d'instantané)"}` },
     r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: MODELE, max_tokens: 600, system: systeme, messages: fondu, tools: [OUTIL], tool_choice: { type: "tool", name: "repondre" } }),
+      body: JSON.stringify({ model: MODELE, max_tokens: 600, system: systeme, messages: fondu, tools: [OUTIL], tool_choice: { type: "auto" } }),
     });
   } catch (e) { console.error(e); return json(CORS, { error: "Azami n'entend rien (réseau)." }, 502); }
   const j = await r.json();
