@@ -215,7 +215,7 @@ ${contexte || "(pas d'instantané)"}` },
     const recherches = (j.content ?? []).filter((c: { type: string; name?: string }) => c.type === "tool_use" && c.name === "chercher_films");
     if (!recherches.length || tour === 3) break;
     convo.push({ role: "assistant", content: j.content });
-    const results = [];
+    const results: Record<string, unknown>[] = [];
     for (const t of recherches) results.push({ type: "tool_result", tool_use_id: t.id, content: await chercherFilms(db, me, autre?.email ?? "", t.input ?? {}) });
     convo.push({ role: "user", content: results });
   }
