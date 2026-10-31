@@ -2510,7 +2510,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v211</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v212</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5220,20 +5220,30 @@ const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div
 // image par image (trois dessins qui alternent, comme du stop motion). Redessinée quand la bulle change de taille.
 const azamiNuage = (() => {
   const rnd = (seed => () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; });
-  // un ovale à main levée : des points bruités autour d'une ellipse un peu aplatie, lissés en courbes
-  function trace(w, h, r, amp, ex = .8) {
-    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3, n = Math.max(14, Math.round((w + h) / 20)), pts = [];
-    for (let i = 0; i < n; i++) {
-      const t = i / n * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
-      pts.push([cx + a * Math.sign(c) * Math.abs(c) ** ex + (r() - .5) * amp, cy + b * Math.sign(s) * Math.abs(s) ** ex + (r() - .5) * amp]);
+  // un ovale à main levée : des points bruités autour d'une ellipse un peu aplatie, lissés en courbes.
+  // Avec « queue » : l'arc entre deux angles est remplacé par une pointe, dans le même tracé (un seul contour).
+  const ptEll = (w, h, ex, t) => { const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3, c = Math.cos(t), sn = Math.sin(t); return [cx + a * Math.sign(c) * Math.abs(c) ** ex, cy + b * Math.sign(sn) * Math.abs(sn) ** ex]; };
+  function trace(w, h, r, amp, ex = .8, queue = null) {
+    const n = Math.max(16, Math.round((w + h) / 20)), pts = [];
+    if (!queue) {
+      for (let i = 0; i < n; i++) { const [x, y] = ptEll(w, h, ex, i / n * Math.PI * 2); pts.push([x + (r() - .5) * amp, y + (r() - .5) * amp]); }
+      return lisse(pts, true);
     }
+    // de t2 à t1 + 2π : le tour complet sauf l'arc remplacé par la pointe
+    const { t1, t2, tip } = queue, span = t1 + Math.PI * 2 - t2, m = Math.max(12, Math.round(n * span / (Math.PI * 2)));
+    for (let i = 0; i <= m; i++) { const [x, y] = ptEll(w, h, ex, t2 + span * i / m); pts.push([x + (r() - .5) * amp, y + (r() - .5) * amp]); }
+    return lisse(pts, false) + ` L${(tip[0] + (r() - .5) * 3).toFixed(1)},${(tip[1] + (r() - .5) * 3).toFixed(1)} Z`;
+  }
+  // une courbe douce (Catmull-Rom) par les points ; fermée ou ouverte
+  function lisse(pts, ferme) {
+    const n = pts.length, P = i => ferme ? pts[(i + n) % n] : pts[Math.max(0, Math.min(n - 1, i))];
     let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-    for (let i = 0; i < n; i++) {
-      const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
+    for (let i = 0; i < (ferme ? n : n - 1); i++) {
+      const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
       const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6], c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
       d += `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
     }
-    return d + 'Z';
+    return d + (ferme ? 'Z' : '');
   }
   // un rectangle arrondi à main levée (la forme des cartes de l'app, redessinée au feutre)
   function rect(w, h, rad, r, amp) {
@@ -5252,18 +5262,13 @@ const azamiNuage = (() => {
   }
   // la queue pointue : un triangle blanc cerné dont la base rentre dans l'ovale, et un cache blanc qui efface le
   // trait de l'ovale juste sous la queue (jamais au-delà du contour)
-  function queue(w, h, mode, r, ex) {
-    const j = (v, k = 1.6) => (v + (r() - .5) * k).toFixed(1);
-    const cx = w / 2, cy = h / 2, a = w / 2 - 3, b = h / 2 - 3;
-    const pt = t => { const c = Math.cos(t), sn = Math.sin(t); return [cx + a * Math.sign(c) * Math.abs(c) ** ex, cy + b * Math.sign(sn) * Math.abs(sn) ** ex]; };
-    // deux points de base sur le contour, et la pointe un peu plus loin dans la même direction
-    const [t1, t2] = mode === 'c' ? [-.3, .22] : mode === 'r' ? [-1.25, -.95] : [-1.75, -1.4];
-    const b1 = pt(t1), b2 = pt(t2), mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
-    const dx = mx - cx, dy = my - cy, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-    const tip = mode === 'c' ? [mx + 28, my + 10] : [mx + ux * 26 + 6, my + uy * 26];
-    const dedans = p => [p[0] - ux * 8, p[1] - uy * 8], dehors = (p, q) => [p[0] + ux * 5 + (q[0] - p[0]) * .22, p[1] + uy * 5 + (q[1] - p[1]) * .22];
-    const i1 = dedans(b1), i2 = dedans(b2), o1 = dehors(b1, b2), o2 = dehors(b2, b1);
-    return `<path class="nz" d="M${j(i1[0])},${j(i1[1])} L${j(tip[0], 3)},${j(tip[1], 3)} L${j(i2[0])},${j(i2[1])}"/><path class="nb" d="M${i1[0]},${i1[1]} L${i2[0]},${i2[1]} L${o2[0]},${o2[1]} L${o1[0]},${o1[1]}Z"/>`;
+  // où part la queue selon la position de la bulle : à droite vers elle, en haut à droite, ou en haut
+  function queue(w, h, mode, ex) {
+    const [t1, t2] = mode === 'c' ? [-.32, .2] : mode === 'r' ? [-1.25, -.95] : [-1.75, -1.4];
+    const b1 = ptEll(w, h, ex, t1), b2 = ptEll(w, h, ex, t2), mx = (b1[0] + b2[0]) / 2, my = (b1[1] + b2[1]) / 2;
+    const dx = mx - w / 2, dy = my - h / 2, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const tip = mode === 'c' ? [mx + 28, my + 12] : [mx + ux * 26 + 6, my + uy * 26];
+    return { t1, t2, tip };
   }
   let timer = 0, frame = 0;
   function dessine(svg) {
@@ -5283,9 +5288,10 @@ const azamiNuage = (() => {
         return `<path class="nz" d="${rect(w, h, rad, r, 2.6)}"/><path class="nz fin" d="${rect(w, h, rad, rnd(3 + k * 5 + w), 2.2)}" transform="translate(${(r() - .5) * 2},${(r() - .5) * 2})"/>`;
       }
       const ex = mode === 'c' ? .78 : .92;   // à côté d'elle : un peu carré pour loger le texte ; en grand : un vrai ovale
-      const d = trace(w, h, r, 1.4, ex);
-      const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 2.5 + i, ex)}"/>`).join('') : '';
-      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4, ex)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${mode !== 's' ? queue(w, h, mode, r, ex) : ''}${grib}`;
+      const q = mode !== 's' ? queue(w, h, mode, ex) : null;
+      const d = trace(w, h, r, 1.4, ex, q);
+      const grib = vif ? [1, 2].map(i => `<path class="ng" d="${trace(w, h, rnd(500 + k * 7 + i * 13 + w), 2.5 + i, ex, q)}"/>`).join('') : '';
+      return `<path class="nz" d="${d}"/><path class="nz" d="${trace(w, h, rnd(3 + k * 5 + w), 1.4, ex, q)}" transform="translate(${(r() - .5) * 1.6},${(r() - .5) * 1.6})"/>${grib}`;
     });
     svg.innerHTML = frames.map((f, k) => `<g class="nf" data-f="${k}">${f}</g>`).join('');
   }
