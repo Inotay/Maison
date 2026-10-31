@@ -241,7 +241,7 @@ ${contexte || "(pas d'instantané)"}` },
   if (vieux?.length) await db.from("azami_messages").delete().in("id", vieux.map(v => v.id));
   const choix = (Array.isArray(rep.choix) ? rep.choix : []).map((x: unknown) => str(x, 30)).filter(Boolean).slice(0, 3);
   const ac = rep.action && typeof rep.action === "object" ? rep.action as Record<string, unknown> : null;
-  const action = ac && ["course", "tache", "tache_cocher", "menu", "film", "message"].includes(String(ac.type)) && str(ac.texte, 120)
+  const agir = ac && ["course", "tache", "tache_cocher", "menu", "film", "message"].includes(String(ac.type)) && str(ac.texte, 120)
     ? { type: String(ac.type), texte: str(ac.texte, 120), pour: ["moi", "autre", "nous"].includes(String(ac.pour)) ? String(ac.pour) : "nous", date: /^\d{4}-\d{2}-\d{2}$/.test(String(ac.date ?? "")) ? String(ac.date) : null, annee: Number.isInteger(ac.annee) ? ac.annee : null, demande: ac.demande === true } : null;
-  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, action, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
+  return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, action: agir, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
 });
