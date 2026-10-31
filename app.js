@@ -2419,7 +2419,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v195</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v196</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4277,8 +4277,14 @@ async function deckMore(first = false) {
   const pool0 = more.filter(f => !T.banned(t.me, f)).map(f => [f, sc(f)]).sort((a, b) => b[1] - a[1]);
   const keepN = t.me?.n >= 40 ? Math.max(8, Math.ceil(pool0.length * (deck.mood ? .55 : .35))) : pool0.length;
   const reste = pool0.slice(keepN).map(x => x[0]).sort(() => Math.random() - .5);
-  const choisis = [...pool0.slice(0, keepN).map(x => x[0]), ...reste.slice(0, Math.ceil(keepN / 6))];
-  const ordered = T.order(choisis, sc);
+  // Les « portes » : de temps en temps, un film bien noté qui sort de ce que l'algorithme croit que tu aimes (genre,
+  // pays, langue, époque où tu n'as presque rien jugé). Signalé comme tel ; s'il te plaît, une nouvelle piste s'ouvre.
+  const neuf = f => { const ks = T.feats(f).filter(([k]) => /^(g|c|l|d):/.test(k)); if (!ks.length) return 0; return ks.filter(([k]) => Math.abs(t.me?.Pn?.get(k) || 0) < .08).length / ks.length; };
+  const portes = t.me?.n >= 40 && !deck.mood ? reste.filter(f => (T.quality(f) || 0) >= 7.2 && neuf(f) >= .5).sort((a, b) => neuf(b) - neuf(a)).slice(0, Math.max(1, Math.round(keepN / 8))) : [];
+  portes.forEach(f => f._porte = true);
+  const choisis = [...pool0.slice(0, keepN).map(x => x[0]), ...portes, ...reste.filter(f => !portes.includes(f)).slice(0, Math.ceil(keepN / 8))];
+  const ordered = T.order(choisis.filter(f => !f._porte), sc);
+  portes.forEach((f, i) => ordered.splice(Math.min(ordered.length, 3 + i * 7), 0, f));   // une porte de temps en temps, pas toutes à la fin
   const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
   const ps = pending.map(f => [f, pw(f)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
   // les films de l'autre passent en priorité, mais au hasard (environ une carte sur trois, jamais deux d'affilée) ;
@@ -4357,7 +4363,8 @@ function deckDraw() {
   else { el = deckFrag(card(cur, 'top')); st.appendChild(el); }
   const gone = st.querySelector('.dcard.gone'); if (gone) st.appendChild(gone);   // elle finit de s'envoler par-dessus
   deckDrawNext();
-  if (cur._relance && !deck.asking) st.insertAdjacentHTML('beforeend', `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>`);   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
+  if (cur._relance && !deck.asking) st.insertAdjacentHTML('beforeend', `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>`);
+  else if (cur._porte && !deck.asking) st.insertAdjacentHTML('beforeend', '<p class="dtheirs relance porte">Porte ouverte : un film hors de tes habitudes</p>');   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
   deckPreload();
   if (deck.asking) { deckAskSeen(true); return; }
   const nxF = () => st.querySelector('.dcard.next:not(.enter)');
@@ -4584,6 +4591,7 @@ async function deckVote(v, from) {
   // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
   const meta = { ms: Math.max(0, Math.round(tv - (deck.t0 || tv))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
   if (f._relance) meta.relance = 1;   // une seule seconde chance
+  if (f._porte) meta.porte = 1;   // film « porte » : un bof y pèse moins, une envie y ouvre une piste
   if (from?.dur != null) { meta.glisse = Math.round(from.dur); if (from.rev) meta.retour = 1; }
   if (deck.away || (deck.gap || 0) > (deck.fiche ? 40000 : 15000)) meta.absent = 1;
   deck.i++; deckDraw();

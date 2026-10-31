@@ -111,7 +111,7 @@ export function signal(f, email, now = Date.now(), st = STATS[email] || { mu: 3,
   if (r) w = Math.max(-3.2, Math.min(2.8, ((r - st.mu) / st.sd + .35) * 1.25));
   else if (v === 'super') w = Wf(email).aSuper * tempoK(f, email, v);      // ⭐ très envie
   else if (v === 'oui') w = Wf(email).aOui * tempoK(f, email, v);
-  else if (v === 'non') w = -Wf(email).aBof * st.bof * (tempo(f.hesite?.[email], st.th) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
+  else if (v === 'non') w = -Wf(email).aBof * (f.hesite?.[email]?.porte ? .5 : 1) * st.bof * (tempo(f.hesite?.[email], st.th) === 'hesite' ? .5 : 1);   // bof : pas intéressé (ça dit peu de ce qu'on aimerait)
   else if (v === 'beurk') w = -1.6 * tempoK(f, email, v);   // non ! : je n'aime pas ce genre de film
   if ((f.coeur || []).includes(email)) w = Math.max(w, 0) + 2.5;
   return w * age(f, email, now);
@@ -151,8 +151,8 @@ export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu:
   if (r) c = .6 + .35 * (r - st.mu) / st.sd;
   else if (f.seen?.[email]) c = .5;
   else if (v === 'super') c = 2 * tempoK(f, email, v);
-  else if (v === 'oui') c = tempoK(f, email, v);
-  else if (v === 'non') c = -Wf(email).cBof * st.bof * tempoK(f, email, v);   // bof : pas intéressé, pas curieux d'en savoir plus
+  else if (v === 'oui') c = tempoK(f, email, v) * (f.hesite?.[email]?.porte ? 1.3 : 1);   // une porte qui s'ouvre en dit long
+  else if (v === 'non') c = -Wf(email).cBof * (f.hesite?.[email]?.porte ? .5 : 1) * st.bof * tempoK(f, email, v);   // bof : pas intéressé, pas curieux d'en savoir plus
   else if (v === 'beurk') c = -1.6 * tempoK(f, email, v);
   if ((f.coeur || []).includes(email)) c += 1;
   return c * age(f, email, now);
