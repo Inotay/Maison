@@ -6,7 +6,8 @@ Tout ce qui touche au tamagotchi est sur l'accueil (sa barre, ses crottes, sa ga
 
 ## Les jauges (cachées), de 0 à 100
 - faim : baisse de ~4 par heure (éveillée), plus vite à ses heures de folie. Une ration = +35, une friandise = +8.
-- propreté : baisse d'un cran à chaque crotte. Une crotte toutes les ~6 à 10 h, jamais plus de 4 sur l'écran.
+- propreté : baisse d'un cran à chaque crotte. Une crotte arrive surtout dans la demi-heure qui suit un repas, ou juste
+  avant ses zoomies (22 h, 7 h) ; sinon au hasard toutes les ~8 à 12 h. Jamais plus de 6 à l'écran.
 - soif : baisse de ~3 par heure ; l'eau de la gamelle = +40 (elle préfère la casserole sale, elle le dira).
 - câlins : baisse de ~3 par heure ; une caresse = +6 (les caresses sur elle comptent, sur toutes les pages).
 - jeu / fenêtre : baisse de ~2 par heure ; une partie = +25, regarder par la fenêtre avec elle = +15.
@@ -44,7 +45,7 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - faim (regarde la gamelle vide, ventre qui gargouille : petites ondes)
 - gênée près des crottes ; soulagée quand c'est propre
 - câline (se frotte, ronron), joue (balle, plumeau)
-- boude (dos tourné, queue qui bat), balade (silhouette qui part), grève (assise, dos tourné, oreilles plates),
+- zoomies (elle traverse l'écran en courant, à ses heures de folie), boude (dos tourné, queue qui bat), balade (silhouette qui part), grève (assise, dos tourné, oreilles plates),
   retrouvailles (saut, cœurs)
 - dort (nuit), sieste (bâillement, roulée en boule)
 - boit (gamelle d'eau, et la casserole sale en bonus), fenêtre (assise, regarde dehors, oreilles qui suivent), toilette (se lèche)
