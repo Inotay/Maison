@@ -60,3 +60,9 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 3. Les crottes et la poubelle (glisser-déposer).
 4. Jouer, câlins, sieste et nuit.
 5. Boude, balade, grève, retrouvailles.
+
+## Plus tard
+- Anniversaire : Azami ne le connaît pas ; c'est elle qui le demande à Mariana, au détour d'une conversation, et le retient. Le jour venu : fête, cadeau.
+- Cadeaux : elle ramène de balade des petits objets (une plume, un bouton, une feuille, un mot japonais) qui se collectionnent dans ses souvenirs.
+- Fenêtre : de temps en temps elle regarde dehors (animation) et commente les voisins.
+- Toilette : elle se lèche, juste pour le plaisir de la voir faire.

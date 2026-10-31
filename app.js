@@ -682,6 +682,8 @@ async function loadAll() {
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), hintsX: hintsFrom(hints, true), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
     goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
+  { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
+  if (tamaTick()) tamaSave();
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
   await ensureDechets();
@@ -1726,6 +1728,8 @@ function morphChildren(from, to) {
 const IC = {
   non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
   horloge: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  gamelle: '<path d="M4 12h16l-1.5 6.5a2 2 0 0 1-2 1.5h-9a2 2 0 0 1-2-1.5z"/><path d="M7 12c0-3 2.2-5 5-5s5 2 5 5"/><circle cx="10" cy="10" r=".6"/><circle cx="13.5" cy="9.2" r=".6"/>',
+  eau: '<path d="M12 3.5c3 4 6 7 6 10.5a6 6 0 0 1-12 0c0-3.5 3-6.5 6-10.5z"/><path d="M9 14.5a3 3 0 0 0 2 2.8"/>',
   crayon: '<path d="M4 20l4.2-1 10.3-10.3a1.8 1.8 0 0 0 0-2.5l-.7-.7a1.8 1.8 0 0 0-2.5 0L5 15.8z"/><path d="M13.5 7.2l3.3 3.3"/>',
   micro: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/>',
   envoyer: '<path d="M4 12 20 4l-4 16-4-7z"/><path d="M12 13 20 4"/>',
@@ -2030,6 +2034,7 @@ function azamiHiss(img, inVisit) {
 let petDecide = null;
 function azamiPet(img, inVisit = false) {
   const now = Date.now();
+  if (now - (azamiPet.calin || 0) > 60e3) { azamiPet.calin = now; tamaGeste('caresse'); }   // une caresse par minute compte pour elle
   if (azamiAway()) { toast('Azami boude. Elle reviendra bientôt.'); return true; }
   if (angryLevel && now - lastPet > CALM) { angryLevel = 0; angryAt = 0; petTimes = []; }   // on l'a laissée tranquille : elle se calme
   lastPet = now;
@@ -2305,7 +2310,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage();
+  azamiType(); azamiNuage(); tamaDire();
   cookSave();
   propEnter();
   deepLink();
@@ -2502,7 +2507,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v208</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v209</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5090,6 +5095,7 @@ function azamiContexte() {
   if (vus.length) l.push(`Derniers films vus par ${firstName()} : ${vus.join(', ')}.`);
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
+  l.push(tamaContexte());
   return l.join('\n').slice(0, 3800);
 }
 // La conversation vit sur la page : l'Azami de l'en-tête parle dans une bulle sous elle, et une petite ligne
@@ -5127,10 +5133,86 @@ const azamiMienne = () => {
   return `<div class="az-bulles suite moi"><form class="az-b az-moi az-croquis" data-rayon="22" data-form="azami"><svg class="az-nuage" aria-hidden="true"></svg><textarea id="az-in" data-keep rows="1" placeholder="Dis-lui…" aria-label="Ce que tu dis à Azami" enterkeyhint="send" autocapitalize="sentences"></textarea><span class="az-moi-btns">${mic ? `<button type="button" class="az-mic ${AZ.rec ? 'on' : ''}" data-action="azami-mic" aria-label="Parler au micro" aria-pressed="${!!AZ.rec}">${icn('micro')}</button>` : ''}<button type="submit" class="az-send" aria-label="Envoyer">${icn('envoyer')}</button><button type="button" class="az-send ghost" data-action="azami-ecrire-non" aria-label="Annuler">×</button></span></form></div>`;
 };
 const azamiSuite = () => { const [p1, p2] = azamiParts(); return (!S.me || S.recovery || AZ.busy || !p2 ? '' : `<div class="az-bulles suite ${p1 ? '' : 'seule'}"><div class="az-b az-elle suite ${['joueuse', 'boudeuse'].includes(AZ.humeur) ? 'vif' : ''}" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><svg class="az-nuage" aria-hidden="true"></svg><span class="az-txt" data-part="${p1 ? 2 : 1}">${esc(p2)}</span>${azamiPied()}${p1 ? '' : '<button type="button" class="az-x" data-action="azami-fermer" aria-label="Fermer">×</button>'}</div></div>`) + azamiMienne(); };
+// Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
+// et remontent avec ce qu'on fait. On ne les affiche jamais : c'est Azami qui le dit, dans ses bulles. L'état vit
+// dans reglages ('azami:etat'), partagé, calculé à l'ouverture et à chaque geste.
+const TAMA_DEF = () => ({ faim: 70, soif: 70, calins: 70, jeu: 70, poids: 50, maj: Date.now(), repas: [], dit: {} });
+const TAMA_BAISSE = { faim: 4, soif: 3, calins: 3, jeu: 2 };   // par heure
+const tamaEtat = () => S.tama ||= TAMA_DEF();
+const clamp100 = v => Math.max(0, Math.min(100, Math.round(v)));
+function tamaTick() {
+  const t = tamaEtat(), now = Date.now(), h = Math.max(0, (now - (t.maj || now)) / 36e5);
+  if (h < .05) return false;
+  const heure = new Date().getHours(), folie = heure === 7 || heure >= 22;
+  for (const [k, par] of Object.entries(TAMA_BAISSE)) t[k] = clamp100((t[k] ?? 70) - par * h * (k === 'faim' && folie ? 1.5 : 1));
+  t.maj = now;
+  return true;
+}
+let tamaSaveT = 0;
+function tamaSave(force) {
+  const t = tamaEtat(); if (DEMO) return;
+  const go = () => { tamaSaveT = 0; api.upsert('reglages', { cle: 'azami:etat', valeur: t }).catch(e => console.warn('tama', e)); };
+  if (force) { clearTimeout(tamaSaveT); go(); } else if (!tamaSaveT) tamaSaveT = setTimeout(go, 8000);
+}
+// Ce qu'on fait pour elle : chaque geste remonte une jauge, et elle réagit (sans appel au modèle).
+const TAMA_GESTES = {
+  croquettes: { faim: 35, poids: 1, mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.'], son: ['mewmew', 'mrrr'], reac: 'caresse_2' },
+  ragout: { faim: 45, poids: 2, mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.'], son: ['ronronmrr', 'long'], reac: 'caresse_3' },
+  friandise: { faim: 8, calins: 4, poids: 2, mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.'], son: ['chirp', 'gazouille'], reac: 'attaque' },
+  eau: { soif: 40, mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.'], son: ['mrrr', 'mew'], reac: 'caresse_1' },
+  caresse: { calins: 6 },
+};
+function tamaGeste(k) {
+  const g = TAMA_GESTES[k]; if (!g) return;
+  const t = tamaEtat(); tamaTick();
+  for (const j of ['faim', 'soif', 'calins', 'jeu', 'poids']) if (g[j]) t[j] = clamp100((t[j] ?? 50) + g[j]);
+  if (k !== 'caresse') (t.repas ||= []).push({ q: k, at: Date.now(), par: S.me });
+  if (t.repas?.length > 40) t.repas.splice(0, t.repas.length - 40);
+  tamaSave(k !== 'caresse');
+  if (g.mot) {
+    // elle a déjà mangé il y a peu ? elle le fait remarquer, gentiment
+    const avant = t.faim - (g.faim || 0);
+    const trop = (g.faim && avant > 85) ? pick(['Encore ? Je viens de manger… bon, d’accord, je ne refuse jamais.', 'Mon ventre est déjà plein. Mais mes yeux, non.']) : null;
+    AZ.bulle = trop || pick(g.mot); AZ.choix = []; AZ.note = ''; AZ.humeur = trop ? 'affamee' : 'contente'; AZ.k++; safeSet('maison-az-bulle', AZ.bulle);
+    S.tamaMenu = null; render();
+    const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, g.reac, 2500);
+    meow(true, .5, pick(g.son)); haptic('medium'); if (img && !trop) burst('hearts', img, 6);
+  }
+}
+// Ses besoins, dits par elle : une seule chose à la fois, pas plus d'une fois toutes les trois heures par besoin,
+// jamais la nuit (22 h à 8 h), et seulement sur l'accueil.
+const TAMA_MOTS = {
+  faim: ['J’ai le ventre qui gargouille… tu as entendu ?', 'Ma gamelle est vide. Je dis ça, je dis rien.', 'Onaka suita… (j’ai faim). Des croquettes au poisson, peut-être ?'],
+  soif: ['J’ai soif. Il reste une casserole sale quelque part ?', 'Un peu d’eau fraîche ? Ma langue est toute sèche.'],
+  calins: ['Tu me grattes le menton ? Juste un peu.', 'Je viens me frotter contre l’écran. C’est un indice.'],
+  jeu: ['Je m’ennuie un peu. Les voisins ne passent même pas.', 'On joue ? Même cinq minutes. Même trois.'],
+};
+function tamaDire() {
+  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit) return;
+  const heure = new Date().getHours(); if (heure >= 22 || heure < 8) return;
+  const t = tamaEtat(), now = Date.now();
+  const besoin = ['faim', 'soif', 'calins', 'jeu'].filter(k => (t[k] ?? 70) < 30 && now - (t.dit?.[k] || 0) > 3 * 36e5).sort((a, b) => (t[a] ?? 70) - (t[b] ?? 70))[0];
+  if (!besoin || (AZ.bulle && now - (AZ.at || 0) < 20 * 60e3)) return;
+  (t.dit ||= {})[besoin] = now; tamaSave();
+  AZ.bulle = pick(TAMA_MOTS[besoin]); AZ.choix = []; AZ.note = ''; AZ.humeur = besoin === 'faim' ? 'affamee' : besoin === 'calins' ? 'contente' : 'curieuse'; AZ.k++; AZ.at = now; safeSet('maison-az-bulle', AZ.bulle);
+  render(); if (besoin === 'faim') meow(true, .4, 'question');
+}
+// Ce qu'elle sait de son propre état, pour en parler elle-même quand on lui parle.
+function tamaContexte() {
+  const t = tamaEtat(); tamaTick();
+  const q = v => v < 15 ? 'vraiment' : v < 30 ? 'un peu' : v < 55 ? 'ça va' : 'bien';
+  const dernier = t.repas?.length ? t.repas[t.repas.length - 1] : null;
+  return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).${dernier ? ` Dernier repas : ${dernier.q}, ${ago(new Date(dernier.at).toISOString())}, donné par ${nameOf(dernier.par)}.` : ' Personne ne t’a encore nourrie dans l’app.'}`;
+}
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
-  <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>`;
+  <button type="button" data-action="tama-menu" aria-expanded="${S.tamaMenu === 'nourrir'}">${icn('gamelle')}<span>Nourrir</span></button>
+  <button type="button" data-action="tama-geste" data-geste="eau">${icn('eau')}<span>Boire</span></button>
+  <button type="button" data-action="azami-fil">${icn('horloge')}<span>Souvenirs</span></button></div>${S.tamaMenu === 'nourrir' ? `<div class="az-menu az-croquis" data-rayon="20"><svg class="az-nuage" aria-hidden="true"></svg>
+  <button type="button" data-action="tama-geste" data-geste="croquettes">🐟<span>Croquettes au poisson</span></button>
+  <button type="button" data-action="tama-geste" data-geste="ragout">🍲<span>Ragoût</span></button>
+  <button type="button" data-action="tama-geste" data-geste="friandise">🍬<span>Friandise</span></button></div>` : ''}`;
 // La bulle d'Azami est dessinée à main levée : un rond un peu bancal, tracé à l'encre, dont le trait tremble
 // image par image (trois dessins qui alternent, comme du stop motion). Redessinée quand la bulle change de taille.
 const azamiNuage = (() => {
@@ -5324,6 +5406,8 @@ async function azamiMemoire() {
 
 const actions = {
   'son-mode': el => { safeSet('maison-son-mode', el.dataset.mode); unlockAudio(); render(); toast(el.dataset.mode === 'jeu' ? 'Les sons sortent même en silence (ça coupe la musique en cours)' : 'L’app se mêle à la musique ; l’interrupteur silence la coupe'); },
+  'tama-menu': () => { S.tamaMenu = S.tamaMenu === 'nourrir' ? null : 'nourrir'; render(); haptic(1); },
+  'tama-geste': el => tamaGeste(el.dataset.geste),
   'azami-fil': () => azamiFil(),
   'azami-mic': () => azamiMic(),
   'azami-ecrire': () => azamiEcrire(),

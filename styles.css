@@ -2040,6 +2040,11 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 .az-barre button { all: unset; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 10px; border-radius: 999px; font-family: 'Patrick Hand', sans-serif; font-size: 19px; color: #2A1C15; -webkit-tap-highlight-color: transparent; }
 .az-barre button:active { background: rgba(42, 28, 21, .08); }
 .az-barre .icn { width: 20px; height: 20px; }
+.az-barre button { flex-direction: column; gap: 1px; padding: 5px 2px; font-size: 15px; line-height: 1.1; }
+.az-barre button[aria-expanded="true"] { background: rgba(42, 28, 21, .08); }
+.az-menu { position: relative; isolation: isolate; display: grid; gap: 2px; margin: -8px 12px var(--s4); padding: 8px 10px; animation: bulle-in .3s cubic-bezier(.34, 1.45, .64, 1) both; }
+.az-menu button { all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; font-family: 'Patrick Hand', sans-serif; font-size: 19px; color: #2A1C15; }
+.az-menu button:active { background: rgba(42, 28, 21, .08); }
 /* l'historique, dans une feuille */
 #chat, #azmem { position: fixed; inset: 0; z-index: 86; display: flex; align-items: flex-end; justify-content: center; background: rgba(20, 30, 40, 0); transition: background .3s; }
 #chat.on, #azmem.on { background: rgba(20, 30, 40, .55); }
