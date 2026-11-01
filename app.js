@@ -2324,6 +2324,26 @@ function deepLink() {
     else if (k === 'mot') { S.loisirTab = 'mots'; go('nuit'); const f = document.getElementById('care-body'); f?.scrollIntoView({ block: 'center' }); f?.focus(); }
   }, 300);
 }
+// Quand quelque chose apparaît ou disparaît (une bulle d'Azami, une ligne cochée…), le reste de la page ne se
+// téléporte pas : chaque bloc part de son ancienne place et glisse jusqu'à la nouvelle (technique « FLIP »).
+function glisseAvant() {
+  if (render.view !== S.view || reducedMotion() || !$app.querySelector('.nav')) return null;
+  const m = new Map();
+  for (const e of $app.querySelectorAll(':scope > *:not(.nav):not(.demo), .item')) m.set(e, e.getBoundingClientRect().top);
+  return m;
+}
+function glisseApres(m) {
+  if (!m) return;
+  const H = innerHeight;
+  for (const [e, avant] of m) {
+    if (!e.isConnected) continue;
+    const dy = avant - e.getBoundingClientRect().top;
+    if (Math.abs(dy) < 2 || Math.abs(dy) > H * 1.5) continue;
+    if (e.getBoundingClientRect().top > H + 40 && avant > H + 40) continue;   // hors de l'écran avant et après : inutile
+    e.getAnimations?.().forEach(a => { if (a.id === 'glisse') a.cancel(); });
+    const a = e.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 420, easing: 'cubic-bezier(.22,.9,.3,1)' }); a.id = 'glisse';
+  }
+}
 function render() {
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
@@ -2341,6 +2361,7 @@ function render() {
   const focusId = document.activeElement?.id;
   const folds = new Set([...$app.querySelectorAll('details[data-fold][open]')].map(d => d.dataset.fold));
   const sel = typing() ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+  const glisse = glisseAvant();
 
   document.body.dataset.time = 'jour';
   applyTheme();
@@ -2350,6 +2371,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
+  glisseApres(glisse);
   azamiType(); azamiNuage(); crottesPlace(); tamaScene(); if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
@@ -2551,7 +2573,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v233</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v234</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5175,11 +5197,13 @@ function azamiEnvol() {
   clearTimeout(AZ.envolT);
   const k = AZ.k, n = (AZ.bulle || '').length;
   // le temps déjà passé compte (bulle retrouvée après un rechargement, retour dans l'app) : au moins 4 s quand même
-  const delai = Math.max(4e3, Math.min(45e3, Math.max(7e3, n * 30 + 2500 + n * 60)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 25e3 : 0) - Math.max(0, Date.now() - (AZ.at || Date.now())));
+  // elle écrit à peu près à la vitesse où on lit : on compte la lecture (≈ 20 signes par seconde) plus un petit temps,
+  // et un peu plus quand elle pose une question ou propose des boutons
+  const delai = Math.max(3500, Math.min(28e3, Math.max(5500, n * 50 + 2500)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 12e3 : 0) - Math.max(0, Date.now() - (AZ.at || Date.now())));
   AZ.envolT = setTimeout(function fin() {
     if (AZ.k !== k || !AZ.bulle) return;
     if (AZ.ecrit || AZ.busy || document.activeElement?.id === 'az-in') { AZ.envolT = setTimeout(fin, 5000); return; }
-    document.querySelectorAll('.az-elle').forEach(e => e.classList.add('part'));
+    document.querySelectorAll('.az-elle').forEach(e => (e.closest('.az-bulles') || e).classList.add('part'));
     setTimeout(() => { if (AZ.k !== k) return; AZ.bulle = ''; AZ.choix = []; AZ.action = null; safeSet('maison-az-bulle', ''); render(); }, 420);
   }, delai);
 }
@@ -5860,7 +5884,12 @@ async function azamiEnvoyer(txt, geste = false) {
     AZ.busy = false; azamiPose(`Mrrr… ${e.message}`, 'boudeuse'); render();
   }
 }
-function azamiFermer() { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.action = null; AZ.courrier = null; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); }
+function azamiFermer() {
+  const fin = () => { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.action = null; AZ.courrier = null; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); };
+  const els = [...document.querySelectorAll('.az-bulles')].filter(e => e.querySelector('.az-elle'));
+  if (!AZ.bulle || AZ.ecrit || !els.length || reducedMotion()) return fin();
+  const k = AZ.k; els.forEach(e => e.classList.add('part')); setTimeout(() => { if (AZ.k === k) fin(); }, 340);   // elle s'efface en douceur, puis la page glisse
+}
 // Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée ; une plus récente finit son temps, puis s'efface
 // (sans ça, une bulle retrouvée après un rechargement restait là pour de bon).
 if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); } else if (AZ.bulle) azamiEnvol();
