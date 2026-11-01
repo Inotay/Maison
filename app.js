@@ -2575,7 +2575,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v235</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v236</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5332,6 +5332,8 @@ async function azamiAgir(a) {
 // l'écran. Jamais la nuit, jamais quand quelque chose couvre l'écran, et un délai entre deux remarques.
 // Une partie du temps c'est elle qui improvise (le modèle reçoit l'événement, avec l'app et ses films) ;
 // sinon une phrase locale.
+// Bavarde par défaut pour tout le monde : une seule fois (v236), les anciens choix sont remis à Bavarde ; ensuite, le choix de chacun est gardé.
+if (safeGet('maison-az-mode-v2') !== '1') { safeSet('maison-az-mode', 'bavarde'); safeSet('maison-az-mode-v2', '1'); }
 const AZ_MODE = () => safeGet('maison-az-mode') || 'bavarde';
 // Le serveur doit connaître ce réglage pour le mot du soir (une notification au plus par jour, en mode Bavarde).
 function azamiModeSync() {
