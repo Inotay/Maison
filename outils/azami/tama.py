@@ -118,9 +118,12 @@ def anims():
     out.append(a)
 
     # ── dort (boucle) : couchée en boule de pain, pattes repliées, tête posée, les yeux clos ; des z montent ──
-    zz = ''.join(f'<text id="Xz{i}" x="{262 + i * 26}" y="{250 - i * 22}" font-family="Patrick Hand, Nunito, sans-serif" font-weight="700" font-size="{26 + i * 9}" fill="{INK}" opacity=".75">z</text>' for i in range(3))
+    # des gros Z dessinés (tracés, pas du texte : même rendu partout), qui montent en grossissant
+    Zi = lambda i, x, y, h: f'<g id="Xz{i}"><path d="M{x - h * .42} {y - h / 2} H{x + h * .42} L{x - h * .42} {y + h / 2} H{x + h * .42}" fill="none" stroke="#FFFDF8" stroke-width="{h * .22 + 7}" stroke-linecap="round" stroke-linejoin="round"/><path d="M{x - h * .42} {y - h / 2} H{x + h * .42} L{x - h * .42} {y + h / 2} H{x + h * .42}" fill="none" stroke="{INK}" stroke-width="{h * .22}" stroke-linecap="round" stroke-linejoin="round"/></g>'
+    ZPOS = ((280, 232, 34), (330, 178, 48), (392, 112, 64))
+    zz = ''.join(Zi(i, x, y, h) for i, (x, y, h) in enumerate(ZPOS))
     a = R('dort', 6.0, loop=True, title='Azami · Dort', desc='Couchée en boule, les pattes repliées sous elle, la tête posée, les yeux clos ; elle respire lentement et des z s’envolent.', extra_svg=zz)
-    for i in range(3): a.hidden.add(f'Xz{i}'); a.origins[f'Xz{i}'] = f'{262 + i * 26}px {250 - i * 22}px'
+    for i, (x, y, h) in enumerate(ZPOS): a.hidden.add(f'Xz{i}'); a.origins[f'Xz{i}'] = f'{x}px {y}px'
     pose = {
         'character': {'y': 50},
         'front-near': {'r': 84, 'x': -6, 'y': -6}, 'front-far': {'r': 80, 'x': -2, 'y': -10},
@@ -142,7 +145,7 @@ def anims():
     a.at('tail-tip', 2.0, {'r': -40}, SOFT).at('tail-tip', 2.5, {'r': -58}, SOFT).at('tail-tip', 3.1, {'r': -40}, SOFT)
     for i in range(3):
         t = i * 1.4
-        a.at(f'Xz{i}', t, {'o': 0, 'y': 10, 's': .6}, STEP).at(f'Xz{i}', t + .1, {'o': .8, 'y': 0, 's': .8}, OUTQ).at(f'Xz{i}', t + 2.8, {'o': 0, 'y': -44, 'x': 12, 's': 1.1}, LIN)
+        a.at(f'Xz{i}', t, {'o': 0, 'y': 14, 's': .5, 'r': -8}, STEP).at(f'Xz{i}', t + .15, {'o': 1, 'y': 0, 's': .8, 'r': -4}, OUTQ).at(f'Xz{i}', t + 2.0, {'o': 1, 'y': -26, 'x': 10, 's': 1.05, 'r': 6}, SOFT).at(f'Xz{i}', t + 2.9, {'o': 0, 'y': -44, 'x': 16, 's': 1.15, 'r': 10}, LIN)
     out.append(a)
     return out
 

@@ -1975,6 +1975,12 @@ function playOnImg(img, id, ms, then) {
   setTimeout(() => { if (img.dataset.caresse !== tok) return; delete img.dataset.caresse; then ? then(back) : restoreScene(img, back); }, ms);
 }
 const azamiAway = () => Date.now() < awayUntil;
+// Son état (dort…) dans la scène de la page : sur une page à accessoires, elle dort à côté de son balai, de sa casserole…
+const TAMA_HABILLE = ['dort'];
+function tamaSrc(img, etat) {
+  const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
+  return reactSrc(sc && PROP_SCENES[sc] && TAMA_HABILLE.includes(etat) ? `${PROP_SCENES[sc]}_${etat}` : etat);
+}
 
 // Scènes à accessoires (balai, casserole, tirelire, sac, lettre). En arrivant sur la page, la scène repart
 // du début, on entend un petit son de son accessoire, puis les bruitages suivent l'animation pendant un tour.
@@ -2002,7 +2008,7 @@ function propEnter() {
 // Après une réaction (caresse, coup de patte, retour) : la scène reprend du début, avec ses bruitages.
 function restoreScene(img, back) {
   const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img);
-  if (img.dataset.tama && img === document.querySelector('.hd img.azami')) { img.src = reactSrc(img.dataset.tama); return; }
+  if (img.dataset.tama && img === document.querySelector('.hd img.azami')) { img.src = tamaSrc(img, img.dataset.tama); return; }
   if (sc && CUES[sc] && img === document.querySelector('.hd img.azami') && !reducedMotion()) { stopPropSounds(); lastHdScene = sc; propStart(img, sc, false); }
   else img.src = back;
 }
@@ -2545,7 +2551,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v232</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v233</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5580,7 +5586,7 @@ function tamaScene() {
   }
   const etat = !S.me || S.recovery ? null
     : ou ? (S.view === ou ? 'guette' : null)
-    : S.view !== 'maison' ? null
+    : S.view !== 'maison' ? (azamiNuit() || essai === 'dort' || (now >= (t.siesteDe || 0) && now < (t.sieste || 0)) ? 'dort' : null)   // la nuit et en sieste, elle dort aussi sur les autres pages
     : essai && !['zoomies', 'balade', 'greve'].includes(essai) ? essai
     : S.jeu ? 'guette'
     : t.greve ? 'greve'
@@ -5589,7 +5595,7 @@ function tamaScene() {
     : t.faim < 25 ? 'faim' : null;
   if (etat !== (img.dataset.tama || null)) {
     if (etat) img.dataset.tama = etat; else delete img.dataset.tama;
-    if (!img.dataset.caresse) { if (etat) { stopPropSounds(); img.src = reactSrc(etat); } else restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos')); }
+    if (!img.dataset.caresse) { if (etat) { stopPropSounds(); img.src = tamaSrc(img, etat); } else restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos')); }
   }
   if (!etat && !ou && S.view === 'maison' && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); }
 }

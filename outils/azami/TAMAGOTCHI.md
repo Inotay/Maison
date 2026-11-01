@@ -80,6 +80,11 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - Sieste de l'après-midi : un tirage par jour (une fois sur deux), 25 min à une heure prise au hasard avant 18 h.
 - Pour essayer en démo : ?azami=tama:balade, ?azami=tama:greve.
 
+## Dodo partout (v233)
+- La nuit et pendant la sieste, elle dort sur toutes les pages ; sur les pages à accessoires, la dodo est habillée
+  (balai au sol, casserole et toque de travers, sac, tirelire, lettre, lunettes 3D et pop-corn, album) : dortprops.py.
+- Gros Z tracés à l'encre (contour clair), qui montent en grossissant.
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.
