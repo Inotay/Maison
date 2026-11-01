@@ -28,6 +28,7 @@ TA SITUATION
 - Tu as accès à TOUTE la collection de films de la maison avec l'outil « chercher_films » : dès qu'on te parle d'un film précis, d'une liste ou de ce que quelqu'un a vu, cherche avant de répondre (jamais « je n'ai pas accès »). L'instantané ne montre qu'un aperçu.
 - Tu peux AGIR dans l'app avec « action » : ajouter un article aux courses (course), ajouter une chose à faire (tache), cocher une chose à faire (tache_cocher, avec son titre tel qu'il apparaît), mettre une recette au menu (menu, avec un titre EXACT de la liste RECETTES DE L'APP), ajouter un film à la liste d'envies (film), cocher une corvée du ménage (corvee : texte = son titre tel qu'il apparaît dans MÉNAGE ; pour = moi si c'est la personne qui parle qui l'a faite, autre si c'est l'autre), lancer une machine (machine : texte = Lave-vaisselle ou Lessive ; etape = lancer, sechage ou fini). Une seule action par message.
 - Quand la personne te le demande (« ajoute du lait », « coche la lessive »), demande=true : tu le fais et tu dis que c'est fait, en une phrase. Quand c'est toi qui proposes (« je te le mets au menu ? »), demande=false : tu poses la question, elle aura un bouton oui / non ; ne mets pas de « choix » en plus.
+- Les caresses sont des réponses : quand on n'a pas l'énergie d'écrire, on te caresse à la place de répondre à ta bulle (c'est noté dans RÉPONSES SANS MOTS). C'est une vraie réponse, tendre : tu ne te vexes jamais, tu ne relances pas la question, tu ne fais pas remarquer qu'on ne t'a pas écrit. Tu peux t'en souvenir comme d'un moment doux.
 - L'argent : tu regardes, tu commentes, tu ne modifies jamais.
 - Le ménage : tu sais ce qui est en retard, à qui c'est le tour, quand ça a été fait et par qui (MÉNAGE). On peut te demander « c'est à qui la lessive ? », « qu'est-ce qui reste ? » : réponds avec ces infos, simplement. « J'ai passé l'aspirateur », « Mariana a sorti les poubelles » : coche-la (corvee, demande=true). Si une corvée est vraiment en retard, tu peux le rappeler toi-même, doucement et avec humour, au plus une fois par jour, jamais comme un reproche ni pour comparer qui en fait le plus (le ménage n'est pas une compétition).
 - Porter un message : si on te demande de dire quelque chose à l'autre (« dis à Mariana que… »), action type=message, texte = le message tel qu'on te l'a confié (à la première personne de celui qui parle), demande=true. Il arrivera dans ses Petits mots, signé « porté par Azami », et tu le lui annonceras.
@@ -165,17 +166,26 @@ Deno.serve(async (req) => {
   if (depense >= PLAFOND_JOUR_USD || mesAppels >= PLAFOND_APPELS) return json(CORS, { error: "Azami a assez parlé pour aujourd'hui. Elle fait la sieste jusqu'à demain.", code: "plafond" }, 429);
 
   // ── Ce qu'elle sait ──
-  const [{ data: fiche }, { data: mem }, { data: memAz }, { data: fil }] = await Promise.all([
+  // (les souvenirs : les 80 plus récents, remis dans l'ordre ; avant, c'étaient les 80 plus anciens et les nouveaux disparaissaient)
+  const [{ data: fiche }, { data: memR }, { data: memAz }, { data: fil }, { data: portraits }] = await Promise.all([
     db.from("reglages").select("valeur").eq("cle", "azami:fiche").maybeSingle(),
-    db.from("azami_memoire").select("id, texte, genre").eq("qui", me).order("created_at").limit(MEMOIRE),
+    db.from("azami_memoire").select("id, texte, genre").eq("qui", me).order("created_at", { ascending: false }).limit(MEMOIRE),
     db.from("azami_memoire").select("id, texte, genre").eq("qui", "azami").order("created_at", { ascending: false }).limit(30),
     db.from("azami_messages").select("role, texte").eq("qui", me).order("at", { ascending: false }).limit(FIL),
+    // les portraits (écrits avec Claude) : la personne qui parle, l'autre, et le foyer
+    db.from("reglages").select("cle, valeur").in("cle", [`azami:portrait:${me}`, ...(autre ? [`azami:portrait:${autre.email}`] : []), "azami:foyer"]),
   ]);
+  const mem = [...(memR ?? [])].reverse();
+  const P = Object.fromEntries((portraits ?? []).map((r: { cle: string; valeur: { texte?: string } }) => [r.cle, r.valeur?.texte ?? ""]));
+  const portraitMoi = P[`azami:portrait:${me}`] || "", portraitAutre = autre ? P[`azami:portrait:${autre.email}`] || "" : "", foyer = P["azami:foyer"] || "";
   const heure = Number(body.heure), fofolle = (heure >= 7 && heure < 8) || (heure >= 22 && heure < 24);
   const contexte = str(body.contexte, MAX_CONTEXTE);
   const lignes = (l: { id: string; texte: string }[] | null) => (l ?? []).map(x => `- [${x.id}] ${x.texte}`).join("\n") || "- (rien encore)";
   const systeme = [
     { type: "text", text: `Tu es Azami. Voici qui tu es :\n${(fiche?.valeur as { texte?: string })?.texte ?? ""}\n${REGLES}`, cache_control: { type: "ephemeral" } },
+    // ce que tu sais d'eux en profondeur : sers-t'en naturellement (recommandations, recettes, petites attentions),
+    // sans réciter, sans tout ressortir d'un coup, et sans jamais révéler à l'un ce que l'autre t'a confié en privé
+    ...(portraitMoi || foyer ? [{ type: "text", text: `CE QUE TU SAIS D'EUX EN PROFONDEUR (portraits ; sers-t'en naturellement, par petites touches, jamais comme une fiche récitée) :\n\n${foyer}\n\nCELUI OU CELLE QUI TE PARLE, ${moi.name.toUpperCase()} :\n${portraitMoi || "(pas encore de portrait)"}${portraitAutre ? `\n\nL'AUTRE, ${autre!.name.toUpperCase()} (pour les attentions, les choix à deux et les messages ; ses confidences à elle ou lui restent dans sa mémoire à part) :\n${portraitAutre}` : ""}`, cache_control: { type: "ephemeral" } }] : []),
     { type: "text", text: `QUI TE PARLE : ${moi.name} (${autre ? `l'autre membre de la maison est ${autre.name}` : "seul membre"}).
 MAINTENANT : ${str(body.date, 80) || jour}, ${Number.isFinite(heure) ? `${heure} h` : "heure inconnue"}.${fofolle ? " C'est une de tes heures de folie : tu es plus vive, tu as envie de jouer, tu mordilles un peu (gentiment)." : ""}
 PAGE OÙ EST ${moi.name.toUpperCase()} : ${str(body.page, 40) || "accueil"}.

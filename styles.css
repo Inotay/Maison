@@ -2125,3 +2125,5 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 .hd img.azami.sen-va { animation: az-sen-va 3s linear both; position: relative; z-index: 40; }
 @keyframes az-sen-va { 0%, 16% { translate: 0 0; animation-timing-function: cubic-bezier(.4, 0, .9, .7); } 100% { translate: 110vw 0; } }
 @media (prefers-reduced-motion: reduce) { .hd img.azami.court, .hd img.azami.sen-va { animation: none; } }
+.azmem-portrait { margin: 6px 0 14px; }
+.azmem-p { white-space: pre-wrap; font-size: 15px; line-height: 1.45; margin: 8px 0 0; }

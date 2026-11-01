@@ -717,6 +717,7 @@ async function loadAll() {
   { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
+  S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
   await ensureDechets();
@@ -2619,7 +2620,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v246</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v247</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5280,6 +5281,7 @@ function azamiContexte() {
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   l.push(tamaContexte());
+  { const sm = azamiSansMots(); if (sm.length) l.push(`RÉPONSES SANS MOTS (${firstName()} t'a caressée au lieu d'écrire, c'est sa réponse, tendre) : ${sm.map(x => `à « ${x.bulle} » (${ago(new Date(x.at).toISOString())})`).join(' ; ')}.`); }
   if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
   return l.join('\n').slice(0, 14000);
 }
@@ -6030,6 +6032,22 @@ async function azamiEnvoyer(txt, geste = false) {
     AZ.busy = false; azamiPose(`Mrrr… ${e.message}`, 'boudeuse'); render();
   }
 }
+// Une caresse comme réponse : quand Azami vient de dire quelque chose et qu'on la caresse au lieu d'écrire (pas
+// l'énergie, pas les mots), c'est une vraie réponse. Elle ne se vexe jamais : un petit mot tendre, sa bulle se
+// referme, et elle s'en souviendra à la prochaine conversation (RÉPONSES SANS MOTS). Une proposition (oui / non)
+// n'est pas acceptée par une caresse : elle la garde de côté.
+const AZ_CARESSE_REP = ['Mrrr… ça me va comme réponse.', 'Ronron. Pas besoin de mots.', 'Je prends ça pour un câlin. C’est la meilleure réponse.', 'Merci. On en reparlera quand tu auras de l’énergie.', 'Mrrr. Moi aussi.', 'Ça, c’est une réponse que je comprends.'];
+const azamiSansMots = () => { try { return JSON.parse(safeGet('maison-az-sansmots') || '[]').filter(x => Date.now() - x.at < 864e5); } catch { return []; } };
+function azamiCaresseReponse() {
+  if (!S.me || !AZ.bulle || AZ.ecrit || AZ.busy || AZ.courrier || Date.now() - (AZ.at || 0) > 10 * 60e3) return false;
+  if (AZ.merciK === AZ.k) return false;   // sa bulle est déjà son merci pour une caresse : pas une question à laquelle répondre
+  const l = azamiSansMots(); l.push({ bulle: AZ.bulle.slice(0, 160), at: Date.now() }); safeSet('maison-az-sansmots', JSON.stringify(l.slice(-5)));
+  const proposait = !!(AZ.action || AZ.choix.length);
+  AZ.action = null; AZ.choix = []; AZ.quiz = null;
+  setTimeout(() => { azamiPose(proposait ? pick(['Je garde l’idée de côté. Un câlin d’abord.', 'D’accord, on verra ça plus tard. Ronron.']) : pick(AZ_CARESSE_REP), 'contente'); AZ.merciK = AZ.k; render(); }, 500);
+  haptic(1);
+  return true;
+}
 function azamiFermer() {
   const fin = () => { AZ.bulle = ''; AZ.choix = []; AZ.note = ''; AZ.action = null; AZ.courrier = null; AZ.ecrit = false; safeSet('maison-az-bulle', ''); AZ.rec?.stop?.(); render(); };
   const els = [...document.querySelectorAll('.az-bulles')].filter(e => e.querySelector('.az-elle'));
@@ -6099,7 +6117,8 @@ async function azamiMemoire() {
     const [r, notes] = await Promise.all([azamiCall({ action: 'memoire' }), DEMO ? [] : api.list('azami_pour_claude').catch(() => [])]);
     const GENRE = { fait: 'Sur toi', gout: 'Tes goûts', projet: 'Tes projets', entourage: 'Ton entourage', demande: 'Ce que tu lui as demandé' };
     const groupes = {}; for (const l of r.lignes || []) (groupes[GENRE[l.genre] || 'Sur toi'] ||= []).push(l);
-    card.querySelector('.chat-wait').outerHTML = `${(r.lignes || []).length ? Object.entries(groupes).map(([g, ls]) => `<h3>${esc(g)}</h3><ul class="azmem-l">${ls.map(l => `<li><span>${esc(l.texte)}</span><button class="azmem-x" data-m="oublier" data-id="${esc(l.id)}" aria-label="Oublier">×</button></li>`).join('')}</ul>`).join('') : '<p class="hint">Elle ne sait rien encore. Parle-lui, elle retiendra ce qui compte.</p>'}
+    const portrait = (S.reglagesAz || {})[`azami:portrait:${S.me}`] || '';
+    card.querySelector('.chat-wait').outerHTML = `${portrait ? `<details class="fold azmem-portrait"><summary>Son portrait de toi</summary><p class="hint">Écrit avec Claude, à partir de ce que vous lui avez raconté. Pour y changer quelque chose, dis-le à Azami ou à Claude.</p><p class="azmem-p">${esc(portrait)}</p></details>` : ''}${(r.lignes || []).length ? Object.entries(groupes).map(([g, ls]) => `<h3>${esc(g)}</h3><ul class="azmem-l">${ls.map(l => `<li><span>${esc(l.texte)}</span><button class="azmem-x" data-m="oublier" data-id="${esc(l.id)}" aria-label="Oublier">×</button></li>`).join('')}</ul>`).join('') : '<p class="hint">Elle ne sait rien encore. Parle-lui, elle retiendra ce qui compte.</p>'}
       ${notes.length ? `<h3>Transmis à Claude</h3><ul class="azmem-l notes">${notes.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(n => `<li><span>${esc(n.texte)}</span><small>${esc(nameOf(n.de))} · ${esc(ago(n.at))}${n.lu_at ? ' · lu' : ''}</small></li>`).join('')}</ul>` : ''}
       <p class="visite-note"><button class="link" data-m="fil">Effacer notre conversation</button></p>`;
   } catch (e) { card.querySelector('.chat-wait').textContent = `Mrrr… ${e.message}`; }
@@ -6571,7 +6590,9 @@ const actions = {
   'care-delete': async el => { if (await uiAsk('Le mot quitte sa boîte.', { title: 'Retirer ce mot ?', ok: 'Retirer', danger: true })) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { const img = el.querySelector('img.azami'); if (img?.classList.contains('cachee') && tamaTrouvee(img)) return; if (img?.classList.contains('partie')) return; if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); if (S.view !== 'maison' && !AZ.ecrit && !AZ.busy && S.me) { AZ.ecrit = true; render(); } },   // sur les pages, la toucher ouvre aussi la bulle pour lui parler
+  meow: el => { const img = el.querySelector('img.azami'); if (img?.classList.contains('cachee') && tamaTrouvee(img)) return; if (img?.classList.contains('partie')) return; if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img);
+    if (azamiCaresseReponse()) return;   // elle venait de parler : la caresse est la réponse
+    if (S.view !== 'maison' && !AZ.ecrit && !AZ.busy && S.me) { AZ.ecrit = true; render(); } },   // sur les pages, la toucher ouvre aussi la bulle pour lui parler
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
