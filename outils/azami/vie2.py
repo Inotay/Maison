@@ -78,6 +78,23 @@ def anims():
     a.mouth(.4, .55, big=.6); a.shake('head', .85, amp=5, n=3, period=.06)
     for s_ in ('ear-left', 'ear-right'): a.at(s_, .4, {}, SNAP).at(s_, .46, {'r': -14 if s_ == 'ear-left' else 14}, OUTQ).at(s_, .9, {}, SOFT)
     out.append(a)
+
+    # ── ronronne (boucle) : on garde le doigt posé sur elle ; les yeux fermés, la tête qui se frotte, le ronron ──
+    D = 2.4
+    a = Anim('ronronne', D, loop=True, title='Azami · Ronronne', desc='Les yeux fermés, la tête qui se frotte doucement contre la main, la queue qui s’enroule : elle ronronne.')
+    a.idle(breathe=2.4, tail=4.8, depth=.4)
+    for e in ('eye-l', 'eye-r'): a.at(e, 0, {'o': 0}, LIN).at(e, D, {'o': 0}, LIN); a.base[e] = {'o': 0}
+    a.at('eyes-blink', 0, {'o': 1}, LIN).at('eyes-blink', D, {'o': 1}, LIN); a.hidden.discard('eyes-blink'); a.base['eyes-blink'] = {'o': 1}
+    tient(a, 'head', {'r': -6, 'x': -3, 'y': 4}, D)
+    a.at('head', 0, {'r': -6, 'x': -3, 'y': 4}, SOFT).at('head', .8, {'r': -2, 'x': -1, 'y': 2}, SOFT).at('head', 1.6, {'r': -8, 'x': -4, 'y': 5}, SOFT).at('head', D, {'r': -6, 'x': -3, 'y': 4}, SOFT)
+    tient(a, 'ear-left', {'r': -14}, D); tient(a, 'ear-right', {'r': 12}, D)
+    # le ronron : un tout petit frémissement de la poitrine, très rapide
+    k = 0.0
+    while k < D - .01:
+        a.at('core', round(k, 3), {'sy': 1.0}, LIN).at('core', round(k + .06, 3), {'sy': 1.012}, LIN); k += .12
+    a.at('core', D, {'sy': 1.0}, LIN)
+    a.at('tail', 0, {'r': -6}, SOFT).at('tail', 1.2, {'r': -14}, SOFT).at('tail', D, {'r': -6}, SOFT)
+    out.append(a)
     return out
 
 if __name__ == '__main__':

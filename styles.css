@@ -2289,3 +2289,16 @@ body:has(#deck, #jpc, #uisheet, #ticket, #chat, #azmem, #visite) #pop { opacity:
 .glance .wide .g-num { font-size: 22px; }
 .rmore { list-style: none; display: flex; justify-content: center; padding: var(--s2) 0; }
 h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
+/* caresse longue : on garde le doigt sur elle */
+.azami-btn { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.azami-btn:has(img.tient), .azami-btn:has(img.tient):active { transform: scale(1.04); transition: transform .5s cubic-bezier(.2,.8,.3,1); }
+/* le mot du mois : une lettre, un peu plus papier */
+.mois-card { background: linear-gradient(160deg, #FFF8EC, #F6E3C4 60%, #FFF6E6); }
+.mois-lettre { font-style: normal; line-height: 1.45; }
+.mois-sig { display: block; text-align: right; font-family: var(--font-display, inherit); font-weight: 800; font-style: italic; margin-top: 4px; }
+/* la plume dorée (une partie sur sept) */
+#jouet.doree .plume > path:nth-child(1) { fill: #F2C94C; }
+#jouet.doree .plume > path:nth-child(3) { fill: #FFF1B8; }
+#jouet.doree svg { filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .15)) drop-shadow(0 0 10px rgba(242, 201, 76, .75)); animation: plume-brille 1.8s ease-in-out infinite; }
+@keyframes plume-brille { 50% { filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .15)) drop-shadow(0 0 18px rgba(255, 220, 110, .95)); } }
+@media (prefers-reduced-motion: reduce) { #jouet.doree svg { animation: none; } }
