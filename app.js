@@ -2545,7 +2545,7 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v231</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v232</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5210,7 +5210,7 @@ function azamiRetour() {
   if (parti > 3 * 60e3 && azamiCourrier()) return;
   if (parti < 3 * 60e3) return;                                    // un aller-retour rapide : rien ne change
   if (AZ.bulle && now - (AZ.at || 0) > 10 * 60e3 && !AZ.busy && !AZ.ecrit) { AZ.bulle = ''; AZ.choix = []; safeSet('maison-az-bulle', ''); }
-  const h = new Date().getHours(); if (azamiNuit() || !S.me) { render(); return; }
+  const h = new Date().getHours(); if (azamiNuit() || !S.me || tamaAbsente()) { render(); return; }
   if (parti < 15 * 60e3 || Math.random() < .3) { render(); return; }   // parfois elle ne dit rien, c'est très bien aussi
   const t = tamaEtat(); tamaTick();
   const vu = azamiDepuis();
@@ -5320,7 +5320,7 @@ const AZ_INACTIF_MOTS = ['Tu regardes l’écran depuis un moment. Tu cherches q
 function azamiRemarque(evt, detail = '') {
   if (!S.me || S.recovery || AZ.busy || AZ.ecrit || document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;
   const mode = AZ_MODE(); if (mode === 'muette') return;
-  if (azamiNuit()) return;
+  if (azamiNuit() || tamaAbsente()) return;
   const folie = azamiFolie();
   const now = Date.now(), delai = (mode === 'bavarde' ? 80e3 : 8 * 60e3) / (folie ? 2 : 1);
   if (now - azDernier < delai || now - (AZ.at || 0) < 40e3) return;
@@ -5447,7 +5447,7 @@ const jpDire = txt => {
 // dans ses bulles, ce qui est écrit en japonais devient touchable (ça le prononce)
 const jpWrap = html => html.replace(/([\u3040-\u30ff\u4e00-\u9faf\u30fc]+)([,.!?;:]?)/g, (_, m, p) => `<button type="button" class="jp" data-action="jp-dire" data-txt="${m}">${m}${p}</button>`);
 function jpAujourdhui() {
-  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || AZ.bulle || azamiNuit()) return false;
+  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || AZ.bulle || azamiNuit() || tamaAbsente()) return false;
   const j = JP(), jour = isoDate(new Date()); if (j.jour === jour) return false;
   const heure = new Date().getHours(); if (heure < 9) return false;   // le mot du jour attend que la journée commence
   j.jour = jour; j.mots ||= []; j.hira ||= [];
@@ -5515,8 +5515,12 @@ function tamaGeste(k) {
   const g = TAMA_GESTES[k]; if (!g) return;
   const t = tamaEtat(); tamaTick();
   for (const j of ['faim', 'soif', 'calins', 'jeu', 'poids']) if (g[j]) t[j] = clamp100((t[j] ?? 50) + g[j]);
+  t.soin = Date.now();
+  // en grève : seule une friandise la réconcilie ; le reste compte pour ses jauges, mais elle reste de dos
+  if (t.greve && k === 'friandise') { tamaGreveFin(); return; }
+  if (t.greve) { tamaSave(true); S.tamaMenu = null; if (k !== 'caresse' && !AZ.bulle) azamiPose(pick(GREVE_MOTS.refus), 'boudeuse'); render(); return; }
   if (k !== 'caresse') (t.repas ||= []).push({ q: k, at: Date.now(), par: S.me, caca: k === 'eau' });
-  if (k === 'ragout') { t.sieste = Date.now() + 20 * 60e3; t.siesteAt = Date.now(); } else t.sieste = 0;   // le ragoût appelle la sieste ; le reste la réveille
+  if (k === 'ragout') { t.siesteDe = Date.now(); t.sieste = Date.now() + 20 * 60e3; } else if (Date.now() >= (t.siesteDe || 0)) t.sieste = 0;   // le ragoût appelle la sieste ; le reste la réveille
   if (t.repas?.length > 40) t.repas.splice(0, t.repas.length - 40);
   tamaSave(k !== 'caresse');
   // une caresse : rarement, elle le dit (une fois sur huit ; à ses heures de folie, c'est plutôt une attaque)
@@ -5544,7 +5548,7 @@ const TAMA_MOTS = {
   jeu: ['Je m’ennuie un peu. Les voisins ne passent même pas.', 'On joue ? Même cinq minutes. Même trois.'],
 };
 function tamaDire() {
-  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || azamiNuit()) return;
+  if (S.view !== 'maison' || !S.me || AZ.busy || AZ.ecrit || azamiNuit() || tamaAbsente()) return;
   const t = tamaEtat(), now = Date.now();
   const besoin = ['faim', 'soif', 'calins', 'jeu'].filter(k => (t[k] ?? 70) < 30 && now - (t.dit?.[k] || 0) > 3 * 36e5).sort((a, b) => (t[a] ?? 70) - (t[b] ?? 70))[0];
   if (!besoin || (AZ.bulle && now - (AZ.at || 0) < 20 * 60e3)) return;
@@ -5561,20 +5565,74 @@ function tamaScene() {
   const img = document.querySelector('.hd img.azami'); if (!img) return;
   const t = tamaEtat();
   const essai = DEMO && /azami=tama:/.test(location.search) ? location.search.match(/azami=tama:(\w+)/)[1] : null;   // pour essayer : ?azami=tama:dort
+  if ((essai === 'balade' || essai === 'greve') && !tamaScene.essai) { tamaScene.essai = 1; t.soin = Date.now() - (essai === 'balade' ? 2.1 : 4.1) * DAY; t.balade = null; t.greve = false; }
+  tamaOubli(t, img);
+  const ou = t.balade?.page;
+  img.classList.toggle('partie', !!ou && S.view !== ou && !img.dataset.caresse);
+  img.classList.toggle('cachee', !!ou && S.view === ou);
   // une sieste : après un ragoût, ou parfois l'après-midi (25 min, pas plus d'une toutes les trois heures)
   const now = Date.now(), h = new Date().getHours();
-  if (!(now < (t.sieste || 0)) && h >= 13 && h < 18 && now - (t.siesteAt || 0) > 3 * 36e5 && Math.random() < .15) { t.sieste = now + 25 * 60e3; t.siesteAt = now; tamaSave(); }
-  const etat = S.view !== 'maison' || !S.me || S.recovery ? null
-    : essai ? (essai === 'zoomies' ? null : essai)
+  // un seul tirage par jour, au premier passage de l'après-midi : une fois sur deux, une sieste de 25 min à un moment pris au hasard avant 18 h
+  if (h >= 13 && h < 18 && t.siesteJour !== isoDate(new Date())) {
+    t.siesteJour = isoDate(new Date());
+    if (Math.random() < .5) { const de = now + Math.random() * Math.max(0, (18 - h) * 36e5 - 25 * 60e3); t.siesteDe = de; t.sieste = de + 25 * 60e3; }
+    tamaSave();
+  }
+  const etat = !S.me || S.recovery ? null
+    : ou ? (S.view === ou ? 'guette' : null)
+    : S.view !== 'maison' ? null
+    : essai && !['zoomies', 'balade', 'greve'].includes(essai) ? essai
     : S.jeu ? 'guette'
-    : azamiNuit() || now < (t.sieste || 0) ? 'dort'
+    : t.greve ? 'greve'
+    : azamiNuit() || (now >= (t.siesteDe || 0) && now < (t.sieste || 0)) ? 'dort'
     : (t.faim < 12 || (t.crottes || []).length >= 4) ? 'boude'
     : t.faim < 25 ? 'faim' : null;
   if (etat !== (img.dataset.tama || null)) {
     if (etat) img.dataset.tama = etat; else delete img.dataset.tama;
     if (!img.dataset.caresse) { if (etat) { stopPropSounds(); img.src = reactSrc(etat); } else restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos')); }
   }
-  if (!etat && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); }
+  if (!etat && !ou && S.view === 'maison' && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); }
+}
+// Oubliée plusieurs jours (aucun geste de personne : nourrir, boire, jouer, caresser) : au bout de deux jours elle part
+// se balader et se cache sur une autre page de l'app (on la voit dépasser, il faut la toucher pour la ramener) ; au
+// bout de quatre jours elle revient d'elle-même et fait grève : plus d'initiatives ni de japonais, de dos sur
+// l'accueil, jusqu'à ce qu'on lui donne une friandise. Jamais la nuit.
+const GREVE_MOTS = {
+  debut: ['Je fais grève. Personne ne s’occupe de moi depuis des jours. Il paraît qu’une friandise pourrait tout arranger.', 'Grève. Pas de japonais, pas de conseils, rien. On négocie avec une friandise.'],
+  refus: ['Je suis en grève. Ça se voit, non ?', 'Merci. Mais je fais toujours grève. Tu connais le tarif.', 'Hmpf.'],
+  fin: ['Bon… d’accord. Je te pardonne. Mais c’est bien parce que c’est une friandise.', 'Fin de la grève ! Tu m’as manqué. Un peu. Beaucoup.', 'Nakanaori ! (on se réconcilie) Ne recommence pas, hein.'],
+  trouvee: ['Tu m’as trouvée ! J’étais pas cachée, je visitais.', 'Ah, te voilà ! J’ai fait le tour de l’app. Il y a des drôles de choses ici.', 'Mitsuketa ! (tu m’as trouvée) Je rentre. Tu as des croquettes ?'],
+  partie: ['Azami est partie se balader. Elle se cache quelque part dans l’app…'],
+};
+const tamaAbsente = () => { const t = S.tama; return !!(t && (t.balade || t.greve)); };
+function tamaOubli(t, img) {
+  t.soin ||= Date.now();   // première fois : le compteur part d'aujourd'hui
+  if (azamiNuit() || S.jeu) return;
+  const jours = (Date.now() - t.soin) / DAY;
+  if (jours >= 4 && !t.greve) {
+    t.balade = null; t.greve = true; tamaSave(true);
+    if (S.view === 'maison') { azamiPose(pick(GREVE_MOTS.debut), 'boudeuse'); setTimeout(render, 0); }
+  } else if (jours >= 2 && jours < 4 && !t.balade && !t.greve) {
+    const pages = CROTTE_PAGES.filter(p => p !== 'maison' && p !== S.view);
+    t.balade = { page: /azami=tama:balade/.test(location.search) ? 'recettes' : pick(pages), at: Date.now() }; tamaSave(true);
+    AZ.bulle = ''; AZ.choix = [];
+    if (img && S.view === 'maison') { playOnImg(img, 'part', 3000, () => { img.dataset.tama = 'part'; render(); }); meow(true, .3, 'mrrr'); }
+  }
+}
+// On la touche là où elle se cache : retrouvailles.
+function tamaTrouvee(img) {
+  const t = tamaEtat(); if (!t.balade || S.view !== t.balade.page) return false;
+  t.balade = null; t.soin = Date.now(); t.calins = clamp100((t.calins ?? 50) + 20); tamaSave(true);
+  img.classList.remove('cachee'); delete img.dataset.tama;
+  playOnImg(img, 'retrouvailles', 2600); burst('hearts', img, 10); haptic('heavy'); meow(true, .6, pick(['trille', 'chirp', 'mewmew']));
+  azamiPose(pick(GREVE_MOTS.trouvee), 'contente'); render();
+  return true;
+}
+function tamaGreveFin() {
+  const t = tamaEtat(); t.greve = false; t.soin = Date.now(); tamaSave(true); S.tamaMenu = null;
+  const img = document.querySelector('.hd img.azami'); delete img?.dataset.tama;
+  if (img) { playOnImg(img, 'retrouvailles', 2600); burst('hearts', img, 10); }
+  haptic('heavy'); meow(true, .6, pick(['trille', 'chirp'])); azamiPose(pick(GREVE_MOTS.fin), 'contente'); render();
 }
 // Jouer : un plumeau dessiné qu'on promène au doigt. Elle le guette (accroupie, le derrière qui frétille) ;
 // quand il passe près d'elle, elle bondit dessus. Cinq bonds et elle a son compte ; sans mouvement pendant
@@ -5638,11 +5696,11 @@ function tamaContexte() {
   const QUOI = { croquettes: 'des croquettes au poisson', ragout: 'du ragoût', friandise: 'une friandise', eau: 'de l’eau fraîche', jeu: 'une partie de plumeau (t’a fait jouer)' };
   const gestes = (t.repas || []).slice(-6).reverse().map(g => `${nameOf(g.par)} ${g.q === 'jeu' ? 'a joué au plumeau avec toi' : `t’a donné ${QUOI[g.q] || g.q}`} ${ago(new Date(g.at).toISOString())}`);
   return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).
-CROTTES À RAMASSER : ${(t.crottes || []).length} (${(t.crottes || []).length ? 'tu es un peu gênée, tu peux le dire avec humour' : 'tout est propre'}).
+${t.greve ? 'TU FAIS GRÈVE : personne ne s’est occupé de toi depuis des jours. Tu réponds court, boudeuse mais jamais méchante, et tu rappelles qu’une friandise (bouton Nourrir) mettrait fin à la grève. Pas de japonais, pas de suggestions.\n' : ''}CROTTES À RAMASSER : ${(t.crottes || []).length} (${(t.crottes || []).length ? 'tu es un peu gênée, tu peux le dire avec humour' : 'tout est propre'}).
 CE QU'ON A FAIT POUR TOI DANS L'APP (tu le sais, tu peux en parler et remercier) : ${gestes.length ? gestes.join(' ; ') + '.' : 'rien encore (personne ne t’a nourrie ni donné à boire dans l’app).'}`;
 }
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
-const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
+const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : S.tama?.balade ? `<div class="az-barre az-croquis az-partie" data-rayon="26"><svg class="az-nuage" aria-hidden="true"></svg><p>${GREVE_MOTS.partie[0]}</p></div>` : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
   <button type="button" data-action="azami-ecrire">${icn('bulle')}<span>Parler</span></button>
   <button type="button" data-action="tama-menu" aria-expanded="${S.tamaMenu === 'nourrir'}">${icn('gamelle')}<span>Nourrir</span></button>
   <button type="button" data-action="tama-geste" data-geste="eau">${icn('eau')}<span>Boire</span></button>
@@ -6321,7 +6379,7 @@ const actions = {
   'care-delete': async el => { if (await uiAsk('Le mot quitte sa boîte.', { title: 'Retirer ce mot ?', ok: 'Retirer', danger: true })) run(() => api.remove('care_messages', { id: el.dataset.id }), 'Mot retiré'); },
 
 
-  meow: el => { const img = el.querySelector('img.azami'); if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); if (S.view !== 'maison' && !AZ.ecrit && !AZ.busy && S.me) { AZ.ecrit = true; render(); } },   // sur les pages, la toucher ouvre aussi la bulle pour lui parler
+  meow: el => { const img = el.querySelector('img.azami'); if (img?.classList.contains('cachee') && tamaTrouvee(img)) return; if (img?.classList.contains('partie')) return; if (azamiPet(img)) return; meow(true, .6, Math.random() < .4 ? pick(['ronron', 'ronronmrr']) : null); caresse(img); if (S.view !== 'maison' && !AZ.ecrit && !AZ.busy && S.me) { AZ.ecrit = true; render(); } },   // sur les pages, la toucher ouvre aussi la bulle pour lui parler
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();

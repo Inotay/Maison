@@ -71,6 +71,15 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - Sons synthétisés : crounch (croquettes), slurp (ragoût), lape (eau), swish (friandise, bond), gargouille (faim),
   couvercle et plop (poubelle).
 
+## Balade, grève, retrouvailles, dodo (v232)
+- Oubli = aucun geste de personne (nourrir, boire, jouer, caresser). Au bout de 2 jours : elle part (animation part)
+  et se cache sur une autre page ; on ne voit dépasser que sa tête derrière l'en-tête ; la toucher = retrouvailles.
+- Au bout de 4 jours : elle revient d'elle-même et fait grève (de dos sur l'accueil, yeux fermés, menton levé ;
+  plus d'initiatives, de mot du jour ni de besoins). Une friandise y met fin (retrouvailles). Jamais déclenché la nuit.
+- dort refait : couchée en boule de pain, pattes repliées, tête posée, queue à plat, une oreille qui frémit.
+- Sieste de l'après-midi : un tirage par jour (une fois sur deux), 25 min à une heure prise au hasard avant 18 h.
+- Pour essayer en démo : ?azami=tama:balade, ?azami=tama:greve.
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.

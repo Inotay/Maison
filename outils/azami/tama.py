@@ -117,18 +117,32 @@ def anims():
     a.look(2.8, 10, -2, .8); a.blink(1.5)
     out.append(a)
 
-    # ── dort (boucle) : roulée, les yeux fermés, des z qui montent ──
-    zz = ''.join(f'<text id="Xz{i}" x="{250 + i * 26}" y="{200 - i * 18}" font-family="Nunito, sans-serif" font-weight="900" font-size="{22 + i * 8}" fill="{INK}" opacity=".7">z</text>' for i in range(3))
-    a = R('dort', 6.0, loop=True, title='Azami · Dort', desc='Roulée en boule, les yeux fermés, elle respire lentement ; des z s’envolent.', extra_svg=zz)
-    for i in range(3): a.hidden.add(f'Xz{i}'); a.origins[f'Xz{i}'] = f'{250 + i * 26}px {200 - i * 18}px'
-    a.idle(breathe=4.8, tail=9.0, depth=.9)
-    a.at('head', 0, {'r': 14, 'y': 18, 'x': -4}, LIN).at('head', 6.0, {'r': 14, 'y': 18, 'x': -4}, LIN)
-    a.at('neck', 0, {'r': 6, 'y': 8}, LIN).at('neck', 6.0, {'r': 6, 'y': 8}, LIN)
-    a.at('character', 0, {'sy': .94, 'y': 10}, LIN).at('character', 6.0, {'sy': .94, 'y': 10}, LIN)
-    a.happy(0, 6.0)
+    # ── dort (boucle) : couchée en boule de pain, pattes repliées, tête posée, les yeux clos ; des z montent ──
+    zz = ''.join(f'<text id="Xz{i}" x="{262 + i * 26}" y="{250 - i * 22}" font-family="Patrick Hand, Nunito, sans-serif" font-weight="700" font-size="{26 + i * 9}" fill="{INK}" opacity=".75">z</text>' for i in range(3))
+    a = R('dort', 6.0, loop=True, title='Azami · Dort', desc='Couchée en boule, les pattes repliées sous elle, la tête posée, les yeux clos ; elle respire lentement et des z s’envolent.', extra_svg=zz)
+    for i in range(3): a.hidden.add(f'Xz{i}'); a.origins[f'Xz{i}'] = f'{262 + i * 26}px {250 - i * 22}px'
+    pose = {
+        'character': {'y': 50},
+        'front-near': {'r': 84, 'x': -6, 'y': -6}, 'front-far': {'r': 80, 'x': -2, 'y': -10},
+        'back-near': {'r': 78, 'x': -4, 'y': -8}, 'back-far': {'r': 74, 'y': -10},
+        'head': {'r': 7, 'x': 6, 'y': 16}, 'neck': {'r': 4, 'y': 8},
+        'tail': {'r': 68, 'y': 6}, 'tail-tip': {'r': -40},
+        'ear-left': {'r': -8}, 'ear-right': {'r': 6},
+        'eye-l': {'o': 0}, 'eye-r': {'o': 0}, 'eyes-blink': {'o': 1},
+        'ground-shadow': {'sx': 1.08},
+    }
+    for k, v in pose.items():
+        a.base[k] = v; a.at(k, 0, v, LIN).at(k, 6.0, v, LIN)
+    a.hidden.discard('eyes-blink')
+    # respiration lente : le ventre se soulève, la tête suit à peine
+    a.cycle('core', 3.0, [(0, {}, SOFT), (1.4, {'y': -2.5, 'sx': 1.02, 'sy': 1.045}, SOFT), (3.0, {}, SOFT)])
+    a.cycle('whiskers', 3.0, [(0, {}, SOFT), (1.4, {'y': -1.5}, SOFT), (3.0, {}, SOFT)])
+    # une oreille qui frémit dans son sommeil, le bout de la queue qui bouge une fois
+    a.at('ear-right', 3.6, {'r': 6}, ANT).at('ear-right', 3.7, {'r': 18}, SNAP).at('ear-right', 3.85, {'r': 4}, OUTQ).at('ear-right', 4.0, {'r': 6}, LIN)
+    a.at('tail-tip', 2.0, {'r': -40}, SOFT).at('tail-tip', 2.5, {'r': -58}, SOFT).at('tail-tip', 3.1, {'r': -40}, SOFT)
     for i in range(3):
-        t = i * 1.3
-        a.at(f'Xz{i}', t, {'o': 0, 'y': 10, 's': .6}, STEP).at(f'Xz{i}', t + .1, {'o': .8, 'y': 0, 's': .8}, OUTQ).at(f'Xz{i}', t + 2.6, {'o': 0, 'y': -40, 'x': 10, 's': 1.1}, LIN)
+        t = i * 1.4
+        a.at(f'Xz{i}', t, {'o': 0, 'y': 10, 's': .6}, STEP).at(f'Xz{i}', t + .1, {'o': .8, 'y': 0, 's': .8}, OUTQ).at(f'Xz{i}', t + 2.8, {'o': 0, 'y': -44, 'x': 12, 's': 1.1}, LIN)
     out.append(a)
     return out
 
