@@ -2610,7 +2610,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v242</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v243</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3763,7 +3763,8 @@ function cineSeeds(n = 4) {
 function cineLists() {
   const o = other(), recent = (a, b) => String(b.created_at).localeCompare(String(a.created_at));
   const open = S.films.filter(f => f.status === 'a_voir');
-  const mine = open.filter(f => T.wants(fVotes(f)[S.me])).sort((a, b) => (fMatch(b) - fMatch(a)) || recent(a, b));
+  // tes envies, et les films déjà vus que tu veux revoir (même ceux du journal à deux)
+  const mine = S.films.filter(f => (f.status === 'a_voir' && T.wants(fVotes(f)[S.me])) || (f.status !== 'en_cours' && fVotes(f)[S.me] === 'revoir')).sort((a, b) => (fMatch(b) - fMatch(a)) || recent(a, b));
   const theirs = o ? open.filter(f => T.wants(fVotes(f)[o])).sort((a, b) => (fMatch(b) - fMatch(a)) || recent(a, b)) : [];
   const nous = open.filter(fMatch).sort(recent);
   const enCours = S.films.filter(f => f.status === 'en_cours');
@@ -3797,6 +3798,7 @@ function cineTile(f, space = 'moi') {
   const v = fVotes(f), o = other(), w = fWhereShort(f);
   const badge = fMatch(f) ? `<i class="tbadge match" title="Vous en avez envie tous les deux">${icn('deux')}</i>`
     : space === 'autre' ? (v[S.me] === 'beurk' ? '<i class="tbadge dim">Non pour toi</i>' : v[S.me] === 'non' ? '<i class="tbadge dim">Bof pour toi</i>' : fSeen(f, S.me) ? '<i class="tbadge dim">Déjà vu</i>' : '<i class="tbadge ask">Moi aussi ?</i>')
+    : space === 'moi' && fVotes(f)[S.me] === 'revoir' ? '<i class="tbadge">À revoir</i>'
     : space === 'moi' && o && fSeen(f, S.me) ? '<i class="tbadge">Vu · à montrer</i>' : space === 'moi' && toutNeuf(f) ? '<i class="tbadge neuf">Nouveau</i>' : '';
   const sub = [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.traits?.rt || f.runtime) ? rDur(f.traits?.rt || f.runtime) : ''].filter(Boolean).join(' · ');
   const star = S.members.some(m => v[m.email] === 'super') ? `<i class="tstar" title="Très envie">${icn('tres')}</i>` : '';
@@ -4938,13 +4940,16 @@ async function cineOpen(id) {
   const draw = () => {
     const o = other(), v = fVotes(f);
     const prov = (f.providers || []);
-    const acts = f.status === 'a_voir' && fSeen(f, S.me) && !T.wants(v[S.me]) ? `<button class="btn ghost" data-action="cine-want" data-id="${f.id}">Je veux le revoir</button>`   // déjà vu : pas de « Bof », sa note est juste au-dessus
+    // déjà vu (ou noté) : « Je veux le revoir » le remet dans ta liste, sans toucher à ta note ni au journal
+    const vuMoi = fSeen(f, S.me) || !!f.ratings?.[S.me]?.note, revoir = v[S.me] === 'revoir';
+    const revoirB = vuMoi && f.status !== 'en_cours' ? (revoir ? `<button class="btn ghost" data-action="cine-revoir" data-id="${f.id}" data-on="0">${icn('vu')} À revoir · retirer</button>` : `<button class="btn ${f.status === 'vu' ? 'ghost' : ''}" data-action="cine-revoir" data-id="${f.id}" data-on="1">Je veux le revoir</button>`) : '';
+    const acts = f.status === 'a_voir' && vuMoi && !T.wants(v[S.me]) ? revoirB   // déjà vu : pas de « Bof », sa note est juste au-dessus
       : f.status === 'a_voir' ? (T.wants(v[S.me]) ? `<button class="btn" data-action="cine-watch" data-id="${f.id}">On le regarde</button>`
         : `<button class="btn" data-action="cine-want" data-id="${f.id}">${o && T.wants(v[o]) ? 'Moi aussi' : 'Je veux le voir'}</button><button class="btn ghost" data-action="cine-nope" data-id="${f.id}">Bof</button>`)
       + (!fSeen(f, S.me) ? `<button class="btn ghost small" data-action="cine-iseen" data-id="${f.id}">Déjà vu</button>` : '')
       : f.status === 'en_cours' ? `${f.media === 'tv' ? `<button class="btn" data-action="cine-ep" data-id="${f.id}">+1 épisode (${fProg(f)})</button>` : ''}<button class="btn ${f.media === 'tv' ? 'ghost' : ''}" data-action="cine-seen" data-id="${f.id}">${f.media === 'tv' ? 'Série finie' : 'On l’a vu'}</button>`
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
-      : `<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Ajouter un petit mot</button>`;
+      : `${revoirB}<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Ajouter un petit mot</button>`;
     const heart = `<button class="fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}" aria-label="${(f.coeur || []).includes(S.me) ? 'Retirer de mes coups de cœur' : 'Mettre dans mes coups de cœur'}"><span aria-hidden="true">${(f.coeur || []).includes(S.me) ? '♥' : '♡'}</span><small>Coup de cœur</small></button>`;
     // ta note, directement sur la fiche d'un film que tu as vu : on glisse, c'est enregistré
     const maNote = f.ratings?.[S.me]?.note || 0, vuParMoi = maNote || fSeen(f, S.me);
@@ -6133,6 +6138,13 @@ const actions = {
   'cine-pick': async el => { const f = Array.isArray(S.cineRes) && S.cineRes[Number(el.dataset.i)]; if (!f) return; el.disabled = true; haptic('medium');
     try { const saved = await filmVote(f, 'oui'); cineUndo(...(filmVote.undo || ['ajout', [], []])); S.cineQ = ''; S.cineRes = null; const qi = document.getElementById('cine-q'); if (qi) qi.value = ''; S.cineSpace = 'moi'; toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter. Réessaie.'); el.disabled = false; } },
   'cine-idea': async el => { const f = S.cineIdeas?.[Number(el.dataset.i)]; if (!f) return; haptic('medium'); S.cineIdeas = S.cineIdeas.filter(x => x !== f); try { const saved = await filmVote(f, 'oui'); toast(`${saved.title} : dans ta liste`); render(); cineUndo(...(filmVote.undo || ['ajout', [], []])); } catch { toast('Pas réussi à l’ajouter.'); } },
+  'cine-revoir': async el => {
+    const f = S.films.find(x => x.id === el.dataset.id); if (!f) return;
+    const on = el.dataset.on === '1', back = filmBefore(f, ['votes']);
+    const votes = { ...fVotes(f) }; if (on) votes[S.me] = 'revoir'; else delete votes[S.me];
+    f.votes = votes; closeTicket(); haptic(1);
+    run(() => api.update('films', { id: f.id }, { votes }), on ? 'Dans ta liste, à revoir' : 'Retiré de ta liste').then(ok => ok && cineUndo(`${f.title} : ${on ? 'à revoir' : 'retiré'}`, [back]));
+  },
   'cine-want': async el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const saved = await filmVote(f, 'oui'); render(); cineUndo(...(filmVote.undo || ['envie', [], []])); if (fMatch(saved)) filmMatchParty(saved); else toast('Dans ta liste'); },
   'cine-watch': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); const back = filmBefore(f, ['status', 'season', 'episode']); const patch = { status: 'en_cours', ...(f.media === 'tv' && !f.season ? { season: 1, episode: 1 } : {}) }; Object.assign(f, patch); S.cineTab = 'en_cours'; S.cineSpace = 'nous'; haptic('medium'); sfx('tick'); run(() => api.update('films', { id: f.id }, patch), 'Bon film !').then(ok => ok && cineUndo(`${f.title} : on le regarde`, [back])); },
   'cine-ep': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; let season = f.season || 1, episode = (f.episode || 1) + 1;
