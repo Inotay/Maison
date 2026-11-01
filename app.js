@@ -2642,7 +2642,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v255</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v256</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5110,10 +5110,13 @@ const HUMEURS = { leger: [['feel-good', 'drôle', 'lumineux', 'chaleureux', 'ten
   contemplatif: [['contemplatif', 'poétique', 'mélancolique', 'minimaliste', 'intimiste'], [18]], frisson: [['angoissant', 'glaçant', 'malaisant', 'mystérieux'], [27, 53, 9648]], rire: [['drôle', 'absurde', 'humour noir', 'satirique'], [35]] };
 const humeurOk = (f, h) => { const H = HUMEURS[h]; if (!H) return true; return f.tons?.tons?.length ? f.tons.tons.some(t => H[0].includes(t)) || (h === 'contemplatif' && f.tons.rythme === 'lent') : (f.gids || []).some(g => H[1].includes(g)); };
 // « Ce soir ? » : au hasard parmi vos films à deux (les matchs), ou seulement dans tes envies à toi.
+// Seul, on peut aussi piocher dans ce qu'on a déjà vu (et pas mis dans ses envies) : les mieux notés sortent plus souvent.
+const soirVus = () => safeGet('maison-soir-vus') === '1';
 function cineSoir(kind = S.soirKind || '', mood = S.soirMood || '', pour = S.soirPour || 'nous') {
   S.soirKind = kind; S.soirMood = mood; S.soirPour = pour;
-  const L = cineLists(), solo = pour === 'moi';
-  let pool = solo ? [...L.mine, ...L.enCours.filter(f => f.media === 'tv' && T.wants(fVotes(f)[S.me]) && !L.mine.includes(f))] : [...L.nous, ...L.enCours.filter(f => f.media === 'tv')];
+  const L = cineLists(), solo = pour === 'moi', vus = solo && soirVus();
+  const dejaVus = vus ? S.films.filter(f => (fSeen(f, S.me) || f.ratings?.[S.me]?.note) && !L.mine.includes(f) && f.status !== 'en_cours' && (f.ratings?.[S.me]?.note ?? 3) >= 2.5 && !['non', 'beurk'].includes(fVotes(f)[S.me])) : [];
+  let pool = solo ? [...L.mine, ...L.enCours.filter(f => f.media === 'tv' && T.wants(fVotes(f)[S.me]) && !L.mine.includes(f)), ...dejaVus] : [...L.nous, ...L.enCours.filter(f => f.media === 'tv')];
   if (!solo && pool.length < 3) pool.push(...cineCompromis().slice(0, 5).map(x => x.f).filter(f => !pool.includes(f)));
   if (mood) pool = pool.filter(f => humeurOk(f, mood));
   if (kind === 'court') pool = pool.filter(f => f.media === 'movie' && (!f.runtime || f.runtime <= 105));
@@ -5125,13 +5128,17 @@ function cineSoir(kind = S.soirKind || '', mood = S.soirMood || '', pour = S.soi
   box.innerHTML = `<div class="ticket-card roulette" role="dialog" aria-label="${solo ? 'Je regarde quoi ?' : 'On regarde quoi ?'}"><p class="ticket-title">${solo ? 'Je regarde quoi ce soir ?' : 'On regarde quoi ce soir ?'}</p>
     <div class="seg soir-pour" role="tablist" aria-label="Pour qui">${[['nous', `${icn('coeur')} À deux`], ['moi', 'Juste pour moi']].map(([k, l]) => `<button type="button" role="tab" data-p="${k}" aria-selected="${pour === k}" aria-pressed="${pour === k}">${l}</button>`).join('')}</div>
     <div class="chips cine-kinds cine-moods">${[['', 'Toute humeur'], ['leger', 'Léger'], ['rire', 'Rire'], ['intense', 'Intense'], ['frisson', 'Frisson'], ['contemplatif', 'Contemplatif']].map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
+    ${solo ? `<div class="chips cine-kinds soir-vus"><button type="button" data-v="1" aria-pressed="${vus}">${vus ? '✓ ' : '+ '}Avec les films déjà vus</button></div>` : ''}
     <div class="chips cine-kinds">${[['', 'Peu importe'], ['chez', 'Dispo chez nous'], ['court', 'Un film court'], ['film', 'Un film'], ['serie', 'Une série']].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${kind === k}">${l}</button>`).join('')}</div><div class="roulette-stage"></div></div>`;
-  box.addEventListener('click', e => { if (e.target === box) closeTicket(); const k = e.target.closest('[data-k]'); if (k) cineSoir(k.dataset.k, mood, pour); const m = e.target.closest('[data-m]'); if (m) cineSoir(kind, m.dataset.m, pour); if (e.target.closest('[data-action=cine-open]')) closeTicket(); const pp = e.target.closest('[data-p]'); if (pp && pp.dataset.p !== pour) { haptic(1); cineSoir(kind, mood, pp.dataset.p); } });
+  box.addEventListener('click', e => { if (e.target === box) closeTicket(); const k = e.target.closest('[data-k]'); if (k) cineSoir(k.dataset.k, mood, pour); const m = e.target.closest('[data-m]'); if (m) cineSoir(kind, m.dataset.m, pour); if (e.target.closest('[data-action=cine-open]')) closeTicket(); if (e.target.closest('[data-v]')) { safeSet('maison-soir-vus', soirVus() ? '0' : '1'); haptic(1); cineSoir(kind, mood, pour); return; } const pp = e.target.closest('[data-p]'); if (pp && pp.dataset.p !== pour) { haptic(1); cineSoir(kind, mood, pp.dataset.p); } });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   const stage = box.querySelector('.roulette-stage');
-  if (!pool.length) { stage.innerHTML = solo ? `<p class="ticket-sub">${L.mine.length ? 'Rien dans tes envies pour ça. Essaie une autre humeur.' : 'Ta liste d’envies est vide. Un tour de Cinder pour la remplir ?'}</p>` : '<p class="ticket-sub">Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !</p>'; return; }
+  if (!pool.length) { stage.innerHTML = solo ? `<p class="ticket-sub">${L.mine.length || vus ? 'Rien dans tes envies pour ça. Essaie une autre humeur.' : 'Ta liste d’envies est vide. Un tour de Cinder pour la remplir ?'}</p>` : '<p class="ticket-sub">Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !</p>'; return; }
   const t = tastes();
-  const wSolo = f => (fVotes(f)[S.me] === 'super' ? 2.5 : 1) * (f.status === 'en_cours' ? 1.6 : 1) * (fDispo(f) ? 2 : 1) * (fVotes(f)[S.me] === 'revoir' ? .7 : 1) * (t.me ? Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) : 1);
+  // un déjà-vu pèse selon ta note (un chef-d'œuvre revient bien plus qu'un « moyen »), un coup de cœur double ;
+  // dans l'ensemble, ils restent un peu moins fréquents que les vraies envies
+  const wVu = f => { const n = f.ratings?.[S.me]?.note ?? 3.2; return .6 * Math.exp((n - 3.5) * 1.1) * ((f.coeur || []).includes(S.me) ? 2 : 1) * (fDispo(f) ? 1.6 : 1); };
+  const wSolo = f => dejaVus.includes(f) ? wVu(f) : (fVotes(f)[S.me] === 'super' ? 2.5 : 1) * (f.status === 'en_cours' ? 1.6 : 1) * (fDispo(f) ? 2 : 1) * (fVotes(f)[S.me] === 'revoir' ? .7 : 1) * (t.me ? Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) : 1);
   const w = solo ? wSolo : f => (fMatch(f) ? 3 : 1) * (S.members.some(m => fVotes(f)[m.email] === 'super') ? 2 : 1) * (f.status === 'en_cours' ? 2 : 1) * (fDispo(f) ? 2 : 1) * (t.other ? Math.exp(Math.max(-1.5, Math.min(1.5, T.scoreBoth(t.me, t.other, f, t.couple, .2) / 3))) : 1);
   const tot = pool.reduce((a, f) => a + w(f), 0); let x = Math.random() * tot, pick = pool[0];
   for (const f of pool) { x -= w(f); if (x <= 0) { pick = f; break; } }
@@ -5143,7 +5150,7 @@ function cineSoir(kind = S.soirKind || '', mood = S.soirMood || '', pour = S.soi
     if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['pop_capsule', 0]], audioCtx.currentTime + .01, .55);
     setTimeout(() => {
       sfx('done');
-      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${solo ? `<span class="fbadge">${fVotes(pick)[S.me] === 'super' ? 'Très envie' : fVotes(pick)[S.me] === 'revoir' ? 'À revoir' : 'Dans tes envies'}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} ${esc(nameOf(other()))} aussi</span>` : ''}` : fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
+      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${solo ? `<span class="fbadge">${dejaVus.includes(pick) ? `Déjà vu${pick.ratings?.[S.me]?.note ? ` · ${esc(noteMot(pick.ratings[S.me].note).toLowerCase())}` : ''}` : fVotes(pick)[S.me] === 'super' ? 'Très envie' : fVotes(pick)[S.me] === 'revoir' ? 'À revoir' : 'Dans tes envies'}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} ${esc(nameOf(other()))} aussi</span>` : ''}` : fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
         <div class="form-actions roulette-actions">${solo ? `<button class="btn" data-action="cine-open" data-id="${pick.id}">Voir la fiche</button>` : `<button class="btn" data-action="cine-watch" data-id="${pick.id}">On regarde ça !</button>`}<button class="btn ghost" data-again="1">Un autre</button></div>`);
       g.querySelector('[data-again]').addEventListener('click', () => cineSoir(kind, mood, pour));
       burst('sparkle', g.querySelector('.gacha-card'), 12);
