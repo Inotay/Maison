@@ -2610,7 +2610,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v243</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v244</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4146,6 +4146,8 @@ const ALGO_V = 2;   // v2 : il apprend aussi ce que compte chaque sorte d'indice
 function algoDu() {
   const r = algoMoi(), etape = r.etape || 0, avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
   if ((r.v || 1) < ALGO_V && avis >= 80) return true;
+  // beaucoup de nouveaux tons (ambiance, rythme) sur tes films notés depuis le dernier réglage : on refait le point
+  if (S.films.filter(f => f.ratings?.[S.me]?.note && f.tons?.tons).length - (r.tons || 0) >= 150) return true;
   if (etape < ALGO_PLAN.length) return (r.temps || 0) >= ALGO_PLAN[etape];
   return Date.now() - Date.parse(r.at || 0) > 4 * 864e5 && avis - (r.avis || 0) >= 20;
 }
@@ -4161,7 +4163,7 @@ function algoPeutEtre() {
     wk.onmessage = async ({ data }) => {
       clearTimeout(stop); wk.terminate(); algoTourne = false;
       const r = algoMoi(), avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
-      const v = { ...r, etape: Math.min(ALGO_PLAN.length, (r.etape || 0) + 1), at: new Date().toISOString(), avis, v: ALGO_V };
+      const v = { ...r, etape: Math.min(ALGO_PLAN.length, (r.etape || 0) + 1), at: new Date().toISOString(), avis, v: ALGO_V, tons: S.films.filter(f => f.ratings?.[S.me]?.note && f.tons?.tons).length };
       if (data?.ok) { v.mesure = { avant: data.avant, apres: data.apres }; if (data.adopte) v.w = data.w; v.dernier = data.adopte ? 'ajusté' : 'inchangé'; }
       else v.dernier = data?.raison || 'pas encore';
       await algoSauve(v); algoApplique();
@@ -5242,8 +5244,14 @@ async function azamiCall(body) {
 // L'instantané de l'app qu'elle reçoit avec chaque message : court, et seulement ce qui se dit.
 function azamiContexte() {
   const l = [], nom = e => e === S.me ? firstName() : nameOf(e);
-  const dues = S.chores.filter(c => choreStatus(c).due).map(c => `${c.title} (${c.turn ? nom(c.turn) : 'vous deux'}${choreStatus(c).late ? ', en retard' : ''})`);
-  l.push(`Corvées à faire : ${dues.length ? dues.slice(0, 8).join(' ; ') : 'aucune'}.`);
+  // le ménage, corvée par corvée : à qui le tour, quand et par qui, ce qui est dû, les machines en route
+  const men = S.chores.slice(0, 30).map(c => {
+    const st = choreStatus(c), q = seqOf(c), quand = c.last_done_at ? `faite ${ago(c.last_done_at)}${c.last_done_by ? ` par ${nom(c.last_done_by)}` : ''}` : 'jamais faite';
+    let machine = '';
+    if (q && c.started_at) { const e = q.steps[Math.min(c.step || 0, q.steps.length - 1)]; const fin = new Date(c.started_at).getTime() + seqMinutes(c, e) * 60e3; machine = Date.now() < fin ? `, ${e.doing || 'en route'} (fini dans ${Math.ceil((fin - Date.now()) / 60e3)} min)` : `, à l'étape suivante : ${q.steps[Math.min((c.step || 0) + 1, q.steps.length - 1)].meta || ''}`; }
+    return `${c.title} : ${c.turn ? `tour de ${nom(c.turn)}` : 'à vous deux'}, ${quand}, ${st.late ? 'EN RETARD' : st.due ? 'à faire aujourd’hui' : `prochaine ${st.label}`}${machine}`;
+  });
+  l.push(`MÉNAGE :\n${men.length ? men.join('\n') : 'aucune corvée'}`);
   const todo = S.tasks.filter(t => !t.done);
   l.push(`Choses à faire : ${todo.length ? todo.slice(0, 10).map(t => `${t.title}${t.assignee ? ` (${nom(t.assignee)})` : ''}${t.due_on ? `, pour le ${t.due_on}` : ''}`).join(' ; ') : 'rien'}.`);
   const shop = S.shopping.filter(s => !s.checked);
@@ -5379,6 +5387,8 @@ const AZ_FAIT = {
   tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
   menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
+  corvee: ['Cochée ! Le tour passe, la maison brille, et moi je surveille.', 'C’est noté dans le ménage. Je fais semblant d’avoir aidé.', 'Une de faite ! Tu mérites une sieste au soleil.'],
+  machine: ['C’est lancé. Je te préviens quand c’est fini, promis.', 'Le minuteur tourne. Je reste à côté de la machine, elle fait des bruits intéressants.'],
   message: ['Je le porte dans ma gueule, comme une lettre. Promis, je ne le mâchouille pas.', 'Message pris. Je le lui dis dès qu’elle passe. Enfin, dès qu’il passe. Enfin, l’autre.'],
 };
 const azNorm = s => norm(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim();
@@ -5401,6 +5411,29 @@ async function azamiAgir(a) {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, 'oui');
+    } else if (a.type === 'corvee') {
+      const c = azTrouve(S.chores, texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
+      const par = a.pour === 'autre' && other() ? other() : S.me;
+      if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 10 * 60e3) { azamiPose(`« ${c.title} » vient déjà d’être cochée. Bien joué, deux fois même.`, 'contente'); render(); return false; }
+      const next = c.fixed ? c.turn : (S.members.find(m => m.email !== par)?.email || par);   // le tour passe à l'autre que celui qui l'a faite
+      const q = seqOf(c);
+      await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: par, ...(q ? { step: 0, started_at: null } : { turn: next }) });
+      await api.insert('chore_log', { chore_id: c.id, title: q?.done || c.title, done_by: par });
+      await api.insert('wins', { kind: 'chore', title: q?.done || c.title, done_by: par, done_at: new Date().toISOString(), weight: c.weight || 2, icon: c.icon || null });
+    } else if (a.type === 'machine') {
+      const sorte = /lessive|linge|machine à laver/i.test(texte) ? 'lessive' : 'lavevaisselle';
+      const qui = a.pour === 'autre' && other() ? other() : S.me;
+      const c = S.chores.find(x => x.sorte === sorte && (!SEQ[sorte].personal || x.turn === qui)) || S.chores.find(x => x.sorte === sorte);
+      if (!c) { azamiPose(`Je ne trouve pas de ${SEQ[sorte].label.toLowerCase()} dans le ménage.`, 'curieuse'); render(); return false; }
+      const q = SEQ[sorte];
+      if (a.etape === 'fini') {
+        await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: qui });
+        await api.insert('chore_log', { chore_id: c.id, title: q.done, done_by: qui, weight: 1 });
+        await api.insert('wins', { kind: 'chore', title: q.done, done_by: qui, done_at: new Date().toISOString(), weight: 1, icon: c.icon || null });
+      } else {
+        const i = a.etape === 'sechage' ? Math.max(0, q.steps.findIndex(x => x.key === 'sechage')) : 0;
+        await api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null });
+      }
     } else return false;
     ok = true; loadSeq++; await loadAll().catch(() => {}); render();
   } catch (e) { console.warn('azami agir', e); ok = false; pourquoi = String(e?.message || e).slice(0, 80); }
@@ -5896,10 +5929,17 @@ const azamiNuage = (() => {
     // rectangle qui tient dedans fait ~79 % de la largeur et de la hauteur), plus 10 px de sécurité.
     if (!svg.dataset.obs) { svg.dataset.obs = '1'; new ResizeObserver(() => dessine(svg)).observe(box); }
     if (!croquis && !box.classList.contains('az-appel')) {
-      const ex = mode === 'c' ? .78 : .66, frac = Math.pow(.5, ex / 2), M = Math.max(w, h);
-      const pad = Math.round(((1 - frac) * M / 2 + 10) / 2) * 2;
-      const want = `${pad}px ${pad + (mode === 'c' ? 6 : 0)}px`;
-      if (box.dataset.pad !== want) { box.dataset.pad = want; box.style.padding = want; return; }   // la taille change : on redessinera
+      // calculée d'après le texte seul (la bulle sans sa marge) : sinon la marge se nourrit d'elle-même et, sur iPhone,
+      // la bulle peut osciller entre deux tailles (et tout ce qui est dessous tremble avec elle)
+      const ex = mode === 'c' ? .78 : .66, frac = Math.pow(.5, ex / 2);
+      const cs = getComputedStyle(box), ph = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight), pv = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const C = Math.max(w - ph, h - pv), pad = Math.round((((1 - frac) * C / 2 + 10) * 1.06) / 2) * 2;
+      const want = `${pad}px ${pad + (mode === 'c' ? 6 : 0)}px`, avant = parseFloat(box.dataset.pad || 'NaN'), n = Number(box.dataset.padN || 0);
+      const kk = box.dataset.k || '';
+      if (box.dataset.padK !== kk) { box.dataset.padK = kk; box.dataset.padN = '0'; }   // une nouvelle bulle : on recompte
+      if (box.dataset.pad !== want && (isNaN(avant) || (Math.abs(pad - avant) >= 4 && Number(box.dataset.padN || 0) < 3))) {
+        box.dataset.pad = want; box.dataset.padN = String(Number(box.dataset.padN || 0) + 1); box.style.padding = want; return;   // la taille change : on redessinera
+      }
     }
     const cle = `${w}x${h}:${mode}${vif ? 'v' : ''}${croquis ? 'q' + rad : ''}`; if (svg.dataset.cle === cle) return; svg.dataset.cle = cle;
     const M = 28;
