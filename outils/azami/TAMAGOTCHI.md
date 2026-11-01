@@ -96,6 +96,11 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
   coche une corvée (corvee, faite par moi ou par l'autre : le tour passe), lance le lave-vaisselle ou la lessive
   (machine : lancer, séchage, fini), et peut rappeler doucement un vrai retard, au plus une fois par jour.
 
+## Le mini-jeu (v248)
+- Pendant la partie, Azami quitte son coin et poursuit le plumeau partout sur l'écran (animation court en boucle,
+  l'image entière se déplace et se retourne), se met à l'affût de près, bondit ; le plumeau s'échappe ensuite à
+  l'autre bout de l'écran. 8 bonds pour gagner ; la partie s'arrête après 12 s sans toucher au plumeau ou 1 minute.
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.

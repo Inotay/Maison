@@ -60,6 +60,19 @@ def anims():
     for i, t in enumerate((.6, 1.3, 2.0)):
         a.at(f'Xc{i}', t, {'o': 0, 's': .4}, STEP).at(f'Xc{i}', t + .05, {'o': 1, 's': .6}, OUTQ).at(f'Xc{i}', t + .3, {'o': 1, 'y': -14, 's': 1}, SOFT).at(f'Xc{i}', t + .9, {'o': 1, 'y': -40, 'x': 6, 's': 1}, SOFT).at(f'Xc{i}', t + 1.3, {'o': 0, 'y': -60, 'x': 8, 's': 1.05}, LIN)
     out.append(a)
+    # ── court (boucle) : elle court sur place (dans l'app, c'est l'image qui se déplace vers le plumeau) ──
+    a = Anim('court', .36, loop=True, title='Azami · Court', desc='Elle court, les oreilles en arrière, la queue tendue : elle file vers le plumeau.')
+    P = .18
+    a.cycle('front-near', P, [(0, {'r': 26}, SOFT), (P / 2, {'r': -26}, SOFT), (P, {'r': 26}, SOFT)])
+    a.cycle('front-far', P, [(0, {'r': -26}, SOFT), (P / 2, {'r': 26}, SOFT), (P, {'r': -26}, SOFT)])
+    a.cycle('back-near', P, [(0, {'r': -24}, SOFT), (P / 2, {'r': 24}, SOFT), (P, {'r': -24}, SOFT)])
+    a.cycle('back-far', P, [(0, {'r': 24}, SOFT), (P / 2, {'r': -24}, SOFT), (P, {'r': 24}, SOFT)])
+    a.cycle('core', P, [(0, {'y': 0, 'r': -2}, SOFT), (P / 2, {'y': -7, 'r': 1}, SOFT), (P, {'y': 0, 'r': -2}, SOFT)])
+    a.cycle('head', P, [(0, {'y': 2, 'x': -4}, SOFT), (P / 2, {'y': -4, 'x': -4}, SOFT), (P, {'y': 2, 'x': -4}, SOFT)])
+    for e, r in (('ear-left', 26), ('ear-right', -26)): a.at(e, 0, {'r': r}, LIN).at(e, .36, {'r': r}, LIN)
+    a.at('tail', 0, {'r': 34}, LIN).at('tail', .36, {'r': 34}, LIN)
+    for p in ('pupils-l', 'pupils-r'): a.at(p, 0, {'x': -9, 'y': -2, 's': 1.1}, LIN).at(p, .36, {'x': -9, 'y': -2, 's': 1.1}, LIN)
+    out.append(a)
     return out
 
 if __name__ == '__main__':

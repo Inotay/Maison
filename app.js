@@ -2620,7 +2620,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v247</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v248</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5281,6 +5281,7 @@ function azamiContexte() {
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   l.push(tamaContexte());
+  if (azamiContexte.enReponseA) l.push(`TA BULLE À L'ÉCRAN (dite à l'instant, hors conversation) : « ${azamiContexte.enReponseA} ». ${firstName()} répond à CETTE bulle, pas à tes messages d'avant : un « oui » ou un « non » la concerne elle. Une ancienne proposition (recette, film…) n'est pas acceptée par ce oui.`);
   { const sm = azamiSansMots(); if (sm.length) l.push(`RÉPONSES SANS MOTS (${firstName()} t'a caressée au lieu d'écrire, c'est sa réponse, tendre) : ${sm.map(x => `à « ${x.bulle} » (${ago(new Date(x.at).toISOString())})`).join(' ; ')}.`); }
   if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
   return l.join('\n').slice(0, 14000);
@@ -5296,7 +5297,8 @@ function azamiContexte() {
 const AZ = { bulle: safeGet('maison-az-bulle') || '', at: Number(safeGet('maison-az-at') || 0), choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
 // Une bulle d'elle : on retient le texte et l'heure (une vieille bulle n'est jamais réaffichée au retour).
 function azamiPose(texte, humeur = 'calme', choix = []) {
-  AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.courrier = null; if (!choix.length) AZ.quiz = null; AZ.k++; AZ.at = Date.now();
+  // une nouvelle bulle efface la proposition d'avant (sinon un « oui » à la nouvelle bulle validait l'ancienne)
+  AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.courrier = null; AZ.action = null; if (!choix.length) AZ.quiz = null; AZ.k++; AZ.at = Date.now();
   safeSet('maison-az-bulle', texte); safeSet('maison-az-at', String(AZ.at));
   azamiEnvol();
 }
@@ -5733,6 +5735,7 @@ function tamaDire() {
 let zoomiesAt = 0;
 function tamaScene() {
   if (S.jeu && S.view !== 'maison') tamaJeuFin(false, true);   // on quitte l'accueil : le plumeau s'en va
+  if (S.jeu) return;   // pendant la partie, c'est la poursuite qui choisit son animation
   const img = document.querySelector('.hd img.azami'); if (!img) return;
   const t = tamaEtat();
   const essai = DEMO && /azami=tama:/.test(location.search) ? location.search.match(/azami=tama:(\w+)/)[1] : null;   // pour essayer : ?azami=tama:dort
@@ -5820,45 +5823,79 @@ const JEU_MOTS = {
 function tamaJeu() {
   if (azamiNuit()) { azamiPose(pick(JEU_MOTS.nuit), 'endormie'); render(); return; }
   const t = tamaEtat(); t.sieste = 0;
-  S.tamaMenu = null; S.jeu = { bonds: 0, vu: Date.now(), bondAt: 0 };
-  AZ.bulle = ''; render(); haptic(1); meow(true, .45, pick(['chirp', 'gazouille']));
+  S.tamaMenu = null; AZ.bulle = ''; render(); haptic(1); meow(true, .45, pick(['chirp', 'gazouille']));
   const hd = document.querySelector('.hd'), img = document.querySelector('.hd img.azami'); if (!hd || !img) return;
-  const el = document.createElement('div'); el.id = 'jouet'; el.innerHTML = JOUET_SVG; el.setAttribute('aria-label', 'Le plumeau : promène-le du doigt devant Azami');
-  const r = hd.getBoundingClientRect(), ri = img.getBoundingClientRect();
-  const pos = { x: r.left + r.width * .3, y: ri.top + ri.height * .35 + scrollY, vx: 0 };
+  const el = document.createElement('div'); el.id = 'jouet'; el.innerHTML = JOUET_SVG; el.setAttribute('aria-label', 'Le plumeau : promène-le du doigt, Azami le poursuit');
+  const ri = img.getBoundingClientRect();
+  const jeu = S.jeu = { bonds: 0, vu: Date.now(), bondAt: 0, el, img, x: 0, y: 0, etat: '', face: 1, debut: Date.now() };
+  // le plumeau : point d'accroche de la plume (en coordonnées de page)
+  const pos = { x: Math.max(60, ri.left - 120), y: ri.top + ri.height * .55 + scrollY, vx: 0 };
   const place = () => { el.style.transform = `translate(${pos.x - 45}px, ${pos.y - 190}px) rotate(${Math.max(-25, Math.min(25, -pos.vx * 1.4))}deg)`; };
   place(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  jeu.pos = pos;
   let drag = null;
   el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); drag = { dx: pos.x - e.pageX, dy: pos.y - e.pageY }; el.classList.add('tenu'); haptic(1); });
   el.addEventListener('pointermove', e => {
     if (!drag || !S.jeu) return;
-    const nx = e.pageX + drag.dx, ny = e.pageY + drag.dy; pos.vx = pos.vx * .6 + (nx - pos.x) * .4; pos.x = nx; pos.y = ny; place();
-    S.jeu.vu = Date.now(); tamaJeuBond(pos);
+    const nx = Math.max(20, Math.min(innerWidth - 20, e.pageX + drag.dx)), ny = Math.max(scrollY + 120, Math.min(scrollY + innerHeight - 60, e.pageY + drag.dy));
+    pos.vx = pos.vx * .6 + (nx - pos.x) * .4; pos.x = nx; pos.y = ny; place(); jeu.vu = Date.now();
   });
   const lache = () => { drag = null; el.classList.remove('tenu'); pos.vx = 0; place(); };
   el.addEventListener('pointerup', lache); el.addEventListener('pointercancel', lache);
-  S.jeu.el = el;
-  S.jeu.minute = setInterval(() => { if (S.jeu && Date.now() - S.jeu.vu > 10e3) tamaJeuFin(false, true); }, 1000);
+  img.classList.add('en-jeu');
+  // elle quitte son coin : l'image entière se déplace (translate) et se retourne (scale) selon où est le plumeau
+  const anim = nom => { if (jeu.etat === nom) return; jeu.etat = nom; img.src = reactSrc(nom); };
+  anim('guette');
+  const pas = () => {
+    if (S.jeu !== jeu) return;
+    const r0 = img.getBoundingClientRect(), cx0 = r0.left + r0.width / 2 - jeu.x, cy0 = r0.top + r0.height * .62 - jeu.y + scrollY;   // son point de départ
+    const bx = pos.x - cx0 + jeu.face * 52, by = Math.max(-40, Math.min(innerHeight * .7, pos.y + 70 - cy0));   // elle vise un peu à côté, la tête vers la plume
+    const dx = bx - jeu.x, dy = by - jeu.y, d = Math.hypot(dx, dy);
+    const enBond = Date.now() - jeu.bondAt < 1500;
+    if (!enBond) {
+      if (Math.abs(dx) > 8) jeu.face = dx > 0 ? -1 : 1;   // le dessin regarde à gauche : on le retourne pour aller à droite
+      // loin : elle court (plus vite si c'est loin) ; près : elle se met à l'affût un instant, puis elle bondit
+      if (d > 34) { const v = Math.min(d, 3.5 + Math.min(4, d / 90)); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('court'); jeu.pret = 0; }
+      else { if (!jeu.pret) jeu.pret = Date.now(); anim('guette'); if (Date.now() - jeu.pret > 650 && Date.now() - jeu.bondAt > 2200) { jeu.pret = 0; tamaJeuBond(); } }
+    }
+    img.style.translate = `${Math.round(jeu.x)}px ${Math.round(jeu.y)}px`;
+    img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`;
+    jeu.raf = requestAnimationFrame(pas);
+  };
+  jeu.raf = requestAnimationFrame(pas);
+  jeu.minute = setInterval(() => { if (S.jeu === jeu && (Date.now() - jeu.vu > 12e3 || Date.now() - jeu.debut > 60e3)) tamaJeuFin(jeu.bonds >= 3, true); }, 1000);
 }
-function tamaJeuBond(pos) {
-  const img = document.querySelector('.hd img.azami'); if (!img || !S.jeu) return;
-  const ri = img.getBoundingClientRect(), cx = ri.left + ri.width * .45, cy = ri.top + ri.height * .45 + scrollY;
-  const pres = Math.hypot(pos.x - cx, pos.y - cy) < ri.width * .5;
-  if (!pres || Date.now() - S.jeu.bondAt < 1700 || img.dataset.caresse) return;
-  S.jeu.bondAt = Date.now(); S.jeu.bonds++;
-  playOnImg(img, 'bondit', 1500); sfx('swish'); haptic('medium'); meow(true, .45, pick(['chirp', 'gazouille', 'mewmew']));
-  S.jeu.el?.classList.remove('touche'); void S.jeu.el?.offsetWidth; S.jeu.el?.classList.add('touche');
+function tamaJeuBond() {
+  const jeu = S.jeu; if (!jeu) return;
+  jeu.bondAt = Date.now(); jeu.bonds++; jeu.etat = 'bondit'; jeu.img.src = reactSrc('bondit');
+  sfx('swish'); haptic('medium'); meow(true, .45, pick(['chirp', 'gazouille', 'mewmew']));
+  jeu.el.classList.remove('touche'); void jeu.el.offsetWidth; jeu.el.classList.add('touche');
+  floatUp(jeu.el, `${jeu.bonds}`);
+  // le plumeau s'échappe : il saute un peu plus loin, à elle de courir
+  setTimeout(() => {
+    if (S.jeu !== jeu) return;
+    // loin d'elle, de l'autre côté de l'écran, plus haut ou plus bas : à elle de traverser
+    const p = jeu.pos, w = innerWidth; p.x = p.x < w / 2 ? w * (.62 + Math.random() * .3) : w * (.08 + Math.random() * .3);
+    p.y = scrollY + innerHeight * (.25 + Math.random() * .45); p.vx = 0;
+    jeu.el.style.transition = 'transform .35s cubic-bezier(.3,1.4,.6,1)'; jeu.el.style.transform = `translate(${p.x - 45}px, ${p.y - 190}px)`; setTimeout(() => { jeu.el.style.transition = ''; }, 380);
+  }, 700);
   const t = tamaEtat(); t.jeu = clamp100((t.jeu ?? 50) + 5); t.poids = Math.max(40, (t.poids ?? 50) - .4); tamaSave();
-  if (S.jeu.bonds >= 5) setTimeout(() => tamaJeuFin(true), 1500);
+  if (jeu.bonds >= 8) setTimeout(() => tamaJeuFin(true), 1500);
 }
 function tamaJeuFin(gagne, silence) {
-  if (!S.jeu) return;
-  const { el, minute, bonds } = S.jeu; clearInterval(minute); S.jeu = null;
+  const jeu = S.jeu; if (!jeu) return;
+  S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf);
+  const { el, img, bonds } = jeu;
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 350); }
+  // elle rentre dans son coin, en trottinant
+  if (img) {
+    img.style.transition = 'translate .7s cubic-bezier(.4,0,.2,1)'; img.style.translate = '0px 0px'; img.style.scale = '';
+    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.classList.remove('en-jeu'); delete img.dataset.tama; render(); }, 720);
+  }
   if (bonds) { const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); }
-  if (gagne) { azamiPose(pick(JEU_MOTS.fin), 'contente'); burst('sparkle', document.querySelector('.hd img.azami'), 10); }
+  if (gagne) { azamiPose(bonds >= 8 ? pick(JEU_MOTS.fin) : `${bonds} fois attrapé ! ${pick(['Pas mal pour une chatte avec un petit bide.', 'Encore un peu et je l’avais pour de bon.', 'Asobō ! On rejoue bientôt ?'])}`, 'contente'); }
   else if (!silence && bonds < 2) azamiPose(pick(JEU_MOTS.stop), 'boudeuse');
-  render();
+  setTimeout(render, 740);
 }
 // Ce qu'elle sait de son propre état, pour en parler elle-même quand on lui parle.
 function tamaContexte() {
@@ -6014,12 +6051,15 @@ function azamiEcrire() {
 }
 async function azamiEnvoyer(txt, geste = false) {
   txt = (txt || '').trim(); if (!txt || AZ.busy) return;
+  // la bulle à laquelle on répond : si c'est l'app qui l'a posée (fin de partie, repas, remarque…), le modèle ne l'a
+  // pas dans la conversation ; on la lui dit, sinon un « oui » répondait à sa dernière vraie question
+  const enReponseA = AZ.bulle && AZ.bulle !== AZ.dernierModele && Date.now() - (AZ.at || 0) < 15 * 60e3 ? AZ.bulle : '';
   AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.action = null; AZ.busy = true; render(); if (!geste) haptic(1);
   try {
     const now = new Date();
-    azamiContexte.texte = txt;
+    azamiContexte.texte = txt; azamiContexte.enReponseA = enReponseA;
     const r = await azamiCall({ action: 'parler', texte: txt, geste, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
-    AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3));
+    AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3)); AZ.dernierModele = r.reponse;
     AZ.action = r.action && r.action.type ? r.action : null;
     if (AZ.action && AZ.action.demande) { const a = AZ.action; AZ.action = null; render(); await azamiAgir(a); return; }   // demandé par la personne : tout de suite
     render();

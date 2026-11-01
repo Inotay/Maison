@@ -2127,3 +2127,5 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 @media (prefers-reduced-motion: reduce) { .hd img.azami.court, .hd img.azami.sen-va { animation: none; } }
 .azmem-portrait { margin: 6px 0 14px; }
 .azmem-p { white-space: pre-wrap; font-size: 15px; line-height: 1.45; margin: 8px 0 0; }
+/* Pendant la partie, Azami sort de son coin et poursuit le plumeau partout sur l'écran. */
+.hd img.azami.en-jeu { position: relative; z-index: 55; pointer-events: none; }
