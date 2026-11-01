@@ -129,14 +129,14 @@ export function pop(el) {
 const SAID = {};
 export function praise(kind) {
   const lists = {
-    task: ['Et hop.', 'Une de moins.', 'Bien joué.', 'Azami approuve.', 'Propre.', 'Ça, c\'est fait.', 'Joli.', 'Boum.'],
+    task: ['Et hop.', 'Une de moins.', 'Bien joué.', 'Azami approuve.', 'Propre.', 'Ça, c’est fait.', 'Joli.', 'Boum.'],
     all: ['Tout est fait. Azami fait la sieste.', 'Plus rien à faire. Vraiment.', 'Liste vide, tête légère.'],
-    chore: ['Merci !', 'Héros du ménage.', 'Azami ronronne.', 'Ça brille.', 'Quel appartement.', 'Respect.'],
+    chore: ['Merci !', 'Héroïsme domestique.', 'Azami ronronne.', 'Ça brille.', 'Quel appartement.', 'Respect.'],
     shop: ['Dans le panier.', 'Hop.', 'Trouvé.', 'Coché.', 'Nickel.'],
     basket: ['Panier complet. Rentrez vite.', 'Tout est trouvé, bravo.', 'Courses terminées.'],
-    settle: ['Vous êtes quittes. Rien n\'est effacé.', 'Comptes à zéro, comme neufs.'],
-    expense: ['Noté.', 'C\'est compté.', 'Dans les comptes.'],
-    care: ['Déposé avec soin.', 'Dans sa boîte.', 'C\'est dit, doucement.'],
+    settle: ['Vous êtes quittes. Rien n’est effacé.', 'Comptes à zéro, comme neufs.'],
+    expense: ['Noté.', 'C’est compté.', 'Dans les comptes.'],
+    care: ['Déposé avec soin.', 'Dans sa boîte.', 'C’est dit, doucement.'],
     match: ['Vous en avez envie tous les deux.'],
   };
   const l = lists[kind] || lists.task;

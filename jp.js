@@ -2,7 +2,7 @@
 export const MOTS = [
   // maison, quotidien
   { k: 'おはよう', r: 'ohayō', f: 'bonjour (le matin)', p: 'maison' }, { k: 'こんにちは', r: 'konnichiwa', f: 'bonjour', p: 'maison' }, { k: 'こんばんは', r: 'konbanwa', f: 'bonsoir', p: 'maison' },
-  { k: 'おやすみ', r: 'oyasumi', f: 'bonne nuit', p: 'maison' }, { k: 'ありがとう', r: 'arigatō', f: 'merci', p: 'maison' }, { k: 'ただいま', r: 'tadaima', f: 'je suis rentré', p: 'maison' },
+  { k: 'おやすみ', r: 'oyasumi', f: 'bonne nuit', p: 'maison' }, { k: 'ありがとう', r: 'arigatō', f: 'merci', p: 'maison' }, { k: 'ただいま', r: 'tadaima', f: 'je suis là ! (en rentrant)', p: 'maison' },
   { k: 'おかえり', r: 'okaeri', f: 'bon retour à la maison', p: 'maison' }, { k: 'いえ', r: 'ie', f: 'la maison', p: 'maison' }, { k: 'ねこ', r: 'neko', f: 'le chat', p: 'maison' },
   { k: 'かわいい', r: 'kawaii', f: 'mignon', p: 'maison' }, { k: 'ねむい', r: 'nemui', f: 'j’ai sommeil', p: 'maison' }, { k: 'げんき', r: 'genki', f: 'en forme', p: 'maison' },
   { k: 'だいすき', r: 'daisuki', f: 'j’adore', p: 'maison' }, { k: 'すごい', r: 'sugoi', f: 'génial', p: 'maison' }, { k: 'よし', r: 'yoshi', f: 'allez, c’est parti', p: 'maison' },
@@ -70,7 +70,7 @@ export const LECONS = [
   { t: 'Les courses', mots: ['かいもの', 'たまご', 'やさい', 'みず'] },
   { t: 'La rangée M', kana: ['ま', 'み', 'む', 'め', 'も'], mots: ['みみ', 'め', 'もも'] },
   { t: 'À table', mots: ['いただきます', 'ごちそうさま', 'おいしい', 'ごはん'] },
-  { t: 'Y, W et N', kana: ['や', 'ゆ', 'よ', 'わ', 'を', 'ん'], mots: ['やま', 'ゆき', 'ほん'] },
+  { t: 'Y, W et N (を s’écrit « wo » mais se dit « o »)', kana: ['や', 'ゆ', 'よ', 'わ', 'を', 'ん'], mots: ['やま', 'ゆき', 'ほん'] },
   { t: 'Le soir à deux', mots: ['よる', 'いっしょに', 'たのしい', 'あいしてる'] },
   { t: 'La rangée R', kana: ['ら', 'り', 'る', 'れ', 'ろ'], mots: ['りんご', 'はる', 'さる'] },
   { t: 'Petites phrases', mots: ['ねこがすき', 'おなかすいた', 'いってきます', 'いってらっしゃい'] },
@@ -91,7 +91,7 @@ export const ORAL = {
   arigato: { r: 'arigatō gozaimasu', k: 'ありがとうございます', j: 'ありがとうございます', f: 'merci (poli)', n: 'Entre proches : « arigatō ».' },
   sumimasen: { r: 'sumimasen', k: 'すみません', j: 'すみません', f: 'excusez-moi, pardon', n: 'Le i se dit à peine : « sum’massen ». Sert aussi à appeler un serveur.' },
   hai: { r: 'hai', k: 'はい', j: 'はい', f: 'oui' },
-  iie: { r: 'iie', k: 'いいえ', j: 'いいえ', f: 'non', n: 'Trois voyelles bien séparées : i‑i‑é.' },
+  iie: { r: 'iie', k: 'いいえ', j: 'いいえ', f: 'non', n: 'Un i long, puis é : « ii‑é ».' },
   daijobu: { r: 'daijōbu', k: 'だいじょうぶ', j: '大丈夫', f: 'ça va, pas de souci', n: 'Marche en question (« daijōbu ? », ça va ?) et en réponse.' },
   hajimemashite: { r: 'hajimemashite', k: 'はじめまして', j: 'はじめまして', f: 'enchanté (première rencontre)' },
   watashi: { r: 'watashi wa {nom} desu', k: 'わたしは {nom} です', j: '私は{nom}です', f: 'je suis {nom}', re: '(私|わたし|あたし)は.{1,10}です', n: '« desu » : le u final presque muet, « dess ».' },
@@ -123,7 +123,7 @@ export const ORAL = {
   gochisosama: { r: 'gochisōsama deshita', k: 'ごちそうさまでした', j: 'ごちそうさまでした', f: 'merci pour ce repas (après)', n: '« deshita » : le i s’efface, « dechta ».' },
   oishii: { r: 'oishii', k: 'おいしい', j: '美味しい', f: 'délicieux' },
   onaka: { r: 'onaka ga sukimashita', k: 'おなかが すきました', j: 'お腹が空きました', f: 'j’ai faim' },
-  tadaima: { r: 'tadaima', k: 'ただいま', j: 'ただいま', f: 'je suis rentré(e) !' },
+  tadaima: { r: 'tadaima', k: 'ただいま', j: 'ただいま', f: 'je suis là ! (en rentrant)' },
   okaeri: { r: 'okaeri', k: 'おかえり', j: 'おかえり', f: 'bon retour (à qui rentre)' },
   ittekimasu: { r: 'ittekimasu', k: 'いってきます', j: '行ってきます', f: 'j’y vais (en partant)', n: 'Le double t : une petite pause avant, « it‑té ».' },
   itterasshai: { r: 'itterasshai', k: 'いってらっしゃい', j: '行ってらっしゃい', f: 'bonne journée (à qui part)' },
@@ -152,6 +152,9 @@ export const ORAL = {
   san: { r: 'san', k: 'さん', j: '三', f: 'trois (3)', alt: ['3'] },
   yon: { r: 'yon', k: 'よん', j: '四', f: 'quatre (4)', alt: ['4'] },
   go: { r: 'go', k: 'ご', j: '五', f: 'cinq (5)', alt: ['5'] },
+  sukidayo: { r: 'suki da yo', k: 'すきだよ', j: '好きだよ', f: 'je t’aime bien, tu me plais (doux)', n: 'Plus courant que « aishiteru » : on le dit vraiment.' },
+  isshoniiyo: { r: 'issho ni iyō', k: 'いっしょに いよう', j: '一緒にいよう', f: 'restons ensemble' },
+  gyu: { r: 'gyū shite', k: 'ぎゅうして', j: 'ぎゅうして', f: 'serre-moi fort (un câlin)', n: '« gyū » : le bruit d’un câlin bien serré.' },
   aishiteru: { r: 'aishiteru', k: 'あいしてる', j: '愛してる', f: 'je t’aime', n: 'Les Japonais le disent rarement ; « daisuki » est plus courant.' },
 };
 // gram : le point de grammaire de la leçon (montré avant les phrases, avec des exemples à écouter)
@@ -173,5 +176,5 @@ export const LECONS_ORAL = [
   { t: 'Proposer', items: ['mimasu', 'isshoni', 'eigaomimasenka'], gram: { t: '-mashō et -masen ka', txt: '-mashō : « faisons… » ; -masen ka : « et si on… ? », une invitation douce (littéralement « on ne regarde pas ? »).', ex: ['isshoni', 'eigaomimasenka'] } },
   { t: 'Ce qu’on ressent', items: ['ureshii', 'tanoshii', 'nemui', 'tsukaremashita'] },
   { t: 'Compter jusqu’à cinq', items: ['ichi', 'ni', 'san', 'yon', 'go'] },
-  { t: 'Les mots doux', items: ['aishiteru', 'daisuki', 'okaeri', 'oyasumi'] },
+  { t: 'Les mots doux', items: ['sukidayo', 'aishiteru', 'isshoniiyo', 'gyu'] },
 ];

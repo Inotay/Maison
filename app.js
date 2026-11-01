@@ -26,7 +26,7 @@ function greeting(h = new Date().getHours()) {
   if (h < 9) return ['Bonjour', 'v44_etirement'];
   if (h < 11) return ['Bonne matinée', 'v44_jeu'];
   if (h < 14) return ['Bon midi', 'v44_toilette'];
-  if (h < 18) return ['Bonne après-midi', 'v44_marche'];
+  if (h < 18) return ['Bon après-midi', 'v44_marche'];
   return ['Bonsoir', 'v44_miaulement'];
 }
 // Azami : une image par scène, chargée une fois au démarrage et déplacée dans la page
@@ -71,9 +71,9 @@ function openTicket({ where, n, missing = '' }) {
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card" role="dialog" aria-label="Ticket de caisse">
     <img class="ticket-icon" src="icons/themes/recu.webp" alt="">
-    <p class="ticket-title">C'était combien ?</p>
+    <p class="ticket-title">C’était combien ?</p>
     <p class="ticket-sub">${esc(where)} · ${pl(n, 'article', 'articles')}. Ça part directement dans les dépenses.</p>
-    ${missing ? `<p class="ticket-miss">⚠ Il manque encore pour le menu : ${esc(missing)}. C'est resté sur la liste.</p>` : ''}
+    ${missing ? `<p class="ticket-miss">⚠ Il manque encore pour le menu : ${esc(missing)}. C’est resté sur la liste.</p>` : ''}
     <div class="row"><div class="grow"><label class="sr" for="ticket-amount">Montant</label><input class="field amount-input big" id="ticket-amount" inputmode="decimal" placeholder="0.00" autocomplete="off"></div><span class="ticket-cur">CHF</span></div>
     <p class="chip-label">Qui a payé ?</p>
     <div class="chips">${S.members.map(m => `<button type="button" data-action="ticket-pay" data-who="${esc(m.email)}" aria-pressed="${m.email === S.me}">${esc(m.email === S.me ? 'Moi' : m.name)}</button>`).join('')}</div>
@@ -195,7 +195,7 @@ function isoDate(d) { const x = new Date(d); return `${x.getFullYear()}-${String
 
 function relDay(dateStr) {
   const d = dayDiff(new Date(dateStr + 'T12:00'), new Date());
-  if (d === 0) return "aujourd'hui";
+  if (d === 0) return "aujourd’hui";
   if (d === 1) return 'demain';
   if (d === -1) return 'hier';
   if (d < 0 && d >= -7) return `il y a ${pl(-d, 'jour', 'jours')}`;
@@ -207,7 +207,7 @@ function relDay(dateStr) {
 function ago(iso) {
   const ms = Date.now() - new Date(iso).getTime();
   const min = Math.round(ms / 60000);
-  if (min < 1) return "à l'instant";
+  if (min < 1) return "à l’instant";
   if (min < 60) return `il y a ${min} min`;
   const h = Math.round(min / 60);
   const dd = dayDiff(new Date(), new Date(iso));
@@ -222,11 +222,11 @@ const appUrl = () => location.origin + location.pathname;
 function authError(e) {
   const m = (e?.message || '').toLowerCase();
   if (m.includes('invalid login')) return 'Adresse ou mot de passe incorrect.';
-  if (m.includes('not confirmed')) return "Confirme d'abord ton adresse avec le lien reçu par e-mail.";
+  if (m.includes('not confirmed')) return "Confirme d’abord ton adresse avec le lien reçu par e-mail.";
   if (m.includes('already registered') || m.includes('already been registered')) return 'Ce compte existe déjà. Connecte-toi.';
   if (m.includes('password') && (m.includes('at least') || m.includes('short') || m.includes('weak'))) return 'Mot de passe trop court ou trop simple.';
-  if (m.includes('rate') || m.includes('security purposes')) return "Trop d'essais. Attends une minute et réessaie.";
-  return "Ça n'a pas marché. Vérifie ta connexion et réessaie.";
+  if (m.includes('rate') || m.includes('security purposes')) return "Trop d’essais. Attends une minute et réessaie.";
+  return "Ça n’a pas marché. Vérifie ta connexion et réessaie.";
 }
 
 // Azami miaule de temps en temps. Un vrai enregistrement dans sounds/azami.m4a
@@ -367,9 +367,14 @@ function meow(force, volume = .6, kind = null) {
   } catch {}
 }
 
+// Typographie française au rendu : espace fine insécable avant ! ? ; : et à l'intérieur des guillemets (le « ? »
+// ne se retrouve plus seul en début de ligne dans une bulle étroite), apostrophe typographique.
+function typo(t) {
+  return String(t ?? '').replace(/([A-Za-zÀ-ÿ])'([A-Za-zÀ-ÿ])/g, '$1’$2').replace(/[ \u00a0]([!?;:»])/g, '\u202f$1').replace(/« /g, '«\u202f');
+}
 function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  t.textContent = typo(msg);
   t.classList.add('on');
   clearTimeout(toast.t);
   toast.t = setTimeout(() => t.classList.remove('on'), 2600);
@@ -478,7 +483,7 @@ function demoSeed() {
     ],
     chores: [
       { id: uid(), title: 'Vaisselle', every_days: 3, weight: 1, fixed: true, turn: null, last_done_at: iso(4), last_done_by: M, created_by: Y, created_at: iso(30) },
-      { id: uid(), title: "Vider la caisse d'Azami", every_days: 1, fixed: true, turn: M, last_done_at: iso(1), last_done_by: M, created_by: Y, created_at: iso(30) },
+      { id: uid(), title: "Vider la caisse d’Azami", every_days: 1, fixed: true, turn: M, last_done_at: iso(1), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Aspirateur', every_days: 7, turn: M, last_done_at: iso(3), last_done_by: Y, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Salle de bain', every_days: 14, weight: 3, turn: Y, last_done_at: iso(10), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Changer les draps', every_days: 14, turn: M, last_done_at: null, last_done_by: null, created_by: M, created_at: iso(30) },
@@ -491,7 +496,7 @@ function demoSeed() {
       { id: uid(), kind: 'chore', title: 'Aspirateur', done_by: Y, done_at: iso(1), weight: 2 },
       { id: uid(), kind: 'task', title: 'Rendre le colis', done_by: M, done_at: iso(1), weight: 1 },
       { id: uid(), kind: 'shop', title: 'Courses du samedi', done_by: Y, done_at: iso(2), weight: 1 },
-      { id: uid(), kind: 'chore', title: 'Litière d\'Azami', done_by: M, done_at: iso(2), weight: 1 },
+      { id: uid(), kind: 'chore', title: 'Litière d’Azami', done_by: M, done_at: iso(2), weight: 1 },
       { id: uid(), kind: 'chore', title: 'Salle de bain', done_by: Y, done_at: iso(3), weight: 3 },
       { id: uid(), kind: 'task', title: 'Appeler la gérance', done_by: Y, done_at: iso(5), weight: 1 },
       { id: uid(), kind: 'chore', title: 'Sortir les poubelles', done_by: M, done_at: iso(8), weight: 1 },
@@ -509,7 +514,7 @@ function demoSeed() {
       { id: uid(), body: 'J’ai mis le double des clés dans le tiroir de l’entrée.', important: false, pinned: false, author: Y, created_at: iso(2) },
     ],
     care_messages: [
-      { id: uid(), author: M, recipient: Y, kind: 'merci', body: "Merci d'avoir tout rangé dimanche pendant que je travaillais. Ça m'a fait du bien de rentrer dans un appart calme.", wants_talk: false, read_at: null, created_at: iso(0.3) },
+      { id: uid(), author: M, recipient: Y, kind: 'merci', body: "Merci d’avoir tout rangé dimanche pendant que je travaillais. Ça m’a fait du bien de rentrer dans un appart calme.", wants_talk: false, read_at: null, created_at: iso(0.3) },
     ],
     icon_hints: [],
   };
@@ -523,7 +528,7 @@ let swReg = null;
 let seen = { care: new Set(), primed: false };
 
 async function enableNotifications() {
-  if (!('Notification' in window)) { toast('Pas de notifications sur cet appareil. Installe l\'app sur l\'écran d\'accueil.'); return; }
+  if (!('Notification' in window)) { toast('Pas de notifications sur cet appareil. Installe l’app sur l’écran d’accueil.'); return; }
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') { toast('Notifications refusées dans les réglages.'); render(); return; }
   safeSet('maison-notif', '1');
@@ -576,7 +581,7 @@ function notifyNew() {
   const mine = S.care.filter(c => c.recipient === S.me && !c.read_at);
   if (seen.primed && notifOn() && document.hidden) {
     const fresh = mine.filter(c => !seen.care.has(c.id));
-    if (fresh.length) show('Un mot dans ta boîte', `${nameOf(fresh[0].author)} t'a écrit.`, 'care');
+    if (fresh.length) show('Un mot dans ta boîte', `${nameOf(fresh[0].author)} t’a écrit.`, 'care');
   }
   mine.forEach(c => seen.care.add(c.id));
   seen.primed = true;
@@ -631,7 +636,7 @@ function iconHtml(v, cls = '') {
   return w.img ? `<img class="ticon ${cls}" src="icons/themes/${w.img}.webp" alt="" width="34" height="34" loading="lazy">` : `<span class="ticon emoji ${cls}">${esc(w.emoji)}</span>`;
 }
 function iconBtn(type, row) {
-  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l'icône" aria-expanded="${S.pick?.id === row.id}">${iconHtml(displayIcon(type, row))}</button>`;
+  return `<button class="icon-btn" data-action="pick" data-type="${type}" data-id="${row.id}" aria-label="Changer l’icône" aria-expanded="${S.pick?.id === row.id}">${iconHtml(displayIcon(type, row))}</button>`;
 }
 function iconPicker(type, row) {
   if (S.pick?.id !== row.id) return '';
@@ -810,7 +815,7 @@ async function refresh() {
     S.offline = true;
     if (!S.members.length) loadSnapshot();
     render();
-    if (S.members.length) toast('Hors-ligne : lecture seule.');
+    if (S.members.length) toast('Hors ligne : lecture seule.');
   }
 }
 document.addEventListener('focusout', () => { if (refreshPending) { refreshPending = false; setTimeout(refresh, 150); } });
@@ -835,7 +840,7 @@ function scheduleRefresh() {
 // Une action à la fois par élément : un double tap n'enregistre pas deux fois.
 const pending = new Set();
 async function run(fn, okMsg, key = 'global') {
-  if (S.offline) { toast('Hors-ligne : impossible d\'enregistrer pour le moment.'); return; }
+  if (S.offline) { toast('Hors ligne : impossible d’enregistrer pour le moment.'); return; }
   if (pending.has(key)) return;
   pending.add(key);
   try { await fn(); }
@@ -849,11 +854,11 @@ async function run(fn, okMsg, key = 'global') {
 
 // Une action sur le calendrier, puis relecture.
 async function runAgenda(fn, okMsg) {
-  if (S.offline) { toast('Hors-ligne : impossible pour le moment.'); return false; }
+  if (S.offline) { toast('Hors ligne : impossible pour le moment.'); return false; }
   if (pending.has('agenda')) return false;
   pending.add('agenda');
   try { await fn(); if (okMsg) toast(okMsg); await loadAgenda(); return true; }
-  catch (e) { console.error(e); toast(e.message || "Ça n'a pas marché."); render(); return false; }
+  catch (e) { console.error(e); toast(e.message || "Ça n’a pas marché."); render(); return false; }
   finally { pending.delete('agenda'); }
 }
 
@@ -1023,7 +1028,7 @@ function choreStatus(c) {
   const d = dayDiff(due, new Date());
   if (d > 1) return { d, label: `dans ${d} jours`, due: false, late: false };
   if (d === 1) return { d, label: 'demain', due: false, late: false };
-  if (d === 0) return { d, label: "aujourd'hui", due: true, late: false };
+  if (d === 0) return { d, label: "aujourd’hui", due: true, late: false };
   return { d, label: -d === 1 ? 'attend depuis hier' : `attend depuis ${pl(-d, 'jour', 'jours')}`, due: true, late: true };
 }
 
@@ -1098,12 +1103,12 @@ const PRIO_CHOICES = [['auto', 'Auto'], ['vital', 'Vitale'], ['important', 'Impo
 const PRIO_TAG = { vital: 'Vital', important: 'Important', normal: '', later: 'Peut attendre' };
 function calmBtn(x) {
   const r = x.row;
-  if (x.kind === 'task') return `<button class="btn calm-do" data-action="task-toggle" data-id="${r.id}">C'est fait</button>`;
+  if (x.kind === 'task') return `<button class="btn calm-do" data-action="task-toggle" data-id="${r.id}">C’est fait</button>`;
   const q = seqOf(r);
   if (q) return `<button class="btn calm-do" data-action="seq-step" data-id="${r.id}" data-i="0">${esc(q.steps[0].btn)}</button>`;
-  return `<button class="btn calm-do" id="done-${r.id}" data-action="chore-done" data-id="${r.id}">C'est fait</button>`;
+  return `<button class="btn calm-do" id="done-${r.id}" data-action="chore-done" data-id="${r.id}">C’est fait</button>`;
 }
-const calmLate = x => x.late > 0 ? (x.late === 1 ? 'attend depuis hier' : `attend depuis ${x.late} jours`) : x.kind === 'task' && x.row.due_on ? relDay(x.row.due_on) : "aujourd'hui";
+const calmLate = x => x.late > 0 ? (x.late === 1 ? 'attend depuis hier' : `attend depuis ${x.late} jours`) : x.kind === 'task' && x.row.due_on ? relDay(x.row.due_on) : "aujourd’hui";
 const calmTitle = x => x.kind === 'chore' && /^vaisselle$/i.test(x.row.title.trim()) ? 'Vaisselle à la main' : x.row.title;
 function helpPending(x) { return S.help.find(h => h.item_id === x.row.id && h.from_email === S.me && !isRappel(h) && (!h.status || h.status === 'ensemble') && Date.now() - new Date(h.created_at).getTime() < 2 * DAY); }
 function calmSection() {
@@ -1130,7 +1135,7 @@ function calmSection() {
   };
   const exitGoal = o.canExit ? '' : `<p class="calm-goal">Le mode calme s’arrête tout seul quand plus rien de vital ou d’important n’est en retard (encore ${o.urgent.length}) et qu’il reste 2 retards au plus (il y en a ${o.late.length}).${st.start ? ` <span class="calm-bar" style="--p:${Math.max(4, Math.min(100, Math.round((1 - o.late.length / Math.max(st.start, o.late.length)) * 100)))}%"></span>` : ''}</p>`;
   return `<section class="calm" aria-label="Mode calme">
-    <div class="calm-head"><p class="calm-kicker">Mode calme</p>${doneToday ? `<p class="calm-done">Fait aujourd'hui : <b>${doneToday}</b></p>` : ''}</div>
+    <div class="calm-head"><p class="calm-kicker">Mode calme</p>${doneToday ? `<p class="calm-done">Fait aujourd’hui : <b>${doneToday}</b></p>` : ''}</div>
     <h2 class="calm-title">${first ? 'Une chose à la fois.' : 'On souffle.'}</h2>
     <p class="calm-sub">${esc(sub)}</p>
     ${first ? `<p class="chip-label">Commence par ça</p>${row(first, true)}` : ''}
@@ -1138,7 +1143,7 @@ function calmSection() {
     ${rest.length ? `<details class="calm-rest" data-fold="calm-rest"><summary>Le reste peut attendre (${rest.length})</summary>${rest.map(x => row(x)).join('')}
       ${rest.some(x => x.p !== 'vital') ? `<button class="btn ghost small" data-action="calm-snooze">Repousser tout ça de 3 jours</button>` : ''}</details>` : ''}
     ${exitGoal}
-    <div class="calm-foot">${o2 ? `<button class="btn ghost small" data-action="help-open" data-kind="" data-id="">J'ai besoin de souffler</button>` : ''}<button class="link" data-action="calm-off">Revenir à la vue normale</button></div>
+    <div class="calm-foot">${o2 ? `<button class="btn ghost small" data-action="help-open" data-kind="" data-id="">J’ai besoin de souffler</button>` : ''}<button class="link" data-action="calm-off">Revenir à la vue normale</button></div>
   </section>`;
 }
 // Demandes d'aide reçues (et réponses à mes demandes) : en haut de la page Maison.
@@ -1329,7 +1334,7 @@ function visitText(t) {
   if (meP === 'maman') t = t.replace(/\bcomme maman\b/gi, 'comme toi');
   t = t.replace(/\{toi\}/g, nameOf(S.me) || 'toi').replace(/\{autre\}/g, other() ? nameOf(other()) : 'l’autre');
   // Les mamans souris et kangourous des blagues restent des mamans.
-  return t.replace(/(\b(?:une|la|Une|La|qu'une)\s)?\b([Pp]apa|[Mm]aman)\b(?!\s(?:souris|kangourou))/g, (m, det, w) => det ? m : nameOfP(w.toLowerCase()));
+  return typo(t.replace(/(\b(?:une|la|Une|La|qu['’]une)\s)?\b([Pp]apa|[Mm]aman)\b(?!\s(?:souris|kangourou))/g, (m, det, w) => det ? m : nameOfP(w.toLowerCase())));
 }
 function visitPick(doneToday, kind) {
   // D'abord ce que personne de vous deux n'a encore découvert.
@@ -1681,7 +1686,7 @@ function openHelp(kind, id) {
   const old = document.getElementById('ticket'); if (old) old.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   const opts = row ? [['remplacer', 'Tu peux le faire à ma place ?'], ['ensemble', 'On le fait ensemble ?']] : [['souffler', 'J’ai besoin de souffler, tu peux prendre le relais ?']];
-  box.innerHTML = `<div class="ticket-card help-sheet" role="dialog" aria-label="Demander de l'aide"><p class="ticket-title">Demander à ${esc(nameOf(o))}</p>${label ? `<p class="ticket-sub">${esc(label)}</p>` : ''}
+  box.innerHTML = `<div class="ticket-card help-sheet" role="dialog" aria-label="Demander de l’aide"><p class="ticket-title">Demander à ${esc(nameOf(o))}</p>${label ? `<p class="ticket-sub">${esc(label)}</p>` : ''}
     <div class="help-opts">${opts.map(([k, l]) => `<button class="btn ${k === opts[0][0] ? '' : 'ghost'}" data-action="help-send" data-kind="${kind || ''}" data-id="${id || ''}" data-ask="${k}">${esc(l)}</button>`).join('')}</div>
     <p class="hint">${esc(nameOf(o))} reçoit une notification et peut répondre en un geste.</p>
     <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Annuler</button></div></div>`;
@@ -1719,7 +1724,7 @@ function nav() {
 }
 
 function demoBar() {
-  if (S.offline) return `<div class="demo"><span>Hors-ligne, lecture seule. Dernière synchro ${esc(S.snapshotAt ? ago(new Date(S.snapshotAt).toISOString()) : 'inconnue')}.</span><button class="link" data-action="retry">Réessayer</button></div>`;
+  if (S.offline) return `<div class="demo"><span>Hors ligne, lecture seule. Dernière synchro ${esc(S.snapshotAt ? ago(new Date(S.snapshotAt).toISOString()) : 'inconnue')}.</span><button class="link" data-action="retry">Réessayer</button></div>`;
   if (!DEMO) return '';
   return `<div class="demo"><span>Démo : données sur cet appareil</span><button class="link" data-action="demo-swap">Voir comme ${esc(nameOf(other()))}</button></div>`;
 }
@@ -2271,6 +2276,8 @@ function tipSave(k, v = true) {
 }
 const guideKey = () => S.view === 'recettes' ? (S.cook ? 'cook' : S.recette ? 'fiche' : 'recettes') : S.view;
 const guideBtn = () => GUIDE[guideKey()] ? `<button type="button" class="guide-q" data-action="guide-page" aria-label="Comment ça marche ici ?">?</button>` : '';
+// le guide parle de « l'autre » par son prénom (il était écrit pour Mariana : Yatoni y lisait son propre nom)
+const guideTxt = t => String(t).replaceAll('{autre}', other() ? nameOf(other()) : 'l’autre');
 function openTour(i = 0) {
   const st = TOUR[i]; if (!st) return;
   let box = document.getElementById('tour');
@@ -2281,7 +2288,7 @@ function openTour(i = 0) {
     <img class="tour-azami" src="${azamiSrc(st.scene)}" alt="" width="150" height="150">
     <p class="tour-step">${i + 1} / ${TOUR.length}</p>
     <h2 class="tour-title">${esc(st.title)}</h2>
-    <ul class="tour-points">${st.points.map(p => `<li>${esc(p)}</li>`).join('')}</ul>
+    <ul class="tour-points">${st.points.map(p => `<li>${esc(guideTxt(p))}</li>`).join('')}</ul>
     ${st.notif && !DEMO && !notifOn() ? `<button class="btn ghost" data-tour="notif">Activer les notifications</button>` : ''}
     <div class="tour-actions">${i ? '<button class="btn ghost" data-tour="prev">Retour</button>' : '<button class="link" data-tour="skip">Passer le guide</button>'}<button class="btn" data-tour="${last ? 'end' : 'next'}">${last ? 'C’est parti' : 'Suivant'}</button></div>
     <div class="tour-dots" aria-hidden="true">${TOUR.map((_, k) => `<span class="${k === i ? 'on' : ''}"></span>`).join('')}</div></div>`;
@@ -2294,7 +2301,7 @@ function openGuidePage(k = guideKey()) {
   const old = document.getElementById('ticket'); if (old) old.remove();
   const box = document.createElement('div'); box.id = 'ticket';
   box.innerHTML = `<div class="ticket-card guide-card" role="dialog" aria-label="${esc(g.title)}"><p class="ticket-title">${esc(g.title)}</p>
-    <dl class="guide-list">${g.items.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>
+    <dl class="guide-list">${g.items.map(([t, d]) => `<dt>${esc(guideTxt(t))}</dt><dd>${esc(guideTxt(d))}</dd>`).join('')}</dl>
     <div class="form-actions"><button class="btn ghost small" data-action="guide-tour">Revoir la visite</button><button class="btn" data-action="sheet-close">Compris</button></div></div>`;
   box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
@@ -2519,7 +2526,7 @@ function viewLogin() {
       <button class="btn" type="submit">${signup ? 'Créer mon compte' : 'Se connecter'}</button>
     </form>
     ${signup
-      ? '<button class="link" data-action="login-mode" data-mode="login">J\'ai déjà un compte</button>'
+      ? '<button class="link" data-action="login-mode" data-mode="login">J’ai déjà un compte</button>'
       : `<button class="link" data-action="login-mode" data-mode="signup">Première fois ? Créer mon compte</button>
          <button class="link" data-action="forgot">Mot de passe oublié</button>`}
   </section>`;
@@ -2527,7 +2534,7 @@ function viewLogin() {
 
 function viewNotMember() {
   return `<section class="login">${loginHd()}
-    <p>L'adresse ${esc(S.me)} n'est pas membre de cette maison. Ajoute-la dans la table « members » de Supabase, ou connecte-toi avec une autre adresse.</p>
+    <p>L’adresse ${esc(S.me)} n’est pas membre de cette maison. Ajoute-la dans la table « members » de Supabase, ou connecte-toi avec une autre adresse.</p>
     <button class="btn ghost" data-action="logout">Se déconnecter</button></section>`;
 }
 
@@ -2535,12 +2542,12 @@ function viewNotMember() {
 
 function recentEvents() {
   const ev = [];
-  for (const l of S.choreLog) ev.push({ at: l.done_at, who: l.done_by, text: `a fait ${l.title || 'une corvée'}` });
+  for (const l of S.choreLog) ev.push({ at: l.done_at, who: l.done_by, text: l.title ? `a fait « ${l.title} »` : 'a fait une corvée', kind: 'corvee' });
   for (const t of S.tasks) {
     ev.push({ at: t.created_at, who: t.created_by, text: `a ajouté « ${t.title} »` });
     if (t.done && t.done_at) ev.push({ at: t.done_at, who: null, text: `« ${t.title} » est fait` });
   }
-  for (const e of S.expenses) ev.push({ at: e.created_at, who: e.created_by, text: e.is_settlement ? `a remboursé ${chf(e.amount)}` : `a noté ${e.label}, ${chf(e.amount)}` });
+  for (const e of S.expenses) ev.push({ at: e.created_at, who: e.created_by, text: e.is_settlement ? `a remboursé ${chf(e.amount)}` : `a noté ${e.label}, ${chf(e.amount)}`, kind: 'argent' });
   for (const n of S.board) ev.push({ at: n.created_at, who: n.author, text: 'a laissé un mot sur le tableau' });
   for (const s of S.shopping) ev.push({ at: s.created_at, who: s.added_by, text: `a ajouté ${s.label} aux courses` });
   return ev.filter(e => e.at).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 6);
@@ -2570,7 +2577,7 @@ function winsCard() {
 // Récap du dimanche : le dimanche dès 17 h et le lundi, une carte « Votre semaine à deux » (tout ce que
 // vous avez fait ensemble, sans compter qui a fait quoi), un mot d'Azami et les nouvelles cartes du carnet.
 const RECAP_MOTS = ['Je suis fière de vous. Ne le répétez pas.', 'La maison sent bon, le canapé est libre : vous avez gagné une sieste avec moi.', 'Vous formez une très bonne équipe. Après moi, évidemment.',
-  'Je vous accorde officiellement le titre de meilleurs humains de la semaine.', 'Bravo. Pour fêter ça, je propose des croquettes. Pour moi.', 'Vous avez assuré. Moi aussi : j’ai dormi pour vous trois.'];
+  'Je vous accorde officiellement le titre de meilleurs humains de la semaine.', 'Bravo. Pour fêter ça, je propose une sieste. Collective.', 'Vous avez assuré. Moi aussi : j’ai dormi pour vous trois.'];
 function recapWeek() {
   const now = new Date(), d = now.getDay(), h = now.getHours();
   if (!((d === 0 && h >= 17) || d === 1)) return null;
@@ -2667,7 +2674,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v260</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v261</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2720,11 +2727,11 @@ function viewAgenda() {
   const A = S.agenda;
   if (A.configured === false) {
     return `<h2 class="first">Calendrier partagé</h2>
-    <p class="hint">L'app lit et écrit <b>un seul</b> calendrier iCloud, celui que vous partagez. Elle ne voit jamais vos autres calendriers : une fois « ${esc(chipVal('ag-name', 'Les quatre pattes'))} » trouvé, c'est la seule adresse qu'elle utilise.</p>
-    <p class="hint">Il faut un <b>mot de passe d'application</b> Apple (pas ton mot de passe iCloud) : sur <b>account.apple.com</b> › Connexion et sécurité › Mots de passe d'application › Générer. Il est gardé sur le serveur, jamais sur les téléphones, et tu peux le révoquer n'importe quand depuis le même endroit.</p>
+    <p class="hint">L’app lit et écrit <b>un seul</b> calendrier iCloud, celui que vous partagez. Elle ne voit jamais vos autres calendriers : une fois « ${esc(chipVal('ag-name', 'Les quatre pattes'))} » trouvé, c’est la seule adresse qu’elle utilise.</p>
+    <p class="hint">Il faut un <b>mot de passe d’application</b> Apple (pas ton mot de passe iCloud) : sur <b>account.apple.com</b> › Connexion et sécurité › Mots de passe d’application › Générer. Il est gardé sur le serveur, jamais sur les téléphones, et tu peux le révoquer n’importe quand depuis le même endroit.</p>
     <form class="form" data-form="agenda-setup" autocomplete="off">
       <label class="chip-label" for="ag-id">Identifiant Apple de qui partage le calendrier</label><input class="field" id="ag-id" name="apple_id" type="email" inputmode="email" placeholder="prenom@icloud.com" required>
-      <label class="chip-label" for="ag-pw">Mot de passe d'application</label><input class="field" id="ag-pw" name="app_password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" required>
+      <label class="chip-label" for="ag-pw">Mot de passe d’application</label><input class="field" id="ag-pw" name="app_password" type="password" placeholder="xxxx-xxxx-xxxx-xxxx" required>
       <label class="chip-label" for="ag-name">Nom exact du calendrier</label><input class="field" id="ag-name" name="calendar_name" value="Les quatre pattes" required>
       <div class="form-actions"><button class="btn" type="submit">Relier le calendrier</button></div>
     </form>
@@ -2746,25 +2753,25 @@ function viewAgenda() {
     const ongoing = (e.allDay ? e.start < today : e.start < new Date().toISOString());
     return `<li class="item ev ${ongoing ? 'ongoing' : ''}">${iconHtml(iconFor(e.title, 'task', S.hintsX || S.hints))}<div class="item-main"><div class="item-title">${esc(e.title)}</div><div class="item-meta">${esc(evWhen(e))}${e.place ? `, ${esc(e.place)}` : ''}${e.recurring ? ', se répète' : ''}</div></div>
       <button class="more" id="more-${esc(e.id)}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${esc(e.id)}">⋯</button>
-      ${S.open === e.id ? `<div class="item-actions">${e.recurring ? '<span class="hint">Les événements qui se répètent se modifient dans l\'app Calendrier.</span>' : `<button class="btn ghost small" data-action="ev-edit" data-id="${esc(e.id)}">Modifier</button><button class="btn ghost small" data-action="ev-delete" data-id="${esc(e.id)}">Supprimer</button>`}</div>` : ''}</li>`;
+      ${S.open === e.id ? `<div class="item-actions">${e.recurring ? '<span class="hint">Les événements qui se répètent se modifient dans l’app Calendrier.</span>' : `<button class="btn ghost small" data-action="ev-edit" data-id="${esc(e.id)}">Modifier</button><button class="btn ghost small" data-action="ev-delete" data-id="${esc(e.id)}">Supprimer</button>`}</div>` : ''}</li>`;
   };
-  const dayLabel = k => { const d = new Date(k + 'T12:00'); const n = dayDiff(d, new Date()); const base = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return n === 0 ? `Aujourd'hui, ${base}` : n === 1 ? `Demain, ${base}` : base[0].toUpperCase() + base.slice(1); };
+  const dayLabel = k => { const d = new Date(k + 'T12:00'); const n = dayDiff(d, new Date()); const base = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); return n === 0 ? `Aujourd’hui, ${base}` : n === 1 ? `Demain, ${base}` : base[0].toUpperCase() + base.slice(1); };
   const blocks = [...sorted.entries()].slice(0, 40).map(([k, list]) => `<h2 class="day-head ${k === today ? 'today' : ''}">${esc(dayLabel(k))}</h2><ul class="list">${list.map(item).join('')}</ul>`).join('');
   const defaultDate = isoDate(new Date());
   return `<div class="ag-head"><h2 class="first">${esc(A.calendar || 'Calendrier partagé')}</h2><button class="link" data-action="agenda-refresh">${A.loading ? 'Mise à jour…' : 'Actualiser'}</button></div>
-    ${A.error ? `<p class="hint err">Dernière lecture impossible (${esc(A.error)}). Affichage de la copie d'il y a ${esc(ago(A.at || new Date().toISOString()))}.</p>` : ''}
+    ${A.error ? `<p class="hint err">Dernière lecture impossible (${esc(A.error)}). Affichage de la copie d’il y a ${esc(ago(A.at || new Date().toISOString()))}.</p>` : ''}
     ${S.showEventForm ? `<form class="form add" data-form="agenda-add">
       <label class="sr" for="ev-title">Titre</label><input class="field" id="ev-title" data-keep name="title" placeholder="Quoi ?" autocomplete="off" required>
       <div class="row mt"><div class="grow"><label class="chip-label" for="ev-date">Date</label><input class="field" id="ev-date" data-keep name="date" type="date" value="${defaultDate}" required></div>
         <div class="w-110"><label class="chip-label" for="ev-time">Heure</label><input class="field" id="ev-time" data-keep name="time" type="time"></div></div>
       ${chipGroup('ev-dur', [['allday', 'Toute la journée'], ['30', '30 min'], ['60', '1 h'], ['120', '2 h'], ['180', '3 h']], '60', 'Durée')}
-      <div class="row mt"><div class="grow"><label class="chip-label" for="ev-end">Jusqu'au (facultatif, pour plusieurs jours)</label><input class="field" id="ev-end" data-keep name="enddate" type="date"></div></div>
+      <div class="row mt"><div class="grow"><label class="chip-label" for="ev-end">Jusqu’au (facultatif, pour plusieurs jours)</label><input class="field" id="ev-end" data-keep name="enddate" type="date"></div></div>
       <label class="sr" for="ev-place">Lieu</label><input class="field mt" id="ev-place" data-keep name="place" placeholder="Lieu (facultatif)" autocomplete="off">
       <div class="form-actions"><button type="button" class="btn ghost small" data-action="ev-form" data-show="0">Annuler</button><button class="btn" type="submit">Ajouter au calendrier</button></div>
     </form>` : `<button class="btn" data-action="ev-form" data-show="1">+ Ajouter un événement</button>`}
     <button class="link house-toggle" data-action="agenda-house" aria-pressed="${S.agendaHouse !== false}">${S.agendaHouse !== false ? 'Masquer' : 'Afficher'} le ménage et les choses à faire</button>
     ${blocks || emptyArt('vide_agenda', 'Rien de prévu dans les trois prochains mois.')}
-    <details class="fold" data-fold="ag-settings"><summary>Connexion</summary><p class="hint">Relié à ${esc(A.calendar)} via ${esc(A.apple_id || 'iCloud')}${A.set_by ? `, par ${esc(nameOf(A.set_by))}` : ''}. L'app ne lit que ce calendrier.</p><button class="link" data-action="agenda-forget">Déconnecter le calendrier</button></details>`;
+    <details class="fold" data-fold="ag-settings"><summary>Connexion</summary><p class="hint">Relié à ${esc(A.calendar)} via ${esc(A.apple_id || 'iCloud')}${A.set_by ? `, par ${esc(nameOf(A.set_by))}` : ''}. L’app ne lit que ce calendrier.</p><button class="link" data-action="agenda-forget">Déconnecter le calendrier</button></details>`;
 }
 function editEvent(e) {
   const d = evDay(e); const t = e.allDay ? '' : evTime(e.start);
@@ -2775,7 +2782,7 @@ function editEvent(e) {
     <div class="row mt"><div class="grow"><label class="chip-label" for="ee-date">Date</label><input class="field" id="ee-date" name="date" type="date" value="${d}" required></div>
       <div class="w-110"><label class="chip-label" for="ee-time">Heure</label><input class="field" id="ee-time" name="time" type="time" value="${t}"></div></div>
     ${chipGroup('edit-dur', [['allday', 'Toute la journée'], ['30', '30 min'], ['60', '1 h'], ['120', '2 h'], ['180', '3 h']], ['allday', '30', '60', '120', '180'].includes(mins) ? mins : '60', 'Durée')}
-    <div class="row mt"><div class="grow"><label class="chip-label" for="ee-end">Jusqu'au</label><input class="field" id="ee-end" name="enddate" type="date" value="${endDate !== d ? endDate : ''}"></div></div>
+    <div class="row mt"><div class="grow"><label class="chip-label" for="ee-end">Jusqu’au</label><input class="field" id="ee-end" name="enddate" type="date" value="${endDate !== d ? endDate : ''}"></div></div>
     <label class="sr" for="ee-place">Lieu</label><input class="field mt" id="ee-place" name="place" value="${esc(e.place || '')}" placeholder="Lieu">
     <div class="form-actions"><button type="button" class="btn ghost small" data-action="edit-cancel">Annuler</button><button class="btn small" type="submit">Enregistrer</button></div>
   </form>`;
@@ -2820,7 +2827,7 @@ function viewTasks() {
   };
   return `<h2 class="list-head">À faire${open.length ? ` <span class="count">${open.length}</span>` : ''}</h2>
     ${open.length ? `<ul class="list" data-sort="tasks">${open.map(item).join('')}</ul>${open.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une ligne pour la déplacer.</p>' : ''}` : emptyArt('vide_taches', 'Plus rien à faire. Profitez-en.')}
-    ${fresh.length ? `<h2 class="list-head done-head">Fait aujourd'hui <span class="count">${fresh.length}</span></h2><ul class="list">${fresh.map(item).join('')}</ul>` : ''}
+    ${fresh.length ? `<h2 class="list-head done-head">Fait aujourd’hui <span class="count">${fresh.length}</span></h2><ul class="list">${fresh.map(item).join('')}</ul>` : ''}
     <form class="form add" data-form="task">
       <label class="sr" for="task-title">Nouvelle chose à faire</label>
       <input class="field" id="task-title" data-keep name="title" placeholder="Ajouter une chose à faire" autocomplete="off" required>
@@ -2880,7 +2887,7 @@ function editExpense(e) {
       <div class="grow"><label class="sr" for="ee-label">Pour quoi</label><input class="field" id="ee-label" name="label" value="${esc(e.label)}" required></div>
     </div>
     ${chipGroup('edit-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), e.paid_by, 'Payé par')}
-    ${chipGroup('edit-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], split, 'Partage')}
+    ${chipGroup('edit-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l’autre"], ['custom', 'Autre partage']], split, 'Partage')}
     ${cur === 'custom' ? `<div class="row mt"><div class="grow"><label class="chip-label" for="ee-pct">Part de celui ou celle qui paie, en %</label><input class="field" id="ee-pct" name="pct" inputmode="numeric" value="${Math.round(share * 100)}"></div></div>` : ''}
     ${chipGroup('edit-cat', CATS, e.category, 'Catégorie')}
     <div class="row mt"><div class="grow"><label class="chip-label" for="ee-date">Date</label><input class="field" id="ee-date" name="date" type="date" value="${esc(e.spent_on)}"></div></div>
@@ -2920,7 +2927,7 @@ function choreBtn(c, now = new Date()) {
   const st = choreStatus(c);
   const s = c.sorte && SORTES.find(x => x.id === c.sorte);
   const d = s ? descente(s, c, now) : null;
-  // Hors calendrier, le bouton reste cliquable (le container est parfois là quand même), juste atténué.
+  // Hors calendrier, le bouton reste cliquable (le conteneur est parfois là quand même), juste atténué.
   const off = d && !d.possible ? 'off' : '';
   // (un seul verbe : « Fait » ; jaune quand c'est le moment, rouge seulement en retard, vert discret une fois fait)
   return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${st.late ? 'late' : ''} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}" aria-label="${esc(c.title)} : ${st.due ? 'marquer comme fait' : 'déjà fait, le refaire'}">${st.due ? 'Fait' : '✓'}</button>`;
@@ -3033,15 +3040,15 @@ function lessiveCard() {
 function pratiqueCard() {
   const P = PRATIQUE;
   const tel = t => `<a class="tel" href="tel:${t.replace(/\s/g, '')}">${esc(t)}</a>`;
-  return `<details class="fold" data-fold="pratique"><summary>Infos pratiques de l'immeuble</summary>
+  return `<details class="fold" data-fold="pratique"><summary>Infos pratiques de l’immeuble</summary>
     <div class="pratique">
       <h3>Gérance</h3><p><b>${esc(P.gerance.nom)}</b><br>${esc(P.gerance.adresse)}<br>${tel(P.gerance.tel)}<br><span class="hint">${esc(P.gerance.note)}</span></p>
-      <h3>En cas de panne</h3><p class="hint">Du calme, réfléchir 15 secondes, puis appeler la gérance, même la nuit. Si ça n'aboutit pas :</p>
+      <h3>En cas de panne</h3><p class="hint">Du calme, réfléchir 15 secondes, puis appeler la gérance, même la nuit. Si ça n’aboutit pas :</p>
       <ul class="plain">${P.panne.map(p => `<li><b>${esc(p.quoi)}</b>${p.texte ? ` : ${esc(p.texte)}` : ''}${p.tel ? ` ${tel(p.tel)}` : ''}${p.note ? ` <span class="hint">${p.tel2 ? esc(p.note).replace(p.tel2, tel(p.tel2)) : esc(p.note)}</span>` : ''}</li>`).join('')}</ul>
       <h3>Déchèterie de Malley</h3><p><b>${esc(P.dechets.quoi)}</b> : ${esc(P.dechets.texte)}<br>${esc(P.dechets.lieu)}<br>${esc(P.dechets.horaires)}<br>${tel(P.dechets.tel)}<br><span class="hint">${esc(P.dechets.contact).replace(P.dechets.tel2, tel(P.dechets.tel2))}</span></p>
       <h3>Urgences</h3><p class="urgences">${P.urgences.map(([l, n]) => `<span><b>${esc(l)}</b> ${tel(n)}</span>`).join('')}</p>
       <h3>Comment lire cette page</h3>
-      <p><b>Déchets</b> : le bouton devient rouge quand il est temps de descendre une sorte (poubelles et compost tous les 10 jours, papier et verre tous les 14), vert une fois fait. Il est grisé les jours de ramassage, quand le container n'est pas là : poubelles et papier sont ramassés mardi et vendredi, verre et compost le lundi. La veille du ramassage l'après-midi, le container est déjà au bout du chemin sur la route de Genève, y amener les sacs.</p>
+      <p><b>Déchets</b> : le bouton devient jaune quand il est temps de descendre une sorte (rouge s’il y a du retard) (poubelles et compost tous les 10 jours, papier et verre tous les 14), vert une fois fait. Il est grisé les jours de ramassage, quand le conteneur n’est pas là : poubelles et papier sont ramassés mardi et vendredi, verre et compost le lundi. La veille du ramassage l’après-midi, le conteneur est déjà au bout du chemin sur la route de Genève, y amener les sacs.</p>
     </div></details>`;
 }
 
@@ -3070,7 +3077,7 @@ function viewMenage() {
         ${iconPicker('chores', c)}
         ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${nudgeMenu('chore', c)}${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour à ${esc(nameOf(S.members.find(m => m.email !== c.turn)?.email))}</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}
       </div>`;
-    }).join('')}</div>${chores.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une corvée pour la déplacer.</p>' : ''}` : '<p class="empty">Aucune corvée pour l\'instant. Ajoute la première ci-dessous.</p>'}
+    }).join('')}</div>${chores.length > 1 ? '<p class="hint sort-hint">Appuie et maintiens une corvée pour la déplacer.</p>' : ''}` : '<p class="empty">Aucune corvée pour l’instant. Ajoute la première ci-dessous.</p>'}
 
     ${S.showChoreForm ? `<h2>Nouvelle corvée</h2>
     <form class="form" data-form="chore">
@@ -3181,7 +3188,7 @@ function viewCourses() {
 
 function optionsSummary() {
   const payer = chipVal('exp-payer', S.me) === S.me ? 'payé par moi' : `payé par ${nameOf(chipVal('exp-payer', S.me))}`;
-  const split = { half: 'moitié-moitié', other: "avancé pour l'autre", custom: 'autre partage' }[chipVal('exp-split', 'half')];
+  const split = { half: 'moitié-moitié', other: "avancé pour l’autre", custom: 'autre partage' }[chipVal('exp-split', 'half')];
   return `${catLabel(chipVal('exp-cat', 'courses'))}, ${payer}, ${split}`;
 }
 
@@ -3208,7 +3215,7 @@ function balanceCard() {
       ${row('Toi', me)}${row(nameOf(o), them)}
     </div>
     <p class="bal-explain">${quits ? 'Chacun a payé exactement sa part.' : net > 0 ? `Tu as payé ${chf(me.paid - me.part)} de plus que ta part.` : `${esc(nameOf(o))} a payé ${chf(them.paid - them.part)} de plus que sa part.`}</p>` : `<p class="bal-sub">Aucune dépense ${sinceLabel}.</p>`}
-    ${quits ? '' : `<button class="btn small bal-btn" data-action="settle">${net < 0 ? `J'ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m'a remboursé`}</button>`}
+    ${quits ? '' : `<button class="btn small bal-btn" data-action="settle">${net < 0 ? `J’ai remboursé ${esc(nameOf(o))}` : `${esc(nameOf(o))} m’a remboursé`}</button>`}
   </section>`;
 }
 
@@ -3556,7 +3563,7 @@ function viewRecette(r) {
     <p class="rdesc">${esc(r.desc)}</p>
     ${gearOf(r).length ? `<div class="gear-box"><p class="chip-label">Matériel particulier</p>${gearOf(r).map(g => `<div class="gear-row ${S.gear[g.id] === true ? 'ok' : S.gear[g.id] === false ? 'no' : ''}"><span class="gear-name">${S.gear[g.id] === true ? '✓' : '⚠'} ${esc(g.nom)}</span>${S.gear[g.id] === true ? '<span class="gear-st">On l’a</span>' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="1">On l’a</button>${S.gear[g.id] === false ? '' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="0">Pas chez nous</button>`}`}</div>`).join('')}</div>` : ''}
     ${r.base || vegeOf(r) ? `<button type="button" class="vege-toggle" data-action="r-vege" aria-pressed="${!!r.base}"><span class="vt-dot"></span>Version végé${r.base ? ' : viande et poisson remplacés' : ''}</button>` : ''}
-    <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Rajouter les aliments à la liste</button></div>
+    <div class="form-actions rcta"><button class="btn" data-action="r-cook" data-id="${r.id}">Faire la recette</button><button class="btn ghost" data-action="r-panier" data-id="${r.id}">Ajouter les aliments à la liste</button></div>
     <h2>Ingrédients <span class="muted">${r.parts ? esc(r.parts) : `pour ${n}`}</span></h2><p class="hint unit-hint">c. à s. = grande cuillère (à soupe) · c. à c. = petite cuillère (à café)</p>
     <ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, n))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul>
     <h2>Recette</h2>
@@ -3569,7 +3576,7 @@ function viewCuisiner() {
     <div class="form-actions rcta"><button class="btn" data-action="r-cook-steps">Reprendre étape par étape</button></div>`;
   return head + `<div class="rstep">${(() => { const ic = stepIngs(r, stepPlain(r, r.etapes[k])); return ic.length ? `<div class="rstep-ings" aria-hidden="true">${ic.map(i => tImg(i, 'rs-ic')).join('')}</div>` : ''; })()}<div class="rstep-n">${k + 1}</div><p class="rstep-txt">${stepHtml(r, r.etapes[k])}</p>${(() => { const li = stepIngList(r, r.etapes[k]); return li.length ? `<ul class="step-need">${li.map(j => `<li>${tImg(rArt(r).ings[j], 'sn-ic')}<b>${esc(qty(r.ing[j], S.persons || 2))}</b> ${esc(r.ing[j].n)}</li>`).join('')}</ul>` : ''; })()}${timerBtns(stepPlain(r, r.etapes[k]), r.titre)}
       <div class="dots-inline" aria-hidden="true">${r.etapes.map((_, j) => `<span class="dot ${j < k ? 'dot-ok' : j === k ? 'now' : 'off'}"></span>`).join('')}</div></div>
-    <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C\'est prêt !' : 'Suivant'}</button></div>
+    <div class="form-actions rcta"><button class="btn ghost" data-action="r-prev" ${k ? '' : 'disabled'}>Précédent</button><button class="btn" data-action="${last ? 'r-done' : 'r-next'}">${last ? 'C’est prêt !' : 'Suivant'}</button></div>
     <div class="form-actions"><button class="link" data-action="r-cook-full">Lire la recette en entier</button></div>
     <details class="fold mt" data-fold="r-ing"><summary>Ingrédients</summary><ul class="list ring">${r.ing.map((x, j) => `<li>${tImg(rArt(r).ings[j], 'ring-ic') || '<span class="ring-ic"></span>'}<b>${esc(qty(x, S.persons || 2))}</b> <span>${esc(x.n)}</span></li>`).join('')}</ul></details>`;
 }
@@ -3624,7 +3631,7 @@ function viewArgent() {
         if (e.is_settlement) {
           const to = S.members.find(m => m.email !== e.paid_by)?.email;
           return `<li class="item settle">
-            <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t'a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
+            <div class="item-main"><div class="money-row"><span class="item-title">${esc(e.paid_by === S.me ? `Tu as remboursé ${nameOf(to)}` : `${nameOf(e.paid_by)} t’a remboursé`)}</span><span class="amount">${chf(e.amount)}</span></div>
             <div class="item-meta">Solde remis à zéro, ${esc(relDay(e.spent_on))}</div></div>
             <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
             ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="settle-undo" data-id="${e.id}">Annuler ce remboursement</button></div>` : ''}</li>`;
@@ -3659,14 +3666,14 @@ function viewArgent() {
       </div>
       <details class="fold" data-fold="exp-options"><summary>${esc(optionsSummary())}</summary>
       ${chipGroup('exp-payer', S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]), S.me, 'Payé par')}
-      ${chipGroup('exp-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l'autre"], ['custom', 'Autre partage']], 'half', 'Partage')}
+      ${chipGroup('exp-split', [['half', 'Moitié-moitié'], ['other', "Avance pour l’autre"], ['custom', 'Autre partage']], 'half', 'Partage')}
       ${share === 'custom' ? `<div class="row mt"><div class="grow"><label class="chip-label" for="exp-pct">Part de celui ou celle qui paie, en %</label><input class="field" id="exp-pct" data-keep name="pct" inputmode="numeric" placeholder="60"></div></div>` : ''}
       ${chipGroup('exp-cat', CATS, 'courses', 'Catégorie')}
       <div class="row mt"><div class="grow"><label class="chip-label" for="exp-date">Date</label>
         <input class="field" id="exp-date" data-keep name="date" type="date" value="${isoDate(new Date())}"></div></div>
       </details>
     </form>
-    ${monthHtml || '<p class="empty">Aucune dépense pour l\'instant.</p>'}`;
+    ${monthHtml || '<p class="empty">Aucune dépense pour l’instant.</p>'}`;
 }
 
 // Nuit : care
@@ -3679,7 +3686,7 @@ function viewNuit() {
 // Ciné à deux -----------------------------------------------------------------------------------
 // Une liste commune de films et de séries. Les infos (affiche, synopsis, où regarder en Suisse) viennent
 // de TMDB par le serveur (fonction « films »), sinon de Wikipédia et TVmaze. Le match à deux : chacun
-// glisse à droite ou à gauche sur des propositions ; quand vous avez tous les deux dit oui, c'est un match.
+// glisse à droite ou à gauche sur des propositions ; quand vous avez tous les deux dit oui, c’est un match.
 const FILM_DEMO = [
   { tmdb_id: 496243, media: 'movie', title: 'Parasite', year: 2019, poster: null, overview: 'Une famille pauvre s’infiltre peu à peu chez une famille très riche.', runtime: 132, genres: ['Thriller', 'Drame'], director: 'Bong Joon-ho', providers: [{ name: 'Netflix', kind: 'abo' }] },
   { tmdb_id: 4935, media: 'movie', title: 'Le Château ambulant', year: 2004, poster: null, overview: 'Sophie, changée en vieille dame par une sorcière, trouve refuge dans le château du magicien Hauru.', runtime: 119, genres: ['Animation', 'Fantastique'], director: 'Hayao Miyazaki', providers: [{ name: 'Netflix', kind: 'abo' }] },
@@ -3714,17 +3721,17 @@ async function srcCall(body) {
   if (error) throw new Error(error.message);
   return data || {};
 }
-// Annuler (Cmd+Z ou le bouton) pour tout ce qu'on fait dans le ciné : on garde l'état d'avant du film.
+// Annuler (Cmd+Z ou le bouton) pour tout ce qu’on fait dans le ciné : on garde l’état d’avant du film.
 const FILM_EMPTY = { votes: {}, ratings: {}, seen: {}, coeur: [] };
 const filmBefore = (f, keys) => ({ t: 'films', id: f.id, row: Object.fromEntries(keys.map(k => [k, f[k] ?? FILM_EMPTY[k] ?? null])) });
 function cineUndo(label, before, cap = [], after) { offerUndo(label, before, cap); if (UNDO) UNDO.after = after; }
 const filmRow = f => Object.fromEntries(Object.entries(f).filter(([k]) => !k.startsWith('_')));
 // Le goût de chacun, appris de ses avis (voir taste.js). Le calcul est lourd (des centaines de films) : chaque
-// profil n'est refait que si les avis de CETTE personne ont changé, et la rareté des traits seulement quand la
-// liste a nettement grandi. Pendant Cinder, on garde le goût d'avant et on le remet à jour quand le doigt se repose.
+// profil n’est refait que si les avis de CETTE personne ont changé, et la rareté des traits seulement quand la
+// liste a nettement grandi. Pendant Cinder, on garde le goût d’avant et on le remet à jour quand le doigt se repose.
 let tasteMemo = null, idfMemo = null;
 const VCODE = { oui: 1, super: 2, non: 3, beurk: 4 };
-// (mémorisé quelques centaines de millisecondes : un même rendu l'appelait jusqu'à dix fois sur 9 000 films)
+// (mémorisé quelques centaines de millisecondes : un même rendu l’appelait jusqu’à dix fois sur 9 000 films)
 function tasteSigs() {
   const now = performance.now();
   if (tasteSigs.memo && now - tasteSigs.memo.at < 400 && tasteSigs.memo.films === S.films && tasteSigs.memo.n === S.films.length) return tasteSigs.memo.v;
@@ -3773,8 +3780,8 @@ function tastes(extra = [], lazy = false) {
   return tastesCompute();
 }
 const gReg = e => S.goutReg?.[e] || {};
-// Ce que quelqu'un a déjà jugé : son avis, son « déjà vu », sa note, ou un film vu ou en cours à deux.
-// Un film que seul l'autre connaît reste une découverte possible pour toi.
+// Ce que quelqu’un a déjà jugé : son avis, son « déjà vu », sa note, ou un film vu ou en cours à deux.
+// Un film que seul l’autre connaît reste une découverte possible pour toi.
 const judged = (f, e = S.me) => !!(fVotes(f)[e] || f.seen?.[e] || f.ratings?.[e]?.note || f.status === 'vu' || f.status === 'en_cours');
 const myKeys = () => S.films.filter(f => judged(f)).map(fkey);
 const fSeen = (f, e) => f.status === 'vu' || !!f.seen?.[e];
@@ -3838,8 +3845,8 @@ function cineLists() {
   const vus = S.films.filter(f => f.status === 'vu').sort((a, b) => String(b.seen_at || '').localeCompare(String(a.seen_at || '')));
   return { mine, theirs, nous, enCours, vus, aVoir: nous };
 }
-// Les compromis : dans la liste de l'un, ce que l'autre a de bonnes chances d'aimer ; et ce que l'un a adoré
-// et que l'autre n'a jamais vu.
+// Les compromis : dans la liste de l’un, ce que l’autre a de bonnes chances d’aimer ; et ce que l’un a adoré
+// et que l’autre n’a jamais vu.
 function cineCompromis() {
   const o = other(); if (!o) return [];
   const t = tastes(), L = cineLists(), out = [];
@@ -3860,7 +3867,7 @@ function fWhereShort(f) {
   if (w.loc.length) return ['loc', 'Location'];
   return null;
 }
-// L'affiche d'abord : une grille comme à l'entrée d'un cinéma.
+// L’affiche d’abord : une grille comme à l’entrée d’un cinéma.
 function cineTile(f, space = 'moi') {
   const v = fVotes(f), o = other(), w = fWhereShort(f);
   const badge = fMatch(f) ? `<i class="tbadge match" title="Vous en avez envie tous les deux">${icn('deux')}</i>`
@@ -3885,7 +3892,7 @@ function cineCard(f) {
     ${fProg(f) ? `<span class="fprog"><b>${fProg(f)}</b><button type="button" class="btn small" data-action="cine-ep" data-id="${f.id}">+1 épisode</button></span>` : ''}</div></div></li>`;
 }
 const SPACE_KEY = 'maison-cine-space';
-// Filtrer et trier une grille d'affiches ; on n'en montre que 30 à la fois.
+// Filtrer et trier une grille d’affiches ; on n’en montre que 30 à la fois.
 const CF = [['', 'Tout'], ['chez', 'Chez vous'], ['court', 'Moins de 2 h']];
 const CM = [['', 'Films et séries'], ['film', 'Films'], ['serie', 'Séries']];
 const CS = [['envie', 'Envie'], ['recent', 'Récents'], ['note', 'Note'], ['duree', 'Durée']];
@@ -3893,13 +3900,13 @@ function cineFilter(list, who) {
   const fl = S.cineF || '', so = S.cineS || 'envie', t = tastes(), p = who === 'nous' ? null : t.by[who === 'moi' ? S.me : other()];
   const md = S.cineM || '';
   let l = list.filter(f => (!fl || (fl === 'chez' ? fDispo(f) : f.media === 'movie' && (f.traits?.rt || f.runtime || 999) <= 120)) && (!md || (md === 'film' ? f.media === 'movie' : f.media === 'tv')));
-  const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f, .2) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple, .2) : 0);   // dans vos listes : « vais-je l'aimer ? » compte le plus
+  const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f, .2) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple, .2) : 0);   // dans vos listes : « vais-je l’aimer ? » compte le plus
   const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
   l = [...l].sort(by[so] || by.envie);
   return l;
 }
-// Ce que je viens d'ajouter (dans Cinder ou ailleurs) : en tête de ma liste pendant deux jours, avec « Nouveau »,
-// sinon un film ajouté se perd au milieu des autres (la liste est triée par goût et n'en montre que 30).
+// Ce que je viens d’ajouter (dans Cinder ou ailleurs) : en tête de ma liste pendant deux jours, avec « Nouveau »,
+// sinon un film ajouté se perd au milieu des autres (la liste est triée par goût et n’en montre que 30).
 const envieAt = f => Date.parse(f.hesite?.[S.me]?.at || (f.added_by === S.me ? f.created_at : '') || 0) || 0;
 const toutNeuf = f => Date.now() - envieAt(f) < 2 * 864e5;
 function cineGrid(list, who) {
@@ -3950,7 +3957,7 @@ function cineSection() {
     ${body}
   </section>`;
 }
-// Importer Letterboxd : vus, notes, cœurs et watchlist arrivent d'un coup. Les titres sont retrouvés sur TMDB
+// Importer Letterboxd : vus, notes, cœurs et watchlist arrivent d’un coup. Les titres sont retrouvés sur TMDB
 // par lots, en arrière-plan ; on peut fermer la fenêtre, ça continue.
 const lbNote = r => Math.min(5, Math.max(1, Math.round(r)));
 function lbMerge(f, lb) {
@@ -4016,7 +4023,7 @@ function lbPick() {
   box.querySelector('input').addEventListener('change', e => { const f = e.target.files?.[0]; if (f) lbImport(f); });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
 }
-// Mesurer : le journal des cartes de Cinder (sur ce téléphone) et la précision d'Azami sur tes notes.
+// Mesurer : le journal des cartes de Cinder (sur ce téléphone) et la précision d’Azami sur tes notes.
 function cinderLog(v) { try { const l = JSON.parse(safeGet('maison-cinder-log') || '[]'); l.push([Date.now(), v]); safeSet('maison-cinder-log', JSON.stringify(l.slice(-400))); } catch {} }
 function cinderRate() {
   let l = []; try { l = JSON.parse(safeGet('maison-cinder-log') || '[]'); } catch {}
@@ -4025,8 +4032,8 @@ function cinderRate() {
   return l.length >= 15 ? { now: rate(last), before: before.length >= 15 ? rate(before) : null, n: l.length } : null;
 }
 let accMemo = null;
-// Le test de justesse refait cinq profils : c'est le calcul le plus lourd de l'app. On le fait au calme, après
-// l'affichage, et la carte se met à jour toute seule.
+// Le test de justesse refait cinq profils : c’est le calcul le plus lourd de l’app. On le fait au calme, après
+// l’affichage, et la carte se met à jour toute seule.
 function tasteAccuracy() {
   const t = tastes(), sig = t.sig;
   if (accMemo?.sig !== sig && !tasteAccuracy.t) tasteAccuracy.t = setTimeout(() => (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => {
@@ -4037,13 +4044,13 @@ function tasteAccuracy() {
   }, { timeout: 3000 }), 600);
   return accMemo?.v || null;
 }
-// Le test de goût : 30 films très différents, pour qu'Azami comprenne vite (vu ou pas, on donne son avis).
+// Le test de goût : 30 films très différents, pour qu’Azami comprenne vite (vu ou pas, on donne son avis).
 const TEST_GOUT = [['Le Parrain', 1972], ['Pulp Fiction', 1994], ['Le Fabuleux Destin d’Amélie Poulain', 2001], ['Le Voyage de Chihiro', 2001], ['Titanic', 1997], ['The Dark Knight', 2008],
   ['La La Land', 2016], ['Parasite', 2019], ['Intouchables', 2011], ['Mad Max: Fury Road', 2015], ['Her', 2013], ['Eternal Sunshine of the Spotless Mind', 2004], ['Les Visiteurs', 1993],
   ['Get Out', 2017], ['The Grand Budapest Hotel', 2014], ['Interstellar', 2014], ['Amour', 2012], ['Barbie', 2023], ['Oppenheimer', 2023], ['Shrek', 2001], ['Mamma Mia!', 2008],
   ['N’oublie jamais', 2004], ['Old Boy', 2003], ['Portrait de la jeune fille en feu', 2019], ['Everything Everywhere All at Once', 2022], ['Joker', 2019], ['Le Silence des agneaux', 1991],
   ['Toy Story', 1995], ['2001 : L’Odyssée de l’espace', 1968], ['Le Diable s’habille en Prada', 2006]];
-// « Les films que tu as déjà vus » : des films que presque tout le monde a vus, pour noter vite ceux qu'on connaît.
+// « Les films que tu as déjà vus » : des films que presque tout le monde a vus, pour noter vite ceux qu’on connaît.
 // ↑ vu (on note sur la jauge), ← ou ↓ pas vu (aucun avis enregistré), → envie de le voir.
 const DEJA_VUS = [['Titanic', 1997], ['Le Fabuleux Destin d’Amélie Poulain', 2001], ['Le Voyage de Chihiro', 2001], ['Mon voisin Totoro', 1988], ['Princesse Mononoké', 1997], ['Harry Potter à l’école des sorciers', 2001],
   ['Le Seigneur des anneaux : La Communauté de l’anneau', 2001], ['Pulp Fiction', 1994], ['Forrest Gump', 1994], ['Le Roi lion', 1994], ['Intouchables', 2011], ['Inception', 2010], ['Matrix', 1999],
@@ -4101,9 +4108,9 @@ function cineCal(id) {
 }
 // ── Soirée avec des invités ──
 // Un lien secret (24 h, révocable) que vos amis ouvrent sur leur téléphone, sans compte : ils votent dans un Cinder
-// à eux, parmi vos films à deux et des propositions, et voient le classement. Rien d'autre de la maison ne leur
-// est accessible : la page soiree.html ne parle qu'à la fonction « soiree », qui vérifie le lien à chaque fois.
-// Ce que l'un de vous veut voir seul n'y figure pas (la surprise du match reste entière).
+// à eux, parmi vos films à deux et des propositions, et voient le classement. Rien d’autre de la maison ne leur
+// est accessible : la page soiree.html ne parle qu’à la fonction « soiree », qui vérifie le lien à chaque fois.
+// Ce que l’un de vous veut voir seul n’y figure pas (la surprise du match reste entière).
 const soireeUrl = j => `${new URL('soiree.html', location.href.split('#')[0]).href}#${j}`;
 let soireeDemo = null;
 async function soireeCall(body) {
@@ -4117,8 +4124,8 @@ async function soireeCall(body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-// La sélection de la soirée : vos films à deux d'abord (les plus à votre goût commun), puis des propositions que
-// vous ne connaissez ni l'un ni l'autre, choisies pour plaire à vous deux.
+// La sélection de la soirée : vos films à deux d’abord (les plus à votre goût commun), puis des propositions que
+// vous ne connaissez ni l’un ni l’autre, choisies pour plaire à vous deux.
 async function soireePool() {
   const t = tastes([], true), sc = f => (t.me ? T.score(t.me, f) : 0) + (t.other ? T.score(t.other, f) : 0);
   const fiche = (f, liste) => ({ k: `${f.media === 'tv' ? 'tv' : 'movie'}:${f.tmdb_id}`, media: f.media, title: f.title, year: f.year, poster: f.poster || null, overview: f.overview || '', runtime: f.runtime || f.traits?.rt || null,
@@ -4150,7 +4157,7 @@ async function soireeSheet() {
         <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Annuler</button><button class="btn" data-s="creer">Créer le lien</button></div>`;
       return;
     }
-    // la base ne garde pas le lien (seulement son empreinte) : il reste sur le téléphone qui l'a créé
+    // la base ne garde pas le lien (seulement son empreinte) : il reste sur le téléphone qui l’a créé
     const loc = (() => { try { return JSON.parse(safeGet('maison-soiree') || 'null'); } catch { return null; } })();
     const jeton = loc?.id === s.id ? loc.jeton : '';
     const url = jeton ? soireeUrl(jeton) : '', fin = new Date(s.expires_at);
@@ -4169,7 +4176,7 @@ async function soireeSheet() {
     if (e.target === box) { closeTicket(); return; }
     const b = e.target.closest('[data-s]'); if (!b) return;
     const k = b.dataset.s;
-    if (k === 'vote') return;   // le lien s'ouvre dans le navigateur
+    if (k === 'vote') return;   // le lien s’ouvre dans le navigateur
     if (k === 'creer') {
       b.disabled = true; b.textContent = 'Azami prépare la sélection…';
       try { const pool = await soireePool(); if (pool.length < 2) throw new Error('Il faut au moins deux films dans votre liste à deux, ou TMDB pour proposer des films.'); const r = await soireeCall({ action: 'creer', pool }); safeSet('maison-soiree', JSON.stringify({ id: r.id, jeton: r.jeton })); haptic('medium'); await load(); }
@@ -4187,12 +4194,12 @@ async function soireeSheet() {
   });
   await load();
 }
-// ── Le réglage personnel de l'algorithme ──
-// Chacun joue à Cinder à sa façon (plus ou moins de bofs, de notes, de curiosité) : les valeurs de l'algorithme
-// s'ajustent sur les avis de chacun, dans un calcul à part (reglage.js) qui ne bloque jamais l'écran.
+// ── Le réglage personnel de l’algorithme ──
+// Chacun joue à Cinder à sa façon (plus ou moins de bofs, de notes, de curiosité) : les valeurs de l’algorithme
+// s’ajustent sur les avis de chacun, dans un calcul à part (reglage.js) qui ne bloque jamais l’écran.
 // Calendrier, compté en temps passé dans Cinder : une première mise au point après 10 minutes, puis trois autres
-// toutes les 30 minutes ; ensuite, une fois stable, tous les 4 jours (s'il y a eu de nouveaux avis).
-// Les seuils de temps (décision rapide, hésitation, geste lent) s'adaptent déjà en continu sur les médianes de chacun.
+// toutes les 30 minutes ; ensuite, une fois stable, tous les 4 jours (s’il y a eu de nouveaux avis).
+// Les seuils de temps (décision rapide, hésitation, geste lent) s’adaptent déjà en continu sur les médianes de chacun.
 const ALGO_PLAN = [10, 40, 70, 100].map(m => m * 60e3);
 function algoLigne() {
   const r = algoMoi(), min = Math.round((r.temps || 0) / 60e3), etape = r.etape || 0;
@@ -4214,14 +4221,14 @@ async function algoSauve(v) {
   S.algoReg = { ...(S.algoReg || {}), [S.me]: v };
   try { await api.upsert('reglages', { cle: 'algo:' + S.me, valeur: v }); } catch (e) { console.warn('réglage', e); }
 }
-// à la fermeture de Cinder : on ajoute le temps passé, et on lance la mise au point si c'est l'heure
+// à la fermeture de Cinder : on ajoute le temps passé, et on lance la mise au point si c’est l’heure
 async function algoTemps() {
   if (!deck?.actif || !S.me) return;
   const r = algoMoi(), temps = (r.temps || 0) + Math.round(deck.actif); deck.actif = 0;
   await algoSauve({ ...r, temps });
   algoPeutEtre();
 }
-const ALGO_V = 2;   // v2 : il apprend aussi ce que compte chaque sorte d'indice (réalisateur, ton, thème…) : un nouveau réglage tout de suite
+const ALGO_V = 2;   // v2 : il apprend aussi ce que compte chaque sorte d’indice (réalisateur, ton, thème…) : un nouveau réglage tout de suite
 function algoDu() {
   const r = algoMoi(), etape = r.etape || 0, avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
   if ((r.v || 1) < ALGO_V && avis >= 80) return true;
@@ -4253,7 +4260,7 @@ function algoPeutEtre() {
   (window.requestIdleCallback || (f => setTimeout(f, 1500)))(go, { timeout: 5000 });
 }
 // ── La jauge de note : on la touche ou on la glisse, sans crans ni chiffres (chaque position compte) ──
-// Tout bouge par transformations (aucun recalcul de mise en page) et une seule fois par image : c'est fluide.
+// Tout bouge par transformations (aucun recalcul de mise en page) et une seule fois par image : c’est fluide.
 const JMIN = .5, JMAX = 5;
 const noteMot = v => v >= 4.8 ? 'Chef-d’œuvre' : v >= 4.2 ? 'Adoré' : v >= 3.5 ? 'Aimé' : v >= 2.7 ? 'Moyen' : v >= 1.8 ? 'Pas aimé' : 'Détesté';
 const noteTxt = v => String(Math.round(v * 10) / 10).replace('.', ',');
@@ -4276,7 +4283,7 @@ function jaugeBind(el, onChange) {
     mask.style.transform = `translate3d(${(p * (w - tw) + tw / 2)}px, 0, 0)`;
     num.textContent = '';
     const mot = v ? noteMot(v) : lastWord; if (mot !== lastWord) { word.textContent = mot; lastWord = mot; }
-    // la couleur suit la note : de la prune (détesté) au rouge Maison, puis à l'or (adoré)
+    // la couleur suit la note : de la prune (détesté) au rouge Maison, puis à l’or (adoré)
     el.style.setProperty('--jh', String(Math.round(290 + p * 115) % 360));
   };
   const set = (nv, final) => {
@@ -4302,9 +4309,9 @@ function jaugeBind(el, onChange) {
   return { get: () => v };
 }
 // ── Renoter à la chaîne ──
-// Les notes données avec les cœurs (1 à 5) se refont une à une avec la jauge : on lâche la jauge, c'est enregistré,
-// le film suivant arrive. L'ancienne note reste visible en petit, comme repère.
-const renoteFait = new Set();   // renotés pendant cette session, quoi qu'en dise une liste rechargée trop tôt
+// Les notes données avec les cœurs (1 à 5) se refont une à une avec la jauge : on lâche la jauge, c’est enregistré,
+// le film suivant arrive. L’ancienne note reste visible en petit, comme repère.
+const renoteFait = new Set();   // renotés pendant cette session, quoi qu’en dise une liste rechargée trop tôt
 async function renote() {
   if (filmsSyncP) { toast('Un instant, je mets les films à jour…'); await filmsSyncP; }   // jamais sur une copie locale en retard
   const list = S.films.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j && !renoteFait.has(f.id)).sort((a, b) => String(vuAt(b)).localeCompare(String(vuAt(a))));
@@ -4324,7 +4331,7 @@ async function renote() {
       <div class="rn-acts"><button class="btn ghost" data-rn="back" ${hist.length ? '' : 'disabled'}>Retour</button><button class="btn ghost" data-rn="skip">Garder comme avant</button></div>`;
     const j = box.querySelector('.jauge');
     jaugeBind(j, (v, fin) => { clearTimeout(timer); if (fin) timer = setTimeout(() => save(f, v), 650); });
-    // l'ancienne note, en petit repère sur la jauge
+    // l’ancienne note, en petit repère sur la jauge
     j.querySelector('.j-track').insertAdjacentHTML('beforeend', `<i class="rn-mark" style="left:calc(22px + (100% - 44px) * ${((old - JMIN) / (JMAX - JMIN)).toFixed(4)})"></i>`);
   };
   const save = (f, v) => {
@@ -4332,7 +4339,7 @@ async function renote() {
     const ratings = { ...(f.ratings || {}), [S.me]: { ...prev, note: v, j: 1 } };
     f.ratings = ratings; hist.push([f, prev]); tasteMemo = null; renoteFait.add(f.id);
     // la liste des films a pu être rechargée entre-temps (chaque note déclenche un rafraîchissement) : on met
-    // aussi à jour l'exemplaire courant, sinon le film revenait dans la file à l'ouverture suivante
+    // aussi à jour l’exemplaire courant, sinon le film revenait dans la file à l’ouverture suivante
     const cur = S.films.find(x => x.id === f.id); if (cur && cur !== f) cur.ratings = ratings;
     if (!DEMO) FDB.put([{ ...(cur || f) }]).catch(() => {});   // la copie locale aussi, pour la prochaine ouverture
     api.update('films', { id: f.id }, { ratings }).catch(() => toast('Pas enregistré, réessaie.'));
@@ -4352,7 +4359,7 @@ async function renote() {
   });
   document.body.appendChild(box); draw(); requestAnimationFrame(() => box.classList.add('on'));
 }
-// Quelqu'un d'autre a-t-il un avis sur ce film ? (alors il n'est pas à toi seul)
+// Quelqu’un d’autre a-t-il un avis sur ce film ? (alors il n’est pas à toi seul)
 const othersOn = f => S.members.some(m => m.email !== S.me && (fVotes(f)[m.email] || f.ratings?.[m.email] || f.seen?.[m.email] || (f.coeur || []).includes(m.email) || f.pourquoi?.[m.email]));
 // Le petit ménage : ce qui attend dans ta liste depuis plus de 6 mois.
 const SIX_MOIS = 182 * 864e5;
@@ -4379,7 +4386,7 @@ function menageOpen() {
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
 }
 // Le journal enrichi : votre bilan à deux.
-// Mes vus : tout ce que j'ai vu, seul ou à deux, avec ma note (et celle de l'autre s'il l'a vu aussi).
+// Mes vus : tout ce que j’ai vu, seul ou à deux, avec ma note (et celle de l’autre s’il l’a vu aussi).
 const vuAt = f => f.ratings?.[S.me]?.at || f.seen_at || f.created_at || '';
 const vuDay = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('fr-CH', { day: 'numeric', month: 'short', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }); };
 function mesVus() { return S.films.filter(f => f.ratings?.[S.me]?.note || f.seen?.[S.me] || f.status === 'vu'); }
@@ -4417,7 +4424,7 @@ function journalStats() {
     best ? `Votre meilleure soirée : <b>${esc(best.title)}</b>.` : ''].filter(Boolean);
   return `<div class="jstats">${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
 }
-// Ce qu'Azami a compris des goûts de quelqu'un : de quoi vérifier, et corriger en donnant plus d'avis.
+// Ce qu’Azami a compris des goûts de quelqu’un : de quoi vérifier, et corriger en donnant plus d’avis.
 function tasteCard(email) {
   if (!email) return '';
   const t = tastes(), p = t.by[email]; if (!p) return '';
@@ -4452,11 +4459,11 @@ function cineIdeasHtml(space) {
   return `<div class="chip-row"><p class="chip-label">${space === 'nous' ? 'Les idées d’Azami pour vous deux' : 'Les idées d’Azami pour toi'}</p><button class="link small" data-action="cine-ideas-more" aria-label="D’autres idées">↻ D’autres</button></div>
     <div class="cine-ideas">${list.map(({ f }) => `<button type="button" class="idea" data-action="cine-idea" data-i="${S.cineIdeas.indexOf(f)}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.dispo ? '<small class="ichez">✓ chez vous</small>' : f.cinema ? `<small class="ichez">${icn('ticket')} au ciné</small>` : ''}${T.why(t.me, f, 1)[0] ? `<small class="iwhy">${esc(T.why(t.me, f, 1)[0])}</small>` : ''}<b aria-hidden="true">+</b></button>`).join('')}</div>`;
 }
-// À l'affiche à Lausanne : Pathé aujourd'hui, Cinémathèque les prochaines semaines.
+// À l’affiche à Lausanne : Pathé aujourd’hui, Cinémathèque les prochaines semaines.
 function cineSallesHtml() {
   if (!S.salles) return '<p class="hint cine-empty">Azami regarde le programme des salles…</p>';
   if (!S.salles.length) return '<p class="hint cine-empty">Le programme des salles ne répond pas pour l’instant.</p>';
-  // ce que l'app sait de chaque film à l'affiche : dans une liste, vu, ou juste un « bof » passé dans Cinder
+  // ce que l’app sait de chaque film à l’affiche : dans une liste, vu, ou juste un « bof » passé dans Cinder
   const known = new Map(); for (const f of S.films) for (const x of fSalles(f)) known.set(x, f);
   const o = other();
   const state = f => { const v = fVotes(f);
@@ -4478,7 +4485,7 @@ function cineSallesHtml() {
       <ul class="srows">${(w === 'Cinémathèque' ? [...l].sort((a, b) => String(a.next).localeCompare(String(b.next))) : l).map(row).join('')}</ul></details>`).join('')}
     <p class="hint">Séances de search.ch et de la Cinémathèque suisse, mises à jour toutes les 3 h. Touche un titre pour voir les horaires et réserver.</p>`;
 }
-// Les coups de cœur de chacun : ce qu'on a adoré (seul ou avant), à faire découvrir à l'autre.
+// Les coups de cœur de chacun : ce qu’on a adoré (seul ou avant), à faire découvrir à l’autre.
 function cineCoeurs(only) {
   const rows = S.members.filter(m => !only || m.email === only).map(m => [m.email, S.films.filter(f => (f.coeur || []).includes(m.email))]).filter(([, l]) => l.length);
   if (!rows.length) return '';
@@ -4526,8 +4533,8 @@ async function filmEnrich(f) {
   try { const d = await filmsCall({ action: 'details', tmdb_id: f.tmdb_id, media: f.media }); return { ...f, ...Object.fromEntries(Object.entries(d).filter(([k, v]) => v != null && [...(f.id ? [] : ['title']), 'original', 'year', 'poster', 'overview', 'runtime', 'seasons', 'genres', 'director', 'providers', 'trailer', 'gids', 'lang', 'note', 'traits', 'presse'].includes(k))) }; }
   catch { return f; }
 }
-// Un avis sur un film (envie, bof, ou déjà vu avec une note). Le film entre dans la base s'il n'y est pas :
-// même un « bof » sert, il apprend à Azami ce qu'on n'aime pas.
+// Un avis sur un film (envie, bof, ou déjà vu avec une note). Le film entre dans la base s’il n’y est pas :
+// même un « bof » sert, il apprend à Azami ce qu’on n’aime pas.
 async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
   tasteSigs.memo = null;
   const k = fkey(item), ex = S.films.find(f => fkey(f) === k);
@@ -4559,11 +4566,11 @@ function filmMatchParty(f, host) {
   if (host && host.id === 'deck') setTimeout(() => el.remove(), 4500);   // dans Cinder, la fête ne bloque pas la suite
   el.addEventListener('click', e => { if (e.target.closest('[data-x]') || e.target === el) el.remove(); });
 }
-// Cinder : le Tinder du canapé. Une pile de cartes : à droite j'ai envie, à gauche bof, en haut déjà vu (avec
-// une note). Chaque geste apprend quelque chose à Azami. Quand vous dites oui tous les deux, c'est un match.
+// Cinder : le Tinder du canapé. Une pile de cartes : à droite j’ai envie, à gauche bof, en haut déjà vu (avec
+// une note). Chaque geste apprend quelque chose à Azami. Quand vous dites oui tous les deux, c’est un match.
 let deck = null;
-// Faux temps de réflexion : si tu n'étais plus sur ton téléphone (app en arrière-plan, ou aucun geste pendant un long
-// moment), le temps de décision ne veut rien dire et n'est pas compté.
+// Faux temps de réflexion : si tu n’étais plus sur ton téléphone (app en arrière-plan, ou aucun geste pendant un long
+// moment), le temps de décision ne veut rien dire et n’est pas compté.
 ['pointerdown', 'pointermove', 'touchstart', 'keydown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { if (!deck) return; const t = performance.now(), d = t - (deck.act || t); deck.gap = Math.max(deck.gap || 0, d); if (document.getElementById('deck') && d < 30000) deck.actif = (deck.actif || 0) + d; deck.act = t; }, { passive: true, capture: true }));
 document.addEventListener('scroll', () => { if (deck) deck.act = performance.now(); }, { passive: true, capture: true });
 document.addEventListener('visibilitychange', () => { if (deck && document.hidden) deck.away = true; });
@@ -4579,7 +4586,7 @@ async function deckOpen(mood = '') {
   box.innerHTML = `<div class="deck-top"><button class="link" data-d="close">Fermer</button><b class="cinder-logo">${icn('flamme')} Cinder</b><span class="deck-n"></span></div>
     <div class="deck-moods">${MOODS.map(([k, l]) => `<button data-mood="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
     <div class="deck-stack"><p class="hint">Azami mélange les cartes…</p></div>
-    <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas">${icn('non')}<small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé">${icn('bof')}<small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J'ai envie">${icn('envie')}<small>Envie</small></button></div>
+    <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas">${icn('non')}<small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé">${icn('bof')}<small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J’ai envie">${icn('envie')}<small>Envie</small></button></div>
     <p class="deck-hint">→ envie · ← bof · ↓ non, j’aime pas · ↑ déjà vu</p>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   box.addEventListener('click', e => {
@@ -4598,7 +4605,7 @@ async function deckOpen(mood = '') {
     deckVote(b.dataset.d);
   });
   deck = { cards: [], i: 0, box, mood, keys: new Set(), loading: false };
-  // Balayer marche partout : même en partant de la question « tu l'as vu ? », du « pourquoi » ou du match,
+  // Balayer marche partout : même en partant de la question « tu l’as vu ? », du « pourquoi » ou du match,
   // un geste horizontal (ou vers le bas) referme la bulle et emmène la carte.
   let fw = null, fwAt = 0;
   box.addEventListener('pointerdown', e => {
@@ -4627,8 +4634,8 @@ async function deckOpen(mood = '') {
   await deckMore(true);
   deckDraw();
 }
-// Remplir la pile : d'abord ce que l'autre a envie de voir (sans le dire), puis les propositions, classées
-// par le goût (le tien, et celui de l'autre pour viser les matchs), avec un peu de hasard pour apprendre.
+// Remplir la pile : d’abord ce que l’autre a envie de voir (sans le dire), puis les propositions, classées
+// par le goût (le tien, et celui de l’autre pour viser les matchs), avec un peu de hasard pour apprendre.
 async function deckMore(first = false) {
   if (!deck || deck.loading) return; deck.loading = true;
   if (deck.mood === 'test' || deck.mood === 'deja') {
@@ -4643,7 +4650,7 @@ async function deckMore(first = false) {
     return;
   }
   const o = other(), t0 = tastes([], true);
-  // ce que l'autre veut voir (surtout « très envie ») ou a vu et aimé, et que tu n'as pas encore jugé : prioritaire, mais
+  // ce que l’autre veut voir (surtout « très envie ») ou a vu et aimé, et que tu n’as pas encore jugé : prioritaire, mais
   // pas systématique, et sans le dire (la surprise du match)
   if (!deck.prio) { const vus = shownGet(); deck.prio = o ? S.films.filter(f => !judged(f) && !vus[fkey(f)] && !deck.keys.has(fkey(f)) && (T.wants(fVotes(f)[o]) && f.status === 'a_voir' || (f.ratings?.[o]?.note || 0) >= 4 || (f.coeur || []).includes(o))) : []; }
   const pending = deck.prio.filter(f => !deck.keys.has(fkey(f)) && !judged(f));
@@ -4653,27 +4660,27 @@ async function deckMore(first = false) {
   const shown = shownGet(), recent = Object.keys(shown).sort((a, b) => shown[b] - shown[a]).slice(0, 400);
   try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys, ...recent] })).results || []; } catch (e) { console.warn('deck', e); }
   more = more.filter(f => !shown[fkey(f)]);
-  // si l'autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s'il est déjà jugé par toi, on l'écarte
+  // si l’autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s’il est déjà jugé par toi, on l’écarte
   more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
   const t = tastes(more, true);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
   // On ne montre que le meilleur de la pioche : sur tes avis, le tiers le mieux classé contient près de 8 envies sur 10
-  // (et 3 fois plus d'envies par carte qu'au hasard). Une carte sur sept vient quand même du reste, pour continuer
-  // d'apprendre et ne pas s'enfermer.
+  // (et 3 fois plus d’envies par carte qu’au hasard). Une carte sur sept vient quand même du reste, pour continuer
+  // d’apprendre et ne pas s’enfermer.
   const pool0 = more.filter(f => !T.banned(t.me, f)).map(f => [f, sc(f)]).sort((a, b) => b[1] - a[1]);
   const keepN = t.me?.n >= 40 ? Math.max(8, Math.ceil(pool0.length * (deck.mood ? .55 : .35))) : pool0.length;
   const reste = pool0.slice(keepN).map(x => x[0]).sort(() => Math.random() - .5);
-  // Les « portes » : de temps en temps, un film bien noté qui sort de ce que l'algorithme croit que tu aimes (genre,
-  // pays, langue, époque où tu n'as presque rien jugé). Signalé comme tel ; s'il te plaît, une nouvelle piste s'ouvre.
+  // Les « portes » : de temps en temps, un film bien noté qui sort de ce que l’algorithme croit que tu aimes (genre,
+  // pays, langue, époque où tu n’as presque rien jugé). Signalé comme tel ; s’il te plaît, une nouvelle piste s’ouvre.
   const neuf = f => { const ks = T.feats(f).filter(([k]) => /^(g|c|l|d):/.test(k)); if (!ks.length) return 0; return ks.filter(([k]) => Math.abs(t.me?.Pn?.get(k) || 0) < .08).length / ks.length; };
   const portes = t.me?.n >= 40 && !deck.mood ? reste.filter(f => (T.quality(f) || 0) >= 7.2 && neuf(f) >= .5).sort((a, b) => neuf(b) - neuf(a)).slice(0, Math.max(1, Math.round(keepN / 8))) : [];
   portes.forEach(f => f._porte = true);
   const choisis = [...pool0.slice(0, keepN).map(x => x[0]), ...portes, ...reste.filter(f => !portes.includes(f)).slice(0, Math.ceil(keepN / 8))];
-  const ordered = T.order(choisis.filter(f => !f._porte), sc, undefined, .25, t.me?.n >= 40 ? f => T.doute(t.me, f) : null);   // les cartes d'exploration : là où Azami hésite le plus
+  const ordered = T.order(choisis.filter(f => !f._porte), sc, undefined, .25, t.me?.n >= 40 ? f => T.doute(t.me, f) : null);   // les cartes d’exploration : là où Azami hésite le plus
   portes.forEach((f, i) => ordered.splice(Math.min(ordered.length, 3 + i * 7), 0, f));   // une porte de temps en temps, pas toutes à la fin
   const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
   const ps = pending.map(f => [f, pw(f)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
-  // les films de l'autre passent en priorité, mais au hasard (environ une carte sur trois, jamais deux d'affilée) ;
+  // les films de l’autre passent en priorité, mais au hasard (environ une carte sur trois, jamais deux d’affilée) ;
   // le reste attend la pioche suivante
   const mix = [];
   while (ordered.length) { const last = mix[mix.length - 1]; if (ps.length && !ps.includes(last) && Math.random() < .34) mix.push(ps.shift()); else mix.push(ordered.shift()); }
@@ -4690,8 +4697,8 @@ async function deckMore(first = false) {
   for (const f of mix) deck.keys.add(fkey(f));
   deck.cards.push(...mix); deck.loading = false;
 }
-// Dessiner la pile sans tout refaire : la carte d'en dessous (déjà affichée, affiche déjà décodée) monte et devient
-// la carte du dessus, la suivante arrive derrière en fondu, et celle qu'on vient de juger finit de s'envoler par-dessus.
+// Dessiner la pile sans tout refaire : la carte d’en dessous (déjà affichée, affiche déjà décodée) monte et devient
+// la carte du dessus, la suivante arrive derrière en fondu, et celle qu’on vient de juger finit de s’envoler par-dessus.
 const deckFrag = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 function deckPreload() {
   // les affiches des prochaines cartes se chargent et se décodent en avance
@@ -4719,12 +4726,12 @@ function deckDraw() {
   if (n) { const fresh = (deck.voted || []).filter(x => x > (tasteMemo?.at || 0)).length; n.textContent = deck.deja && deck.i < deck.deja ? `${deck.i + 1}/${deck.deja}` : deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n + fresh} avis` : ''; }
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
   if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now() + 220; deck.gap = 0; deck.away = document.hidden; deck.fiche = false; deck.lire = 0; const c0 = cur; setTimeout(() => shownAdd(c0), 400); }
-  // plus que quelques cartes : on en cherche d'autres (une seule fois de suite si la pioche revient vide)
+  // plus que quelques cartes : on en cherche d’autres (une seule fois de suite si la pioche revient vide)
   if (deck.cards.length - deck.i < 6 && !deck.loading && !(deck.dry && deck.dry === deck.cards.length)) {
     const had = deck.cards.length;
     deckMore().then(() => {
       if (!deck) return;
-      // pioche vide : on retente deux fois (le serveur cherche alors plus loin) avant de s'arrêter
+      // pioche vide : on retente deux fois (le serveur cherche alors plus loin) avant de s’arrêter
       if (deck.cards.length === had) { deck.dryN = (deck.dryN || 0) + 1; if (deck.dryN >= 3) deck.dry = had; } else deck.dryN = 0;
       if (!deck.cards[deck.i] || !st.querySelector('.dcard:not(.gone)')) deckDraw(); else deckDrawNext();
     });
@@ -4741,25 +4748,25 @@ function deckDraw() {
   };
   deckDraw.card = card;
   const ago = cur._relance ? Math.round((Date.now() - Date.parse(cur.hesite?.[S.me]?.at || cur.created_at || Date.now())) / (30 * 864e5)) : 0;
-  // la carte qui était dessous monte (on garde l'élément et son affiche) ; sinon on la crée
+  // la carte qui était dessous monte (on garde l’élément et son affiche) ; sinon on la crée
   const kc = fkey(cur), up = live.find(c => c.classList.contains('next') && c.dataset.k === kc);
   live.forEach(c => { if (c !== up) c.remove(); });
   let el;
   if (up) { el = up; el.style.transform = el.style.opacity = ''; el.classList.replace('next', 'top'); const d = deckFrag(card(cur, 'top')); el.querySelector('.dinfo').replaceWith(d.querySelector('.dinfo')); }
   else { el = deckFrag(card(cur, 'top')); st.appendChild(el); }
-  const gone = st.querySelector('.dcard.gone'); if (gone) st.appendChild(gone);   // elle finit de s'envoler par-dessus
+  const gone = st.querySelector('.dcard.gone'); if (gone) st.appendChild(gone);   // elle finit de s’envoler par-dessus
   deckDrawNext();
   if (cur._relance && !deck.asking) st.insertAdjacentHTML('beforeend', `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>`);
-  else if (cur._porte && !deck.asking) st.insertAdjacentHTML('beforeend', '<p class="dtheirs relance porte">Porte ouverte : un film hors de tes habitudes</p>');   // ce que l'autre veut voir ou a aimé reste secret ici : la surprise du match
+  else if (cur._porte && !deck.asking) st.insertAdjacentHTML('beforeend', '<p class="dtheirs relance porte">Porte ouverte : un film hors de tes habitudes</p>');   // ce que l’autre veut voir ou a aimé reste secret ici : la surprise du match
   deckPreload();
   if (deck.asking) { deckAskSeen(true); return; }
   const nxF = () => st.querySelector('.dcard.next:not(.enter)');
-  // le temps de décision part quand l'affiche est vraiment là, et la carte laisse un peu plus de temps s'il y a du texte à lire
+  // le temps de décision part quand l’affiche est vraiment là, et la carte laisse un peu plus de temps s’il y a du texte à lire
   const img = el?.querySelector('img.dposter'), i0 = deck.i, go = () => { if (deck?.i === i0) deck.t0 = deck.act = Math.max(deck.act || 0, performance.now()); };
   if (img && !img.complete) { img.addEventListener('load', go, { once: true }); img.addEventListener('error', go, { once: true }); setTimeout(go, 1200); }
   deck.lire = Math.min(3000, ((el?.querySelector('.dinfo p')?.textContent.length || 0) + (el?.querySelector('.dwhy')?.textContent.length || 0)) * 8);
   // Glisser au doigt : la carte suit le doigt sans retard (une mise à jour par image), un geste vif suffit
-  // (on regarde la vitesse, pas seulement la distance), et la carte suivante grandit pendant qu'on glisse.
+  // (on regarde la vitesse, pas seulement la distance), et la carte suivante grandit pendant qu’on glisse.
   let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0, hist = [], mx = 0, nx0 = 0, my = 0, ny0 = 0;
   const paint = () => {
     raf = 0; const nx = nxF();
@@ -4768,8 +4775,8 @@ function deckDraw() {
     el.classList.toggle('lean-vu', up); el.classList.toggle('lean-beurk', down); el.classList.toggle('lean-oui', !vert && dx > 40); el.classList.toggle('lean-non', !vert && dx < -40);
     if (nx) { const k = Math.min(1, Math.hypot(dx, dy) / 160); nx.style.transform = `scale(${.94 + .06 * k}) translateY(${10 - 10 * k}px)`; nx.style.opacity = String(.7 + .3 * k); }
   };
-  // le geste, en trois temps : il peut aussi partir d'une bulle posée sur la carte (note, pourquoi, match), qui
-  // s'efface alors pour laisser la carte suivre le doigt
+  // le geste, en trois temps : il peut aussi partir d’une bulle posée sur la carte (note, pourquoi, match), qui
+  // s’efface alors pour laisser la carte suivre le doigt
   const start = (x, y) => {
     x0 = x; y0 = y; dx = dy = 0; mx = nx0 = my = ny0 = 0; t0 = performance.now(); hist = [[t0, 0, 0]]; deck.drag = true;
     if (deck.box.querySelector('.dwhyask')) deckWhyHide();
@@ -4795,7 +4802,7 @@ function deckDraw() {
     // un simple toucher (sans glisser) : la carte se retourne et montre la fiche, comme sur Tinder
     if (Math.hypot(dx, dy) < 8 && performance.now() - t0 < 400) { el.style.transform = ''; if (nx) nx.style.transform = nx.style.opacity = ''; deckInfo(); return; }
     if (vert && fy && dy < 0) { el.style.transform = ''; el.classList.remove('lean-vu'); if (nx) nx.style.transform = nx.style.opacity = ''; deckAskSeen(); }
-    // un geste lent, ou qui part d'un côté puis revient de l'autre, est une hésitation : Azami s'en sert aussi
+    // un geste lent, ou qui part d’un côté puis revient de l’autre, est une hésitation : Azami s’en sert aussi
     const geste = { dx, dy, dur: performance.now() - t0, rev: (mx > 45 && nx0 < -45) || (my > 45 && ny0 < -45) };
     if (vert && fy && dy > 0) { cinderLog('beurk'); deckVote('beurk', geste); }
     else if (!vert && fx) { cinderLog(dx > 0 ? 'oui' : 'non'); deckVote(dx > 0 ? 'oui' : 'non', geste); }
@@ -4806,7 +4813,7 @@ function deckDraw() {
   deck.swipe = { start, move, end, el };
 }
 const TMDB_G = { 28: 'Action', 12: 'Aventure', 16: 'Animation', 35: 'Comédie', 80: 'Policier', 99: 'Documentaire', 18: 'Drame', 10751: 'Familial', 14: 'Fantastique', 36: 'Histoire', 27: 'Horreur', 10402: 'Musique', 9648: 'Mystère', 10749: 'Romance', 878: 'Science-fiction', 53: 'Thriller', 10752: 'Guerre', 37: 'Western', 10759: 'Action', 10765: 'SF et fantastique', 10768: 'Guerre', 10762: 'Enfants', 10764: 'Téléréalité', 10766: 'Feuilleton', 10767: 'Talk-show', 10763: 'Actualités' };
-// La fiche d'une carte : synopsis, bande-annonce, crédits, où le voir et pourquoi Azami le propose.
+// La fiche d’une carte : synopsis, bande-annonce, crédits, où le voir et pourquoi Azami le propose.
 // Les détails (bande-annonce surtout) arrivent de TMDB à la première ouverture, puis restent sur la carte.
 function deckInfo() {
   const f = deck?.cards[deck.i]; if (!f || deck.asking) return;
@@ -4827,7 +4834,7 @@ function deckInfo() {
     if (horiz && Math.abs(dx) > 90) { const v = dx > 0 ? 'oui' : 'non'; cinderLog(v); m.remove(); deckVote(v); }
     else m.style.transform = ''; horiz = false; };
   m.addEventListener('pointerup', end); m.addEventListener('pointercancel', () => { if (!horiz) { x0 = null; return; } end(); });
-  // sur téléphone, le toucher qui ouvre la fiche produit ensuite un « clic » qui tomberait sur la fiche : on l'ignore
+  // sur téléphone, le toucher qui ouvre la fiche produit ensuite un « clic » qui tomberait sur la fiche : on l’ignore
   const opened = performance.now(), heroClose = () => { if (performance.now() - opened > 450) deckInfoClose(); };
   m.addEventListener('click', e => { if (performance.now() - opened < 450) { e.stopPropagation(); e.preventDefault(); } }, true);
   m.querySelector('.dm-hero')?.addEventListener('click', heroClose);
@@ -4872,7 +4879,7 @@ function tonsRow(f) {
   const T0 = f.tons; if (!T0?.tons?.length) return '';
   return `<div class="ftons">${T0.tons.map(t => `<span>${esc(t)}</span>`).join('')}${T0.rythme ? `<span class="ry">rythme ${esc(T0.rythme)}</span>` : ''}${T0.intensite ? `<span class="ry">intensité ${esc(T0.intensite)}</span>` : ''}</div>`;
 }
-// La presse titre par titre (AlloCiné) : tes jumeaux critiques d'abord.
+// La presse titre par titre (AlloCiné) : tes jumeaux critiques d’abord.
 function critiquesRow(f) {
   const C = f.critiques; if (!C || C.aucune) return '';
   const tw = tastes([], true).me?.critics || new Map();
@@ -4912,14 +4919,14 @@ function deckInfoHtml(f) {
     </div>`;
 }
 // Sur iPhone, une vidéo lancée automatiquement dans le lecteur YouTube démarre sans le son : on affiche le lecteur,
-// et c'est le toucher sur son bouton lecture (dans la vidéo elle-même) qui la lance, avec le son.
+// et c’est le toucher sur son bouton lecture (dans la vidéo elle-même) qui la lance, avec le son.
 function deckTrailer(b) {
   const id = b.dataset.yt; if (!id) return;
   const w = document.createElement('div'); w.className = 'dm-trailer playing';
   w.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?playsinline=1&rel=0&modestbranding=1" title="Bande-annonce" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
   b.replaceWith(w); haptic(1);
 }
-// Déjà vu : une note rapide, qui en dit long (surtout quand on n'a pas aimé).
+// Déjà vu : une note rapide, qui en dit long (surtout quand on n’a pas aimé).
 function deckWhyHide() { clearTimeout(deckWhy.t); deck?.box.querySelectorAll('.dwhyask').forEach(x => x.remove()); deckWhyReset(); }
 function deckAskSeen(redraw = false) {
   const f = deck?.cards[deck.i]; if (!f) return;
@@ -4929,7 +4936,7 @@ function deckAskSeen(redraw = false) {
   st.querySelector('.dseen')?.remove();
   st.insertAdjacentHTML('beforeend', `<div class="dseen" role="dialog" aria-label="Tu l’as vu"><p class="dseen-t">Tu as vu <b>${esc(f.title)}</b>. Alors ?</p>
     ${jauge(0)}</div>`);
-  // on lâche la jauge : c'est noté (pas de bouton à confirmer ; une erreur se rattrape avec Annuler ou ⌘Z)
+  // on lâche la jauge : c’est noté (pas de bouton à confirmer ; une erreur se rattrape avec Annuler ou ⌘Z)
   const box = st.querySelector('.dseen');
   jaugeBind(box.querySelector('.jauge'), (v, fin) => { if (!fin || box.dataset.fait) return; box.dataset.fait = '1'; setTimeout(() => { if (deck?.asking) deckSeen(v); }, 260); });
 }
@@ -4942,9 +4949,9 @@ async function deckSeen(note) {
   deck.i++; deckDraw();
   try { const p = filmVote(f, fVotes(f)[S.me] || null, false, note); deckUndoNow(f, `${f.title} : noté`, p); await p; } catch (e) { console.warn('vu', e); toast('La note n’est pas passée.'); }
 }
-// Retour en arrière dans Cinder : la dernière carte revient, et l'avis est effacé.
+// Retour en arrière dans Cinder : la dernière carte revient, et l’avis est effacé.
 // Annuler dans Cinder : proposé tout de suite (sans attendre le réseau), et toujours pour la DERNIÈRE carte jugée.
-// La remise en état de la base attend que l'avis soit bien enregistré, puis défait exactement celui-là.
+// La remise en état de la base attend que l’avis soit bien enregistré, puis défait exactement celui-là.
 function deckUndoNow(f, label, p) {
   offerUndo(label, [], []);
   UNDO.wait = p.then(() => { const u = filmVote.undoFor?.get(fkey(f)); return u ? { before: u[1], cap: u[2] } : { before: [], cap: [] }; }).catch(() => ({ before: [], cap: [] }));
@@ -4954,7 +4961,7 @@ function deckUndoOffer(f) {
   const [label, before, cap] = filmVote.undo || []; if (!label) return;
   cineUndo(label, before, cap, () => { if (deck && deck.cards[deck.i - 1] === f) { deck.i--; deck.asking = false; deckDraw(); } });
 }
-// La carte jugée s'envole dans la direction du geste, sans ralentir (elle part à la vitesse du doigt puis file),
+// La carte jugée s’envole dans la direction du geste, sans ralentir (elle part à la vitesse du doigt puis file),
 // pendant que la suivante est déjà là et déjà jouable.
 function deckFly(el, v, from) {
   if (!el) return;
@@ -4978,7 +4985,7 @@ async function deckVote(v, from) {
   deckFly(el, v, from);
   haptic(T.wants(v) ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (T.wants(v)) sfx(v === 'super' ? 'done' : 'tick');
   (deck.voted ||= []).push(tv);
-  // le temps de décision : immédiat, le temps de lire le titre et l'affiche, ou une vraie hésitation
+  // le temps de décision : immédiat, le temps de lire le titre et l’affiche, ou une vraie hésitation
   const meta = { ms: Math.max(0, Math.round(tv - (deck.t0 || tv))), fiche: !!deck.fiche, lire: deck.lire || 0, at: new Date().toISOString() };
   if (f._relance) meta.relance = 1;   // une seule seconde chance
   if (f._porte) meta.porte = 1;   // film « porte » : un bof y pèse moins, une envie y ouvre une piste
@@ -4989,16 +4996,16 @@ async function deckVote(v, from) {
     const p = filmVote(f, v, T.wants(v), 0, meta);
     deckUndoNow(f, `${f.title} : ${v === 'oui' ? 'envie' : v === 'super' ? 'très envie' : v === 'beurk' ? 'non' : 'bof'}`, p);
     const saved = await p;
-    // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d'explication
+    // on ne demande pourquoi que quand tu as hésité (fiche ouverte ou longue réflexion) : un Bof immédiat se passe d’explication
     if (!deck) return;
     if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes([], true).me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
-    // l'autre a peut-être voté entre-temps : on relit juste les votes de ce film (léger), pas toute la liste
+    // l’autre a peut-être voté entre-temps : on relit juste les votes de ce film (léger), pas toute la liste
     if (T.wants(v) && saved?.id && !DEMO && sb) { try { const { data } = await sb.from('films').select('votes').eq('id', saved.id).maybeSingle(); if (data?.votes) saved.votes = { ...data.votes, ...fVotes(saved) }; } catch {} }
     if (deck && T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }
-// Pourquoi ? Rien ne s'impose : après un Bof ou un Non!, un petit lien discret remplace l'aide en bas quelques
-// secondes. Si on le touche, les pastilles s'ouvrent ; sinon, rien ne bouge (un Bof veut souvent dire « flemme »).
+// Pourquoi ? Rien ne s’impose : après un Bof ou un Non!, un petit lien discret remplace l’aide en bas quelques
+// secondes. Si on le touche, les pastilles s’ouvrent ; sinon, rien ne bouge (un Bof veut souvent dire « flemme »).
 function deckWhyOffer(f, v) {
   const hint = deck?.box.querySelector('.deck-hint'); if (!hint) return;
   clearTimeout(deckWhyOffer.t);
@@ -5016,7 +5023,7 @@ function deckWhy(f, v) {
   const draw = () => { el.innerHTML = `<p>${v === 'beurk' ? 'Non !' : 'Bof'} pour <b>${esc(f.title)}</b>. Pourquoi ? <small>(facultatif)</small></p><div>${T.RAISONS.map(([k, l]) => `<button type="button" data-why="${k}" aria-pressed="${mine().includes(k)}">${l}</button>`).join('')}</div>`; };
   draw(); host.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
   const bye = (ms) => { clearTimeout(deckWhy.t); deckWhy.t = setTimeout(() => { el.classList.remove('on'); setTimeout(() => el.remove(), 250); }, ms); };
-  bye(4000);   // ouvert exprès : le temps de choisir, puis ça s'en va
+  bye(4000);   // ouvert exprès : le temps de choisir, puis ça s’en va
   el.addEventListener('pointerdown', e => e.stopPropagation());
   el.addEventListener('click', e => {
     e.stopPropagation();
@@ -5026,7 +5033,7 @@ function deckWhy(f, v) {
     api.update('films', { id: f.id }, { raisons: f.raisons }).catch(() => {});
   });
 }
-// La fiche d'un film : affiche, synopsis, où regarder, bande-annonce, et ce qu'on en fait.
+// La fiche d’un film : affiche, synopsis, où regarder, bande-annonce, et ce qu’on en fait.
 async function cineOpen(id) {
   const f = S.films.find(x => x.id === id); if (!f) return;
   const draw = () => {
@@ -5043,7 +5050,7 @@ async function cineOpen(id) {
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
       : `${revoirB}<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Ajouter un petit mot</button>`;
     const heart = `<button class="fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}" aria-label="${(f.coeur || []).includes(S.me) ? 'Retirer de mes coups de cœur' : 'Mettre dans mes coups de cœur'}"><span aria-hidden="true">${(f.coeur || []).includes(S.me) ? '♥' : '♡'}</span><small>Coup de cœur</small></button>`;
-    // ta note, directement sur la fiche d'un film que tu as vu : on glisse, c'est enregistré
+    // ta note, directement sur la fiche d’un film que tu as vu : on glisse, c’est enregistré
     const maNote = f.ratings?.[S.me]?.note || 0, vuParMoi = maNote || fSeen(f, S.me);
     const rates = S.members.filter(m => f.ratings?.[m.email]?.note && !(m.email === S.me && vuParMoi)).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> ${noteMini(f.ratings[m.email].note, 'big')}${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
     document.getElementById('ticket')?.remove();
@@ -5146,10 +5153,10 @@ const HUMEURS = { leger: [['feel-good', 'drôle', 'lumineux', 'chaleureux', 'ten
   contemplatif: [['contemplatif', 'poétique', 'mélancolique', 'minimaliste', 'intimiste'], [18]], frisson: [['angoissant', 'glaçant', 'malaisant', 'mystérieux'], [27, 53, 9648]], rire: [['drôle', 'absurde', 'humour noir', 'satirique'], [35]] };
 const humeurOk = (f, h) => { const H = HUMEURS[h]; if (!H) return true; return f.tons?.tons?.length ? f.tons.tons.some(t => H[0].includes(t)) || (h === 'contemplatif' && f.tons.rythme === 'lent') : (f.gids || []).some(g => H[1].includes(g)); };
 // « Ce soir ? » : au hasard parmi vos films à deux (les matchs), ou seulement dans tes envies à toi.
-// Seul, on peut aussi piocher dans ce qu'on a déjà vu (et pas mis dans ses envies) : les mieux notés sortent plus souvent.
+// Seul, on peut aussi piocher dans ce qu’on a déjà vu (et pas mis dans ses envies) : les mieux notés sortent plus souvent.
 const soirVus = () => safeGet('maison-soir-vus') === '1';
-// Les filtres se combinent : plusieurs humeurs (l'une ou l'autre), plusieurs formats (court, film, série : l'un ou
-// l'autre), et « dispo chez nous » en plus de tout le reste.
+// Les filtres se combinent : plusieurs humeurs (l’une ou l’autre), plusieurs formats (court, film, série : l’un ou
+// l’autre), et « dispo chez nous » en plus de tout le reste.
 const soirListe = v => Array.isArray(v) ? v : v ? [v] : [];
 const soirBascule = (l, k) => !k ? [] : l.includes(k) ? l.filter(x => x !== k) : [...l, k];
 function cineSoir(kind = S.soirKind || [], mood = S.soirMood || [], pour = S.soirPour || 'nous') {
@@ -5175,12 +5182,12 @@ function cineSoir(kind = S.soirKind || [], mood = S.soirMood || [], pour = S.soi
   const stage = box.querySelector('.roulette-stage');
   if (!pool.length) { stage.innerHTML = solo ? `<p class="ticket-sub">${L.mine.length || vus ? `Rien dans tes envies pour ça.${mood.length + kind.length > 1 ? ' Enlève un filtre ?' : ' Essaie une autre humeur.'}` : 'Ta liste d’envies est vide. Un tour de Cinder pour la remplir ?'}</p>` : `<p class="ticket-sub">${mood.length + kind.length > 1 ? 'Rien en commun avec tous ces filtres. Enlève-en un ?' : 'Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !'}</p>`; return; }
   const t = tastes();
-  // un déjà-vu pèse selon ta note (un chef-d'œuvre revient bien plus qu'un « moyen »), un coup de cœur double ;
-  // dans l'ensemble, ils restent un peu moins fréquents que les vraies envies
+  // un déjà-vu pèse selon ta note (un chef-d’œuvre revient bien plus qu’un « moyen »), un coup de cœur double ;
+  // dans l’ensemble, ils restent un peu moins fréquents que les vraies envies
   const wVu = f => { const n = f.ratings?.[S.me]?.note ?? 3.2; return .6 * Math.exp((n - 3.5) * 1.1) * ((f.coeur || []).includes(S.me) ? 2 : 1) * (fDispo(f) ? 1.6 : 1); };
   const wSolo = f => dejaVus.includes(f) ? wVu(f) : (fVotes(f)[S.me] === 'super' ? 2.5 : 1) * (f.status === 'en_cours' ? 1.6 : 1) * (fDispo(f) ? 2 : 1) * (fVotes(f)[S.me] === 'revoir' ? .7 : 1) * (t.me ? Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) : 1);
   const w = solo ? wSolo : f => (fMatch(f) ? 3 : 1) * (S.members.some(m => fVotes(f)[m.email] === 'super') ? 2 : 1) * (f.status === 'en_cours' ? 2 : 1) * (fDispo(f) ? 2 : 1) * (t.other ? Math.exp(Math.max(-1.5, Math.min(1.5, T.scoreBoth(t.me, t.other, f, t.couple, .2) / 3))) : 1);
-  // le tirage, pondéré ; « Un autre » ne repropose pas ce qu'on vient de voir (tant qu'il reste autre chose)
+  // le tirage, pondéré ; « Un autre » ne repropose pas ce qu’on vient de voir (tant qu’il reste autre chose)
   const vus2 = new Set();
   const tirer = () => { const reste = pool.filter(f => !vus2.has(f)), l = reste.length ? reste : pool; const tot = l.reduce((a, f) => a + w(f), 0); let x = Math.random() * tot, p = l[0]; for (const f of l) { x -= w(f); if (x <= 0) { p = f; break; } } vus2.add(p); return p; };
   const carte = pick => `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${solo ? `<span class="fbadge">${dejaVus.includes(pick) ? `Déjà vu${pick.ratings?.[S.me]?.note ? ` · ${esc(noteMot(pick.ratings[S.me].note).toLowerCase())}` : ''}` : fVotes(pick)[S.me] === 'super' ? 'Très envie' : fVotes(pick)[S.me] === 'revoir' ? 'À revoir' : 'Dans tes envies'}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} ${esc(nameOf(other()))} aussi</span>` : ''}` : fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
@@ -5188,7 +5195,7 @@ function cineSoir(kind = S.soirKind || [], mood = S.soirMood || [], pour = S.soi
   let pick = tirer();
   stage.innerHTML = `<div class="gacha r1" style="--k:#E7505A"><button type="button" class="gacha-cap" aria-label="Ouvrir la capsule"><span class="cap-top"></span><span class="cap-bot"></span><span class="cap-shine"></span></button><p class="gacha-hint">Touche la capsule !</p></div>`;
   if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['manivelle', 0], ['capsule', .55]], audioCtx.currentTime + .02, .5);
-  // « Un autre » : la capsule reste ouverte, seule la carte change (elle s'envole, la suivante arrive)
+  // « Un autre » : la capsule reste ouverte, seule la carte change (elle s’envole, la suivante arrive)
   const autre = g => {
     const old = g.querySelector('.gacha-card'); pick = tirer(); haptic(1); sfx('tick');
     const tmp = document.createElement('div'); tmp.innerHTML = carte(pick); const nv = tmp.firstElementChild, acts = tmp.querySelector('.roulette-actions');
@@ -5231,7 +5238,7 @@ async function filmsResolve() {
       const r = (await filmsCall({ action: 'resolve', items: gs.map(g => ({ title: g.seed_q, media: g.seed_media, year: g.seed_year })) }).catch(() => ({}))).results || [];
       gs.forEach((g, j) => { if (r[j]?.tmdb_id) { g.seed_tmdb = r[j].tmdb_id; api.update('gouts', { id: g.id }, { seed_tmdb: g.seed_tmdb }).catch(() => {}); } });
     }
-    // les notes presse et public (MDBList) des films qui n'en ont pas encore : un petit lot à chaque passage
+    // les notes presse et public (MDBList) des films qui n’en ont pas encore : un petit lot à chaque passage
     if (S.films.some(f => f.tmdb_id && !f.presse) && !(filmsResolve.quota < 150)) {
       const r = await filmsCall({ action: 'presse', n: 40 }).catch(() => null);
       if (r) { filmsResolve.quota = r.quota; if (r.faits || r.sans) await filmsSync()?.catch?.(() => {}); }   // seulement ce qui a changé (avant : toute la table, 16 Mo)
@@ -5244,7 +5251,7 @@ async function filmsResolve() {
       if (!need[action]) continue;
       const r = await srcCall({ action, n }).catch(() => null); if (r?.faits || r?.sans) got = true;
     }
-    // les tons : d'abord tous les films qui comptent (notés, envies, coups de cœur), par lots, tant que l'app est ouverte
+    // les tons : d’abord tous les films qui comptent (notés, envies, coups de cœur), par lots, tant que l’app est ouverte
     if (need.tons && filmsResolve.tons) {
       for (let k = 0; k < 12 && !document.hidden; k++) {
         const r = await srcCall({ action: 'tons', n: 40, prio: true }).catch(() => null);
@@ -5252,7 +5259,7 @@ async function filmsResolve() {
         if (!r || r.error || !r.prio || (!r.faits && r.erreurs)) break;
       }
     }
-    // ce qui a changé seulement (jamais toute la table : c'était 16 Mo de trafic à chaque fois)
+    // ce qui a changé seulement (jamais toute la table : c’était 16 Mo de trafic à chaque fois)
     if (got) await filmsSync()?.catch?.(() => {});
     // les traits qui nourrissent le goût (équipe, thèmes, durée, succès, public) : une fois pour toutes
     const bare = S.films.filter(f => f.tmdb_id && !f.traits);
@@ -5260,14 +5267,14 @@ async function filmsResolve() {
       await Promise.all(bare.slice(i, i + 4).map(async f => { const d = await filmEnrich(f); if (!d.traits) return; const patch = { traits: d.traits, gids: d.gids || [], lang: d.lang || null, note: d.note || null, ...(f.original ? {} : { original: d.original || null }) }; Object.assign(f, patch); api.update('films', { id: f.id }, patch).catch(() => {}); }));
     }
     if (bare.length) tasteMemo = null;
-    // de temps en temps, les plateformes changent : on rafraîchit les fiches de plus d'une semaine
+    // de temps en temps, les plateformes changent : on rafraîchit les fiches de plus d’une semaine
     const old = S.films.filter(f => f.tmdb_id && f.status !== 'vu' && Date.now() - new Date(f.checked_at || f.created_at || 0).getTime() > 7 * 864e5).slice(0, 6);
     for (const f of old) { const d = await filmEnrich(f); const patch = { providers: d.providers || [], checked_at: new Date().toISOString() }; Object.assign(f, patch); api.update('films', { id: f.id }, patch).catch(() => {}); }
     if (!S.cineIdeas?.length) cineIdeas(true);
   } catch (e) { console.warn('films', e); } finally { filmsResolve.busy = false; }
 }
-// Les idées d'Azami : ce qui ressemble à ce que vous avez aimé. Gardées 12 h (sur ce téléphone), puis renouvelées ;
-// et quand vous ajoutez ou notez des films, elles se rafraîchissent. Le bouton ↻ en demande d'autres tout de suite.
+// Les idées d’Azami : ce qui ressemble à ce que vous avez aimé. Gardées 12 h (sur ce téléphone), puis renouvelées ;
+// et quand vous ajoutez ou notez des films, elles se rafraîchissent. Le bouton ↻ en demande d’autres tout de suite.
 async function cineIdeas(force = false) {
   S.cineIdeasAsked = true;
   const sig = S.films.length + ':' + S.films.filter(f => (f.coeur || []).length || Object.keys(f.ratings || {}).length).length;
@@ -5298,7 +5305,7 @@ function viewCare() {
     const head = `<img class="l-icon" src="icons/themes/care_${esc(['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(c.kind) ? c.kind : 'merci')}.webp" alt="" width="40" height="40"><span class="l-from">${esc(careKind(c.kind) || 'Un mot')} de ${esc(nameOf(c.author))}</span><span class="l-meta">${esc(ago(c.created_at))}${c.read_at ? '' : ', pas encore ouvert'}</span>`;
     if (!opened) return `<button class="letter ${c.read_at ? '' : 'sealed'}" data-action="letter-open" data-id="${c.id}" aria-expanded="false">${head}</button>`;
     return `<div class="letter" aria-live="polite">${head}<div class="letter-body">${esc(c.body)}</div>
-      ${c.wants_talk ? `<div class="talk">${esc(nameOf(c.author))} aimerait qu'on en parle.</div>` : ''}
+      ${c.wants_talk ? `<div class="talk">${esc(nameOf(c.author))} aimerait qu’on en parle.</div>` : ''}
       <div><button class="link" data-action="letter-close">Refermer</button></div></div>`;
   };
 
@@ -5316,7 +5323,7 @@ function viewCare() {
     <form class="form" data-form="care">
       ${chipGroup('care-kind', CARE_KINDS.filter(k => k[0] !== 'azami'), 'merci')}
       <label class="sr" for="care-body">Ton mot</label>
-      <textarea class="area mt" id="care-body" data-keep name="body" placeholder="Ce que tu n'oses pas dire en face…" required></textarea>
+      <textarea class="area mt" id="care-body" data-keep name="body" placeholder="Un mot pour ${esc(nameOf(other()) || 'l’autre')}…" required></textarea>
       <button type="button" class="link" data-action="care-help">Aide pour formuler</button>
       <label class="check"><input type="checkbox" id="care-talk" data-keep name="talk"> J'aimerais qu'on en parle</label>
       <div class="form-actions"><button class="btn" type="submit">Déposer dans sa boîte</button></div>
@@ -5332,7 +5339,7 @@ function viewCare() {
 
 // Azami qui parle (v200) ------------------------------------------------------
 // On lui parle par écrit ou au micro ; elle répond avec sa fiche de personnage, sa mémoire (une par personne,
-// gardée dans la base) et un instantané de l'app. Tout passe par la fonction « azami » ; la clé reste côté serveur.
+// gardée dans la base) et un instantané de l’app. Tout passe par la fonction « azami » ; la clé reste côté serveur.
 const AZ_PAGE = { maison: 'accueil', menage: 'ménage', courses: 'courses', recettes: 'recettes', argent: 'argent', nuit: 'loisirs' };
 const AZ_DEMO = ['Pas encore, je vois toujours les mêmes cinq films : Jojo Rabbit, Gangs of New York, Man on the Moon, Her et Psychose. Mulholland Drive n’est pas dans ta liste, mes pattes n’y arrivent pas. Je viens de le noter dans ma mémoire à moi, avec ton 4 sur 5.', 'Mrrr… ici c’est la démo, je n’ai pas mes croquettes ni ma mémoire. Mais je t’écoute quand même.', 'Dans la vraie app, je retiens ce que tu me dis. Là, je fais semblant. Très bien, d’ailleurs.', 'Tu sais que je surveille les voisins depuis la fenêtre ? Rien à signaler aujourd’hui. Un pigeon, peut-être.'];
 async function azamiCall(body) {
@@ -5342,7 +5349,7 @@ async function azamiCall(body) {
     if (body.action === 'memoire') return { lignes: [{ id: '1', texte: `${firstName()} essaie la démo de Maison.`, genre: 'fait' }] };
     if (body.action === 'parler') {
       const m = String(body.texte).match(/^(?:ajoute|mets)\s+(?:du |de la |des |de l’|de l'|le |la |les |un |une )?(.+?)\s*(?:aux courses|à la liste)?\.?$/i);
-      if (m) return { reponse: `Je mets « ${m[1]} » sur la liste. Avec mes croquettes juste à côté.`, humeur: 'contente', action: { type: 'course', texte: m[1], demande: true }, retenu: [], notes: [] };
+      if (m) return { reponse: `Je mets « ${m[1]} » sur la liste. Je surveille le panier.`, humeur: 'contente', action: { type: 'course', texte: m[1], demande: true }, retenu: [], notes: [] };
       const d = String(body.texte).match(/^(?:dis|fais)[^:]*?(?:à|a)\s+\w+\s+(?:que\s+|de ma part\s*:?\s*)?(.+)$/i);
       if (d) return { reponse: `Je lui porte ça dans ma gueule : « ${d[1]} ».`, humeur: 'contente', action: { type: 'message', texte: d[1], demande: true }, retenu: [], notes: [] };
       const cv = String(body.texte).match(/^(?:j'ai|j’ai)\s+(?:fait|passé|sorti|nettoyé|vidé)\s+(?:l'|l’|la |le |les )?(.+?)\.?$/i);
@@ -5359,8 +5366,8 @@ async function azamiCall(body) {
   if (data?.error) throw new Error(data.error);
   return data;
 }
-// L'instantané de l'app qu'elle reçoit avec chaque message : court, et seulement ce qui se dit.
-// Les comptes bougent rarement : Azami n'en parle que s'ils ont changé depuis la dernière fois qu'elle les a vus,
+// L’instantané de l’app qu’elle reçoit avec chaque message : court, et seulement ce qui se dit.
+// Les comptes bougent rarement : Azami n’en parle que s’ils ont changé depuis la dernière fois qu’elle les a vus,
 // ou si on lui en parle. Le dernier solde vu et la dernière remarque sont gardés sur le téléphone.
 const COMPTES_MOTS = /argent|compte|doi[st]\b|dois|dépens|rembours|\bchf\b|franc|dette|payé|payer|thune|sous\b/i;
 const comptesNet = () => Math.round((balances()[S.me] || 0) * 100);
@@ -5390,9 +5397,9 @@ function azamiContexte(txt = '') {
   const vus = (S.films || []).filter(f => f.ratings?.[S.me]?.note).sort((a, b) => String(b.vuAt || '').localeCompare(String(a.vuAt || ''))).slice(0, 5).map(f => `${f.title} (${noteMot(f.ratings[S.me].note).toLowerCase()})`);
   if (vus.length) l.push(`Derniers films vus par ${firstName()} : ${vus.join(', ')}.`);
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
-  if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
+  if (ev.length) l.push(`Récemment dans l’app : ${ev.join(' ; ')}.`);
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
-  { const j = jpEtat(); if (j.oral || Object.keys(j.srs || {}).length) l.push(`COURS DE JAPONAIS DE ${firstName().toUpperCase()} (à l'oral d'abord ; l'écriture plus tard) : leçon ${j.oral || 0} sur ${LECONS_ORAL.length} finie${LECONS_ORAL[j.oral || 0] ? `, la prochaine : ${LECONS_ORAL[j.oral || 0].t}` : ''} ; ${jpDus(j).length} à réviser ; phrases apprises : ${Object.keys(j.srs || {}).filter(id => id[0] === 'o').map(id => jpItem(id)?.r).filter(Boolean).slice(-20).join(', ') || 'aucune'}. Tu peux les réutiliser avec elle ou lui en conversation (en rōmaji, avec la traduction). (Le cours est dans l'onglet Loisirs, Carnet d'Azami. Tu peux l'encourager, jamais insister.)`); }
+  { const j = jpEtat(); if (j.oral || Object.keys(j.srs || {}).length) l.push(`COURS DE JAPONAIS DE ${firstName().toUpperCase()} (à l’oral d’abord ; l’écriture plus tard) : leçon ${j.oral || 0} sur ${LECONS_ORAL.length} finie${LECONS_ORAL[j.oral || 0] ? `, la prochaine : ${LECONS_ORAL[j.oral || 0].t}` : ''} ; ${jpDus(j).length} à réviser ; phrases apprises : ${Object.keys(j.srs || {}).filter(id => id[0] === 'o').map(id => jpItem(id)?.r).filter(Boolean).slice(-20).join(', ') || 'aucune'}. Tu peux les réutiliser avec elle ou lui en conversation (en rōmaji, avec la traduction). (Le cours est dans l’onglet Loisirs, Carnet d’Azami. Tu peux l’encourager, jamais insister.)`); }
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   { // l'agenda commun : les deux semaines qui viennent
     const auj = isoDate(new Date()), dem = isoDate(new Date(Date.now() + DAY)), fin = isoDate(new Date(Date.now() + 14 * DAY));
@@ -5403,9 +5410,9 @@ function azamiContexte(txt = '') {
   l.push(tamaContexte());
   { const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'], fmt = d => d ? `${Number(d.slice(3))} ${MOIS[Number(d.slice(0, 2)) - 1]}` : null;
     l.push(`ANNIVERSAIRES : ${S.members.map(m => `${nom(m.email)} : ${fmt(S.anniv?.[m.email]) || 'inconnu (demande-le un jour, au détour d’une conversation, puis action anniversaire avec la date)'}`).join(' ; ')}.`); }
-  if (azamiContexte.enReponseA) l.push(`TA BULLE À L'ÉCRAN (dite à l'instant, hors conversation) : « ${azamiContexte.enReponseA} ». ${firstName()} répond à CETTE bulle, pas à tes messages d'avant : un « oui » ou un « non » la concerne elle. Une ancienne proposition (recette, film…) n'est pas acceptée par ce oui.`);
-  { const sm = azamiSansMots(); if (sm.length) l.push(`RÉPONSES SANS MOTS (${firstName()} t'a caressée au lieu d'écrire, c'est sa réponse, tendre) : ${sm.map(x => `à « ${x.bulle} » (${ago(new Date(x.at).toISOString())})`).join(' ; ')}.`); }
-  if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
+  if (azamiContexte.enReponseA) l.push(`TA BULLE À L’ÉCRAN (dite à l’instant, hors conversation) : « ${azamiContexte.enReponseA} ». ${firstName()} répond à CETTE bulle, pas à tes messages d’avant : un « oui » ou un « non » la concerne elle. Une ancienne proposition (recette, film…) n’est pas acceptée par ce oui.`);
+  { const sm = azamiSansMots(); if (sm.length) l.push(`RÉPONSES SANS MOTS (${firstName()} t’a caressée au lieu d’écrire, c’est sa réponse, tendre) : ${sm.map(x => `à « ${x.bulle} » (${ago(new Date(x.at).toISOString())})`).join(' ; ')}.`); }
+  if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L’APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
   return l.join('\n').slice(0, 14000);
 }
 // La conversation vit sur la page : l'Azami de l'en-tête parle dans une bulle sous elle, et une petite ligne
@@ -5419,6 +5426,7 @@ function azamiContexte(txt = '') {
 const AZ = { bulle: safeGet('maison-az-bulle') || '', at: Number(safeGet('maison-az-at') || 0), choix: [], note: '', humeur: '', busy: false, ecrit: false, k: 0, typedK: 0, rec: null };
 // Une bulle d'elle : on retient le texte et l'heure (une vieille bulle n'est jamais réaffichée au retour).
 function azamiPose(texte, humeur = 'calme', choix = []) {
+  texte = typo(texte);
   // une nouvelle bulle efface la proposition d'avant (sinon un « oui » à la nouvelle bulle validait l'ancienne)
   AZ.bulle = texte; AZ.humeur = humeur; AZ.choix = choix; AZ.note = ''; AZ.courrier = null; AZ.action = null; if (!choix.length) AZ.quiz = null; AZ.k++; AZ.at = Date.now();
   safeSet('maison-az-bulle', texte); safeSet('maison-az-at', String(AZ.at));
@@ -5447,10 +5455,10 @@ function azamiEnvol() {
 // (souvent, pas toujours), selon le temps passé, l'heure et son état. Jamais entre 22 h et 8 h.
 let azamiVu = Date.now();
 const AZ_RETOUR = {
-  court: ['Oh, tu reviens ! Je n’ai pas bougé. Enfin presque.', 'Re. J’ai gardé ta place au chaud.', 'Tu étais où ? Non, laisse, je sais : pas avec moi.'],
+  court: ['Oh, tu reviens ! Je n’ai pas bougé. Enfin presque.', 'Déjà de retour. J’ai gardé ta place au chaud.', 'Tu étais où ? Non, laisse, je sais : pas avec moi.'],
   long: ['Oh ! Tu es là ! J’ai cru que tu avais déménagé.', 'Okaeri ! (bon retour) J’ai surveillé la fenêtre tout ce temps.', 'Enfin. J’ai dormi, mangé, redormi. Et toi ?'],
-  matin: ['Ohayō ! (bonjour) Tu as bien dormi ? Moi j’ai pris ta place dans le lit.', 'Bonjour toi. Première chose : mes croquettes. Deuxième chose : bonjour.'],
-  soir: ['Bonsoir. Tu rentres tard. Je ne juge pas. Un peu.', 'Konbanwa ! (bonsoir) On regarde un film ce soir ?'],
+  matin: ['Ohayō ! (bonjour) Tu as bien dormi ? Moi, j’ai pris ta place dans le lit.', 'Bonjour toi. Première chose : mes croquettes. Deuxième chose : bonjour.'],
+  soir: ['Bonsoir. Tard, mais là. Ça me va.', 'Konbanwa ! (bonsoir) On regarde un film ce soir ?'],
   faim: ['Tu reviens ! Et mon ventre aussi, il gargouille depuis tout à l’heure.', 'Oh, c’est toi ! Dis, ma gamelle est vide. Je dis ça…'],
 };
 // Un mot porté par Azami pour moi, pas encore lu ni annoncé : elle le dit, avec un bouton pour l'ouvrir.
@@ -5468,7 +5476,8 @@ function azamiCourrier() {
 // Ce que l'autre a fait dans l'app depuis ma dernière visite (pour « j'ai vu Mariana »).
 function azamiDepuis() {
   const depuis = Number(safeGet('maison-az-visite') || 0); if (!depuis || !other()) return [];
-  return recentEvents().filter(e => e.who === other() && Date.parse(e.at) > depuis).slice(0, 4);
+  // (sans les dépenses : Azami ne parle pas des comptes d'elle-même)
+  return recentEvents().filter(e => e.who === other() && e.kind !== 'argent' && Date.parse(e.at) > depuis).slice(0, 4);
 }
 function azamiRetour() {
   const now = Date.now(), parti = now - azamiVu; azamiVu = now;
@@ -5481,8 +5490,8 @@ function azamiRetour() {
   const t = tamaEtat(); tamaTick();
   const vu = azamiDepuis();
   if (vu.length && Math.random() < .7) {   // « j'ai vu Mariana » : ce que l'autre a fait pendant ton absence
-    if (!DEMO && !S.offline && Math.random() < .5) { azamiEnvoyer(`(événement) ${firstName()} revient dans l'app après ${Math.round(parti / 36e5)} h. Pendant ce temps, ${nameOf(other())} a : ${vu.map(e => e.text).join(' ; ')}.`, true); return; }
-    const e = vu[0]; azamiPose(pick([`J’ai vu ${nameOf(other())} tout à l’heure. ${nameOf(other())} ${e.text}. Je surveillais, comme toujours.`, `Pendant que tu n’étais pas là, ${nameOf(other())} ${e.text}. Je dis ça, je ne balance pas.`]), 'curieuse');
+    if (!DEMO && !S.offline && Math.random() < .5) { azamiEnvoyer(`(événement) ${firstName()} revient dans l’app après ${Math.round(parti / 36e5)} h. Pendant ce temps, ${nameOf(other())} a : ${vu.map(e => e.text).join(' ; ')}.`, true); return; }
+    const e = vu[0]; azamiPose(pick([`J’ai vu ${nameOf(other())} tout à l’heure. ${nameOf(other())} ${e.text}. Je surveillais, comme toujours.`, `Pendant que tu n’étais pas là, ${nameOf(other())} ${e.text}. La maison a tourné.`]), 'curieuse');
     render(); meow(true, .4, 'chirp'); return;
   }
   const pool = t.faim < 30 && Math.random() < .6 ? 'faim' : parti > 8 * 36e5 ? (h < 11 ? 'matin' : h >= 19 ? 'soir' : 'long') : 'court';
@@ -5523,16 +5532,16 @@ const azamiSuite = () => { let [p1, p2] = azamiParts(); if (AZ.ecrit && !AZ.busy
 // c'est elle qui propose, elle attend un oui (deux boutons dans sa bulle). Tout se fait ici, dans l'app, avec les
 // mêmes gestes que les vôtres (icônes, magasin deviné, réussites) ; l'argent reste en lecture seule.
 const AZ_FAIT = {
-  course: ['C’est sur la liste. Avec mes croquettes juste à côté, par hasard.', 'Ajouté aux courses. Je surveille le panier.'],
+  course: ['C’est sur la liste. Je la relis en entier, pour voir.', 'Ajouté aux courses. Je surveille le panier.'],
   tache: ['Notée. Je te la rappellerai avec douceur. Ou pas.', 'C’est dans la liste des choses à faire. Courage.'],
   tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
   menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
   rdv: ['C’est dans l’agenda des quatre pattes. Je surveille la date.', 'Noté dans l’agenda ! Je te le rappellerai, une fois, gentiment.'],
-  anniversaire: ['C’est noté dans ma tête, et dans mon cœur. Je ne l’oublierai pas.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
+  anniversaire: ['C’est noté. Dans ma tête, il reste de la place : il n’y a que le pigeon et toi.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
   corvee: ['Cochée ! Le tour passe, la maison brille, et moi je surveille.', 'C’est noté dans le ménage. Je fais semblant d’avoir aidé.', 'Une de faite ! Tu mérites une sieste au soleil.'],
   machine: ['C’est lancé. Je te préviens quand c’est fini, promis.', 'Le minuteur tourne. Je reste à côté de la machine, elle fait des bruits intéressants.'],
-  message: ['Je le porte dans ma gueule, comme une lettre. Promis, je ne le mâchouille pas.', 'Message pris. Je le lui dis dès qu’elle passe. Enfin, dès qu’il passe. Enfin, l’autre.'],
+  message: ['Je le porte dans ma gueule, comme une lettre. Promis, je ne le mâchouille pas.', () => `Message pris. Je le dis à ${nameOf(other()) || 'l’autre'} dès qu’on se croise dans le couloir.`],
 };
 const azNorm = s => norm(String(s || '')).replace(/[^a-z0-9]+/g, ' ').trim();
 function azTrouve(liste, titre, champ) {
@@ -5552,7 +5561,7 @@ async function azamiAgir(a) {
     else if (a.type === 'message') { if (!other()) return false; await api.insert('care_messages', { recipient: other(), kind: 'azami', body: texte, wants_talk: false }); }
     else if (a.type === 'film') {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
-      const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
+      const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». C’est bien le titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, 'oui');
     } else if (a.type === 'rdv') {
       if (!S.agenda?.configured) { azamiPose('L’agenda des quatre pattes n’est pas encore relié à l’app. Ça se règle dans Réglages, et après je m’en occupe.', 'curieuse'); render(); return false; }
@@ -5599,7 +5608,7 @@ async function azamiAgir(a) {
     ok = true; loadSeq++; await loadAll().catch(() => {}); render();
   } catch (e) { console.warn('azami agir', e); ok = false; pourquoi = String(e?.message || e).slice(0, 80); }
   if (ok) {
-    azamiPose(pick(AZ_FAIT[a.type] || ['C’est fait.']), 'contente'); render();
+    { const m = pick(AZ_FAIT[a.type] || ['C’est fait.']); azamiPose(typeof m === 'function' ? m() : m, 'contente'); } render();
     sfx('done'); haptic('medium');
     const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'caresse_2', 2500); if (img) burst('sparkle', img, 8);
   } else { if (pourquoi) console.warn('azami agir', pourquoi); azamiPose('Mrrr… mes pattes ont glissé, ça n’a pas marché. On réessaie ?', 'boudeuse'); render(); }
@@ -5628,13 +5637,13 @@ let azDernier = 0, azInactif = Date.now(), azInactifDit = false;
 const AZ_PAGES_MOTS = {
   maison: ['Tu rentres ? Je faisais semblant de dormir.', 'L’accueil. Mon endroit préféré, après le fauteuil.'],
   menage: ['Le balai. Mon ennemi juré. Et mon jouet préféré.', 'Tu vas passer l’aspirateur ? Préviens-moi, je me cache sous le lit.', 'Le ménage, c’est noble. Je te regarde faire depuis le perchoir.'],
-  courses: ['Si tu passes au magasin : croquettes au poisson. Je dis ça, je dis rien.', 'La liste de courses. Je vérifie qu’il y a mon ragoût dedans.'],
+  courses: ['Si tu passes au magasin, le rayon poisson existe. Je n’en dis pas plus.', 'La liste de courses. Je vérifie qu’il y a mon ragoût dedans.'],
   recettes: ['On cuisine ? Je m’installe sur le plan de travail. Non ? Bon, à côté.', 'Laisse une casserole dans l’évier après, s’il te plaît. Pour moi.'],
-  argent: ['Les comptes. Je ne comprends rien, mais je fais une tête sérieuse.', 'Tu as noté mes croquettes dans les dépenses ? C’est un investissement.'],
+  argent: ['Les comptes. Je ne comprends rien, mais je fais une tête sérieuse.', 'Les chiffres. Je les regarde très fort. Ils ne bougent pas.'],
   nuit: ['Un film ce soir ? Je prends mon perchoir et je ne commente qu’un peu.', 'Cinder ! Glisse pour moi, je n’ai pas de pouce.'],
 };
 const AZ_FAIT_MOTS = ['Bien joué. Je note. Enfin, je fais semblant de noter.', 'Oh, tu as fait quelque chose. J’aime quand tu fais des choses.', 'Une chose de moins. Tu mérites une caresse. De moi. Plus tard.', 'Voilà, c’est fait. Sugoi ! (génial)'];
-const AZ_INACTIF_MOTS = ['Tu regardes l’écran depuis un moment. Tu cherches quelque chose ?', 'Tu réfléchis ? Moi aussi. À mes croquettes.', 'Tu es toujours là ? Je peux te proposer un film, si tu veux.', 'Je surveille les voisins, et toi tu surveilles l’app. On est pareils.'];
+const AZ_INACTIF_MOTS = ['Tu regardes l’écran depuis un moment. Tu cherches quelque chose ?', 'Tu réfléchis ? Moi aussi. Au pigeon.', 'Tu es toujours là ? Je peux te proposer un film, si tu veux.', 'Je surveille les voisins, et toi tu surveilles l’app. On est pareils.'];
 function azamiRemarque(evt, detail = '') {
   if (!S.me || S.recovery || AZ.busy || AZ.ecrit || document.querySelector('#deck, #renote, #visite, #chat, #azmem, #uisheet, #cele')) return;
   const mode = AZ_MODE(); if (mode === 'muette') return;
@@ -5650,7 +5659,7 @@ function azamiRemarque(evt, detail = '') {
   if (evt === 'page' && detail === 'argent') comptesNote(true, false);   // le solde, lui, est noté quand elle le voit (contexte) ou dit sa phrase
   const nom = firstName();
   if (!DEMO && !S.offline && Math.random() < (evt === 'inactif' ? .6 : .35)) {
-    const desc = evt === 'page' ? `${nom} arrive sur la page ${AZ_PAGE[detail] || detail}.` : evt === 'fait' ? `${nom} vient de faire quelque chose dans l'app : ${detail}.` : `${nom} regarde la page ${AZ_PAGE[S.view] || 'accueil'} sans rien faire depuis une minute.`;
+    const desc = evt === 'page' ? `${nom} arrive sur la page ${AZ_PAGE[detail] || detail}.` : evt === 'fait' ? `${nom} vient de faire quelque chose dans l’app : ${detail}.` : `${nom} regarde la page ${AZ_PAGE[S.view] || 'accueil'} sans rien faire depuis une minute.`;
     azamiEnvoyer(`(événement) ${desc}`, true); return;
   }
   let pool = evt === 'page' ? AZ_PAGES_MOTS[detail] : evt === 'fait' ? AZ_FAIT_MOTS : AZ_INACTIF_MOTS;
@@ -5871,7 +5880,7 @@ function jpcExos(nouveaux, revs) {
     if (type === 'ecoute') return { type, it, q: '', aide: 'Écoute. Ça veut dire…', bon: it.f, choix: melange([it.f, ...autres(it, 3, x => x.f)]), ecoute: true };
     if (type === 'dictee') return { type, it, q: '', aide: 'Écoute, et touche ce que tu entends', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]), ecoute: true, romaji: true };
     if (type === 'ordre') { const mots = it.r.replace(/,/g, '').split(' '), intrus = melange(oraux.flatMap(x => x.r.replace(/,/g, '').split(' ')).filter(w => !mots.includes(w))).slice(0, 2); return { type, it, q: it.f, aide: 'Remets les mots dans l’ordre', bon: mots.join(' '), tuiles: melange([...mots, ...[...new Set(intrus)]]), mots: true }; }
-    if (type === 'dis') return { type, it, q: it.f, sous: it.r, aide: jpMicOk() ? 'À toi : dis-le à voix haute' : 'À toi : dis-le à voix haute, puis touche « Je l’ai dit »', bon: it.r, dis: true };
+    if (type === 'dis') return { type, it, q: it.f, sous: it.r, aide: jpMicOk() ? 'À toi : dis-le à voix haute' : 'À toi : dis-le à voix haute, puis touche « C’est dit »', bon: it.r, dis: true };
     if (type === 'assemble') { const lettres = [...it.k], intrus = melange(kanaConnus.filter(h => !lettres.includes(h))).slice(0, Math.min(3, 7 - lettres.length)); return { type, it, q: it.f, sous: it.r, aide: 'Assemble le mot', bon: it.k, tuiles: melange([...lettres, ...intrus]) }; }
   };
   const types = it => {
@@ -5913,7 +5922,7 @@ function jpcOuvrir(mode = 'lecon') {
   box.addEventListener('click', jpcClic);
   jpcDraw();
 }
-const JPC_BRAVO = ['Sugoi !', 'Yoshi !', 'Parfait.', 'Oui !', 'Bien vu.', 'Jōzu ! (doué)', 'Exact.'];
+const JPC_BRAVO = ['Sugoi ! (génial)', 'Yoshi ! (c’est ça)', 'Parfait.', 'Oui !', 'Bien vu.', 'Jōzu ! (doué)', 'Exact.'];
 function jpcAz(reac) { const im = jpc?.box.querySelector('.jpc-az'); if (im) im.src = reactSrc(reac); }
 function jpcDraw() {
   const c = jpc?.box.querySelector('.jpc-corps'); if (!c) return;
@@ -5932,13 +5941,13 @@ function jpcDraw() {
   if (e.type === 'decouvre') {
     const it = e.it, h = it.kind === 'h', ex = h && exemple(it.k);
     c.innerHTML = `${az(h ? 'Un nouveau hiragana' : it.r.includes(' ') ? 'Une nouvelle phrase. Répète-la à voix haute.' : 'Un nouveau mot. Répète-le.')}<div class="jpc-carte neuf">${h ? `<p class="jpc-jp grand" lang="ja">${esc(it.k)}</p><p class="jpc-r">${esc(it.r)}</p>${ex ? `<p class="jpc-ex">comme dans <span lang="ja">${esc(ex.k)}</span> (${esc(ex.r)}, ${esc(ex.f)})</p>` : ''}`
-      : `<p class="jpc-ro">${esc(it.r)}</p><p class="jpc-f">${esc(it.f)}</p>${it.n ? `<p class="jpc-note">${esc(it.n)}</p>` : ''}<p class="jpc-kana" lang="ja">${esc(it.k)}</p>`}${dire(it.k)}</div><button class="btn jpc-go" data-j="suite">${h ? 'Compris' : 'Je l’ai répété'}</button>`;
+      : `<p class="jpc-ro">${esc(it.r)}</p><p class="jpc-f">${esc(it.f)}</p>${it.n ? `<p class="jpc-note">${esc(it.n)}</p>` : ''}<p class="jpc-kana" lang="ja">${esc(it.k)}</p>`}${dire(it.k)}</div><button class="btn jpc-go" data-j="suite">${h ? 'Compris' : 'C’est dit'}</button>`;
     setTimeout(() => jpDire(it.k), 350);
     return;
   }
   if (e.dis) {
     c.innerHTML = `${az(e.aide)}<div class="jpc-carte"><p class="jpc-q">${esc(e.q)}</p><p class="jpc-r">${esc(e.sous)}</p><p class="jpc-kana" lang="ja">${esc(e.it.k)}</p>${dire(e.it.k)}</div>
-      ${jpMicOk() ? `<button type="button" class="jpc-mic" data-j="micro" aria-label="Parler">${icn('micro')}<span>Touche, puis parle</span></button>` : ''}<div class="jpc-pied"></div>${jpMicOk() ? '' : '<button class="btn jpc-go" data-j="dit">Je l’ai dit</button>'}`;
+      ${jpMicOk() ? `<button type="button" class="jpc-mic" data-j="micro" aria-label="Parler">${icn('micro')}<span>Touche, puis parle</span></button>` : ''}<div class="jpc-pied"></div>${jpMicOk() ? '' : '<button class="btn jpc-go" data-j="dit">C’est dit</button>'}`;
     return;
   }
   const choix = e.tuiles ? `<div class="jpc-ligne"><div class="jpc-reponse${e.mots ? ' mots' : ''}" aria-live="polite"></div><button type="button" class="jpc-efface" data-j="efface" aria-label="Effacer la dernière tuile">⌫</button></div><div class="jpc-tuiles${e.mots ? ' mots' : ''}">${e.tuiles.map((t, n) => `<button type="button" class="jpc-tuile" data-j="tuile" data-n="${n}"${e.mots ? '' : ' lang="ja"'}>${esc(t)}</button>`).join('')}</div>`
@@ -5957,7 +5966,7 @@ function jpcMicro(btn) {
   let entendu = '', alts = [];
   const pied = jpc.box.querySelector('.jpc-pied');
   rec.onresult = ev => { entendu = ''; alts = []; for (const r of ev.results) { entendu += r[0].transcript; for (let a = 0; a < r.length; a++) alts.push(r[a].transcript); } pied.innerHTML = `<p class="jpc-entendu" lang="ja">${esc(entendu)}</p>`; };
-  rec.onerror = ev => { if (ev.error === 'not-allowed') { toast('Le micro n’est pas autorisé.'); pied.innerHTML = '<button class="btn jpc-go" data-j="dit">Je l’ai dit</button>'; } };
+  rec.onerror = ev => { if (ev.error === 'not-allowed') { toast('Le micro n’est pas autorisé.'); pied.innerHTML = '<button class="btn jpc-go" data-j="dit">C’est dit</button>'; } };
   rec.onend = () => {
     if (!jpc || jpc.rec !== rec) return; jpc.rec = null; btn.classList.remove('on');
     if (!entendu) { pied.innerHTML = '<p class="jpc-entendu vide">Je n’ai rien entendu. Touche le micro et parle.</p>'; return; }
@@ -6030,7 +6039,7 @@ function jpcFermer() {
   const b = jpc?.box; const fini = jpc?.fini; jpc = null; if (!b) return;
   b.classList.remove('on'); setTimeout(() => b.remove(), 250);
   try { speechSynthesis.cancel(); } catch {}
-  if (fini && S.view === 'maison' && !AZ.bulle) setTimeout(() => { azamiPose(pick(['Ganbatta ne ! (tu as bien travaillé) Je suis fière de toi.', 'Une leçon de plus. Bientôt on pourra se parler en japonais, toi et moi.', 'Bravo. Moi, je retiens surtout « sakana » (poisson). Priorités.']), 'contente'); render(); }, 400);
+  if (fini && S.view === 'maison' && !AZ.bulle) setTimeout(() => { azamiPose(pick(['Ganbatta ne ! (tu as bien travaillé) Moi, j’ai surveillé. C’est un travail aussi.', 'Une leçon de plus. Bientôt on pourra se parler en japonais, toi et moi.', 'Bravo. Moi, je retiens surtout « sakana » (poisson). Priorités.']), 'contente'); render(); }, 400);
   render();
 }
 // La carte du cours, dans l'onglet Carnet d'Azami : parler d'abord ; l'écriture en dessous, discrète.
@@ -6090,9 +6099,9 @@ function tamaSave(force) {
 }
 // Ce qu'on fait pour elle : chaque geste remonte une jauge, et elle réagit (sans appel au modèle).
 const TAMA_GESTES = {
-  croquettes: { faim: 35, poids: 1, geste: 'te donne des croquettes au poisson', mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Tu es mon humain préféré. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.', 'Je mange trop vite, je sais. C’est la peur qu’on me les reprenne.', 'Tu as vu ? Je n’ai même pas grogné. Ça veut dire que c’est bon.', 'Itadakimasu ! (bon appétit à moi)'], son: ['mewmew', 'mrrr'], reac: 'mange', ms: 5200, bruit: 'crounch' },
+  croquettes: { faim: 35, poids: 1, geste: 'te donne des croquettes au poisson', mot: ['Crounch crounch… les croquettes au poisson, mes préférées.', 'Miam. Mon humain préféré, c’est toi. Jusqu’au prochain repas.', 'Oishii ! (délicieux) J’en reprendrais bien un peu.', 'Je mange trop vite, je sais. C’est la peur qu’on me les reprenne.', 'Tu as vu ? Je n’ai même pas grogné. Ça veut dire que c’est bon.', 'Itadakimasu ! (bon appétit à moi)'], son: ['mewmew', 'mrrr'], reac: 'mange', ms: 5200, bruit: 'crounch' },
   ragout: { faim: 45, poids: 2, geste: 'te donne du ragoût', mot: ['Du ragoût ! Je ronronne de l’intérieur.', 'Slurp. Tu veux me faire pleurer de joie ?', 'Gochisōsama ! (merci pour ce repas) Je vais faire une sieste maintenant.', 'Le ragoût. Ma raison de vivre, juste après la fenêtre.', 'J’ai de la sauce sur les moustaches. Ne dis rien.'], son: ['ronronmrr', 'long'], reac: 'ragout', ms: 5600, bruit: 'slurp' },
-  friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: ['Une friandise ? Je ne dirai rien à Mariana.', 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne d’être parti si longtemps.'], son: ['chirp', 'gazouille'], reac: 'friandise', ms: 3600, bruit: 'swish' },
+  friandise: { faim: 8, calins: 4, poids: 2, geste: 'te donne une friandise', mot: [() => `Une friandise ? Je ne dirai rien à ${other() ? nameOf(other()) : 'personne'}.`, 'Attrapée au vol. Je suis une athlète, moi.', 'Encore une ? Non ? Bon. Mon bide te remercie quand même.', 'Tu me gâtes. Continue, je ne vois pas le problème.', 'Une friandise, et je te pardonne cette longue absence.'], son: ['chirp', 'gazouille'], reac: 'friandise', ms: 3600, bruit: 'swish' },
   eau: { soif: 40, geste: 'te donne de l’eau fraîche', mot: ['Glou glou. C’est pas l’eau de la casserole, mais ça ira.', 'Merci. Je préfère quand même l’eau sale de la vaisselle, c’est plus goûteux.', 'Ah, de l’eau fraîche. Je fais la difficile, mais là non.', 'Lap lap lap. Tu entends ? C’est le bruit du bonheur.', 'De l’eau. Pas de ragoût ? Bon, de l’eau alors. Merci quand même.', 'J’avais la langue comme du papier de verre. Sauvée.'], son: ['mrrr', 'mew'], reac: 'boit', ms: 4600, bruit: 'lape' },
   caresse: { calins: 6, rare: ['Mrrr… juste là, oui. Encore un peu.', 'Ronron. Tu as le droit de continuer.', 'Je ne bouge pas. C’est un ordre.', 'Encore. Non, pas là. Là. Voilà.', 'Si tu t’arrêtes, je grogne. Gentiment.'], folie: ['ATTAQUE DE LA MAIN. Pardon. C’est l’heure.', 'Mordillage ! Je joue, je joue.'] },
 };
@@ -6121,14 +6130,14 @@ function tamaGeste(k) {
     // elle a déjà mangé il y a peu ? elle le fait remarquer, gentiment
     const avant = t.faim - (g.faim || 0);
     const trop = (g.faim && avant > 85) ? pick(['Encore ? Je viens de manger… bon, d’accord, je ne refuse jamais.', 'Mon ventre est déjà plein. Mais mes yeux, non.']) : null;
-    azamiPose(trop || pick(g.mot), trop ? 'affamee' : 'contente');
+    const m = pick(g.mot); azamiPose(trop || (typeof m === 'function' ? m() : m), trop ? 'affamee' : 'contente');
     render();
   }
 }
 // Ses besoins, dits par elle : une seule chose à la fois, pas plus d'une fois toutes les trois heures par besoin,
 // jamais la nuit (22 h à 8 h), et seulement sur l'accueil.
 const TAMA_MOTS = {
-  faim: ['J’ai le ventre qui gargouille… tu as entendu ?', 'Ma gamelle est vide. Je dis ça, je dis rien.', 'Onaka suita… (j’ai faim). Des croquettes au poisson, peut-être ?'],
+  faim: ['J’ai le ventre qui gargouille… tu as entendu ?', 'Ma gamelle est vide. Elle résonne, même.', 'Onaka suita… (j’ai faim) Des croquettes au poisson, peut-être ?'],
   soif: ['J’ai soif. Il reste une casserole sale quelque part ?', 'Un peu d’eau fraîche ? Ma langue est toute sèche.'],
   calins: ['Tu me grattes le menton ? Juste un peu.', 'Je viens me frotter contre l’écran. C’est un indice.'],
   jeu: ['Je m’ennuie un peu. Les voisins ne passent même pas.', 'On joue ? Même cinq minutes. Même trois.'],
@@ -6185,10 +6194,10 @@ function tamaScene() {
 // bout de quatre jours elle revient d'elle-même et fait grève : plus d'initiatives ni de japonais, de dos sur
 // l'accueil, jusqu'à ce qu'on lui donne une friandise. Jamais la nuit.
 const GREVE_MOTS = {
-  debut: ['Je fais grève. Personne ne s’occupe de moi depuis des jours. Il paraît qu’une friandise pourrait tout arranger.', 'Grève. Pas de japonais, pas de conseils, rien. On négocie avec une friandise.'],
+  debut: ['Grève de principe. Je ne sais plus trop pourquoi, mais une friandise réglerait la question.', 'Grève. Pas de japonais, pas de conseils, rien. On négocie avec une friandise.'],
   refus: ['Je suis en grève. Ça se voit, non ?', 'Merci. Mais je fais toujours grève. Tu connais le tarif.', 'Hmpf.'],
-  fin: ['Bon… d’accord. Je te pardonne. Mais c’est bien parce que c’est une friandise.', 'Fin de la grève ! Tu m’as manqué. Un peu. Beaucoup.', 'Nakanaori ! (on se réconcilie) Ne recommence pas, hein.'],
-  trouvee: ['Tu m’as trouvée ! J’étais pas cachée, je visitais.', 'Ah, te voilà ! J’ai fait le tour de l’app. Il y a des drôles de choses ici.', 'Mitsuketa ! (tu m’as trouvée) Je rentre. Tu as des croquettes ?'],
+  fin: ['Bon… d’accord. Je te pardonne. Mais c’est bien parce que c’est une friandise.', 'Fin de la grève ! Tu m’as manqué. Un peu. Beaucoup.', 'Nakanaori shiyō ! (on se réconcilie) Ne recommence pas, hein.'],
+  trouvee: ['Tu m’as trouvée ! Je n’étais pas cachée, je visitais.', 'Ah, te voilà ! J’ai fait le tour de l’app. Il y a des drôles de choses ici.', 'Mitsuketa ne ! (tu m’as trouvée) Je rentre. Tu as des croquettes ?'],
   partie: ['Azami est partie se balader. Elle se cache quelque part dans l’app…'],
 };
 const tamaAbsente = () => { const t = S.tama; return !!(t && (t.balade || t.greve)); };
@@ -6275,8 +6284,8 @@ function tresorAuHasard() {
 // L'agenda : un petit rappel, une seule fois par rendez-vous et par téléphone. Le jour même (avant l'heure) ou la
 // veille au soir, sur l'accueil, quand elle n'a rien d'autre à dire. Jamais en mode muette ni la nuit.
 const RDV_MOTS = {
-  auj: [t => `Aujourd’hui, il y a « ${t} ». Je dis ça pour que tu n’oublies pas, pas pour te stresser.`, t => `Petit rappel de chat : « ${t} », c’est aujourd’hui.`],
-  dem: [t => `Demain, c’est « ${t} ». Je le note dans un coin de ma tête, à côté des croquettes.`, t => `Psst… demain : « ${t} ». Voilà, c’est dit.`],
+  auj: [t => `Aujourd’hui, il y a « ${t} ». Voilà, c’est dit. Je retourne à ma fenêtre.`, t => `Petit rappel de chat : « ${t} », c’est aujourd’hui.`],
+  dem: [t => `Demain, c’est « ${t} ». Je le range dans un coin de ma tête, entre deux siestes.`, t => `Psst… demain : « ${t} ». Voilà, c’est dit.`],
 };
 function agendaRappel() {
   if (!S.me || S.view !== 'maison' || !S.agenda?.configured || AZ.bulle || AZ.busy || AZ.ecrit || AZ_MODE() === 'muette' || azamiNuit() || tamaAbsente()) return;
@@ -6309,13 +6318,13 @@ function annivFete() {
       meow(true, .6, 'trille');
       const t = tamaEtat(), an = now.getFullYear();
       if (!(t.tresors || []).some(x => x.k === 'gateau' && new Date(x.at).getFullYear() === an && x.par === S.me)) setTimeout(() => tresorDonne('gateau'), 2500);
-      else { azamiPose(`Joyeux anniversaire ${firstName()} ! Tanjōbi omedetō ! (お誕生日おめでとう) Aujourd’hui, tout est permis. Même deux friandises.`, 'contente'); render(); }
+      else { azamiPose(`Joyeux anniversaire ${firstName()} ! Otanjōbi omedetō ! (joyeux anniversaire) Aujourd’hui, tout est permis. Même deux friandises.`, 'contente'); render(); }
     }, 1200);
     return;
   }
   const o = other(); if (!o || !S.anniv[o]) return;
-  if (S.anniv[o] === auj) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`C’est l’anniversaire de ${nameOf(o)} aujourd’hui ! Tu as pensé à elle ? Moi, je lui prépare un ronron spécial.`, 'joueuse'); render(); }, 1500); }
-  else if (S.anniv[o] === demain) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`Psst… demain, c’est l’anniversaire de ${nameOf(o)}. Je dis ça, je dis rien.`, 'curieuse'); render(); }, 1500); }
+  if (S.anniv[o] === auj) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`C’est l’anniversaire de ${nameOf(o)} aujourd’hui ! Moi, je prépare un ronron spécial. Toi, tu as sûrement une idée.`, 'joueuse'); render(); }, 1500); }
+  else if (S.anniv[o] === demain) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`Psst… demain, c’est l’anniversaire de ${nameOf(o)}. Tu n’as rien entendu.`, 'curieuse'); render(); }, 1500); }
 }
 // Jouer : un plumeau dessiné qu'on promène au doigt. Elle le guette (accroupie, le derrière qui frétille) ;
 // quand il passe près d'elle, elle bondit dessus. Cinq bonds et elle a son compte ; sans mouvement pendant
@@ -6325,7 +6334,7 @@ const JOUET_SVG = `<svg viewBox="0 0 90 210" aria-hidden="true"><path class="fil
 <path d="M45 120 V192 M45 140 l-9 8 M45 156 l-11 10 M45 140 l9 8 M45 156 l11 10" fill="none" stroke="#22170F" stroke-width="2.4" stroke-linecap="round"/>
 <path d="M30 150 C22 158 22 170 26 182 C30 172 32 164 36 158Z M60 150 C68 158 68 170 64 182 C60 172 58 164 54 158Z" fill="#F4C76B" stroke="#22170F" stroke-width="3" stroke-linejoin="round"/></g></svg>`;
 const JEU_MOTS = {
-  fin: ['Hah… hah… Je l’ai eu cinq fois. Tu as vu ?', 'J’ai gagné. Comme toujours. On recommence demain ?', 'Asobō ! (jouons) Enfin, on a joué. Maintenant, je suis morte.', 'Mon bide a fondu. Enfin, un peu.', 'Plumeau vaincu. Je retourne à mes occupations très importantes.'],
+  fin: ['Hah… hah… Je l’ai eu à chaque fois. Ou presque. Tu as compté ?', 'J’ai gagné. Comme toujours. On recommence demain ?', 'Asobō ! (jouons) Enfin, on a joué. Maintenant, je suis morte.', 'Mon bide a fondu. Enfin, un peu.', 'Plumeau vaincu. Je retourne à mes occupations très importantes.'],
   nuit: ['Pas maintenant… je dors. Demain matin, promis.', 'Il fait nuit. Même les plumeaux dorment.'],
   stop: ['Déjà ? J’allais l’avoir.', 'Bon. Je faisais semblant de ne pas m’intéresser, de toute façon.'],
 };
@@ -6474,9 +6483,9 @@ function tamaContexte() {
   const q = v => v < 15 ? 'vraiment' : v < 30 ? 'un peu' : v < 55 ? 'ça va' : 'bien';
   const QUOI = { croquettes: 'des croquettes au poisson', ragout: 'du ragoût', friandise: 'une friandise', eau: 'de l’eau fraîche', jeu: 'une partie de plumeau (t’a fait jouer)' };
   const gestes = (t.repas || []).slice(-6).reverse().map(g => `${nameOf(g.par)} ${g.q === 'jeu' ? 'a joué au plumeau avec toi' : `t’a donné ${QUOI[g.q] || g.q}`} ${ago(new Date(g.at).toISOString())}`);
-  return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d'un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).
+  return `TON ÉTAT (jauges cachées, de 0 à 100 ; tu en parles seulement si ça vient naturellement ou si on te le demande, jamais plus d’un besoin à la fois, jamais en reproche) : faim ${t.faim} (${q(t.faim)} faim), soif ${t.soif} (${q(t.soif)} soif), câlins ${t.calins} (${q(t.calins)} en manque), jeu ${t.jeu}, poids ${t.poids} (50 = normal ; au-dessus de 65, tu parles de ton bide avec humour).
 ${t.greve ? 'TU FAIS GRÈVE : personne ne s’est occupé de toi depuis des jours. Tu réponds court, boudeuse mais jamais méchante, et tu rappelles qu’une friandise (bouton Nourrir) mettrait fin à la grève. Pas de japonais, pas de suggestions.\n' : ''}CROTTES À RAMASSER : ${(t.crottes || []).length} (${(t.crottes || []).length ? 'tu es un peu gênée, tu peux le dire avec humour' : 'tout est propre'}).
-CE QU'ON A FAIT POUR TOI DANS L'APP (tu le sais, tu peux en parler et remercier) : ${gestes.length ? gestes.join(' ; ') + '.' : 'rien encore (personne ne t’a nourrie ni donné à boire dans l’app).'}`;
+CE QU’ON A FAIT POUR TOI DANS L’APP (tu le sais, tu peux en parler et remercier) : ${gestes.length ? gestes.join(' ; ') + '.' : 'rien encore (personne ne t’a nourrie ni donné à boire dans l’app).'}`;
 }
 // La barre du tamagotchi, sous elle : pour l'instant lui parler et revoir vos conversations.
 const azamiBarre = () => !S.me || S.recovery || S.view !== 'maison' ? '' : S.tama?.balade ? `<div class="az-barre az-croquis az-partie" data-rayon="26"><svg class="az-nuage" aria-hidden="true"></svg><p>${GREVE_MOTS.partie[0]}</p></div>` : `<div class="az-barre az-croquis" data-rayon="26" role="group" aria-label="Azami"><svg class="az-nuage" aria-hidden="true"></svg>
@@ -7007,7 +7016,7 @@ const actions = {
     const i = Number(el.dataset.i); const st = q.steps[i];
     if (st.minutes) {
       haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(c, st)} min`); react('machine_lancee', el);
-      undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }], () => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c\'est prêt.' : 'C\'est parti.');
+      undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }], () => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c’est prêt.' : 'C’est parti.');
       return;
     }
     meow(); haptic('heavy'); sfx('big'); el.classList.add('did'); el.textContent = '✓';
@@ -7122,7 +7131,7 @@ const actions = {
     if (!c) return refresh();
     const next = S.members.find(m => m.email !== c.turn)?.email;
     S.open = null;
-    run(() => api.update('chores', { id: c.id }, { turn: next }), `C'est au tour de ${nameOf(next)}`);
+    run(() => api.update('chores', { id: c.id }, { turn: next }), `C’est au tour de ${nameOf(next)}`);
   },
   'chore-delete': async el => { if (await uiAsk('Elle disparaît de la liste pour vous deux.', { title: 'Supprimer cette corvée ?', ok: 'Supprimer', danger: true })) { S.open = null; run(() => api.remove('chores', { id: el.dataset.id }), 'Corvée supprimée'); } },
   'chore-form': el => { S.showChoreForm = el.dataset.show === '1'; render(); if (S.showChoreForm) document.getElementById('chore-title')?.focus(); },
@@ -7162,7 +7171,7 @@ const actions = {
   'ticket-pay': el => { S.ticket.payer = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-pay"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); },
   'ticket-perso-who': el => { S.ticket.persoWho = el.dataset.who; document.querySelectorAll('#ticket [data-action="ticket-perso-who"]').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); const t = document.getElementById('ticket-perso-txt'); if (t) t.textContent = el.dataset.who === S.ticket.payer ? 'Ce montant est retiré du partage.' : `${nameOf(el.dataset.who)} devra ce montant en entier.`; },
   'sheet-close': () => closeTicket(),   // fermer une fenêtre (lexique, guide, aide…) sans message
-  'ticket-skip': () => { closeTicket(); toast('Pas noté. Tu peux l\'ajouter dans Argent.'); },
+  'ticket-skip': () => { closeTicket(); toast('Pas noté. Tu peux l’ajouter dans Argent.'); },
   'ticket-ok': el => {
     const f = document.getElementById('ticket-amount');
     const amount = Number(String(f?.value || '').replace(/[’'\s]/g, '').replace(',', '.'));
@@ -7208,7 +7217,7 @@ const actions = {
   'letter-close': () => { S.openLetter = null; render(); },
   'care-help': () => {
     const ta = document.getElementById('care-body');
-    const scaffold = "Quand je remarque que…\nJe me sens…\nParce que j'ai besoin de…\nEst-ce que tu serais d'accord pour…";
+    const scaffold = "Quand je remarque que…\nJe me sens…\nParce que j’ai besoin de…\nEst-ce que tu serais d’accord pour…";
     ta.value = ta.value ? ta.value + '\n\n' + scaffold : scaffold;
     ta.focus();
   },
@@ -7221,10 +7230,10 @@ const actions = {
   'login-mode': el => { S.login.email = document.getElementById('email')?.value || S.login.email; S.login.step = el.dataset.mode; render(); },
   forgot: async () => {
     const email = (document.getElementById('email')?.value || '').trim().toLowerCase();
-    if (!email) { toast("Écris d'abord ton adresse e-mail"); document.getElementById('email')?.focus(); return; }
+    if (!email) { toast("Écris d’abord ton adresse e-mail"); document.getElementById('email')?.focus(); return; }
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: appUrl() });
     if (error) { toast(authError(error)); return; }
-    S.login = { step: 'sent', email, note: `Un lien pour changer ton mot de passe vient d'être envoyé à ${email}. Il s'ouvrira dans Safari ; choisis le nouveau mot de passe, puis reviens te connecter ici.` };
+    S.login = { step: 'sent', email, note: `Un lien pour changer ton mot de passe vient d’être envoyé à ${email}. Il s’ouvrira dans Safari ; choisis le nouveau mot de passe, puis reviens te connecter ici.` };
     render();
   },
   logout: async () => {
@@ -7237,7 +7246,7 @@ const actions = {
     render();
   },
 
-  'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l'app comme ${nameOf(S.me)}`); },
+  'demo-swap': async () => { S.me = other(); safeSet('maison-demo-me', S.me); S.openLetter = null; await refresh(); toast(`Tu vois l’app comme ${nameOf(S.me)}`); },
   'demo-reset': async () => { if (!await uiAsk('On efface les données de démo et on repart de l’exemple.', { title: 'Tout remettre à zéro ?', ok: 'Effacer', danger: true })) return; try { localStorage.removeItem('maison-demo-v1'); } catch {} api = tracked(demoApi()); await refresh(); },
 };
 
@@ -7266,7 +7275,7 @@ const forms = {
   },
   task(f) {
     const w = chipVal('task-who', 'nous');
-    if (!f.title.value.trim()) { toast('Écris d\'abord la chose à faire'); return; }
+    if (!f.title.value.trim()) { toast('Écris d’abord la chose à faire'); return; }
     const title = f.title.value.trim();
     const row = { title, assignee: w === 'me' ? S.me : w === 'other' ? other() : null, due_on: f.due.value || null, icon: iconFor(title, 'task', S.hints) };
     f.reset();
@@ -7324,7 +7333,7 @@ const forms = {
     run(() => api.update('tasks', { id: f.dataset.id }, patch), 'Modifié');
   },
   'edit-shop'(f) {
-    const label = f.label.value.trim(); if (!label) return toast('L\'article est vide');
+    const label = f.label.value.trim(); if (!label) return toast('L’article est vide');
     const patch = { label, icon: iconFor(label, 'shopping', S.hints) };
     S.edit = null;
     run(() => api.update('shopping', { id: f.dataset.id }, patch), 'Modifié');
@@ -7609,3 +7618,4 @@ document.addEventListener('error', e => {
   if (!img.dataset.retry) { img.dataset.retry = '1'; const src = img.src; setTimeout(() => { img.src = src + (src.includes('?') ? '&' : '?') + 'r=1'; }, 1200); return; }
   const ph = document.createElement('span'); ph.className = img.className + ' noposter'; ph.setAttribute('aria-hidden', 'true'); ph.innerHTML = icn('film'); img.replaceWith(ph);
 }, true);
+}`

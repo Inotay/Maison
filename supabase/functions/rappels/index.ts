@@ -206,14 +206,16 @@ async function fresh(db: ReturnType<typeof admin>) {
 // (réglage de l'app, recopié dans reglages 'azami:mode:<e-mail>'), et seulement si elle a quelque chose à dire :
 // grève, balade, faim, crottes, soif, câlins ; sinon, une fois sur quatre, un mot doux. Ses jauges sont
 // recalculées ici comme dans l'app (elles baissent avec le temps depuis la dernière mise à jour).
+// Le mot du soir, lu hors de l'app (sur l'écran verrouillé) : des cartes postales, jamais un reproche, et
+// jamais les mêmes phrases que dans l'app.
 const AZ_MOTS: Record<string, string[]> = {
-  greve: ["Grève. Une friandise et on en parle.", "Je fais toujours grève. Tu connais le tarif : une friandise."],
+  greve: ["Grève de principe. Le tarif n'a pas changé : une friandise.", "Toujours en grève. Je négocie en friandises."],
   balade: ["Je suis partie me balader dans l'app. Tu me trouves ?", "Cache-cache ! Je suis quelque part dans l'app…"],
-  faim: ["Mon ventre fait des bruits bizarres… Tu passes me voir ?", "Ma gamelle est vide. Je dis ça, je dis rien.", "Onaka suita… (j'ai faim) Des croquettes au poisson, peut-être ?"],
-  crottes: ["Il y a des petites choses à ramasser dans l'app. C'est pas moi.", "J'ai laissé des petits cadeaux. Tu sais où est la poubelle."],
+  faim: ["Mon ventre fait des bruits de machine à laver. Tu passes ?", "La gamelle et moi, on t'attend. Surtout moi.", "Hara peko… (j'ai faim) Je dis ça poliment."],
+  crottes: ["Il y a des petites choses à ramasser dans l'app. Je ne sais pas qui. Enfin si.", "J'ai laissé des petits cadeaux. La poubelle est juste à côté."],
   soif: ["J'ai la langue comme du papier de verre. Un peu d'eau fraîche ?", "Il reste une casserole sale quelque part ? Sinon de l'eau, ça ira."],
-  calins: ["Personne ne m'a gratté le menton aujourd'hui. C'est noté.", "Je viens me frotter contre ton écran. C'est un indice."],
-  mot: ["J'ai trouvé un rayon de soleil parfait. Je te garde une place.", "J'ai surveillé la fenêtre toute la journée. Rien à signaler. Enfin si, un pigeon.", "Je pense à toi. Enfin, à mes croquettes. Mais un peu à toi.", "Okaeri ! (bon retour) Enfin, quand tu rentreras."],
+  calins: ["Mon menton n'a vu personne aujourd'hui. Il tient bon.", "Je garde une place sur le canapé. Pour une caresse, par exemple."],
+  mot: ["J'ai trouvé un rayon de soleil parfait. Je te garde une place.", "Gustave le pigeon est passé deux fois. Je l'ai regardé très fort.", "La fenêtre, le jardin, un chien. Journée chargée. Je t'attends.", "Okaeri ! (bon retour) Enfin, quand tu rentreras."],
 };
 const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
 async function azami(db: ReturnType<typeof admin>, seul?: string) {

@@ -1,7 +1,7 @@
 // Calendrier de ramassage de la gérance (Landel, Chemin de Boston) : quand on peut descendre quoi.
 // Par demi-journée (matin 0h–12h, après-midi 12h–24h), pour chaque sorte de déchet :
-//   ok     : vert, le container est près des garages, on peut descendre
-//   route  : jaune, le container est déjà au bout du chemin sur la route de Genève, y amener les sacs
+//   ok     : vert, le conteneur est près des garages, on peut descendre
+//   route  : jaune, le conteneur est déjà au bout du chemin sur la route de Genève, y amener les sacs
 //   non    : rouge, jour de ramassage, on garde chez soi
 // Jours : 0 = lundi … 6 = dimanche ; chaque jour a [matin, après-midi].
 
@@ -22,7 +22,7 @@ function slotLabel(slot, nowSlot) {
   const day = Math.floor(slot / 2), half = slot % 2;
   const today = Math.floor(nowSlot / 2);
   const diff = (day - today + 7) % 7;
-  const when = diff === 0 ? "aujourd'hui" : diff === 1 ? 'demain' : JOURS[day];
+  const when = diff === 0 ? "aujourd’hui" : diff === 1 ? 'demain' : JOURS[day];
   return `${when} ${half ? 'midi' : 'matin'}`;
 }
 
@@ -39,7 +39,7 @@ export function etat(s, now = new Date()) {
 
 export const ETAT_TEXTE = {
   ok: 'Peut descendre',
-  route: 'Container au bout du chemin, sur la route de Genève',
+  route: 'Conteneur au bout du chemin, sur la route de Genève',
   non: 'Ramassage : on garde chez soi',
 };
 
@@ -72,11 +72,11 @@ export function resume(waste, now = new Date(), court = false) {
 export const PRATIQUE = {
   gerance: { nom: 'Gérance Landel (Landry)', adresse: 'Av. de Morges 23, 1004 Lausanne', tel: '021 625 17 17', note: 'Numéro général, même la nuit. Aussi pour le chauffage et les serrures.' },
   panne: [
-    { quoi: 'Électricité, d\'abord', texte: 'Vérifier l\'ampoule, le disjoncteur dans l\'appartement, puis le fusible à la cave.' },
+    { quoi: 'Électricité, d’abord', texte: 'Vérifier l’ampoule, le disjoncteur dans l’appartement, puis le fusible à la cave.' },
     { quoi: 'Électricité 2020 Sàrl', tel: '021 711 20 20', note: 'ou M. Barille 076 564 87 81', tel2: '076 564 87 81' },
     { quoi: 'Services industriels, urgence électricité', tel: '021 315 85 15', note: 'Frs 87.–/heure, déplacement compris' },
     { quoi: 'Services industriels, urgence gaz', tel: '021 315 93 95' },
   ],
-  dechets: { quoi: 'Encombrants, sapins, meubles, cartons', texte: 'À amener à la déchèterie de Malley avec la carte d\'accès de la commune.', lieu: 'Chemin de l\'Usine-à-Gaz 20, 1020 Renens', tel: '021 315 79 79', horaires: 'Lundi à vendredi 8h–19h, samedi 8h–17h', contact: 'Bertrand Landry 079 550 25 75 (questions, transport)', tel2: '079 550 25 75' },
+  dechets: { quoi: 'Encombrants, sapins, meubles, cartons', texte: 'À amener à la déchèterie de Malley avec la carte d’accès de la commune.', lieu: 'Chemin de l’Usine-à-Gaz 20, 1020 Renens', tel: '021 315 79 79', horaires: 'Lundi à vendredi 8h–19h, samedi 8h–17h', contact: 'Bertrand Landry 079 550 25 75 (questions, transport)', tel2: '079 550 25 75' },
   urgences: [['Police', '117'], ['Pompiers', '118'], ['Ambulance', '144'], ['Intoxications', '145']],
 };

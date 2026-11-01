@@ -11,14 +11,14 @@ export const PACKS = {
 
 export const ACTION_LABEL = {
   'portrait': 'Portrait',
-  'ordinateur': "À l'ordinateur",
+  'ordinateur': "À l’ordinateur",
   'musique': 'Musique au casque',
   'nouilles': 'Manger des nouilles',
   'courses': 'Faire les courses',
   'cuisine': 'Cuisiner',
   'nettoyer': 'Nettoyer les surfaces',
   'lessive': 'Faire une lessive',
-  'aspirateur': "Passer l'aspirateur",
+  'aspirateur': "Passer l’aspirateur",
   'colis': 'Recevoir un colis',
   'lire': 'Lire',
   'jeux': 'Jeux vidéo',
