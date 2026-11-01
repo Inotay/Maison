@@ -7,9 +7,18 @@ import webpush from "npm:web-push@3.6.7";
 // Suivi de chaque envoi : la dernière réussite et la dernière erreur par appareil (pour comprendre une
 // notification qui n'arrive pas).
 let SUIVI: ReturnType<typeof admin> | null = null;
+// anciens abonnements (ancienne adresse) d'une personne qui en a un sur la nouvelle : on les saute (doublons)
+let VIEUX = new Set<string>();
+async function vieuxAbonnements(db: ReturnType<typeof admin>) {
+  const { data } = await db.from("push_subscriptions").select("endpoint, email, origin");
+  const l = (data ?? []) as { endpoint: string; email: string; origin: string | null }[];
+  const neufs = new Set(l.filter(x => x.origin).map(x => x.email));
+  VIEUX = new Set(l.filter(x => !x.origin && neufs.has(x.email)).map(x => x.endpoint));
+}
 const envoiBrut = webpush.sendNotification.bind(webpush);
 (webpush as unknown as { sendNotification: typeof envoiBrut }).sendNotification = async (sub, payload, opts) => {
   const ep = (sub as { endpoint?: string })?.endpoint ?? "";
+  if (ep && VIEUX.has(ep)) return { statusCode: 201, body: "", headers: {} } as Awaited<ReturnType<typeof envoiBrut>>;   // doublon : rien n'est envoyé
   try {
     const r = await envoiBrut(sub, payload, opts);
     if (SUIVI && ep) await SUIVI.from("push_subscriptions").update({ ok_at: new Date().toISOString() }).eq("endpoint", ep);
@@ -280,7 +289,7 @@ async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  const db = admin(); SUIVI = db;
+  const db = admin(); SUIVI = db; await vieuxAbonnements(db).catch(() => {});
   let body: Record<string, unknown> = {};
   if (req.method === "POST") { try { body = await req.json(); } catch { body = {}; } }
   const action = String(body.action ?? new URL(req.url).searchParams.get("action") ?? "run");

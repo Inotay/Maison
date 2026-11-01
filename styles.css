@@ -2234,3 +2234,8 @@ svg.tresor { width: 44px; height: 44px; filter: drop-shadow(0 2px 0 rgba(42, 28,
 .jpc-sol { display: flex; flex-direction: column; gap: 2px; }
 .jpc-sol b { font-size: 20px; } .jpc-sol small { font-family: var(--mincho); font-size: 14px; color: #8A7460; font-weight: 400; }
 .jp-ecrit { margin-top: 12px; } .jp-ecrit summary { font-weight: 800; font-size: 14px; color: var(--muted); cursor: pointer; } .jp-ecrit summary span { font-family: var(--mincho); margin-right: 4px; }
+/* « Un autre » : la carte s'envole, la suivante arrive, sans refaire la capsule */
+.gacha-card.part { animation: card-part .16s ease-in both; }
+.gacha-card.arrive { animation: card-arrive .32s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes card-part { to { transform: translateX(-40px) rotate(-6deg); opacity: 0; } }
+@keyframes card-arrive { from { transform: translateX(40px) rotate(5deg); opacity: 0; } to { transform: none; opacity: 1; } }

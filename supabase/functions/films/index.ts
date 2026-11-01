@@ -328,9 +328,11 @@ async function alertes(db: ReturnType<typeof createClient>) {
     db.from("films").select("id, tmdb_id, media, title, original, year, status, votes, providers, seasons, checked_at").in("status", ["a_voir", "en_cours"]),
     db.from("reglages").select("valeur").eq("cle", "abonnements").maybeSingle(),
     db.from("film_alertes").select("film_id, kind, info"),
-    db.from("push_subscriptions").select("endpoint, email, sub"),
+    db.from("push_subscriptions").select("endpoint, email, sub, origin"),
     db.from("app_secrets").select("name, value").in("name", ["vapid_public", "vapid_private", "vapid_subject"]),
   ]);
+  // un ancien abonnement (ancienne adresse) ne sert plus quand la personne en a un sur la nouvelle : pas de doublon
+  { const l = (subsRows ?? []) as { email?: string; origin?: string | null }[], neufs = new Set(l.filter(x => x.origin).map(x => x.email)); subsRows?.splice(0, subsRows.length, ...l.filter(x => x.origin || !neufs.has(x.email)) as typeof subsRows); }
   const done = new Set((sent ?? []).map((r: Record<string, string>) => `${r.film_id}|${r.kind}|${r.info}`));
   const subs: string[] = (reg?.valeur as string[]) ?? [];
   const isSub = (name: string) => subs.some(k => SUB_RE[k]?.test(name));

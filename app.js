@@ -2642,7 +2642,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v257</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v258</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5144,19 +5144,29 @@ function cineSoir(kind = S.soirKind || [], mood = S.soirMood || [], pour = S.soi
   const wVu = f => { const n = f.ratings?.[S.me]?.note ?? 3.2; return .6 * Math.exp((n - 3.5) * 1.1) * ((f.coeur || []).includes(S.me) ? 2 : 1) * (fDispo(f) ? 1.6 : 1); };
   const wSolo = f => dejaVus.includes(f) ? wVu(f) : (fVotes(f)[S.me] === 'super' ? 2.5 : 1) * (f.status === 'en_cours' ? 1.6 : 1) * (fDispo(f) ? 2 : 1) * (fVotes(f)[S.me] === 'revoir' ? .7 : 1) * (t.me ? Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) : 1);
   const w = solo ? wSolo : f => (fMatch(f) ? 3 : 1) * (S.members.some(m => fVotes(f)[m.email] === 'super') ? 2 : 1) * (f.status === 'en_cours' ? 2 : 1) * (fDispo(f) ? 2 : 1) * (t.other ? Math.exp(Math.max(-1.5, Math.min(1.5, T.scoreBoth(t.me, t.other, f, t.couple, .2) / 3))) : 1);
-  const tot = pool.reduce((a, f) => a + w(f), 0); let x = Math.random() * tot, pick = pool[0];
-  for (const f of pool) { x -= w(f); if (x <= 0) { pick = f; break; } }
+  // le tirage, pondéré ; « Un autre » ne repropose pas ce qu'on vient de voir (tant qu'il reste autre chose)
+  const vus2 = new Set();
+  const tirer = () => { const reste = pool.filter(f => !vus2.has(f)), l = reste.length ? reste : pool; const tot = l.reduce((a, f) => a + w(f), 0); let x = Math.random() * tot, p = l[0]; for (const f of l) { x -= w(f); if (x <= 0) { p = f; break; } } vus2.add(p); return p; };
+  const carte = pick => `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${solo ? `<span class="fbadge">${dejaVus.includes(pick) ? `Déjà vu${pick.ratings?.[S.me]?.note ? ` · ${esc(noteMot(pick.ratings[S.me].note).toLowerCase())}` : ''}` : fVotes(pick)[S.me] === 'super' ? 'Très envie' : fVotes(pick)[S.me] === 'revoir' ? 'À revoir' : 'Dans tes envies'}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} ${esc(nameOf(other()))} aussi</span>` : ''}` : fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
+        <div class="form-actions roulette-actions">${solo ? `<button class="btn" data-action="cine-open" data-id="${pick.id}">Voir la fiche</button>` : `<button class="btn" data-action="cine-watch" data-id="${pick.id}">On regarde ça !</button>`}<button class="btn ghost" data-again="1">Un autre</button></div>`;
+  let pick = tirer();
   stage.innerHTML = `<div class="gacha r1" style="--k:#E7505A"><button type="button" class="gacha-cap" aria-label="Ouvrir la capsule"><span class="cap-top"></span><span class="cap-bot"></span><span class="cap-shine"></span></button><p class="gacha-hint">Touche la capsule !</p></div>`;
   if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['manivelle', 0], ['capsule', .55]], audioCtx.currentTime + .02, .5);
+  // « Un autre » : la capsule reste ouverte, seule la carte change (elle s'envole, la suivante arrive)
+  const autre = g => {
+    const old = g.querySelector('.gacha-card'); pick = tirer(); haptic(1); sfx('tick');
+    const tmp = document.createElement('div'); tmp.innerHTML = carte(pick); const nv = tmp.firstElementChild, acts = tmp.querySelector('.roulette-actions');
+    nv.classList.add('arrive'); old?.classList.add('part');
+    setTimeout(() => { old?.replaceWith(nv); g.querySelector('.roulette-actions')?.replaceWith(acts); nv.addEventListener('animationend', () => nv.classList.remove('arrive'), { once: true }); acts.querySelector('[data-again]').addEventListener('click', () => autre(g)); }, 160);
+  };
   stage.querySelector('.gacha-cap').addEventListener('click', () => {
     const g = stage.querySelector('.gacha'); if (g.classList.contains('open')) return;
     g.classList.add('open'); haptic('heavy');
     if (SOUNDS && audioCtx?.state === 'running') scheduleBruits(audioCtx, [['pop_capsule', 0]], audioCtx.currentTime + .01, .55);
     setTimeout(() => {
       sfx('done');
-      g.insertAdjacentHTML('beforeend', `<div class="gacha-card roulette-card cine-pick" style="--k:#E7505A">${fPoster(pick, 'rposter')}<b class="gacha-txt">${esc(pick.title)}</b><span class="gacha-count">${esc(fMeta(pick))}${fProg(pick) ? ` · ${fProg(pick)}` : ''}</span>${solo ? `<span class="fbadge">${dejaVus.includes(pick) ? `Déjà vu${pick.ratings?.[S.me]?.note ? ` · ${esc(noteMot(pick.ratings[S.me].note).toLowerCase())}` : ''}` : fVotes(pick)[S.me] === 'super' ? 'Très envie' : fVotes(pick)[S.me] === 'revoir' ? 'À revoir' : 'Dans tes envies'}</span>${fMatch(pick) ? `<span class="fbadge match">${icn('deux')} ${esc(nameOf(other()))} aussi</span>` : ''}` : fMatch(pick) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : pick.status === 'a_voir' ? '<span class="fbadge">Un compromis</span>' : ''}${fWhereLine(pick)}</div>
-        <div class="form-actions roulette-actions">${solo ? `<button class="btn" data-action="cine-open" data-id="${pick.id}">Voir la fiche</button>` : `<button class="btn" data-action="cine-watch" data-id="${pick.id}">On regarde ça !</button>`}<button class="btn ghost" data-again="1">Un autre</button></div>`);
-      g.querySelector('[data-again]').addEventListener('click', () => cineSoir(kind, mood, pour));
+      g.insertAdjacentHTML('beforeend', carte(pick));
+      g.querySelector('[data-again]').addEventListener('click', () => autre(g));
       burst('sparkle', g.querySelector('.gacha-card'), 12);
     }, 380);
   });

@@ -6,6 +6,10 @@ import webpush from "npm:web-push@3.6.7";
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const DAY = 86400000;
+// Un même téléphone peut garder un ancien abonnement de l'ancienne adresse (avant maison.yatoni.ch) : on ne
+// l'utilise plus dès que la personne en a un sur la nouvelle adresse (sinon la notification arrive deux fois).
+const actifs = <T extends { email?: string; origin?: string | null }>(subs: T[] | null) => { const l = subs ?? []; const neufs = new Set(l.filter(s => s.origin).map(s => s.email)); return l.filter(s => s.origin || !neufs.has(s.email)); };
+
 const MOTS = ["Je suis fière de vous. Ne le répétez pas.", "Vous formez une très bonne équipe. Après moi, évidemment.", "Le canapé est libre : vous avez gagné une sieste avec moi.", "Bravo. Pour fêter ça, je propose des croquettes. Pour moi."];
 
 Deno.serve(async (req) => {
@@ -23,7 +27,7 @@ Deno.serve(async (req) => {
   const since = new Date(Date.now() - 7 * DAY).toISOString();
   const [{ data: wins }, { data: subs }, { data: keysRows }] = await Promise.all([
     db.from("wins").select("kind").gt("done_at", since).neq("kind", "achat"),
-    db.from("push_subscriptions").select("endpoint, sub"),
+    db.from("push_subscriptions").select("endpoint, email, sub, origin"),
     db.from("app_secrets").select("name, value").in("name", ["vapid_public", "vapid_private", "vapid_subject"]),
   ]);
   const n = (wins ?? []).length;
@@ -37,7 +41,7 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails(k.vapid_subject || "mailto:maison@inotay.github.io", k.vapid_public, k.vapid_private);
   const payload = JSON.stringify({ title: `Votre semaine à deux : ${pl(n, "chose faite", "choses faites")}`, body: `${bits.join(", ")}. Azami : « ${MOTS[Math.floor(Math.random() * MOTS.length)]} »`, tag: "maison-recap", url: "./?v=maison" });
   let sent = 0; const dead: string[] = [];
-  for (const s of subs ?? []) {
+  for (const s of actifs(subs)) {
     try { await webpush.sendNotification(s.sub, payload, { TTL: 12 * 3600 }); sent++; }
     catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); }
   }
