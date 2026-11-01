@@ -230,14 +230,14 @@ Deno.serve(async (req) => {
   const texte = geste ? (/^\((geste|événement)\)/.test(String(body.texte ?? "")) ? str(body.texte, 240) : `(geste) ${str(body.texte, 200)}`) : str(body.texte, MAX_TEXTE);
   if (!texte || texte === "(geste) ") return json(CORS, { error: "Rien à dire ?" }, 400);
   const key = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
-  if (!key) return json(CORS, { error: "Azami n'a pas encore sa clé.", code: "cle" }, 503);
+  if (!key) return json(CORS, { error: "je n’ai pas encore ma clé pour parler. Demande à Claude.", code: "cle" }, 503);
 
   // ── Le plafond du jour ──
   const jour = new Date().toISOString().slice(0, 10);
   const { data: usage } = await db.from("azami_usage").select("qui, appels, cout_usd").eq("jour", jour);
   const depense = (usage ?? []).reduce((a, u) => a + Number(u.cout_usd), 0);
   const mesAppels = (usage ?? []).find(u => u.qui === me)?.appels ?? 0;
-  if (depense >= PLAFOND_JOUR_USD || mesAppels >= PLAFOND_APPELS) return json(CORS, { error: "Azami a assez parlé pour aujourd'hui. Elle fait la sieste jusqu'à demain.", code: "plafond" }, 429);
+  if (depense >= PLAFOND_JOUR_USD || mesAppels >= PLAFOND_APPELS) return json(CORS, { error: "j’ai assez parlé pour aujourd’hui. Sieste jusqu’à demain.", code: "plafond" }, 429);
 
   // ── Ce qu'elle sait ──
   // (les souvenirs : les 80 plus récents, remis dans l'ordre ; avant, c'étaient les 80 plus anciens et les nouveaux disparaissaient)
@@ -294,9 +294,11 @@ ${contexte || "(pas d'instantané)"}` },
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
         body: JSON.stringify({ model: MODELE, max_tokens: 700, system: systeme, messages: convo, tools: [OUTIL, OUTIL_FILMS], tool_choice: { type: "auto" } }),
       });
-    } catch (e) { console.error(e); return json(CORS, { error: "Azami n'entend rien (réseau)." }, 502); }
-    j = await r.json();
-    if (!r.ok) { console.error(j); return json(CORS, { error: j?.error?.message ? `Azami est perdue : ${str(j.error.message, 160)}` : "Azami est perdue." }, 502); }
+    } catch (e) { console.error(e); return json(CORS, { error: "je n’entends rien, le réseau est parti se cacher." }, 502); }
+    // (une réponse qui n'est pas du JSON, une surcharge par exemple, ne doit pas faire planter la fonction)
+    const brut = await r.text();
+    try { j = JSON.parse(brut); } catch { console.error(r.status, brut.slice(0, 300)); return json(CORS, { error: "je me suis perdue en route. Tu me le redis ?" }, 502); }
+    if (!r.ok) { console.error(j); return json(CORS, { error: r.status === 529 || r.status === 429 ? "il y a trop de monde dans ma tête. Réessaie dans un instant ?" : "je me suis perdue en route. Tu me le redis ?" }, 502); }
     const us = j.usage ?? {};
     for (const k of ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]) u[k] = (u[k] ?? 0) + (us[k] ?? 0);
     cout += ((us.input_tokens ?? 0) * PRIX.in + (us.output_tokens ?? 0) * PRIX.out + (us.cache_creation_input_tokens ?? 0) * PRIX.cacheW + (us.cache_read_input_tokens ?? 0) * PRIX.cacheR) / 1e6;

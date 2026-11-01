@@ -5566,7 +5566,7 @@ async function azamiAgir(a) {
     azamiPose(pick(AZ_FAIT[a.type] || ['C’est fait.']), 'contente'); render();
     sfx('done'); haptic('medium');
     const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'caresse_2', 2500); if (img) burst('sparkle', img, 8);
-  } else { azamiPose(`Mrrr… mes pattes ont glissé, ça n’a pas marché.${pourquoi ? ` (${pourquoi})` : ''}`, 'boudeuse'); render(); }
+  } else { if (pourquoi) console.warn('azami agir', pourquoi); azamiPose('Mrrr… mes pattes ont glissé, ça n’a pas marché. On réessaie ?', 'boudeuse'); render(); }
   return ok;
 }
 
@@ -6582,7 +6582,7 @@ async function azamiEnvoyer(txt, geste = false) {
     meow(true, .45, pick(sons));
     if (r.humeur === 'contente' && img) burst('hearts', img, 8);
   } catch (e) {
-    AZ.busy = false; azamiPose(`Mrrr… ${e.message}`, 'boudeuse'); render();
+    AZ.busy = false; azamiPose(azErreur(e), 'boudeuse'); render();
   }
 }
 // Une caresse comme réponse : quand Azami vient de dire quelque chose et qu'on la caresse au lieu d'écrire (pas
@@ -6620,6 +6620,13 @@ function azamiMic() {
   rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
   rec.onend = () => { AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); if (fin && !avant) { const c = champ(); if (c) c.value = ''; azamiEnvoyer(fin); } };
   try { rec.start(); AZ.rec = rec; document.querySelector('.az-mic')?.classList.add('on'); haptic('medium'); sfx('tick'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
+}
+// ses erreurs, dans sa bulle : à la première personne, jamais de détail technique (le détail part dans la console)
+function azErreur(e) {
+  const m = String(e?.message || '');
+  if (/^(je |j’|il y a )/.test(m)) return `Mrrr… ${m}`;
+  console.warn('azami', m);
+  return /membre/i.test(m) ? 'Mrrr… je ne te reconnais pas. Reconnecte-toi ?' : 'Mrrr… je n’entends rien, le réseau est parti se cacher.';
 }
 const chatBubble = (txt, who) => { const p = document.createElement('p'); p.className = `bubble ${who}`; p.textContent = txt; return p; };
 // L'historique : tout ce que vous vous êtes dit, dans une feuille.
@@ -6675,7 +6682,7 @@ async function azamiMemoire() {
     card.querySelector('.chat-wait').outerHTML = `${portrait ? `<details class="fold azmem-portrait"><summary>Son portrait de toi</summary><p class="hint">Écrit avec Claude, à partir de ce que vous lui avez raconté. Pour y changer quelque chose, dis-le à Azami ou à Claude.</p><p class="azmem-p">${esc(portrait)}</p></details>` : ''}${(r.lignes || []).length ? Object.entries(groupes).map(([g, ls]) => `<h3>${esc(g)}</h3><ul class="azmem-l">${ls.map(l => `<li><span>${esc(l.texte)}</span><button class="azmem-x" data-m="oublier" data-id="${esc(l.id)}" aria-label="Oublier">×</button></li>`).join('')}</ul>`).join('') : '<p class="hint">Elle ne sait rien encore. Parle-lui, elle retiendra ce qui compte.</p>'}
       ${notes.length ? `<h3>Transmis à Claude</h3><ul class="azmem-l notes">${notes.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(n => `<li><span>${esc(n.texte)}</span><small>${esc(nameOf(n.de))} · ${esc(ago(n.at))}${n.lu_at ? ' · lu' : ''}</small></li>`).join('')}</ul>` : ''}
       <p class="visite-note"><button class="link" data-m="fil">Effacer notre conversation</button></p>`;
-  } catch (e) { card.querySelector('.chat-wait').textContent = `Mrrr… ${e.message}`; }
+  } catch (e) { card.querySelector('.chat-wait').textContent = azErreur(e); }
 }
 
 

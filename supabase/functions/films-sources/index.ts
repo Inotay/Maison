@@ -158,15 +158,31 @@ async function tonsBatch(db: ReturnType<typeof createClient>, n: number, prio = 
 }
 
 
+const TONS_JOUR = 600;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { body = {}; }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  // réservé aux membres de la maison (la clé publique de l'app ne suffit pas)
+  const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+  const me = (user?.email ?? "").toLowerCase();
+  const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+  if (!member) return json({ error: "Pas membre de la maison." }, 401);
   try {
     if (body.action === "palmares") return json(await palmaresBatch(db, Math.min(400, Number(body.n) || 200)));
     if (body.action === "critiques") return json(await critiquesBatch(db, Math.min(120, Number(body.n) || 60)));
-    if (body.action === "tons") return json(await tonsBatch(db, Math.min(80, Number(body.n) || 40), !!body.prio));
+    if (body.action === "tons") {
+      // plafond du jour pour les tons (appels au modèle) : 600 films par jour pour toute la maison
+      const jour = new Date().toISOString().slice(0, 10);
+      const { data: cpt } = await db.from("app_secrets").select("value").eq("name", "tons_jour").maybeSingle();
+      let c = { jour, n: 0 }; try { const v = JSON.parse(cpt?.value ?? "{}"); if (v.jour === jour) c = v; } catch { /* */ }
+      if (c.n >= TONS_JOUR) return json({ faits: 0, erreurs: 0, reste: null, prio: 0, plafond: true });
+      const n = Math.min(80, Number(body.n) || 40, TONS_JOUR - c.n);
+      const r = await tonsBatch(db, n, !!body.prio);
+      await db.from("app_secrets").upsert({ name: "tons_jour", value: JSON.stringify({ jour, n: c.n + (r.faits ?? 0) + (r.erreurs ?? 0) }) });
+      return json(r);
+    }
     if (body.action === "status") return json({ tons: !!LLM });
     return json({ error: "Action inconnue." }, 400);
   } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); }

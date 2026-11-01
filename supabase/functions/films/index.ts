@@ -474,14 +474,23 @@ Deno.serve(async (req) => {
   // Les séances des salles de Lausanne sont publiques : pas besoin d'être membre pour les lire.
   if (body.action === "salles") { try { return json({ salles: await salles() }); } catch (e) { return json({ error: (e as Error).message }, 500); } }
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  // le planificateur, une fois par jour : rien n'est renvoyé de privé, les notifications vont aux membres
-  if (body.action === "presse") { try { return json(await presseBatch(db, Math.min(120, Number(body.n) || 60))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
-  if (body.action === "retraits") { try { return json(await retraits(db, Math.min(80, Number(body.n) || 40))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
-  if (body.action === "alertes") { try { return json(await alertes(db)); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
   const me = (user?.email ?? "").toLowerCase();
   const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+  // les alertes : lancées par le planificateur une fois par jour (sans compte membre). Pour qu'un inconnu ne puisse
+  // pas les relancer en boucle, une seule fois toutes les 6 heures sans être membre.
+  if (body.action === "alertes") {
+    if (!member) {
+      const { data: last } = await db.from("app_secrets").select("value").eq("name", "alertes_at").maybeSingle();
+      if (last?.value && Date.now() - Date.parse(last.value) < 6 * 3600e3) return json({ skipped: "trop tôt" }, 429);
+      await db.from("app_secrets").upsert({ name: "alertes_at", value: new Date().toISOString() });
+    }
+    try { return json(await alertes(db)); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); }
+  }
   if (!member) return json({ error: "Pas membre de la maison." }, 401);
+  // (réservés aux membres : ils coûtent des appels aux services de notes)
+  if (body.action === "presse") { try { return json(await presseBatch(db, Math.min(120, Number(body.n) || 60))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
+  if (body.action === "retraits") { try { return json(await retraits(db, Math.min(80, Number(body.n) || 40))); } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); } }
   try {
     const action = String(body.action ?? "");
     if (action === "status") return json({ tmdb: !!KEY });
