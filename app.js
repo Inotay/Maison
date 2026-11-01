@@ -2334,7 +2334,8 @@ function deepLink() {
 const GLISSE_ETATS = new Set(['on', 'part', 'vif', 'seule', 'sous', 'open', 'done', 'fresh', 'tape', 'active']);
 function glisseBlocs() {
   const vus = {}, out = [];
-  for (const e of $app.querySelectorAll(':scope > *:not(.nav):not(.demo), .item')) {
+  // les blocs de la page, les lignes des listes, et le titre de l'en-tête (il descend quand une bulle grandit à côté d'Azami)
+  for (const e of $app.querySelectorAll(':scope > *:not(.nav):not(.demo), .item, .hd > div:not(.az-bulles), .hd > .azami-btn')) {
     const k0 = nodeKey(e) ? `${e.tagName}#${nodeKey(e)}` : `${e.tagName}.${[...e.classList].filter(c => !GLISSE_ETATS.has(c)).slice(0, 3).join('.')}`;
     const n = vus[k0] = (vus[k0] || 0) + 1;
     out.push([`${k0}~${n}`, e]);
@@ -2400,8 +2401,8 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  glisseApres(glisse);
-  azamiType(); azamiNuage(); crottesPlace(); tamaScene(); if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
+  azamiType(); azamiNuage(); crottesPlace(); tamaScene();
+  glisseApres(glisse);   // après le dessin des bulles : leurs marges intérieures changent aussi la place du reste if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
   deepLink();
@@ -2603,7 +2604,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v237</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v238</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
