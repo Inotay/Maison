@@ -2342,9 +2342,12 @@ function glisseBlocs() {
   }
   return out;
 }
+// L'écran affiché : la page et le titre de son en-tête. Ouvrir une recette, lancer la cuisine, changer d'onglet dans
+// Loisirs… change d'écran sans changer de page : là, pas de glissement (les blocs n'ont rien à voir entre eux).
+const glisseEcran = () => [S.view, S.maisonTab, S.loisirTab, S.cineTab, S.recette?.id ?? S.recette, !!S.cook, $app.querySelector('.hd h1')?.textContent, $app.querySelector('.hd .back')?.textContent].join('|');
 function glisseAvant() {
   if (render.view !== S.view || reducedMotion() || !$app.querySelector('.nav')) return null;
-  const m = new Map();
+  const m = new Map(); m.ecran = glisseEcran();
   for (const [k, e] of glisseBlocs()) {
     const vu = e.getBoundingClientRect().top;
     m.set(k, { vu, place: vu - glisseDecal(e), e });   // où on la voit (avec un glissement en cours) et où elle est vraiment
@@ -2358,6 +2361,7 @@ function glisseDecal(e) {
 }
 function glisseApres(m) {
   if (!m) return;
+  if (m.ecran !== glisseEcran()) { $app.getAnimations?.({ subtree: true }).forEach(a => { if (a.id === 'glisse') a.cancel(); }); return; }
   const H = innerHeight;
   for (const [k, e] of glisseBlocs()) {
     const avant = m.get(k); if (!avant) continue;   // un bloc nouveau : il apparaît à sa place (sa propre animation d'entrée)
@@ -2604,7 +2608,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v238</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v239</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
