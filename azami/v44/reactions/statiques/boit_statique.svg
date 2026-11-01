@@ -3,7 +3,7 @@
 <title>Azami · Boit</title><desc>Elle lape l’eau de sa gamelle, la langue qui claque, puis secoue la tête.</desc>
 <style><![CDATA[
 *{animation-fill-mode:both}
-#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}
+#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#ground-shadow{transform-box:view-box;transform-origin:252px 402px}
 #eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}
 
 ]]></style>
@@ -49,7 +49,7 @@
   
 </g>
 
-<g id="Xbol"><ellipse cx="118" cy="402" rx="52" ry="11" fill="#39201E" opacity=".12"/>
-<path d="M70 386 Q74 406 88 408 H148 Q162 406 166 386 Z" fill="#78C8F0" stroke="#39201E" stroke-width="5" stroke-linejoin="round"/>
-<ellipse cx="118" cy="386" rx="48" ry="11" fill="#78C8F0" stroke="#39201E" stroke-width="5"/><ellipse cx="118" cy="386" rx="40" ry="8" fill="#9AD3F2"/><ellipse cx="110" cy="384" rx="12" ry="3" fill="#FFFFFF" opacity=".6"/></g>
+<g id="Xbol"><ellipse cx="150" cy="400" rx="52" ry="11" fill="#39201E" opacity=".12"/>
+<path d="M102 384 Q106 404 120 406 H180 Q194 404 198 384 Z" fill="#78C8F0" stroke="#39201E" stroke-width="5" stroke-linejoin="round"/>
+<ellipse cx="150" cy="384" rx="48" ry="11" fill="#78C8F0" stroke="#39201E" stroke-width="5"/><ellipse cx="150" cy="384" rx="40" ry="8" fill="#9AD3F2"/><ellipse cx="142" cy="382" rx="12" ry="3" fill="#FFFFFF" opacity=".6"/></g>
 </svg>

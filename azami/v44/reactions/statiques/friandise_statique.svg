@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Azami · Friandise">
-<title>Azami · Friandise</title><desc>Une friandise vole, elle saute et l’attrape au vol.</desc>
+<title>Azami · Friandise</title><desc>Une friandise vole en arc, elle saute et l’attrape au vol dans la gueule : crounch.</desc>
 <style><![CDATA[
 *{animation-fill-mode:both}
-#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#Xtreatwrap{transform-box:view-box;transform-origin:90px 120px}
+#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#ground-shadow{transform-box:view-box;transform-origin:252px 402px}#Xtreatwrap{transform-box:view-box;transform-origin:0px 0px}
 #Xtreatwrap{opacity:0}#eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}
 
 ]]></style>
@@ -49,5 +49,5 @@
   
 </g>
 
-<g id="Xtreatwrap" transform="translate(90 120)"><g id="Xtreat"><path d="M0 -9 L8 0 L0 9 L-8 0 Z" fill="#E7776B" stroke="#39201E" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="0" r="2" fill="#FFF2D9"/></g></g>
+<g id="Xtreatwrap" transform="translate(90 120)"><g transform="scale(2.4)"><g id="Xtreat"><path d="M0 -9 L8 0 L0 9 L-8 0 Z" fill="#E7776B" stroke="#39201E" stroke-width="3" stroke-linejoin="round"/><circle cx="0" cy="0" r="2" fill="#FFF2D9"/></g></g></g>
 </svg>

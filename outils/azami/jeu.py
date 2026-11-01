@@ -31,13 +31,16 @@ def anims():
     # ── bondit (une fois) ──
     a = Anim('bondit', 1.5, loop=False, title='Azami · Bondit', desc='Elle s’écrase, saute et donne un grand coup de patte en l’air, puis retombe, fière.')
     c = 'character'
-    a.at(c, 0, {'sy': .9, 'sx': 1.04, 'y': 16}, ANT).at(c, .18, {'sy': .82, 'sx': 1.1, 'y': 22}, SNAP)
+    # (départ = la pose de « guette », pour qu'il n'y ait pas de saut d'image entre les deux)
+    a.at(c, 0, {'sy': .86, 'sx': 1.06, 'y': 24}, ANT).at(c, .18, {'sy': .8, 'sx': 1.1, 'y': 26}, SNAP)
     a.at(c, .42, {'y': -62, 'x': -18, 'r': -12, 'sx': .94, 'sy': 1.08}, 'cubic-bezier(.3,0,.7,1)')
     a.at(c, .7, {'y': 0, 'x': -10, 'sx': 1.1, 'sy': .88}, SNAP).at(c, .9, {'x': -10}, OUTQ).at(c, 1.5, {}, LIN)
-    a.at('front-near', 0, {}, ANT).at('front-near', .2, {'r': 10}, SNAP).at('front-near', .38, {'r': -95, 'y': -20}, OUTQ).at('front-near', .58, {'r': -60, 'y': -12}, SOFT).at('front-near', .8, {}, LIN)
-    a.at('front-far', .2, {}, SNAP).at('front-far', .4, {'r': -40}, OUTQ).at('front-far', .75, {}, LIN)
-    a.at('head', 0, {'r': 8, 'x': -10, 'y': 14}, SNAP).at('head', .4, {'r': -14}, OUTQ).at('head', .9, {}, LIN)
+    a.at('front-near', 0, {'r': 18, 'y': -6}, ANT).at('front-near', .2, {'r': 10}, SNAP).at('front-near', .38, {'r': -95, 'y': -20}, OUTQ).at('front-near', .58, {'r': -60, 'y': -12}, SOFT).at('front-near', .8, {}, LIN)
+    a.at('front-far', 0, {'r': 14, 'y': -6}, ANT).at('front-far', .2, {}, SNAP).at('front-far', .4, {'r': -40}, OUTQ).at('front-far', .75, {}, LIN)
+    a.at('head', 0, {'r': 10, 'x': -16, 'y': 22}, SNAP).at('head', .4, {'r': -14}, OUTQ).at('head', .9, {}, LIN)
+    a.at('neck', 0, {'r': 8, 'y': 12, 'x': -4}, ANT).at('neck', .3, {}, OUTQ)
     a.mouth(.35, .65, big=.8)
+    a.at('ground-shadow', 0, {'sx': 1.04}, ANT).at('ground-shadow', .18, {'sx': 1.08}, SNAP).at('ground-shadow', .42, {'sx': .62, 'sy': .62}, 'cubic-bezier(.3,0,.7,1)').at('ground-shadow', .7, {'sx': 1.08}, SNAP).at('ground-shadow', .9, {}, OUTQ)
     for e in ('ear-left', 'ear-right'): a.at(e, .3, {}, SNAP).at(e, .45, {'r': 16 if e == 'ear-left' else -16}, OUTQ).at(e, .9, {}, LIN)
     a.happy(.95, 1.4); tail_up(a, .9, 1.4)
     out.append(a)
@@ -76,9 +79,11 @@ def anims():
     # ── rate (une fois) : elle retombe dans le vide, cherche autour d'elle, secoue la tête, un peu vexée ──
     a = Anim('rate', 1.4, loop=False, title='Azami · Raté', desc='Elle retombe sans rien : regarde à gauche, à droite, cligne, secoue la tête, la queue fouette.')
     c = 'character'
-    a.at(c, 0, {'y': -30, 'sy': 1.05, 'sx': .96}, 'cubic-bezier(.5,0,1,1)').at(c, .12, {'y': 0, 'sx': 1.12, 'sy': .86}, SNAP).at(c, .3, {}, OUTQ).at(c, 1.4, {}, LIN)
+    a.at(c, 0, {'y': -52, 'x': -17, 'r': -11, 'sx': .95, 'sy': 1.06}, 'cubic-bezier(.5,0,1,1)').at(c, .14, {'y': 0, 'x': -10, 'sx': 1.12, 'sy': .86}, SNAP).at(c, .32, {}, OUTQ).at(c, 1.4, {}, LIN)
+    a.at('front-near', 0, {'r': -82, 'y': -17}, SOFT).at('front-near', .26, {}, OUTQ)
+    a.at('front-far', 0, {'r': -30}, SOFT).at('front-far', .26, {}, OUTQ)
     a.look(.35, -12, 0, .25); a.look(.75, 12, 0, .2)
-    a.at('head', .3, {}, SOFT).at('head', .45, {'r': -8}, SOFT).at('head', .8, {'r': 8}, SOFT).at('head', 1.0, {}, SOFT)
+    a.at('head', 0, {'r': -14}, SOFT).at('head', .3, {}, SOFT).at('head', .45, {'r': -8}, SOFT).at('head', .8, {'r': 8}, SOFT).at('head', 1.0, {}, SOFT)
     a.blink(1.02); a.shake('head', 1.08, amp=7, n=4, period=.06)
     for e, r in (('ear-left', -14), ('ear-right', 14)): a.at(e, .15, {}, SNAP).at(e, .3, {'r': r}, OUTQ).at(e, 1.2, {'r': r}, ANT).at(e, 1.4, {}, LIN)
     a.flick(.4, 30); a.flick(.9, 24)
@@ -103,23 +108,24 @@ def anims():
 
     # ── guette (boucle) : la préparation au saut. Aplatie, la tête basse et tendue, les fesses qui frétillent de plus
     # en plus vite, les pattes arrière qui piétinent, la queue qui fouette, les pupilles énormes.
-    a = Anim('guette', 1.2, loop=True, title='Azami · Prête à bondir', desc='Aplatie, les fesses qui frétillent, les pattes arrière qui piétinent : elle va bondir.')
+    GD = .66
+    a = Anim('guette', GD, loop=True, title='Azami · Prête à bondir', desc='Aplatie, les fesses qui frétillent, les pattes arrière qui piétinent : elle va bondir.')
     base = {'character': {'sy': .86, 'sx': 1.06, 'y': 24}, 'head': {'r': 10, 'x': -16, 'y': 22}, 'neck': {'r': 8, 'y': 12, 'x': -4},
             'ear-left': {'r': 14}, 'ear-right': {'r': -6}, 'front-near': {'r': 18, 'y': -6}, 'front-far': {'r': 14, 'y': -6}}
-    for k, v in base.items(): a.base[k] = v; a.at(k, 0, v, LIN).at(k, 1.2, v, LIN)
-    for p_ in ('pupils-l', 'pupils-r'): a.at(p_, 0, {'x': -6, 'y': -1, 's': 1.06}, LIN).at(p_, 1.2, {'x': -6, 'y': -1, 's': 1.06}, LIN)
+    for k, v in base.items(): a.base[k] = v; a.at(k, 0, v, LIN).at(k, GD, v, LIN)
+    for p_ in ('pupils-l', 'pupils-r'): a.at(p_, 0, {'x': -6, 'y': -1, 's': 1.06}, LIN).at(p_, GD, {'x': -6, 'y': -1, 's': 1.12}, LIN)
     # le frétillement : lent puis de plus en plus vite (le bassin et les pattes arrière)
     pts_core, pts_bn, pts_bf = [], [], []
-    t, per, k = 0, .3, 0
-    while t < 1.2 - 1e-6:
+    t, per, k = 0, .2, 0
+    while t < GD - 1e-6:
         sgn = 1 if k % 2 == 0 else -1
         pts_core.append((round(t, 3), {'r': 2.8 * sgn, 'x': 2 * sgn}, SOFT)); pts_bn.append((round(t, 3), {'x': 5 * sgn, 'r': -6 * sgn}, SOFT)); pts_bf.append((round(t, 3), {'x': 5 * sgn, 'r': 6 * sgn}, SOFT))
-        t += per; per = max(.1, per * .78); k += 1
+        t += per; per = max(.07, per * .74); k += 1
     for tr, pts in (('core', pts_core), ('back-near', pts_bn), ('back-far', pts_bf)):
         for (tt, v, e) in pts: a.at(tr, tt, v, e)
-        a.at(tr, 1.2, pts[0][1], LIN)
-    a.cycle('tail', .6, [(0, {'r': -10}, SOFT), (.3, {'r': 14}, SOFT), (.6, {'r': -10}, SOFT)])
-    a.flick(.2, 28); a.flick(.7, 22); a.flick(1.0, 30)
+        a.at(tr, GD, pts[0][1], LIN)
+    a.cycle('tail', .33, [(0, {'r': -10}, SOFT), (.165, {'r': 14}, SOFT), (.33, {'r': -10}, SOFT)])
+    a.flick(.15, 28); a.flick(.45, 30)
     out.append(a)
 
     # ── court (boucle) : le galop. Pattes avant ensemble, pattes arrière ensemble (un peu décalées, proche/loin) ;

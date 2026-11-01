@@ -3,18 +3,18 @@
 <title>Azami · À la fenêtre</title><desc>Assise devant la fenêtre, elle suit un oiseau des yeux, les oreilles qui pivotent, et claque des dents quand il passe.</desc>
 <style><![CDATA[
 *{animation-fill-mode:both}
-#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#Xoiseau{transform-box:view-box;transform-origin:0px 0px}
+#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#ground-shadow{transform-box:view-box;transform-origin:252px 402px}#Xoiseau{transform-box:view-box;transform-origin:0px 0px}
 #Xoiseau{opacity:0}#eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}#back-near{transform:translate(-10px,-16px) rotate(70deg) scale(1,1)}#back-far{transform:translate(-8px,-18px) rotate(66deg) scale(1,1)}#core{transform:translate(6px,6px) rotate(-14deg) scale(1,1)}#character{transform:translate(0px,8px) rotate(0deg) scale(1,1)}#tail{transform:translate(0px,4px) rotate(64deg) scale(1,1)}#tail-tip{transform:translate(0px,0px) rotate(-46deg) scale(1,1)}
 
 ]]></style>
 
 <g id="Xfenetre">
-  <rect x="64" y="40" width="300" height="250" rx="10" fill="#CFE9F7" stroke="#39201E" stroke-width="7"/>
-  <path d="M64 150 H364 M214 40 V290" stroke="#39201E" stroke-width="6"/>
-  <path d="M74 250 C120 230 150 255 196 240 M232 230 C270 214 310 236 354 222" stroke="#8DBF8A" stroke-width="18" stroke-linecap="round" fill="none"/>
-  <path d="M250 80 C280 70 300 95 340 86" stroke="#7A5A40" stroke-width="6" stroke-linecap="round" fill="none"/>
-  <circle cx="300" cy="78" r="9" fill="#8DBF8A"/><circle cx="324" cy="90" r="7" fill="#8DBF8A"/>
-  <rect x="50" y="286" width="328" height="16" rx="6" fill="#E8D3B4" stroke="#39201E" stroke-width="6"/>
+  <rect x="-8" y="52" width="132" height="190" rx="10" fill="#CFE9F7" stroke="#39201E" stroke-width="7"/>
+  <path d="M-8 140 H124 M58 52 V242" stroke="#39201E" stroke-width="6"/>
+  <path d="M-2 214 C26 200 44 220 70 208 C88 200 104 212 118 204" stroke="#8DBF8A" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <path d="M70 82 C88 74 100 92 118 86" stroke="#7A5A40" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <circle cx="98" cy="80" r="8" fill="#8DBF8A"/><circle cx="114" cy="90" r="6" fill="#8DBF8A"/>
+  <rect x="-16" y="238" width="152" height="14" rx="6" fill="#E8D3B4" stroke="#39201E" stroke-width="6"/>
 </g>
 <g id="ground-shadow"><ellipse cx="252" cy="402" rx="140" ry="16" fill="#39201E" opacity=".12"/></g>
 <g id="character">
@@ -56,5 +56,5 @@
   
 </g>
 
-<g id="Xoiseau"><path d="M0 0 q10 -10 20 0 q10 -10 20 0" stroke="#39201E" stroke-width="4" fill="none" stroke-linecap="round"/></g>
+<g id="Xoiseau"><path d="M0 0 q14 -14 28 0 q14 -14 28 0" stroke="#39201E" stroke-width="6" fill="none" stroke-linecap="round"/></g>
 </svg>

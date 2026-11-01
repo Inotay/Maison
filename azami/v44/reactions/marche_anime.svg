@@ -3,29 +3,29 @@
 <title>Azami · Marche</title><desc>Elle s’approche à pas de velours, la tête basse, les yeux sur la plume.</desc>
 <style><![CDATA[
 *{animation-fill-mode:both}
-#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}
+#character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}#ground-shadow{transform-box:view-box;transform-origin:252px 402px}
 #eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}#ear-left{transform:translate(0px,0px) rotate(10deg) scale(1,1)}#ear-right{transform:translate(0px,0px) rotate(-4deg) scale(1,1)}
-#ear-left{animation:k-ear-left 0.9s infinite}
+#ear-left{animation:k-ear-left 0.9s infinite both}
 @keyframes k-ear-left{0.0%{transform:translate(0px,0px) rotate(10deg) scale(1,1);opacity:1;animation-timing-function:linear}100.0%{transform:translate(0px,0px) rotate(10deg) scale(1,1);opacity:1;animation-timing-function:linear}}
-#ear-right{animation:k-ear-right 0.9s infinite}
+#ear-right{animation:k-ear-right 0.9s infinite both}
 @keyframes k-ear-right{0.0%{transform:translate(0px,0px) rotate(-4deg) scale(1,1);opacity:1;animation-timing-function:linear}100.0%{transform:translate(0px,0px) rotate(-4deg) scale(1,1);opacity:1;animation-timing-function:linear}}
-#pupils-l{animation:k-pupils-l 0.9s infinite}
+#pupils-l{animation:k-pupils-l 0.9s infinite both}
 @keyframes k-pupils-l{0.0%{transform:translate(-6px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:linear}100.0%{transform:translate(-6px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:linear}}
-#pupils-r{animation:k-pupils-r 0.9s infinite}
+#pupils-r{animation:k-pupils-r 0.9s infinite both}
 @keyframes k-pupils-r{0.0%{transform:translate(-6px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:linear}100.0%{transform:translate(-6px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:linear}}
-#front-near{animation:c-front-near 0.9s infinite}
+#front-near{animation:c-front-near 0.9s infinite both}
 @keyframes c-front-near{0.0%{transform:translate(0px,0px) rotate(18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,0px) rotate(-18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#back-far{animation:c-back-far 0.9s infinite}
+#back-far{animation:c-back-far 0.9s infinite both}
 @keyframes c-back-far{0.0%{transform:translate(0px,0px) rotate(-16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,0px) rotate(16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(-16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#front-far{animation:c-front-far 0.9s infinite}
+#front-far{animation:c-front-far 0.9s infinite both}
 @keyframes c-front-far{0.0%{transform:translate(0px,0px) rotate(-18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,0px) rotate(18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(-18deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#back-near{animation:c-back-near 0.9s infinite}
+#back-near{animation:c-back-near 0.9s infinite both}
 @keyframes c-back-near{0.0%{transform:translate(0px,0px) rotate(16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,0px) rotate(-16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(16deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#core{animation:c-core 0.45s infinite}
+#core{animation:c-core 0.45s infinite both}
 @keyframes c-core{0.0%{transform:translate(0px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,-2.5px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(0deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#head{animation:c-head 0.45s infinite}
+#head{animation:c-head 0.45s infinite both}
 @keyframes c-head{0.0%{transform:translate(-8px,10px) rotate(6deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(-8px,7px) rotate(4deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(-8px,10px) rotate(6deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
-#tail{animation:c-tail 0.9s infinite}
+#tail{animation:c-tail 0.9s infinite both}
 @keyframes c-tail{0.0%{transform:translate(0px,0px) rotate(-6deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}50.0%{transform:translate(0px,0px) rotate(8deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}100.0%{transform:translate(0px,0px) rotate(-6deg) scale(1,1);opacity:1;animation-timing-function:cubic-bezier(.45,0,.55,1)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 ]]></style>

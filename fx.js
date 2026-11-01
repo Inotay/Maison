@@ -6,6 +6,11 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
 const C = { bleu: '#1E2F3F', creme: '#FFFFFF', lampe: '#F2C14E', rouge: '#E8907A', fauve: '#B8A48F' };
+// Les particules sont dessinées à l'encre, comme Azami (avant : des caractères ♥ ✦ et un emoji 🐾, d'un autre style)
+const INK = '#2A1C15';
+const coeurSvg = (fill, s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="display:block;overflow:visible"><path d="M12 20.5s-8-5-8-10.6A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 8 2.6c0 5.6-8 10.6-8 10.6z" fill="${fill}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/><path d="M8.3 9.6c.4-1 1.2-1.6 2.2-1.7" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" opacity=".8"/></svg>`;
+const etoileSvg = (fill, s) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="display:block;overflow:visible"><path d="M12 2.5c.9 5 3.5 7.6 8.5 8.5-5 .9-7.6 3.5-8.5 8.5-.9-5-3.5-7.6-8.5-8.5 5-.9 7.6-3.5 8.5-8.5z" fill="${fill}" stroke="${INK}" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
+const patteSvg = s => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" style="display:block;overflow:visible"><g fill="#4A2E26" stroke="${INK}" stroke-width="1.2"><ellipse cx="12" cy="15.5" rx="4.6" ry="3.8"/><ellipse cx="6.2" cy="10.4" rx="1.9" ry="2.4"/><ellipse cx="9.8" cy="7" rx="1.9" ry="2.5"/><ellipse cx="14.2" cy="7" rx="1.9" ry="2.5"/><ellipse cx="17.8" cy="10.4" rx="1.9" ry="2.4"/></g></svg>`;
 
 let layer = null;
 function fxLayer() {
@@ -33,7 +38,7 @@ function spawn(x, y, html, style, keyframes, ms, easing = 'cubic-bezier(.2,.7,.2
 function sparkle(x, y, n = 10) {
   for (let i = 0; i < n; i++) {
     const ang = rnd(0, Math.PI * 2), d = rnd(28, 70), s = rnd(10, 18);
-    spawn(x, y, '✦', { color: i % 3 ? C.lampe : C.creme, fontSize: s + 'px' }, [
+    spawn(x, y, etoileSvg(i % 3 ? C.lampe : C.creme, s + 4), {}, [
       { transform: 'translate(-50%,-50%) scale(0) rotate(0deg)', opacity: 1 },
       { transform: `translate(calc(-50% + ${Math.cos(ang) * d * .6}px), calc(-50% + ${Math.sin(ang) * d * .6}px)) scale(1.2) rotate(40deg)`, opacity: 1, offset: .4 },
       { transform: `translate(calc(-50% + ${Math.cos(ang) * d}px), calc(-50% + ${Math.sin(ang) * d}px)) scale(0) rotate(90deg)`, opacity: 0 },
@@ -71,7 +76,7 @@ function coins(x, y, n = 12) {
 function hearts(x, y, n = 12) {
   for (let i = 0; i < n; i++) {
     const dx = rnd(-70, 70), up = rnd(-120, -220), s = rnd(12, 24);
-    spawn(x, y, '♥', { color: i % 2 ? C.rouge : C.bleu, fontSize: s + 'px' }, [
+    spawn(x, y, coeurSvg(i % 2 ? C.rouge : '#F4B8A8', s + 4), {}, [
       { transform: 'translate(-50%,-50%) scale(0)', opacity: 0 },
       { transform: `translate(calc(-50% + ${dx * .3}px), calc(-50% + ${up * .3}px)) scale(1.15)`, opacity: 1, offset: .25 },
       { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${up}px)) scale(.8)`, opacity: 0 },
@@ -83,7 +88,7 @@ function hearts(x, y, n = 12) {
 function paws(x, y, n = 6) {
   for (let i = 0; i < n; i++) {
     const dx = rnd(-60, 60), up = rnd(-70, -130);
-    spawn(x, y, '🐾', { fontSize: rnd(13, 20) + 'px' }, [
+    spawn(x, y, patteSvg(rnd(15, 22)), {}, [
       { transform: 'translate(-50%,-50%) scale(0) rotate(-20deg)', opacity: 0 },
       { transform: `translate(calc(-50% + ${dx * .4}px), calc(-50% + ${up * .4}px)) scale(1) rotate(10deg)`, opacity: 1, offset: .3 },
       { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${up}px)) scale(.7) rotate(-10deg)`, opacity: 0 },

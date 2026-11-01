@@ -113,3 +113,9 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
    - Toilette : après un repas (4 fois sur 10) ou au calme, elle se lèche la patte et se la passe sur la tête (toilette_patte).
    - Trésors : quand on la retrouve après une balade, elle rapporte un petit objet dessiné (plume, bouton, feuille, caillou, ruban, capsule, gland, ticket, kanji, coquillage, bille) ; ils se collectionnent dans Souvenirs, « Ses trésors ».
    - Anniversaires : elle demande la date et la retient (action anniversaire, réglage azami:anniv:<email>). Le jour J : fête et une part de gâteau dessinée ; la veille et le jour, elle prévient l'autre. Essai : ?azami=anniv.
+
+## Retouches après la revue (v263)
+- Moteur : les animations jouées une fois gardent leur dernière image (`both`) ; l'ombre au sol rétrécit dans les sauts (`hop`) et a son pivot au centre.
+- Les accessoires des caresses (ronron, étoile, cœur) sont posés près de la tête : décalage appliqué directement dans les SVG des réactions caresse_2/3, recette_reussie, aide_acceptee, mot_envoye, objectif_commun (prop-purr −108/−40, prop-heart −99/−179, prop-spark −121/−159). À reporter dans `props/bbox.json` si on régénère ces réactions.
+- mange/ragoût/boit : le museau dans la gamelle, les croquettes disparaissent en trois fois ; friandise visible, en arc, avalée ; faim lisible ; boude de dos, yeux fermés ; dort : Z depuis le museau, oreilles relâchées ; fenêtre devant son regard ; toilette au-dessus de l'oreille.
+- Jeu : affût de 0,66 s (le bond part au bout de la rampe), bondit part de l'affût, raté part de la pose en l'air ; elle garde le plumeau tant qu'on ne le bouge pas ; demi-tours en douceur ; échelle de l'en-tête conservée ; retour au coin en marchant.

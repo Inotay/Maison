@@ -20,6 +20,7 @@ ORIG = {
     'eye-l': '146px 211px', 'eye-r': '207px 211px', 'pupils-l': '146px 211px', 'pupils-r': '207px 211px',
     'mouth-open': '177px 262px', 'blush': '177px 245px', 'whiskers': '177px 262px',
     'front-near': '211px 312px', 'front-far': '210px 312px', 'back-near': '324px 316px', 'back-far': '320px 316px',
+    'ground-shadow': '252px 402px',
 }
 
 def decl(v, o=1):
@@ -100,6 +101,9 @@ class Anim:
         self.at(c, t, {}, ANT).at(c, t + .12, {'sx': 1.06, 'sy': .9}, SNAP)
         self.at(c, t + .12 + air * .5, {'y': -h, 'sx': .95, 'sy': 1.07, 'r': tilt}, 'cubic-bezier(.3,0,.7,1)')
         self.at(c, t + .12 + air, {'y': 0, 'sx': 1.08, 'sy': .9}, SNAP).at(c, t + .12 + air + .2, {}, LIN)
+        # l'ombre au sol rétrécit quand elle est en l'air
+        g = 'ground-shadow'; k = max(.55, 1 - h / 110)
+        self.at(g, t + .12, {}, LIN).at(g, t + .12 + air * .5, {'sx': k, 'sy': k}, 'cubic-bezier(.3,0,.7,1)').at(g, t + .12 + air, {}, SNAP)
         return t + .12 + air + .2
 
     def ear(self, side, t, a=12, hold=0):
@@ -151,13 +155,13 @@ class Anim:
                 pts = [(t, v if 'o' in v else dict(v, o=0), e) for t, v, e in pts]
                 if not any(p[0] == 0 for p in pts): pts.append((0, {'o': 0}, LIN))
                 if not any(p[0] == self.D for p in pts): pts.append((self.D, {'o': 0}, LIN))
-            rules.append(f"#{tr}{{animation:{n} {self.D}s {it}}}")
+            rules.append(f"#{tr}{{animation:{n} {self.D}s {it} both}}")
             rules.append(self.kf(n, self.D, pts, 0 if tr in self.hidden else 1))
         for sel, dur, pts in self.cycles:
             if sel in self.tracks: continue
             n = f'c-{sel}'
             reps = 'infinite' if self.loop else max(1, round(self.D / dur))
-            rules.append(f"#{sel}{{animation:{n} {dur}s {reps}}}")
+            rules.append(f"#{sel}{{animation:{n} {dur}s {reps} both}}")
             rules.append(self.kf(n, dur, pts))
         return '\n'.join(rules)
 
