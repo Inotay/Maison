@@ -2587,6 +2587,7 @@ function viewMaison() {
     <div class="mtab">${S.maisonTab === 'faire' ? viewTasks() : S.maisonTab === 'agenda' ? viewAgenda() : viewBoard()}</div>
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
+    <details class="fold reglages" data-fold="reglages"><summary>Réglages</summary>
     <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
@@ -2608,7 +2609,8 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v239</span></div>`;
+    </details>
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v240</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4315,9 +4317,7 @@ function mesVusHtml(list) {
   }
   out += '</ul>';
   const sortb = `<div class="vu-sort" role="group" aria-label="Trier"><button data-action="vus-sort" data-s="note" aria-pressed="${so === 'note'}">Par note</button><button data-action="vus-sort" data-s="date" aria-pressed="${so === 'date'}">Les plus récents</button></div>`;
-  const aRevoir = list.filter(f => f.ratings?.[S.me]?.note && !f.ratings[S.me].j).length;
-  const renote = aRevoir ? `<button type="button" class="link renote-l" data-action="renote">Renoter à la chaîne avec la jauge · ${aRevoir}</button>` : '';
-  return renote + sortb + out + (l.length > max ? `<button class="btn ghost wide cine-more" data-action="vus-more">Voir les ${l.length - max} autres</button>` : '');
+  return sortb + out + (l.length > max ? `<button class="btn ghost wide cine-more" data-action="vus-more">Voir les ${l.length - max} autres</button>` : '');
 }
 function journalStats() {
   const vus = S.films.filter(f => f.status === 'vu'); if (vus.length < 3) return '';
@@ -4350,8 +4350,8 @@ function tasteCard(email) {
     ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.adj > .22).slice(0, 4), lo = tw.filter(([, c]) => c.adj < .08 && c.n >= 30).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
-    ${self ? algoLigne() : ''}${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
-    ${self ? '<p class="hint taste-tip">Touche une pastille pour dire « plus de ça » ou « jamais ça ».</p>' : ''}${tools}</div>`;
+    ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
+    ${self ? '<p class="hint taste-tip">Touche une pastille pour dire « plus de ça » ou « jamais ça ».</p>' : ''}${tools ? `<details class="fold taste-reglages" data-fold="taste-reglages"><summary>Réglages</summary>${algoLigne()}${tools}</details>` : ''}</div>`;
 }
 function compromisHtml() {
   const c = cineCompromis(); if (!c.length) return '';
@@ -4936,14 +4936,17 @@ async function cineOpen(id) {
   const draw = () => {
     const o = other(), v = fVotes(f);
     const prov = (f.providers || []);
-    const acts = f.status === 'a_voir' ? (T.wants(v[S.me]) ? `<button class="btn" data-action="cine-watch" data-id="${f.id}">On le regarde</button>`
+    const acts = f.status === 'a_voir' && fSeen(f, S.me) && !T.wants(v[S.me]) ? `<button class="btn ghost" data-action="cine-want" data-id="${f.id}">Je veux le revoir</button>`   // déjà vu : pas de « Bof », sa note est juste au-dessus
+      : f.status === 'a_voir' ? (T.wants(v[S.me]) ? `<button class="btn" data-action="cine-watch" data-id="${f.id}">On le regarde</button>`
         : `<button class="btn" data-action="cine-want" data-id="${f.id}">${o && T.wants(v[o]) ? 'Moi aussi' : 'Je veux le voir'}</button><button class="btn ghost" data-action="cine-nope" data-id="${f.id}">Bof</button>`)
       + (!fSeen(f, S.me) ? `<button class="btn ghost small" data-action="cine-iseen" data-id="${f.id}">Déjà vu</button>` : '')
       : f.status === 'en_cours' ? `${f.media === 'tv' ? `<button class="btn" data-action="cine-ep" data-id="${f.id}">+1 épisode (${fProg(f)})</button>` : ''}<button class="btn ${f.media === 'tv' ? 'ghost' : ''}" data-action="cine-seen" data-id="${f.id}">${f.media === 'tv' ? 'Série finie' : 'On l’a vu'}</button>`
       : f.status === 'favori' ? `<button class="btn" data-action="cine-propose" data-id="${f.id}">${(f.coeur || []).includes(S.me) ? `Le proposer à ${esc(nameOf(o))}` : 'J’ai envie de le voir'}</button>`
-      : `<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Changer ma note</button>`;
+      : `<button class="btn ghost" data-action="cine-seen" data-id="${f.id}">Ajouter un petit mot</button>`;
     const heart = `<button class="fheart" data-action="cine-coeur" data-id="${f.id}" aria-pressed="${(f.coeur || []).includes(S.me)}" aria-label="${(f.coeur || []).includes(S.me) ? 'Retirer de mes coups de cœur' : 'Mettre dans mes coups de cœur'}"><span aria-hidden="true">${(f.coeur || []).includes(S.me) ? '♥' : '♡'}</span><small>Coup de cœur</small></button>`;
-    const rates = S.members.filter(m => f.ratings?.[m.email]?.note).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> ${noteMini(f.ratings[m.email].note, 'big')}${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
+    // ta note, directement sur la fiche d'un film que tu as vu : on glisse, c'est enregistré
+    const maNote = f.ratings?.[S.me]?.note || 0, vuParMoi = maNote || fSeen(f, S.me);
+    const rates = S.members.filter(m => f.ratings?.[m.email]?.note && !(m.email === S.me && vuParMoi)).map(m => `<li><b>${esc(m.email === S.me ? 'Toi' : nameOf(m.email))}</b> ${noteMini(f.ratings[m.email].note, 'big')}${f.ratings[m.email].mot ? `<br><i>« ${esc(f.ratings[m.email].mot)} »</i>` : ''}</li>`).join('');
     document.getElementById('ticket')?.remove();
     const box = document.createElement('div'); box.id = 'ticket';
     box.innerHTML = `<div class="ticket-card fsheet" role="dialog" aria-label="${esc(f.title)}"><button type="button" class="fsheet-x" data-action="sheet-close" aria-label="Fermer la fiche"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>${f.poster ? `<div class="fsheet-bg" style="background-image:url('${esc(f.poster)}')" aria-hidden="true"></div>` : ''}
@@ -4958,6 +4961,7 @@ async function cineOpen(id) {
       ${(() => { const ss = fSalles(f); return ss.length ? `<p class="chip-label">Au cinéma à Lausanne</p><div class="fsalles">${ss.map(x => `<a class="fsalle" href="${esc(x.url)}" target="_blank" rel="noopener"><b>${esc(x.where)}</b><span>${esc(x.when || '')}</span><i aria-hidden="true">›</i></a>`).join('')}</div>` : f.cinema ? `<p class="chip-label">Au cinéma en Suisse</p><p><a class="link" href="https://search.ch/cine/Lausanne" target="_blank" rel="noopener">Voir les séances à Lausanne</a></p>` : ''; })()}
       ${prov.length ? `<p class="chip-label">Où regarder en Suisse</p><div class="fprovs">${[...prov].sort((a, b) => S.subs.includes(subOf(b.name)) - S.subs.includes(subOf(a.name))).map(p => `<span class="fp ${S.subs.includes(subOf(p.name)) && p.kind !== 'location' ? 'chez' : ''}">${p.logo ? `<img src="${esc(p.logo)}" alt="" referrerpolicy="no-referrer">` : ''}${esc(p.name)}${p.kind === 'location' ? ' <small>(location)</small>' : p.kind === 'gratuit' ? ' <small>(gratuit)</small>' : S.subs.includes(subOf(p.name)) ? ' <small>✓ chez vous</small>' : ''}</span>`).join('')}</div>` : f.tmdb_id ? '<p class="hint">Pas trouvé en streaming en Suisse pour l’instant.</p>' : ''}
       ${f.trailer ? `<p><a class="link" href="${esc(f.trailer)}" target="_blank" rel="noopener">▶ Voir la bande-annonce</a></p>` : ''}
+      ${vuParMoi ? `<div class="fnote"><p class="chip-label">${maNote ? 'Ta note' : 'Tu l’as vu : ta note ?'}</p>${jauge(maNote)}</div>` : ''}
       ${rates ? `<ul class="frates-big">${rates}</ul>` : ''}
       ${(f.coeur || []).filter(e => e !== S.me).length ? `<p class="fbadge">♥ Coup de cœur de ${esc(nameOf(f.coeur.find(e => e !== S.me)))}</p>` : ''}
       ${(() => { const t = tastes(), w = T.why(t.me, f, 2), x = o && t.other && !fSeen(f, o) ? T.score(t.other, f) : null; return w.length || x != null ? `<div class="fwhy">${w.map(s => `<span>${esc(s)}</span>`).join('')}${x != null && x > 1.2 ? `<span class="for">${esc(nameOf(o))} a de bonnes chances d’aimer</span>` : ''}</div>` : ''; })()}
@@ -4967,6 +4971,16 @@ async function cineOpen(id) {
       <div class="form-actions fsheet-acts">${acts}${heart}</div>
       <div class="form-actions"><button class="btn ghost small" data-action="sheet-close">Fermer</button>${fVotes(f)[S.me] || !othersOn(f) ? `<button class="link" data-action="cine-del" data-id="${f.id}">${othersOn(f) ? 'Retirer de ma liste' : 'Retirer de la liste'}</button>` : ''}</div></div>`;
     box.addEventListener('click', e => { if (e.target === box) closeTicket(); });
+    const jn = box.querySelector('.fnote .jauge');
+    if (jn) jaugeBind(jn, (nv, final) => {
+      if (!final) return;
+      const mine = f.ratings?.[S.me] || {};
+      if (mine.note === nv) return;
+      const back = filmBefore(f, ['ratings', 'seen']);
+      const patch = { ratings: { ...(f.ratings || {}), [S.me]: { ...mine, note: nv, j: 1, at: mine.at || new Date().toISOString() } }, ...(fSeen(f, S.me) ? {} : { seen: { ...(f.seen || {}), [S.me]: true } }) };
+      Object.assign(f, patch); tasteMemo = null; if (!DEMO) FDB.put([{ ...f }]).catch(() => {});
+      run(() => api.update('films', { id: f.id }, patch), mine.note ? `Note changée : ${noteMot(nv).toLowerCase()}` : 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : note`, [back]));
+    });
     document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   };
   draw(); haptic(1);
