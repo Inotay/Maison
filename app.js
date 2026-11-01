@@ -249,12 +249,21 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 // - « mix » : l'app se mélange à la musique qui joue, mais l'interrupteur silence la coupe.
 const SON_JEU = () => safeGet('maison-son-mode') !== 'mix';
 const SILENCE_WAV = 'sounds/silence.wav';   // (un fichier : la politique de sécurité de la page interdit les médias en data:)
-let silentEl = null;
+// iOS 17 et plus : navigator.audioSession dit directement « mes sons passent même en silence », sans piste muette.
+// La piste muette faisait croire à iOS qu'un son était en lecture : l'app restait dans l'île dynamique et sur
+// l'écran verrouillé. Elle ne sert plus que sur les iPhone plus anciens, et seulement quelques secondes après
+// chaque toucher (le temps des petits sons), puis elle est libérée.
+let silentEl = null, silentT = 0;
 function pisteMuette(on) {
-  if (!on) { silentEl?.pause(); return; }
-  if (!silentEl) { silentEl = new Audio(SILENCE_WAV); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); document.addEventListener('visibilitychange', () => { if (!silentEl) return; if (document.hidden) silentEl.pause(); else if (SON_JEU() && SOUNDS) silentEl.play().catch(() => {}); }); }
+  clearTimeout(silentT);
+  const libere = () => { if (!silentEl) return; silentEl.pause(); silentEl.removeAttribute('src'); silentEl.load(); silentEl = null; };
+  if (!on || navigator.audioSession) { libere(); return; }
+  if (!silentEl) { silentEl = new Audio(SILENCE_WAV); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); }
   if (silentEl.paused) silentEl.play().catch(() => {});
+  silentT = setTimeout(libere, 6000);
 }
+// app cachée ou écran verrouillé : plus aucun son en cours (rien ne reste affiché comme « en lecture »)
+document.addEventListener('visibilitychange', () => { if (document.hidden) { pisteMuette(false); try { audioCtx?.suspend(); } catch {} } });
 function unlockAudio() {
   try {
     const jeu = SON_JEU() && SOUNDS;
@@ -2610,7 +2619,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v245</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v246</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
