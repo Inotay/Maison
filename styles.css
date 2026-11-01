@@ -2092,3 +2092,14 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 /* le japonais dans ses bulles : touchable, ça le prononce */
 .az-elle .jp { all: unset; cursor: pointer; white-space: nowrap; font: inherit; font-size: 1.12em; color: #2A1C15; border-bottom: 2px dotted #C8951E; padding: 0 2px; -webkit-tap-highlight-color: transparent; }
 .az-elle .jp:active { background: rgba(247, 201, 72, .35); }
+
+/* Le plumeau du jeu : dessiné à l'encre, il pend au bout de son fil et se balance quand on le promène. */
+#jouet { position: absolute; left: 0; top: 0; z-index: 60; width: 90px; height: 210px; touch-action: none; cursor: grab; opacity: 0; transition: opacity .3s ease; -webkit-tap-highlight-color: transparent; transform-origin: 45px 0; }
+#jouet.on { opacity: 1; }
+#jouet.tenu { cursor: grabbing; }
+#jouet svg { display: block; width: 100%; height: 100%; overflow: visible; filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .15)); }
+#jouet .plume { transform-origin: 45px 116px; animation: plume-vent 1.6s ease-in-out infinite; }
+#jouet.touche .plume { animation: plume-touche .45s ease-out, plume-vent 1.6s ease-in-out .45s infinite; }
+@keyframes plume-vent { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes plume-touche { 0% { transform: rotate(0) scale(1); } 30% { transform: rotate(-28deg) scale(.88); } 65% { transform: rotate(16deg) scale(1.05); } 100% { transform: rotate(-5deg); } }
+@media (prefers-reduced-motion: reduce) { #jouet .plume { animation: none; } }

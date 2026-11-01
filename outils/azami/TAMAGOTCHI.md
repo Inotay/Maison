@@ -63,6 +63,14 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 - Aux heures de folie, elle traverse parfois l'écran en courant (zoomies), au plus toutes les 90 s.
 - Pour essayer en démo : ?azami=tama:dort (boude, faim, zoomies).
 
+## Jouer et sons (v231)
+- Jouer : un plumeau dessiné qu'on promène au doigt sur l'accueil. Elle guette (accroupie, le derrière qui frétille),
+  bondit quand il passe devant elle. Cinq bonds = partie gagnée (jeu +25, bide un peu plus fin). Sans mouvement 10 s,
+  ou en changeant de page, la partie s'arrête. La nuit, elle refuse. Animations : guette, bondit (outils/azami/jeu.py).
+- Câlin : une caresse sur sept environ (accueil), elle frotte sa joue contre l'écran, petits cœurs (calin).
+- Sons synthétisés : crounch (croquettes), slurp (ragoût), lape (eau), swish (friandise, bond), gargouille (faim),
+  couvercle et plop (poubelle).
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.
