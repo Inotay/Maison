@@ -1972,7 +1972,24 @@ function caresse(img) {
 // Marche aussi pendant une visite.
 let petTimes = [], angryLevel = 0, angryAt = 0, lastPet = 0, awayUntil = 0, awayTimer = null;
 const GRACE = 1200, CALM = 5000;
-const reactSrc = id => reducedMotion() ? `azami/v44/reactions/statiques/${id}_statique.svg` : `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
+// Les réactions d'Azami : le texte de chaque dessin est gardé en mémoire ; chaque fois qu'on la joue, une copie
+// locale toute neuve (adresse « blob: ») la relance depuis le début, instantanément, sans rien retélécharger.
+// Avant, chaque changement d'animation rechargeait le dessin par le réseau : des images vides ou figées entre deux poses.
+const REACT_TXT = {}, REACT_EN_COURS = {};
+function reactCharge(id) {
+  if (REACT_TXT[id] || REACT_EN_COURS[id]) return REACT_EN_COURS[id];
+  return REACT_EN_COURS[id] = fetch(`azami/v44/reactions/${id}_anime.svg`).then(r => r.ok ? r.text() : null).then(t => { if (t) REACT_TXT[id] = t; }).catch(() => {}).finally(() => { delete REACT_EN_COURS[id]; });
+}
+function reactSrc(id) {
+  if (reducedMotion()) return `azami/v44/reactions/statiques/${id}_statique.svg`;
+  const t = REACT_TXT[id];
+  if (t) { const u = URL.createObjectURL(new Blob([t], { type: 'image/svg+xml' })); setTimeout(() => URL.revokeObjectURL(u), 120e3); return u; }
+  reactCharge(id);   // la prochaine fois, ce sera instantané
+  return `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
+}
+// Au calme après l'ouverture : les réactions les plus jouées (caresses, tamagotchi, jeu), pour qu'elles partent tout de suite.
+const REACT_PRECHARGE = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour', 'calin', 'mange', 'ragout', 'friandise', 'boit', 'faim', 'dort', 'boude', 'zoomies', 'guette', 'bondit', 'court', 'marche', 'rate', 'emporte', 'part', 'retrouvailles', 'greve'];
+setTimeout(() => (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => { let i = 0; const suite = () => { if (i < REACT_PRECHARGE.length) (reactCharge(REACT_PRECHARGE[i++]) || Promise.resolve()).then(() => setTimeout(suite, 60)); }; suite(); }), 6000);
 // Joue une réaction dans l'image d'Azami puis revient à sa scène (une seule à la fois : la dernière gagne).
 function playOnImg(img, id, ms, then) {
   if (!img) return;
@@ -2620,7 +2637,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v249</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v250</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5313,7 +5330,10 @@ function azamiEnvol() {
   const delai = Math.max(3500, Math.min(28e3, Math.max(5500, n * 50 + 2500)) + (AZ.choix.length || AZ.action || /\?\s*$/.test(AZ.bulle) ? 12e3 : 0) - Math.max(0, Date.now() - (AZ.at || Date.now())));
   AZ.envolT = setTimeout(function fin() {
     if (AZ.k !== k || !AZ.bulle) return;
-    if (AZ.ecrit || AZ.busy || document.activeElement?.id === 'az-in') { AZ.envolT = setTimeout(fin, 5000); return; }
+    // on attend seulement si on est vraiment en train de lui répondre (texte en cours ou curseur dans la bulle)
+    const champ = document.getElementById('az-in'), ecrit = AZ.ecrit && (document.activeElement === champ || champ?.value.trim());
+    if (ecrit || AZ.busy) { AZ.envolT = setTimeout(fin, 5000); return; }
+    if (AZ.ecrit) AZ.ecrit = false;
     document.querySelectorAll('.az-elle').forEach(e => (e.closest('.az-bulles') || e).classList.add('part'));
     setTimeout(() => { if (AZ.k !== k) return; AZ.bulle = ''; AZ.choix = []; AZ.action = null; safeSet('maison-az-bulle', ''); render(); }, 420);
   }, delai);
@@ -6462,7 +6482,8 @@ const actions = {
     }, null).then(ok => { if (!ok) return; const a = S.panierAdded; toast(a ? `Au menu. ${pl(a, 'article ajouté', 'articles ajoutés')} à la liste` : 'Au menu. Tu as déjà tout'); react('courses_completees', document.querySelector('.hd .azami')); });
   },
 
-  go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; if (from !== S.view) setTimeout(() => azamiRemarque('page', S.view), 500); S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
+  go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; if (AZ.ecrit && !document.getElementById('az-in')?.value.trim()) AZ.ecrit = false;   // une bulle à écrire restée vide se ferme en changeant de page
+    if (from !== S.view) setTimeout(() => azamiRemarque('page', S.view), 500); S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
   'seq-step': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
