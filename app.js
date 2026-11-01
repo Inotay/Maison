@@ -232,7 +232,9 @@ function authError(e) {
 // Azami miaule de temps en temps. Un vrai enregistrement dans sounds/azami.m4a
 // remplace la version synthétique.
 let meowFile = null;
-fetch('sounds/azami.m4a', { method: 'HEAD' }).then(r => { if (r.ok) meowFile = 'sounds/azami.m4a'; }).catch(() => {});
+// (les enregistrements sounds/*.m4a : à ajouter dans SONS_PRESENTS quand ils existent ; plus de requête HEAD à chaque lancement)
+const SONS_PRESENTS = new Set([]);
+if (SONS_PRESENTS.has('azami')) meowFile = 'sounds/azami.m4a';
 let audioCtx = null;
 const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state !== 'running') audioCtx.resume(); return audioCtx; };
 
@@ -279,7 +281,7 @@ function unlockAudio() {
 // Petits sons de récompense, dans l'esprit Duolingo : notes claires et courtes, style marimba.
 // Un fichier sounds/<nom>.m4a (tick, done, big, coin, heart) remplace la version synthétique.
 const sfxFile = {};
-['tick', 'done', 'big', 'coin', 'heart'].forEach(k => fetch(`sounds/${k}.m4a`, { method: 'HEAD' }).then(r => { if (r.ok) sfxFile[k] = `sounds/${k}.m4a`; }).catch(() => {}));
+['tick', 'done', 'big', 'coin', 'heart'].forEach(k => { if (SONS_PRESENTS.has(k)) sfxFile[k] = `sounds/${k}.m4a`; });
 function note(c, freq, at, dur, vol, type = 'triangle') {
   const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
   o.type = type; o2.type = 'sine';
@@ -353,7 +355,7 @@ setInterval(() => {
 // Plusieurs miaulements (miaou, petit mew, mrrp ?, trille, long, ek ek, mrrrow sassy, ronron) : voir miaous.js.
 // Un vrai enregistrement sounds/azami_<type>.m4a remplace le son synthétique de ce type.
 const meowFiles = {};
-Object.keys(MEOW_KINDS).forEach(k => fetch(`sounds/azami_${k}.m4a`, { method: 'HEAD' }).then(r => { if (r.ok) meowFiles[k] = `sounds/azami_${k}.m4a`; }).catch(() => {}));
+Object.keys(MEOW_KINDS).forEach(k => { if (SONS_PRESENTS.has('azami_' + k)) meowFiles[k] = `sounds/azami_${k}.m4a`; });
 function meow(force, volume = .6, kind = null) {
   if (!force && Math.random() > 0.18) return;
   try {
@@ -404,22 +406,24 @@ function remoteApi(client) {
     // page par page, dans un ordre stable. Sans ça, la moitié des films manquait (listes, goût, et des films
     // déjà jugés qui revenaient dans Cinder).
     async list(t, o = {}) {
-      const base = () => { let q = client.from(t).select(o.select || '*'); if (o.gte) q = q.gte(o.gte[0], o.gte[1]); if (o.order) q = q.order(o.order[0], { ascending: o.order[1] }); return q; };
+      // (les grandes tables, comme les films, sont triées par id dès la première page : on ne relit plus la
+      // première page une seconde fois, et l'ordre reste stable d'une page à l'autre)
+      const base = () => { let q = client.from(t).select(o.select || '*'); if (o.gte) q = q.gte(o.gte[0], o.gte[1]); if (o.order) q = q.order(o.order[0], { ascending: o.order[1] }); if (o.paged) q = q.order('id'); return q; };
       if (o.limit) return ok(await base().limit(o.limit)) || [];
       const first = ok(await base().range(0, 999)) || [];
       if (first.length < 1000) return first;
-      const all = [];
-      for (let from = 0; ; from += 1000) {
-        const rows = ok(await base().order('id').range(from, from + 999)) || [];
+      const all = o.paged ? [...first] : [];
+      for (let from = o.paged ? 1000 : 0; ; from += 1000) {
+        const rows = ok(await (o.paged ? base() : base().order('id')).range(from, from + 999)) || [];
         all.push(...rows); if (rows.length < 1000 || from > 50000) break;
       }
       return all;
     },
-    async insert(t, row) { return ok(await client.from(t).insert(row).select().single()); },
-    async insertMany(t, rows) { return ok(await client.from(t).insert(rows).select()) || []; },
-    async update(t, match, patch) { ok(await apply(client.from(t).update(patch), match)); },
-    async upsert(t, row) { ok(await client.from(t).upsert(row)); },
-    async remove(t, match) { ok(await apply(client.from(t).delete(), match)); },
+    async insert(t, row) { const r = ok(await client.from(t).insert(row).select().single()); echoNote(t, r); return r; },
+    async insertMany(t, rows) { const r = ok(await client.from(t).insert(rows).select()) || []; r.forEach(x => echoNote(t, x)); return r; },
+    async update(t, match, patch) { echoNote(t, match); ok(await apply(client.from(t).update(patch), match)); },
+    async upsert(t, row) { echoNote(t, row); ok(await client.from(t).upsert(row)); },
+    async remove(t, match) { echoNote(t, match); ok(await apply(client.from(t).delete(), match)); },
     async rpc(n, a) { return ok(await client.rpc(n, a)); },
   };
 }
@@ -678,7 +682,7 @@ function filmsSync() {
       try { local = since ? await FDB.all() : []; } catch (e) { console.warn('idb', e); }
       if (local.length && !S.films.length) { S.films = local; tasteMemo = null; render(); }
       // ce qui a changé depuis la dernière fois (ou tout, la première fois)
-      const rows = await api.list('films', since && local.length ? { gte: ['updated_at', since] } : {});
+      const rows = await api.list('films', since && local.length ? { gte: ['updated_at', since], paged: true } : { paged: true });
       let max = since || '';
       for (const r of rows) if (r.updated_at && r.updated_at > max) max = r.updated_at;
       if (rows.length) {
@@ -689,7 +693,7 @@ function filmsSync() {
       }
       // une fois par jour : les fiches supprimées côté serveur
       if (Date.now() - Number(safeGet('maison-films-sweep') || 0) > 864e5 && S.films.length) {
-        const ids = new Set((await api.list('films', { select: 'id' })).map(r => r.id));
+        const ids = new Set((await api.list('films', { select: 'id', paged: true })).map(r => r.id));
         const gone = S.films.filter(f => !ids.has(f.id)).map(f => f.id);
         if (gone.length) { S.films = S.films.filter(f => ids.has(f.id)); try { await FDB.del(gone); } catch {} }
         safeSet('maison-films-sweep', String(Date.now()));
@@ -716,7 +720,7 @@ async function loadAll() {
   Object.assign(S, { members, tasks, chores, choreLog, expenses, shopping, board, care, wins, achats, hints: hintsFrom(hints), hintsX: hintsFrom(hints, true), plans: plans.sort((a, b) => a.created_at.localeCompare(b.created_at)), pantry: pantry.filter(x => !x.status), gear: Object.fromEntries(gearRows.map(g => [g.id, g.has])), help: help.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))), tips: tipRows ? (tipRows.find(r => r.email === S.me)?.seen || {}) : (S.tips || { all: true }), carnet: new Set((carnet || []).map(r => r.id)), carnetInfo: new Map((carnet || []).map(r => [r.id, { by: r.found_by, at: r.found_at }])), films: films || S.films || [], gouts: gouts || [], ...(Array.isArray((reglages || []).find(r => r.cle === 'abonnements')?.valeur) ? { subs: reglages.find(r => r.cle === 'abonnements').valeur } : {}),
     goutReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('gout:')).map(r => [r.cle.slice(5), r.valeur || {}])),
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
-  { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
+  { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object') { S.tama = !S.tama ? { ...TAMA_DEF(), ...e } : (e.maj || 0) > (S.tamaBase || 0) ? tamaFusion(S.tama, e) : S.tama; S.tamaBase = Math.max(S.tamaBase || 0, e.maj || 0); } }
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
   { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
@@ -812,6 +816,14 @@ async function refresh() {
 document.addEventListener('focusout', () => { if (refreshPending) { refreshPending = false; setTimeout(refresh, 150); } });
 
 let refreshTimer = null;
+// L'écho de nos propres écritures : le temps réel nous renvoie ce qu'on vient d'écrire, alors que run() a déjà
+// tout relu. On note ce qu'on écrit (table + clé) et on ignore son écho pendant quelques secondes.
+const ECHO = new Map();
+const echoCle = (t, r) => r ? `${t}:${r.id ?? r.cle ?? r.endpoint ?? r.word ?? r.email ?? ''}` : '';
+function echoNote(t, r) { const k = echoCle(t, r); if (k) ECHO.set(k, Date.now()); if (ECHO.size > 200) for (const [x, at] of ECHO) if (Date.now() - at > 10e3) ECHO.delete(x); }
+const echoDeNous = p => { const r = p?.new && Object.keys(p.new).length ? p.new : p?.old; const at = ECHO.get(echoCle(p?.table, r)); return at && Date.now() - at < 6000; };
+// le temps réel est-il branché ? (sinon, on relit de temps en temps, en secours)
+const RT = { ok: false };
 // Pendant Cinder, l'écho de nos propres votes ne recharge pas tout (c'était la cause des saccades) : on attend
 // que le doigt se repose quelques secondes, et l'écran derrière la pile n'est redessiné qu'à la fermeture.
 function scheduleRefresh() {
@@ -826,9 +838,13 @@ async function run(fn, okMsg, key = 'global') {
   if (S.offline) { toast('Hors-ligne : impossible d\'enregistrer pour le moment.'); return; }
   if (pending.has(key)) return;
   pending.add(key);
-  try { await fn(); if (okMsg) toast(okMsg); loadSeq++; await loadAll(); render(); if (okMsg) setTimeout(() => azamiRemarque('fait', okMsg), 900); return true; }
-  catch (e) { console.error(e); toast("Ça n'a pas marché. Vérifie la connexion et réessaie."); return false; }
-  finally { pending.delete(key); }
+  try { await fn(); }
+  catch (e) { console.error(e); toast('Ça n’a pas marché. Vérifie la connexion et réessaie.'); pending.delete(key); return false; }
+  // c'est enregistré : la relecture qui suit peut échouer (réseau qui coupe) sans que ce soit un échec
+  if (okMsg) toast(okMsg);
+  try { loadSeq++; await loadAll(); relireAt = Date.now(); } catch (e) { console.warn('relecture', e); }
+  render(); if (okMsg) setTimeout(() => azamiRemarque('fait', okMsg), 900);
+  pending.delete(key); return true;
 }
 
 // Une action sur le calendrier, puis relecture.
@@ -2642,7 +2658,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v258</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v259</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3695,7 +3711,13 @@ const filmRow = f => Object.fromEntries(Object.entries(f).filter(([k]) => !k.sta
 // liste a nettement grandi. Pendant Cinder, on garde le goût d'avant et on le remet à jour quand le doigt se repose.
 let tasteMemo = null, idfMemo = null;
 const VCODE = { oui: 1, super: 2, non: 3, beurk: 4 };
+// (mémorisé quelques centaines de millisecondes : un même rendu l'appelait jusqu'à dix fois sur 9 000 films)
 function tasteSigs() {
+  const now = performance.now();
+  if (tasteSigs.memo && now - tasteSigs.memo.at < 400 && tasteSigs.memo.films === S.films && tasteSigs.memo.n === S.films.length) return tasteSigs.memo.v;
+  const v = tasteSigsCalc(); tasteSigs.memo = { at: now, films: S.films, n: S.films.length, v }; return v;
+}
+function tasteSigsCalc() {
   const ms = S.members.map(m => m.email), h = ms.map(() => 7);
   let c = 0;
   for (const f of S.films) {
@@ -4494,6 +4516,7 @@ async function filmEnrich(f) {
 // Un avis sur un film (envie, bof, ou déjà vu avec une note). Le film entre dans la base s'il n'y est pas :
 // même un « bof » sert, il apprend à Azami ce qu'on n'aime pas.
 async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
+  tasteSigs.memo = null;
   const k = fkey(item), ex = S.films.find(f => fkey(f) === k);
   const label = `${item.title} : ${seenNote ? 'noté' : vote === 'oui' ? 'envie' : vote === 'super' ? 'très envie' : vote === 'beurk' ? 'non' : 'bof'}`;
   if (ex) {
@@ -4554,7 +4577,7 @@ async function deckOpen(mood = '') {
     if (b.dataset.d === 'info-close') { deckInfoClose(); return; }
     if (b.dataset.d === 'trailer') { deckTrailer(b); return; }
     deckInfoClose(true);
-    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } algoTemps(); }, 250); return; }
+    if (b.dataset.d === 'close') { box.classList.remove('on'); setTimeout(() => { box.remove(); deck = null; lastHdScene = null; render(); if (scheduleRefresh.later) { scheduleRefresh.later = false; refresh(); } algoTemps(); }, 250); return; }
     if (b.dataset.d === 'vu') { deckAskSeen(); return; }
     if (b.dataset.d === 'encore') { deck.dry = 0; deck.dryN = 0; b.disabled = true; b.textContent = 'Azami cherche…'; deckDraw(); return; }
     if (b.dataset.d !== 'skip') cinderLog(b.dataset.d);
@@ -5709,7 +5732,7 @@ function crottePrend(e) {
       const b = d.bin.getBoundingClientRect(); d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 20}px`; d.ghost.style.transform = 'scale(.4)'; d.ghost.style.opacity = '0';
       sfx('plop'); setTimeout(() => { d.bin.classList.remove('ouverte'); sfx('couvercle'); haptic('heavy'); }, 160);
       setTimeout(() => { d.ghost.remove(); d.bin.classList.remove('on'); setTimeout(() => d.bin.remove(), 300); }, 420);
-      const t = tamaEtat(); t.crottes = (t.crottes || []).filter(c => c.id !== d.id); t.proprete = clamp100((t.proprete ?? 100) + 20); tamaSave(true); d.el.remove();
+      const t = tamaEtat(); t.crottes = (t.crottes || []).filter(c => c.id !== d.id); t.ramasse = [...(t.ramasse || []), d.id].slice(-40); t.proprete = clamp100((t.proprete ?? 100) + 20); tamaSave(true); d.el.remove();
       if (Math.random() < .35) { azamiPose(pick(['Merci… C’était pas moi. Enfin si. Mais merci.', 'Tu ramasses, je regarde. C’est notre contrat.', 'Kirei ! (propre) Je peux refaire des bêtises maintenant.']), 'contente'); render(); }
     } else {
       // relâchée ailleurs : elle retombe à sa place
@@ -6024,10 +6047,32 @@ function tamaTick() {
   t.maj = now;
   return true;
 }
+// Les deux téléphones écrivent le même état : avant d'enregistrer, on relit celui du serveur et, si l'autre a
+// enregistré entre-temps, on fusionne (sinon un repas donné par l'un pouvait être effacé par le tic de l'autre).
+function tamaFusion(l, r) {
+  const t = { ...TAMA_DEF(), ...r, ...l };
+  for (const k of ['faim', 'soif', 'calins', 'jeu', 'proprete']) if (r[k] != null || l[k] != null) t[k] = Math.max(l[k] ?? 0, r[k] ?? 0);
+  for (const k of ['soin', 'sieste', 'siesteDe', 'maj']) t[k] = Math.max(l[k] || 0, r[k] || 0);
+  const union = (a, b, cle, n) => { const m = new Map(); for (const x of [...(a || []), ...(b || [])]) m.set(cle(x), x); return [...m.values()].sort((x, y) => (x.at || 0) - (y.at || 0)).slice(-n); };
+  t.repas = union(l.repas, r.repas, x => `${x.at}|${x.par}|${x.q}`, 40);
+  t.tresors = union(l.tresors, r.tresors, x => `${x.k}|${x.at}`, 200);
+  t.ramasse = [...new Set([...(l.ramasse || []), ...(r.ramasse || [])])].slice(-40);
+  const parti = new Set(t.ramasse), places = new Set();
+  t.crottes = union(l.crottes, r.crottes, x => x.id, 12).filter(c => !parti.has(c.id) && !places.has(`${c.page}:${c.slot}`) && places.add(`${c.page}:${c.slot}`)).slice(-6);
+  t.dit = { ...(r.dit || {}) }; for (const [k, v] of Object.entries(l.dit || {})) t.dit[k] = Math.max(v || 0, t.dit[k] || 0);
+  // retrouvée par l'un : la balade et la grève s'arrêtent pour les deux
+  t.balade = l.balade && r.balade ? l.balade : null; t.greve = !!(l.greve && r.greve);
+  return t;
+}
 let tamaSaveT = 0;
 function tamaSave(force) {
-  const t = tamaEtat(); if (DEMO) return;
-  const go = () => { tamaSaveT = 0; api.upsert('reglages', { cle: 'azami:etat', valeur: t }).catch(e => console.warn('tama', e)); };
+  if (DEMO) return;
+  const go = async () => {
+    tamaSaveT = 0; let t = tamaEtat();
+    try { const { data } = await sb.from('reglages').select('valeur').eq('cle', 'azami:etat').maybeSingle(); const r = data?.valeur; if (r && (r.maj || 0) > (S.tamaBase || 0)) { t = S.tama = tamaFusion(t, r); } } catch {}
+    S.tamaBase = t.maj || Date.now();
+    api.upsert('reglages', { cle: 'azami:etat', valeur: t }).catch(e => console.warn('tama', e));
+  };
   if (force) { clearTimeout(tamaSaveT); go(); } else if (!tamaSaveT) tamaSaveT = setTimeout(go, 8000);
 }
 // Ce qu'on fait pour elle : chaque geste remonte une jauge, et elle réagit (sans appel au modèle).
@@ -7169,6 +7214,10 @@ const actions = {
     render();
   },
   logout: async () => {
+    // ce téléphone ne reçoit plus les notifications, et ce qui était gardé sur lui part aussi
+    try { const sub = await swReg?.pushManager?.getSubscription(); if (sub) { await api.remove('push_subscriptions', { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); } } catch {}
+    for (const k of ['maison-snapshot', 'maison-agenda', 'maison-cook', 'maison-vapid', 'maison-notif', 'maison-films-since', 'maison-films-sweep', 'maison-jp', 'maison-az-bulle']) { try { localStorage.removeItem(k); } catch {} }
+    try { await FDB.clear(); } catch {}
     if (sb) await sb.auth.signOut();
     Object.assign(S, { me: null, members: [], tasks: [], chores: [], choreLog: [], expenses: [], shopping: [], board: [], care: [], chips: {}, open: null, openLetter: null, offline: false, recovery: false, login: { step: 'login', email: '' } });
     render();
@@ -7452,7 +7501,14 @@ document.addEventListener('submit', e => {
 });
 
 document.addEventListener('visibilitychange', () => { if (!document.hidden && S.me) { if (document.getElementById('deck')) scheduleRefresh.later = true; else refresh(); } });
-setInterval(() => { if (S.me && !S.offline && (S.view === 'nuit' || notifOn())) refresh(); }, 30000);
+// Relire en secours : toutes les 30 s seulement si le temps réel est coupé ; sinon une fois toutes les 5 min
+// (filet de sécurité), et jamais quand l'app est cachée.
+let relireAt = Date.now();
+setInterval(() => {
+  if (!S.me || S.offline || document.hidden) return;
+  if (RT.ok && Date.now() - relireAt < 5 * 60e3) return;
+  relireAt = Date.now(); refresh();
+}, 30000);
 // Corvées en étapes : fin d'un minuteur pendant que l'app est ouverte → carte à jour et notification locale.
 const seqNotified = new Set();
 setInterval(() => {
@@ -7483,7 +7539,11 @@ async function boot() {
     // Nouvelle version publiée : le service worker se remplace, la page se recharge une fois.
     let had = !!navigator.serviceWorker.controller;
     navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'push' && S.me) { scheduleRefresh(); loadInbox(); } });
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had && !typing() && !S.recovery && !/type=recovery/.test(location.hash)) location.reload(); had = true; });
+    // nouvelle version : on recharge, mais jamais au milieu de quelque chose (saisie, Cinder, jeu, feuille ouverte,
+    // ticket, leçon) ; dans ce cas on attend que ce soit fini
+    const occupe = () => typing() || S.recovery || /type=recovery/.test(location.hash) || S.jeu || document.querySelector('#deck, #ticket, #uisheet, #jpc, #chat, #azmem, #visite, #cook, .cook');
+    const recharger = () => { if (!occupe()) { location.reload(); return; } setTimeout(recharger, 4000); };
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (had) recharger(); had = true; });
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => { swReg = r; r.update().catch(() => {}); if ('Notification' in window && Notification.permission === 'granted') setTimeout(() => { if (S.me && !DEMO) { safeSet('maison-notif', '1'); subscribePush(); } }, 4000); }).catch(e => console.warn('sw', e));   // permission déjà donnée : on (ré)inscrit ce téléphone
     document.addEventListener('visibilitychange', () => { if (!document.hidden) swReg?.update().catch(() => {}); });
   }
@@ -7506,10 +7566,14 @@ async function boot() {
   const listen = () => {
     if (channel) return;
     channel = sb.channel('maison')
-      .on('postgres_changes', { event: '*', schema: 'public' }, p => { if (p?.table === 'films') loadAll.filmsDirty = true; if (S.me) scheduleRefresh(); })
-      .subscribe(status => { if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('realtime', status); });
+      .on('postgres_changes', { event: '*', schema: 'public' }, p => {
+        if (p?.table === 'films') { loadAll.filmsDirty = true; return; }   // (les films ne passent plus par le temps réel ; au cas où)
+        if (echoDeNous(p)) return;   // notre propre écriture : déjà relue
+        if (S.me) scheduleRefresh();
+      })
+      .subscribe(status => { RT.ok = status === 'SUBSCRIBED'; if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') console.warn('realtime', status); });
   };
-  const unlisten = () => { if (channel) { sb.removeChannel(channel); channel = null; } };
+  const unlisten = () => { if (channel) { sb.removeChannel(channel); channel = null; RT.ok = false; } };
   if (S.me) { listen(); presenceJoin(); }
 
   sb.auth.onAuthStateChange((evt, sess) => {
@@ -7522,7 +7586,7 @@ async function boot() {
   });
 }
 
-boot().catch(e => { console.error(e); $app.innerHTML = '<section class="login"><h1>Maison</h1><p>Impossible de démarrer. Vérifie ta connexion puis recharge la page.</p><button class="btn" onclick="location.reload()">Recharger</button></section>'; });
+boot().catch(e => { console.error(e); $app.innerHTML = '<section class="login"><h1>Maison</h1><p>Impossible de démarrer. Vérifie ta connexion puis recharge la page.</p><button class="btn" data-recharger="1">Recharger</button></section>';  $app.querySelector('[data-recharger]')?.addEventListener('click', () => location.reload()); });
 
 // Affiches : si une image ne charge pas (réseau lent), on réessaie une fois, puis on met le clap.
 document.addEventListener('error', e => {
