@@ -2610,7 +2610,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v244</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v245</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5231,6 +5231,9 @@ async function azamiCall(body) {
       if (m) return { reponse: `Je mets « ${m[1]} » sur la liste. Avec mes croquettes juste à côté.`, humeur: 'contente', action: { type: 'course', texte: m[1], demande: true }, retenu: [], notes: [] };
       const d = String(body.texte).match(/^(?:dis|fais)[^:]*?(?:à|a)\s+\w+\s+(?:que\s+|de ma part\s*:?\s*)?(.+)$/i);
       if (d) return { reponse: `Je lui porte ça dans ma gueule : « ${d[1]} ».`, humeur: 'contente', action: { type: 'message', texte: d[1], demande: true }, retenu: [], notes: [] };
+      const cv = String(body.texte).match(/^(?:j'ai|j’ai)\s+(?:fait|passé|sorti|nettoyé|vidé)\s+(?:l'|l’|la |le |les )?(.+?)\.?$/i);
+      if (cv) return { reponse: `Bravo ! Je coche « ${cv[1]} ».`, humeur: 'contente', action: { type: 'corvee', texte: cv[1], pour: 'moi', demande: true }, retenu: [], notes: [] };
+      if (/lance.*(lave|lessive)/i.test(body.texte)) return { reponse: 'C’est parti, je lance le minuteur.', humeur: 'contente', action: { type: 'machine', texte: /lessive/i.test(body.texte) ? 'Lessive' : 'Lave-vaisselle', etape: 'lancer', demande: true }, retenu: [], notes: [] };
       if (/menu|mang/i.test(body.texte)) return { reponse: 'Des pâtes à la sauce tomate ce soir ? Je te les mets au menu ?', humeur: 'curieuse', action: { type: 'menu', texte: 'Pâtes à la sauce tomate', demande: false }, retenu: [], notes: [] };
       return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
     }
