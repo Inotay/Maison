@@ -2024,7 +2024,7 @@ function reactSrc(id) {
   return `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
 }
 // Au calme après l'ouverture : les réactions les plus jouées (caresses, tamagotchi, jeu), pour qu'elles partent tout de suite.
-const REACT_PRECHARGE = ['fenetre', 'toilette_patte', 'caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour', 'calin', 'mange', 'ragout', 'friandise', 'boit', 'faim', 'dort', 'boude', 'zoomies', 'guette', 'bondit', 'court', 'marche', 'rate', 'emporte', 'part', 'retrouvailles', 'greve'];
+const REACT_PRECHARGE = ['fenetre', 'toilette_patte', 'caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour', 'calin', 'mange', 'ragout', 'friandise', 'boit', 'faim', 'dort', 'boude', 'zoomies', 'guette', 'bondit', 'court', 'marche', 'rate', 'emporte', 'part', 'retrouvailles', 'greve', 'micro_oreille', 'micro_queue', 'clin_lent', 'eternue', 'dort_oeil', 'ecoute'];
 setTimeout(() => (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => { let i = 0; const suite = () => { if (i < REACT_PRECHARGE.length) (reactCharge(REACT_PRECHARGE[i++]) || Promise.resolve()).then(() => setTimeout(suite, 60)); }; suite(); }), 6000);
 // Joue une réaction dans l'image d'Azami puis revient à sa scène (une seule à la fois : la dernière gagne).
 function playOnImg(img, id, ms, then) {
@@ -2682,7 +2682,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v263</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v264</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -6240,20 +6240,73 @@ function tamaGreveFin() {
   if (img) { playOnImg(img, 'retrouvailles', 2600); burst('hearts', img, 10); }
   haptic('heavy'); meow(true, .6, pick(['trille', 'chirp'])); azamiPose(pick(GREVE_MOTS.fin), 'contente'); render();
 }
+// Une corvée pour Azami (la vraie, sa jumelle) : de temps en temps, elle transmet ses remerciements.
+const JUMELLE_MOTS = ['Ma jumelle, la vraie, te dit merci. Elle ne le dira pas elle-même, elle a sa fierté.', 'Je transmets à ma jumelle. Elle répond : mrrp. C’est un merci, je traduis.', 'Arigatō, de la part de ma jumelle. (merci) Elle a un accent, mais c’est l’idée.', 'Ma jumelle va faire semblant de ne rien remarquer. Moi je remarque. Merci.', 'Ma jumelle et moi, on a voté : meilleur personnel de maison. À l’unanimité.'];
+let jumelleAt = 0;
+function jumelleMerci() {
+  if (AZ_MODE() === 'muette' || Date.now() - jumelleAt < 6 * 36e5 || Math.random() > .6) return;
+  jumelleAt = Date.now();
+  setTimeout(() => { if (!AZ.busy && !AZ.ecrit) { azamiPose(pick(JUMELLE_MOTS), 'contente'); render(); } }, 3800);
+}
 // Sa vie quand on ne fait rien : de temps en temps, sur l'accueil, elle va regarder par la fenêtre (et commente
 // parfois ce qu'elle voit), ou elle fait sa toilette. Jamais la nuit, jamais pendant une bulle ou une partie.
-const FENETRE_MOTS = ['Un pigeon. Encore. Il me nargue.', 'Un oiseau sur la branche. Kakakaka… pardon, c’est nerveux.', 'Tori ! (oiseau) Là, là ! Tu l’as vu ?', 'Les jardins sont calmes. Trop calmes.', 'Quelqu’un passe à vélo. Je le surveille.', 'Un chien dans le jardin. Je le juge très fort.', 'Il pleut ? Non. Bon. Je surveille quand même.', 'Les voisins rentrent. Je fais semblant de ne pas les regarder.'];
-let vieAt = Date.now();
-function tamaVie() {
-  if (document.hidden || S.view !== 'maison' || !S.me || S.jeu || AZ.busy || AZ.ecrit || azamiNuit()) return;
-  const img = document.querySelector('.hd img.azami'); if (!img || img.dataset.caresse || img.dataset.tama || tamaAbsente()) return;
-  if (Date.now() - vieAt < 3 * 60e3 || Math.random() < .5) return;
-  vieAt = Date.now();
-  if (Math.random() < .6) {
-    playOnImg(img, 'fenetre', 12000);
-    if (!AZ.bulle && AZ_MODE() !== 'muette' && Math.random() < .45) setTimeout(() => { if (!AZ.bulle && img.dataset.caresse) { azamiPose(pick(FENETRE_MOTS), 'curieuse'); render(); } }, 3200);
-  } else playOnImg(img, 'toilette_patte', 4400);
+const FENETRE_MOTS = ['Gustave. Encore. Il me nargue.', 'Un oiseau sur la branche. Kakakaka… pardon, c’est nerveux.', 'Tori ! (oiseau) Là, là ! Tu l’as vu ?', 'Les jardins sont calmes. Trop calmes.', 'Quelqu’un passe à vélo. Je le surveille.', 'Un chien dans le jardin. Je le juge très fort.', 'Il pleut ? Non. Bon. Je surveille quand même.', 'Les voisins rentrent. Je fais semblant de ne pas les regarder.'];
+// et ce qu'elle voit selon la saison (deux fois sur cinq, une phrase de saison)
+const FENETRE_SAISON = {
+  hiver: ['Il neige ? Non. Mais je reste prête.', 'De la buée sur la vitre. Je dessine avec le nez, ne regarde pas.', 'Les jardins ont froid. Moi je regarde depuis le radiateur, c’est plus raisonnable.', 'Yuki ! (neige) Ah non, c’est un pigeon tout blanc. Fausse alerte.'],
+  printemps: ['Les bourgeons sortent. Les oiseaux sont insupportables de joie.', 'Chō ! (papillon) Il ne me voit pas. Tant mieux pour lui.', 'Tout le monde chante dehors. Je n’ai pas été consultée.'],
+  ete: ['Il fait chaud. Gustave ralentit. Moi aussi.', 'Une mouche contre la vitre. On se comprend, elle et moi. Non, en fait.', 'Les gens vont à Ouchy avec des glaces. Personne ne m’en rapporte.'],
+  automne: ['Les feuilles tombent. Je les compte. J’en suis à beaucoup.', 'Il fait gris. Le lac doit être tout gris aussi.', 'Une feuille rouge colle à la vitre. Elle me nargue, comme Gustave.', 'Le vent fait voler les feuilles. Je les chasse avec les yeux.'],
+};
+function fenetreMot() {
+  const m = new Date().getMonth(), saison = m === 11 || m < 2 ? 'hiver' : m < 5 ? 'printemps' : m < 8 ? 'ete' : 'automne';
+  return pick(Math.random() < .4 ? FENETRE_SAISON[saison] : FENETRE_MOTS);
 }
+// Entre deux grands moments, des petits riens : une oreille qui pivote, la queue qui claque, un clignement lent
+// (le bisou des chats), parfois un éternuement. Ça la fait vivre sans rien demander à personne.
+const MICRO_VIE = [['micro_oreille', 1100], ['micro_oreille', 1100], ['micro_queue', 900], ['micro_queue', 900], ['clin_lent', 1800], ['clin_lent', 1800], ['eternue', 1300]];
+const CLIN_MOTS = ['Un clignement lent. En chat, ça veut dire je t’aime bien. Rends-le-moi.', 'Tu as vu ? Je t’ai fait un bisou de chat. Avec les yeux.'];
+let vieAt = Date.now(), microAt = Date.now();
+function tamaVie() {
+  if (document.hidden || S.view !== 'maison' || !S.me || S.jeu || AZ.busy || AZ.ecrit || azamiNuit() || reducedMotion()) return;
+  const img = document.querySelector('.hd img.azami'); if (!img || img.dataset.caresse || img.dataset.tama || tamaAbsente()) return;
+  const now = Date.now();
+  if (now - vieAt >= 3 * 60e3 && Math.random() >= .5) {
+    vieAt = microAt = now;
+    if (Math.random() < .6) {
+      playOnImg(img, 'fenetre', 12000);
+      if (!AZ.bulle && AZ_MODE() !== 'muette' && Math.random() < .45) setTimeout(() => { if (!AZ.bulle && img.dataset.caresse) { azamiPose(fenetreMot(), 'curieuse'); render(); } }, 3200);
+    } else playOnImg(img, 'toilette_patte', 4400);
+  } else if (now - microAt >= 70e3 && Math.random() < .4) {
+    microAt = now;
+    const [id, ms] = pick(MICRO_VIE); playOnImg(img, id, ms);
+    if (id === 'clin_lent' && !AZ.bulle && AZ_MODE() === 'bavarde' && Math.random() < .2) setTimeout(() => { if (!AZ.bulle) { azamiPose(pick(CLIN_MOTS), 'contente'); render(); } }, 1900);
+  }
+}
+// Quand on rouvre l'app pendant qu'elle dort : elle entrouvre un œil, une oreille vers nous, et se rendort.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  setTimeout(() => {
+    const img = document.querySelector('.hd img.azami');
+    if (!img || S.view !== 'maison' || img.dataset.tama !== 'dort' || img.dataset.caresse || reducedMotion() || Math.random() < .3) return;
+    const sc = Object.keys(azamiImgs).find(k => azamiImgs[k] === img); if (sc && PROP_SCENES[sc]) return;   // endormie à côté d'un accessoire : on la laisse
+    playOnImg(img, 'dort_oeil', 2400);   // au retour, restoreScene la remet dans son sommeil
+  }, 900);
+});
+// Pendant qu'on lui écrit : elle écoute, les oreilles tournées vers la bulle.
+let ecouteTok = null;
+function azEcoute(on) {
+  const img = document.querySelector('.hd img.azami'); if (!img) return;
+  if (on) {
+    if (img.dataset.caresse || img.dataset.tama || S.jeu || reducedMotion() || tamaAbsente()) return;
+    playOnImg(img, 'ecoute', 10 * 60e3); ecouteTok = img.dataset.caresse;
+  } else if (ecouteTok && img.dataset.caresse === ecouteTok) {
+    ecouteTok = null; delete img.dataset.caresse;
+    restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos'));
+  }
+}
+document.addEventListener('focusin', e => { if (e.target?.id === 'az-in') azEcoute(true); });
+document.addEventListener('focusout', e => { if (e.target?.id === 'az-in') setTimeout(() => { if (document.activeElement?.id !== 'az-in') azEcoute(false); }, 120); });
 setInterval(tamaVie, 30e3);
 // Ses trésors : ce qu'elle rapporte de balade (et pour les grandes occasions). Des petits objets dessinés à l'encre,
 // gardés pour toujours dans l'état partagé (t.tresors), à voir dans Souvenirs. Chacun avec sa petite phrase.
@@ -6660,7 +6713,7 @@ async function azamiEnvoyer(txt, geste = false) {
   // la bulle à laquelle on répond : si c'est l'app qui l'a posée (fin de partie, repas, remarque…), le modèle ne l'a
   // pas dans la conversation ; on la lui dit, sinon un « oui » répondait à sa dernière vraie question
   const enReponseA = AZ.bulle && AZ.bulle !== AZ.dernierModele && Date.now() - (AZ.at || 0) < 15 * 60e3 ? AZ.bulle : '';
-  AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.action = null; AZ.busy = true; render(); if (!geste) haptic(1);
+  azEcoute(false); AZ.ecrit = false; AZ.note = ''; AZ.choix = []; AZ.action = null; AZ.busy = true; render(); if (!geste) haptic(1);
   try {
     const now = new Date();
     azamiContexte.texte = txt; azamiContexte.enReponseA = enReponseA;
@@ -7052,7 +7105,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: S.me });
       await api.insert('chore_log', { chore_id: c.id, title: q.done, weight: 1 });
       await win('chore', q.done, 1, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: `Prochaine fois dans ${c.every_days} jours`, level: 'small', reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: `Prochaine fois dans ${c.every_days} jours`, level: 'small', reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'seq-reset': el => { S.open = null; run(() => api.update('chores', { id: el.dataset.id }, { step: 0, started_at: null }), 'Cycle annulé'); },
   'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },
@@ -7150,7 +7203,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
