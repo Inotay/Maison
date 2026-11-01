@@ -2610,7 +2610,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v240</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v241</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5089,17 +5089,26 @@ async function filmsResolve() {
     // les notes presse et public (MDBList) des films qui n'en ont pas encore : un petit lot à chaque passage
     if (S.films.some(f => f.tmdb_id && !f.presse) && !(filmsResolve.quota < 150)) {
       const r = await filmsCall({ action: 'presse', n: 40 }).catch(() => null);
-      if (r) { filmsResolve.quota = r.quota; if (r.faits || r.sans) { const rows = await api.list('films').catch(() => []); const by = new Map(rows.map(x => [x.id, x])); for (const f of S.films) if (!f.presse && by.get(f.id)?.presse) f.presse = by.get(f.id).presse; } }
+      if (r) { filmsResolve.quota = r.quota; if (r.faits || r.sans) await filmsSync()?.catch?.(() => {}); }   // seulement ce qui a changé (avant : toute la table, 16 Mo)
     }
     // palmarès, presse titre par titre et tons : un petit lot de chaque à chaque passage
     const need = { palmares: S.films.some(f => f.tmdb_id && !f.palmares), critiques: S.films.some(f => f.media === 'movie' && f.palmares?.allo && !f.critiques), tons: S.films.some(f => f.palmares && !f.tons) };
     if (need.tons && filmsResolve.tons == null) filmsResolve.tons = !!(await srcCall({ action: 'status' }).catch(() => ({}))).tons;
     let got = false;
-    for (const [action, n] of [['palmares', 200], ['critiques', 40], ['tons', 30]]) {
-      if (!need[action] || (action === 'tons' && !filmsResolve.tons)) continue;
+    for (const [action, n] of [['palmares', 200], ['critiques', 40]]) {
+      if (!need[action]) continue;
       const r = await srcCall({ action, n }).catch(() => null); if (r?.faits || r?.sans) got = true;
     }
-    if (got) { const rows = await api.list('films').catch(() => []); const by = new Map(rows.map(x => [x.id, x])); for (const f of S.films) { const x = by.get(f.id); if (x) for (const k of ['palmares', 'critiques', 'tons']) if (!f[k] && x[k]) f[k] = x[k]; } }
+    // les tons : d'abord tous les films qui comptent (notés, envies, coups de cœur), par lots, tant que l'app est ouverte
+    if (need.tons && filmsResolve.tons) {
+      for (let k = 0; k < 12 && !document.hidden; k++) {
+        const r = await srcCall({ action: 'tons', n: 40, prio: true }).catch(() => null);
+        if (r?.faits) got = true;
+        if (!r || r.error || !r.prio || (!r.faits && r.erreurs)) break;
+      }
+    }
+    // ce qui a changé seulement (jamais toute la table : c'était 16 Mo de trafic à chaque fois)
+    if (got) await filmsSync()?.catch?.(() => {});
     // les traits qui nourrissent le goût (équipe, thèmes, durée, succès, public) : une fois pour toutes
     const bare = S.films.filter(f => f.tmdb_id && !f.traits);
     for (let i = 0; i < bare.length; i += 4) {

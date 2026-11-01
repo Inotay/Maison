@@ -125,24 +125,36 @@ async function tonsOf(f: Record<string, any>) {
   if (txt.length < 200) return { aucun: 1 };
   const prompt = `Film : ${f.title}${f.year ? ` (${f.year})` : ""}.\n\nTextes :\n${txt}\n\nDécris le ton et l'ambiance de ce film (pas son sujet). Réponds seulement en JSON : {"tons": [2 à 6 mots pris uniquement dans cette liste : ${TONS.join(", ")}], "rythme": "lent" | "posé" | "soutenu" | "effréné", "intensite": "douce" | "moyenne" | "forte"}.`;
   const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": LLM, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 200, messages: [{ role: "user", content: prompt }] }) });
+    body: JSON.stringify({ model: "claude-haiku-5-5", max_tokens: 400, system: "Tu réponds uniquement par un objet JSON, sans texte autour.", messages: [{ role: "user", content: prompt }] }) });
   if (!r.ok) throw new Error("Anthropic " + r.status + " " + (await r.text()).slice(0, 200));
-  const out = (await r.json()).content?.[0]?.text ?? "";
-  const j = JSON.parse(out.slice(out.indexOf("{"), out.lastIndexOf("}") + 1));
+  // la réponse peut contenir plusieurs blocs (réflexion, texte) : on prend le texte, et l'objet JSON qu'il contient
+  const body = await r.json();
+  const out = (body.content ?? []).filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("\n");
+  const a = out.indexOf("{"), b = out.lastIndexOf("}");
+  if (a < 0 || b <= a) throw new Error("réponse sans JSON : " + JSON.stringify(out.slice(0, 160)) + " stop=" + body.stop_reason);
+  const j = JSON.parse(out.slice(a, b + 1));
   const tons = (j.tons ?? []).map((x: string) => String(x).toLowerCase().trim()).filter((x: string) => TONS.includes(x)).slice(0, 6);
   return { tons, rythme: ["lent", "posé", "soutenu", "effréné"].includes(j.rythme) ? j.rythme : null, intensite: ["douce", "moyenne", "forte"].includes(j.intensite) ? j.intensite : null };
 }
-async function tonsBatch(db: ReturnType<typeof createClient>, n: number) {
+// Ceux qui comptent d'abord : les films notés, puis les envies et les coups de cœur ; les « bof » en dernier.
+// prio : seulement ceux qui comptent (c'est ce que l'app demande en boucle). Un film qui échoue deux fois est
+// mis de côté (tons = { echec: 2 }) pour ne plus bloquer les autres.
+async function tonsBatch(db: ReturnType<typeof createClient>, n: number, prio = false) {
   if (!LLM) return { error: "Pas de clé ANTHROPIC_API_KEY." };
-  const { data } = await db.from("films").select("id, title, year, overview, palmares, ratings, votes").not("palmares", "is", null).is("tons", null);
-  const rank = (f: Record<string, any>) => (Object.keys(f.ratings ?? {}).length ? 0 : Object.values(f.votes ?? {}).some(wantsV) ? 1 : 2);
-  const todo = (data ?? []).sort((a, b) => rank(a) - rank(b)), t0 = Date.now();
+  // d'abord une liste légère (sans les textes), puis les détails des seuls films traités
+  const { data } = await db.from("films").select("id, ratings, votes, coeur, tons").not("palmares", "is", null).or("tons.is.null,tons->>echec.eq.1");
+  const rank = (f: Record<string, any>) => (Object.keys(f.ratings ?? {}).length ? 0 : (Object.values(f.votes ?? {}).some(wantsV) || (f.coeur ?? []).length) ? 1 : 2);
+  const all = (data ?? []).filter(f => !prio || rank(f) < 2).sort((a, b) => rank(a) - rank(b) || (a.tons ? 1 : 0) - (b.tons ? 1 : 0));
+  const pick = all.slice(0, n), t0 = Date.now();
+  const { data: rows } = pick.length ? await db.from("films").select("id, title, year, overview, palmares, tons").in("id", pick.map(f => f.id)) : { data: [] };
   let ok = 0, err = 0;
-  await pool(todo.slice(0, n), 4, async (f: Record<string, any>) => {
-    if (Date.now() - t0 > 100e3 || err > 3) return;
-    try { await db.from("films").update({ tons: await tonsOf(f) }).eq("id", f.id); ok++; } catch (e) { err++; console.warn("tons", f.title, (e as Error).message); }
+  await pool(rows ?? [], 4, async (f: Record<string, any>) => {
+    if (Date.now() - t0 > 100e3 || err > 8) return;
+    try { await db.from("films").update({ tons: await tonsOf(f) }).eq("id", f.id); ok++; }
+    catch (e) { err++; console.warn("tons", f.title, (e as Error).message); await db.from("films").update({ tons: { echec: (f.tons?.echec ?? 0) + 1 } }).eq("id", f.id); }
   });
-  return { faits: ok, erreurs: err, reste: todo.length - ok };
+  const prioReste = (data ?? []).filter(f => rank(f) < 2).length - ok - (prio ? err : 0);
+  return { faits: ok, erreurs: err, reste: all.length - ok, prio: Math.max(0, prioReste) };
 }
 
 
@@ -154,7 +166,7 @@ Deno.serve(async (req) => {
   try {
     if (body.action === "palmares") return json(await palmaresBatch(db, Math.min(400, Number(body.n) || 200)));
     if (body.action === "critiques") return json(await critiquesBatch(db, Math.min(120, Number(body.n) || 60)));
-    if (body.action === "tons") return json(await tonsBatch(db, Math.min(80, Number(body.n) || 40)));
+    if (body.action === "tons") return json(await tonsBatch(db, Math.min(80, Number(body.n) || 40), !!body.prio));
     if (body.action === "status") return json({ tons: !!LLM });
     return json({ error: "Action inconnue." }, 400);
   } catch (e) { console.error(e); return json({ error: (e as Error).message }, 500); }
