@@ -1120,7 +1120,8 @@ function calmSection() {
   const o2 = other();
   const row = (x, big) => {
     const tag = PRIO_TAG[x.p], h = helpPending(x);
-    const why = [tag, x.why].filter(Boolean).join(' · ');
+    // (« Important · importante » : le motif ne s'ajoute que s'il dit autre chose que l'étiquette)
+    const why = [tag, x.why && !norm(String(tag || '')).startsWith(norm(x.why).slice(0, 6)) ? x.why : ''].filter(Boolean).join(' · ');
     return `<div class="calm-item ${big ? 'big' : ''} p-${x.p}">${iconBtn(x.kind === 'task' ? 'tasks' : 'chores', x.row)}
       <div class="item-main"><div class="item-title">${esc(calmTitle(x))}</div>
       <div class="item-meta">${why ? `<span class="calm-tag">${esc(why)}</span> ` : ''}${esc(calmLate(x))}${h ? ` · <b>demandé à ${esc(nameOf(h.to_email))}</b>` : ''}</div></div>
@@ -1694,13 +1695,14 @@ async function pingHelp(id) {
 
 // Rendu ----------------------------------------------------------------------
 
+// La barre du bas : un seul trait (1,8), bouts arrondis, même boîte optique pour les six.
 const ICONS = {
-  maison: '<path d="M4 10.5 12 4l8 6.5V20H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10 20v-5h4v5" fill="none" stroke="currentColor" stroke-width="1.6"/>',
-  menage: '<path d="M14 3 10.5 11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M7 11h8l2 9H5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 15v5M13 15v5" stroke="currentColor" stroke-width="1.2"/>',
-  courses: '<path d="M4 9h16l-1.6 10H5.6z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 9 11 4M15.5 9 13 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
-  argent: '<rect x="3.5" y="6.5" width="17" height="11" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/>',
-  recettes: '<path d="M6 3v7a3 3 0 0 0 6 0V3M9 3v18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M18 3c-2 2-3 5-3 8h3v10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
-  nuit: '<path d="M12 20s-7-4.4-7-9.6A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.4C19 15.6 12 20 12 20z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
+  maison: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.6 12 4.2l8 6.4V19.6a.6.6 0 0 1-.6.6H4.6a.6.6 0 0 1-.6-.6z"/><path d="M10 20.2v-5.4h4v5.4"/></g>',
+  menage: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19 2.6 13.2 11.6"/><path d="M8.8 9.6l7 3.9-3 7.3c-3.4.4-7.2-1.2-9.2-3.6z"/><path d="M7 16.6l3.1-5.1M9.9 19.4l2.9-5.5"/></g>',
+  courses: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h16l-1.6 10.2a1 1 0 0 1-1 .8H6.6a1 1 0 0 1-1-.8z"/><path d="M8.5 9 11 4M15.5 9 13 4"/></g>',
+  argent: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6.8" rx="7" ry="2.6"/><path d="M5 6.8v4.6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6.8"/><path d="M5 11.4v5.2c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-5.2"/></g>',
+  recettes: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a3 3 0 0 0 6 0V3M9 3v18"/><path d="M18 3c-2 2-3 5-3 8h3v10"/></g>',
+  nuit: '<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.8 7.6h16.4v3.2a1.9 1.9 0 0 0 0 3.6v3.2H3.8v-3.2a1.9 1.9 0 0 0 0-3.6z"/><path d="M15 8.2v1.4M15 11.3v1.4M15 14.4v1.4"/></g>',
 };
 
 function nav() {
@@ -2301,7 +2303,8 @@ function openGuidePage(k = guideKey()) {
 // Première visite d'une page : une bulle discrète propose l'explication (une seule fois).
 function guideHint() {
   const k = guideKey();
-  if (!GUIDE[k] || tipSeen('page:' + k) || !tipSeen('tour')) return '';
+  // (« Non merci » une fois suffit pour toutes les pages : la bulle ne revenait sur chacune des six)
+  if (!GUIDE[k] || tipSeen('page:' + k) || !tipSeen('tour') || tipSeen('guide-hints-off')) return '';
   return `<div class="guide-hint"><span>Première fois ici ? Le <b>?</b> t’explique tout ce qu’on peut faire sur cette page.</span><button class="btn small" data-action="guide-page">Voir</button><button class="link" data-action="guide-hint-off" aria-label="Fermer">Non merci</button></div>`;
 }
 
@@ -2584,7 +2587,7 @@ function recapCard() {
   const cartes = [...(S.carnetInfo?.entries() || [])].filter(([id, x]) => !id.startsWith('~') && x.at && new Date(x.at).getTime() > wk.t0).length;
   const mot = RECAP_MOTS[Math.abs([...wk.key].reduce((a, ch) => a + ch.charCodeAt(0), 0)) % RECAP_MOTS.length];
   return `<section class="recap-card"><img src="azami/v44/statiques/azami_v44_reussite_statique.svg" alt="" width="512" height="512">
-    <p class="calm-kicker">Votre semaine à deux</p>
+    <p class="calm-kicker">La semaine dernière, à deux</p>
     <p class="recap-big"><b>${ws.length}</b> ${ws.length > 1 ? 'choses faites ensemble' : 'chose faite ensemble'}</p>
     <ul class="recap-parts">${parts.map(([n, a, b]) => `<li><b>${n}</b> ${n > 1 ? b : a}</li>`).join('')}${cartes ? `<li><b>${cartes}</b> ${cartes > 1 ? 'cartes d’Azami' : 'carte d’Azami'}</li>` : ''}${streak() >= 2 ? `<li><b>${streak()}</b> jours de suite</li>` : ''}</ul>
     <p class="recap-mot">« ${esc(mot)} »</p>
@@ -2621,12 +2624,12 @@ function viewMaison() {
   return `<header class="hd row accueil"><div><p class="hd-kicker">${esc(date)}</p><h1>${hello} ${esc(firstName())}</h1></div>
     <button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami(scene, 'Azami vous accueille')}</button>
     ${azamiBulle()}</header>
-    ${recapCard()}${pushCard()}${helpCards()}
+    ${(() => { S.recapVisible = !!recapCard(); return ''; })()}${recapCard()}${pushCard()}${helpCards()}
     ${calm ? calmSection() : `${calmExit ? `<section class="help-card answer pris calm-exit"><p><b>Vous êtes sortis du mode calme.</b> Plus rien d’urgent n’attend. Bien joué.</p><button class="link" data-action="calm-exit-seen">OK</button></section>` : ''}
-    <div class="glance">${lines.map(([label, num, to, late]) =>
-      `<button class="${late ? 'late' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num ${String(num).length > 7 ? 'small' : ''}">${esc(num)}</span></button>`).join('')}</div>
+    <div class="glance">${(() => { const urg = lines.filter(l => l[3]), reste = lines.filter(l => !l[3]); if (reste.length % 2) reste[reste.length - 1] = [...reste[reste.length - 1], 'wide']; return [...urg, ...reste]; })().map(([label, num, to, late, wide]) =>
+      `<button class="${late ? 'late' : ''} ${wide ? 'wide' : ''}" data-action="glance" data-to="${to}"><span>${esc(label)}</span><span class="g-num ${String(num).length > 7 ? 'small' : ''}">${esc(num)}</span></button>`).join('')}</div>
     <p class="calm-link"><button class="link" data-action="calm-on">Trop de choses ? Une chose à la fois</button></p>
-    ${winsCard()}`}
+    ${S.recapVisible ? '' : winsCard()}`}
     <div class="seg" role="group" aria-label="Affichage">
       <button data-action="maison-tab" data-tab="faire" aria-pressed="${S.maisonTab === 'faire'}">À faire${S.tasks.filter(t => !t.done).length ? ` · ${S.tasks.filter(t => !t.done).length}` : ''}</button>
       <button data-action="maison-tab" data-tab="agenda" aria-pressed="${S.maisonTab === 'agenda'}">Agenda</button>
@@ -2636,29 +2639,35 @@ function viewMaison() {
     ${recentEvents().length ? `<details class="fold" data-fold="recent"><summary>Récemment</summary><ul class="recent">${recentEvents().map(e =>
       `<li><span class="who">${esc(e.who === S.me ? 'Toi' : e.who ? nameOf(e.who) : '')}</span> ${esc(e.text)}<span class="when">${esc(ago(e.at))}</span></li>`).join('')}</ul></details>` : ''}
     <details class="fold reglages" data-fold="reglages"><summary>Réglages</summary>
-    <div class="theme-row"><span>Thème sur cet appareil</span><div class="seg" role="group" aria-label="Thème">
+    <div class="regl">
+    <p class="regl-t">L’app sur ce téléphone</p>
+    <div class="regl-row col"><span>Thème</span><div class="seg" role="group" aria-label="Thème">
       <button data-action="theme" data-theme="ciel" aria-pressed="${THEME === 'ciel'}">Ciel</button>
       <button data-action="theme" data-theme="brun" aria-pressed="${THEME === 'brun'}">Brun</button></div></div>
-    <div class="theme-row"><span>Sons de l'app</span><div class="seg" role="group" aria-label="Sons">
+    <div class="regl-row col"><span>Sons</span><div class="seg" role="group" aria-label="Sons">
       <button data-action="sounds" data-on="1" aria-pressed="${SOUNDS}">Oui</button>
       <button data-action="sounds" data-on="0" aria-pressed="${!SOUNDS}">Non</button></div></div>
-    <div class="theme-row"><span>Miaulements d'Azami</span><div class="seg" role="group" aria-label="Miaulements">
-      <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
-      <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
-    ${DEMO ? '' : `<div class="theme-row"><span>Rappels en retard</span>${notifOn() ? '<span class="hint">Notifications activées</span>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    ${DEMO ? '' : `<div class="theme-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer mon mot de passe</button></div>`}
-    <div class="theme-row"><span>Sons même en silence</span><div class="seg" role="group" aria-label="Sons en mode silence">
-      <button data-action="son-mode" data-mode="jeu" aria-pressed="${SON_JEU()}">Oui</button>
-      <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Non</button></div></div>
-    <div class="theme-row"><span>Azami parle d’elle-même</span><div class="seg" role="group" aria-label="Azami parle d’elle-même">
+    <div class="regl-row col"><span>Avec l’interrupteur silence</span><div class="seg" role="group" aria-label="Sons avec l’interrupteur silence">
+      <button data-action="son-mode" data-mode="mix" aria-pressed="${!SON_JEU()}">Muet, la musique continue</button>
+      <button data-action="son-mode" data-mode="jeu" aria-pressed="${SON_JEU()}">Sons quand même</button></div>
+      <small class="regl-aide">« Sons quand même » coupe la musique en cours, comme un jeu.</small></div>
+    ${DEMO ? '' : `<div class="regl-row"><span>Notifications</span>${notifOn() ? '<span class="regl-ok">Activées</span>' : '<button class="btn ghost small" data-action="notif">Activer</button>'}</div>`}
+    ${DEMO ? '' : `<div class="regl-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer</button></div>`}
+    <div class="regl-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir</button></div>
+    <p class="regl-t">Azami</p>
+    <div class="regl-row col"><span>Elle parle d’elle-même</span><div class="seg" role="group" aria-label="Azami parle d’elle-même">
       <button data-action="az-mode" data-mode="bavarde" aria-pressed="${AZ_MODE() === 'bavarde'}">Bavarde</button>
       <button data-action="az-mode" data-mode="discrete" aria-pressed="${AZ_MODE() === 'discrete'}">Discrète</button>
-      <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
-    ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
-    <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
-    <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
+      <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Muette</button></div>
+      <small class="regl-aide">${AZ_MODE() === 'muette' ? 'Elle ne parle que si tu lui parles.' : AZ_MODE() === 'discrete' ? 'Une remarque de temps en temps.' : 'Elle commente, propose, raconte sa journée.'}</small></div>
+    <div class="regl-row col"><span>Ses miaulements</span><div class="seg" role="group" aria-label="Miaulements">
+      <button data-action="meows" data-on="1" aria-pressed="${MEOWS}">Oui</button>
+      <button data-action="meows" data-on="0" aria-pressed="${!MEOWS}">Non</button></div></div>
+    ${DEMO ? '' : `<div class="regl-row"><span>Un mot d’elle le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="regl-ok">En mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer</button>'}</div>`}
+    <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
+    </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v259</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v260</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2913,7 +2922,8 @@ function choreBtn(c, now = new Date()) {
   const d = s ? descente(s, c, now) : null;
   // Hors calendrier, le bouton reste cliquable (le container est parfois là quand même), juste atténué.
   const off = d && !d.possible ? 'off' : '';
-  return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}">${st.due ? 'À faire' : 'Fait ✓'}</button>`;
+  // (un seul verbe : « Fait » ; jaune quand c'est le moment, rouge seulement en retard, vert discret une fois fait)
+  return `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${st.late ? 'late' : ''} ${off}" id="done-${c.id}" data-action="chore-done" data-id="${c.id}" aria-label="${esc(c.title)} : ${st.due ? 'marquer comme fait' : 'déjà fait, le refaire'}">${st.due ? 'Fait' : '✓'}</button>`;
 }
 function dechetMeta(c, now = new Date()) {
   const s = SORTES.find(x => x.id === c.sorte);
@@ -2937,7 +2947,7 @@ function seqRow(c) {
   if (s.phase === 'start') {
     const st = s.st;
     meta = st.due ? (st.late ? cap(st.label) : 'À lancer') : `${cap(st.label)}${c.last_done_by && !q.personal ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
-    btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${esc(q.steps[0].btn)}${st.due ? '' : ' ✓'}</button>`;
+    btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${st.late ? 'late' : ''}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${st.due ? esc(q.steps[0].btn) : '✓'}</button>`;
   } else if (s.phase === 'timer') {
     meta = `Depuis ${hhmm(new Date(c.started_at).getTime())} · encore ${s.left} min`;
     btn = `<button type="button" class="dech-btn cycle" data-action="seq-adjust" data-id="${c.id}" aria-expanded="${S.adjust === c.id}" aria-label="Fini vers ${esc(hhmm(s.ready))}, changer la durée"><small class="cyc-k">fin</small>${esc(hhmm(s.ready))}</button>`;
@@ -3183,7 +3193,7 @@ function balanceCard() {
   const quits = Math.abs(net) < 0.01;
   const sentence = quits
     ? 'Vous êtes quittes.'
-    : net > 0 ? `${esc(nameOf(o))} te doit <span class="amt">${chf(net)}</span>` : `Tu dois <span class="amt">${chf(-net)}</span> à ${esc(nameOf(o))}`;
+    : net > 0 ? `${esc(nameOf(o))} te doit <span class="amt"><small class="cur">CHF</small> ${chf(net)}</span>` : `Tu dois <span class="amt"><small class="cur">CHF</small> ${chf(-net)}</span> à ${esc(nameOf(o))}`;
   const max = Math.max(me.paid, them.paid, me.part, them.part, 0.01);
   const row = (label, v) => `<div class="bal-row"><span>${esc(label)}</span>
       <div class="bal-bars"><div class="bal-bar paid" style="width:${Math.round(v.paid / max * 100)}%"></div><div class="bal-bar part" style="width:${Math.round(v.part / max * 100)}%"></div></div>
@@ -3517,14 +3527,16 @@ function rFiltered() {
     && (!q || norm(`${r.titre} ${r.desc} ${CUISINES[r.cuisine]} ${r.ing.map(x => x.n).join(' ')}`).includes(q)))
     .sort((a, b) => (vg ? (b.tags.includes('vege') - a.tags.includes('vege')) : 0) || (t || types.includes('flemme') ? a.min - b.min : 0));
 }
+// Les 306 recettes ne sont plus dessinées d'un coup (une page de 32 000 px) : 30 d'abord, la suite à la demande.
 function rList(list) {
   if (!list.length) return `<li class="empty">Rien avec ça. Enlève un filtre ou essaie un ingrédient.</li>`;
-  return list.map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0">${rThumb(r)}<div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('');
+  const n = S.rVoir || 30, plus = list.length - n;
+  return list.slice(0, n).map(r => `<li class="item rcard" data-action="r-open" data-id="${r.id}" role="button" tabindex="0">${rThumb(r)}<div class="item-main"><div class="item-title">${esc(r.titre)}</div><div class="item-meta">${esc(rMeta(r))}</div></div><span class="rmin">${r.min < 60 ? `${r.min}′` : `${Math.floor(r.min / 60)} h${r.min % 60 ? String(r.min % 60).padStart(2, '0') : ''}`}</span></li>`).join('') + (plus > 0 ? `<li class="rmore"><button class="btn ghost" data-action="r-plus">Voir ${Math.min(plus, 30)} recettes de plus</button></li>` : '');
 }
 const rcountHtml = n => `${pl(n, 'recette', 'recettes')}${S.rtime || S.rcuisine || S.rtype ? ` · <button class="link" data-action="r-reset">Tout effacer</button>` : ''}`;
 // Filtre ou recherche : seule la liste change, le reste de la page reste où il est.
 function rSearch(v) {
-  S.rq = v; const el = document.getElementById('rlist'); if (!el) return;
+  S.rq = v; S.rVoir = 30; const el = document.getElementById('rlist'); if (!el) return;
   const list = rFiltered(); el.innerHTML = rList(list);
   el.classList.remove('rfade'); void el.offsetWidth; el.classList.add('rfade');
   const c = document.getElementById('rcount'); if (c) c.innerHTML = rcountHtml(list.length);
@@ -3539,7 +3551,7 @@ function rSyncFilters() {
 }
 function viewRecette(r) {
   const n = S.persons || 2;
-  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1>${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
+  return `<header class="hd row"><div><button class="link back" data-action="r-back">‹ Recettes</button><p class="hd-kicker">${esc(rMeta(r))} · ${esc(rDur(r.min))}</p><h1 class="${r.titre.length > 22 ? 'long' : ''}">${esc(r.titre)}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cuisine', 'Azami en cuisine')}</button></header>
     ${rPlate(r)}
     <p class="rdesc">${esc(r.desc)}</p>
     ${gearOf(r).length ? `<div class="gear-box"><p class="chip-label">Matériel particulier</p>${gearOf(r).map(g => `<div class="gear-row ${S.gear[g.id] === true ? 'ok' : S.gear[g.id] === false ? 'no' : ''}"><span class="gear-name">${S.gear[g.id] === true ? '✓' : '⚠'} ${esc(g.nom)}</span>${S.gear[g.id] === true ? '<span class="gear-st">On l’a</span>' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="1">On l’a</button>${S.gear[g.id] === false ? '' : `<button type="button" class="btn ghost small" data-action="gear-set" data-id="${g.id}" data-has="0">Pas chez nous</button>`}`}</div>`).join('')}</div>` : ''}
@@ -3605,7 +3617,8 @@ function viewArgent() {
     const label = new Date(k + '-15').toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
     const paidMe = real.filter(e => e.paid_by === S.me).reduce((s, e) => s + Number(e.amount), 0);
     return `<div class="month-head"><span>${esc(label[0].toUpperCase() + label.slice(1))}</span><b>${chf(total)}</b></div>
-      <div class="cats"><span class="who">Toi ${chf(paidMe)} · ${esc(nameOf(o))} ${chf(total - paidMe)}</span>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<span>${esc(catLabel(c))} ${chf(v)}</span>`).join('')}</div>
+      <div class="cats"><span class="cats-k">Payé par</span><span class="who">Toi ${chf(paidMe)}</span><span class="who">${esc(nameOf(o))} ${chf(total - paidMe)}</span></div>
+      <div class="cats"><span class="cats-k">Pour</span>${Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<span>${esc(catLabel(c))} ${chf(v)}</span>`).join('')}</div>
       <ul class="list">${list.map(e => {
         const payer = e.paid_by === S.me ? 'toi' : nameOf(e.paid_by);
         if (e.is_settlement) {
@@ -3619,11 +3632,11 @@ function viewArgent() {
         const split = Number(e.payer_share) === 0.5 ? 'moitié-moitié' : Number(e.payer_share) === 0 ? `avancé pour ${e.paid_by === S.me ? nameOf(o) : 'toi'}` : `${Math.round(Number(e.payer_share) * 100)} % pour ${payer}`;
         const eff = expenseEffect(e);
         const settled = lastSettle && e.created_at <= lastSettle.created_at;
-        const effect = Math.abs(eff) < 0.005 ? '' : settled ? `<span class="effect done">réglé</span>` : eff > 0 ? `<span class="effect pos">${esc(nameOf(o))} te doit ${chf(eff)}</span>` : `<span class="effect neg">Tu lui dois ${chf(-eff)}</span>`;
+        const effect = Math.abs(eff) < 0.005 ? '' : settled ? `<span class="effect done">réglé</span>` : eff > 0 ? `<span class="effect pos">+${chf(eff)} pour toi</span>` : `<span class="effect neg">${chf(-eff)} pour ${esc(nameOf(o))}</span>`;
         if (S.edit?.id === e.id) return `<li class="item editing">${editExpense(e)}</li>`;
         return `<li class="item">
           ${iconBtn('expenses', e)}<div class="item-main"><div class="money-row"><span class="item-title">${esc(e.label)}</span><span class="amount">${chf(e.amount)}</span></div>
-          <div class="item-meta money-row"><span>Payé par ${esc(payer)}, ${esc(split)}, ${esc(relDay(e.spent_on))}</span>${effect}</div></div>
+          <div class="item-meta exp-meta"><span>${esc(payer === 'toi' ? 'Toi' : payer)} · ${esc(split)} · ${esc(relDay(e.spent_on))}</span>${effect}</div></div>
           <button class="more" id="more-${e.id}" aria-label="Options" aria-expanded="${S.open === e.id}" data-action="more" data-id="${e.id}">⋯</button>
           ${iconPicker('expenses', e)}
           ${S.open === e.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="expenses" data-id="${e.id}">Modifier</button><button class="btn ghost small" data-action="exp-delete" data-id="${e.id}">Supprimer</button></div>` : ''}</li>`;
@@ -3931,9 +3944,9 @@ function cineSection() {
       <p>${[L.nous.length ? `${L.nous.length} ${icn('deux')} en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
     <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck">${icn('flamme')} Cinder</button><button class="btn cta-soir" data-action="cine-soir">${icn('de')} Ce soir ?</button></div>
     <button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button>
-    <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Ajouter à ta liste : un film, un lien…" autocomplete="off" enterkeyhint="search">
+    <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Un film, une série…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
-    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span><b>${n}</b></button>`).join('')}</div>
+    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span>${k === 'autre' ? '' : `<b>${n}</b>`}</button>`).join('')}</div>
     ${body}
   </section>`;
 }
@@ -5152,12 +5165,12 @@ function cineSoir(kind = S.soirKind || [], mood = S.soirMood || [], pour = S.soi
   if (kind.includes('chez')) pool = pool.filter(fDispo);
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
-  box.innerHTML = `<div class="ticket-card roulette" role="dialog" aria-label="${solo ? 'Je regarde quoi ?' : 'On regarde quoi ?'}"><p class="ticket-title">${solo ? 'Je regarde quoi ce soir ?' : 'On regarde quoi ce soir ?'}</p>
+  box.innerHTML = `<div class="ticket-card roulette" role="dialog" aria-label="${solo ? 'Je regarde quoi ?' : 'On regarde quoi ?'}"><button type="button" class="ticket-x" data-close="1" aria-label="Fermer">×</button><p class="ticket-title">${solo ? 'Je regarde quoi ce soir ?' : 'On regarde quoi ce soir ?'}</p>
     <div class="seg soir-pour" role="tablist" aria-label="Pour qui">${[['nous', `${icn('coeur')} À deux`], ['moi', 'Juste pour moi']].map(([k, l]) => `<button type="button" role="tab" data-p="${k}" aria-selected="${pour === k}" aria-pressed="${pour === k}">${l}</button>`).join('')}</div>
-    <div class="chips cine-kinds cine-moods">${[['', 'Toute humeur'], ['leger', 'Léger'], ['rire', 'Rire'], ['intense', 'Intense'], ['frisson', 'Frisson'], ['contemplatif', 'Contemplatif']].map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${k ? mood.includes(k) : !mood.length}">${l}</button>`).join('')}</div>
+    <p class="soir-k">Humeur</p><div class="chips cine-kinds cine-moods">${[['', 'Toute humeur'], ['leger', 'Léger'], ['rire', 'Rire'], ['intense', 'Intense'], ['frisson', 'Frisson'], ['contemplatif', 'Contemplatif']].map(([k, l]) => `<button type="button" data-m="${k}" aria-pressed="${k ? mood.includes(k) : !mood.length}">${l}</button>`).join('')}</div>
     ${solo ? `<div class="chips cine-kinds soir-vus"><button type="button" data-v="1" aria-pressed="${vus}">${vus ? '✓ ' : '+ '}Avec les films déjà vus</button></div>` : ''}
-    <div class="chips cine-kinds">${[['', 'Peu importe'], ['chez', 'Dispo chez nous'], ['court', 'Un film court'], ['film', 'Un film'], ['serie', 'Une série']].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${k ? kind.includes(k) : !kind.length}">${l}</button>`).join('')}</div><div class="roulette-stage"></div></div>`;
-  box.addEventListener('click', e => { if (e.target === box) closeTicket(); const k = e.target.closest('[data-k]'); if (k) { haptic(1); cineSoir(soirBascule(kind, k.dataset.k), mood, pour); } const m = e.target.closest('[data-m]'); if (m) { haptic(1); cineSoir(kind, soirBascule(mood, m.dataset.m), pour); } if (e.target.closest('[data-action=cine-open]')) closeTicket(); if (e.target.closest('[data-v]')) { safeSet('maison-soir-vus', soirVus() ? '0' : '1'); haptic(1); cineSoir(kind, mood, pour); return; } const pp = e.target.closest('[data-p]'); if (pp && pp.dataset.p !== pour) { haptic(1); cineSoir(kind, mood, pp.dataset.p); } });
+    <p class="soir-k">Format</p><div class="chips cine-kinds">${[['', 'Peu importe'], ['chez', 'Dispo chez nous'], ['court', 'Un film court'], ['film', 'Un film'], ['serie', 'Une série']].map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${k ? kind.includes(k) : !kind.length}">${l}</button>`).join('')}</div><div class="roulette-stage"></div></div>`;
+  box.addEventListener('click', e => { if (e.target === box || e.target.closest('[data-close]')) { closeTicket(); return; } const k = e.target.closest('[data-k]'); if (k) { haptic(1); cineSoir(soirBascule(kind, k.dataset.k), mood, pour); } const m = e.target.closest('[data-m]'); if (m) { haptic(1); cineSoir(kind, soirBascule(mood, m.dataset.m), pour); } if (e.target.closest('[data-action=cine-open]')) closeTicket(); if (e.target.closest('[data-v]')) { safeSet('maison-soir-vus', soirVus() ? '0' : '1'); haptic(1); cineSoir(kind, mood, pour); return; } const pp = e.target.closest('[data-p]'); if (pp && pp.dataset.p !== pour) { haptic(1); cineSoir(kind, mood, pp.dataset.p); } });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   const stage = box.querySelector('.roulette-stage');
   if (!pool.length) { stage.innerHTML = solo ? `<p class="ticket-sub">${L.mine.length || vus ? `Rien dans tes envies pour ça.${mood.length + kind.length > 1 ? ' Enlève un filtre ?' : ' Essaie une autre humeur.'}` : 'Ta liste d’envies est vide. Un tour de Cinder pour la remplir ?'}</p>` : `<p class="ticket-sub">${mood.length + kind.length > 1 ? 'Rien en commun avec tous ces filtres. Enlève-en un ?' : 'Rien en commun pour ça. Lancez Cinder chacun de votre côté pour trouver vos films à deux !'}</p>`; return; }
@@ -5290,7 +5303,7 @@ function viewCare() {
   };
 
   const tab = S.loisirTab || 'cine';
-  const tabs = `<div class="seg loisirs-tabs" role="tablist" aria-label="Loisirs">${[['cine', `${icn('popcorn')} Ciné`], ['mots', `${icn('lettre')} Petits mots`], ['carnet', `${icn('carnet')} Carnet d’Azami`]].map(([k, l]) => `<button role="tab" data-action="loisir-tab" data-t="${k}" aria-pressed="${tab === k}" aria-selected="${tab === k}">${l}${k === 'mots' && unread.length ? ` <b class="nb">${unread.length}</b>` : ''}</button>`).join('')}</div>`;
+  const tabs = `<div class="seg loisirs-tabs" role="tablist" aria-label="Loisirs">${[['cine', `${icn('popcorn')} Ciné`], ['mots', `${icn('lettre')} <span class="lt-l">Petits mots</span><span class="lt-c">Mots</span>`], ['carnet', `${icn('carnet')} <span class="lt-l">Carnet d’Azami</span><span class="lt-c">Carnet</span>`]].map(([k, l]) => `<button role="tab" data-action="loisir-tab" data-t="${k}" aria-pressed="${tab === k}" aria-selected="${tab === k}">${l}${k === 'mots' && unread.length ? ` <b class="nb">${unread.length}</b>` : ''}</button>`).join('')}</div>`;
   const waiting = unread.length && tab !== 'mots' ? `<button class="mot-attend" data-action="loisir-tab" data-t="mots"><img src="icons/themes/care_${esc(['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(unread[0].kind) ? unread[0].kind : 'merci')}.webp" alt="" width="34" height="34"><span>${unread.length > 1 ? `${unread.length} mots t’attendent` : `Un mot de ${esc(nameOf(unread[0].author))} t’attend`}</span><b aria-hidden="true">›</b></button>` : '';
   if (tab === 'cine') return `${tabs}${waiting}${cineSection()}`;
   if (tab === 'carnet') return `${tabs}${waiting}${jpCoursCarte()}${carnetSection()}`;
@@ -6748,6 +6761,7 @@ const actions = {
   'azami-ecrire': () => azamiEcrire(),
   'azami-choix': el => AZ.quiz ? jpReponse(el.dataset.txt) : azamiEnvoyer(el.dataset.txt),
   'jp-dire': el => jpDire(el.dataset.txt),
+  'r-plus': () => { S.rVoir = (S.rVoir || 30) + 30; const el = document.getElementById('rlist'); if (el) el.innerHTML = rList(rFiltered()); else render(); haptic(1); },
   'jp-lecon': () => jpcOuvrir('lecon'),
   'jp-revision': () => jpcOuvrir('revision'),
   'jp-ecrit': () => jpcOuvrir('ecrit'),
@@ -6760,7 +6774,7 @@ const actions = {
 
   'guide-page': () => openGuidePage(),
   'guide-tour': () => { closeTicket(); openTour(0); },
-  'guide-hint-off': () => { tipSave('page:' + guideKey()); render(); },
+  'guide-hint-off': () => { tipSave('page:' + guideKey()); tipSave('guide-hints-off'); render(); },
   'guide-reset': () => { S.tips = S.tips?.azami ? { azami: S.tips.azami } : {}; tipSave('tour', false); openTour(0); },
 
   'calm-on': () => { const o = overload(); setCalm({ on: true, auto: false, since: Date.now(), start: o.late.length }); S.calmExit = false; haptic(1); render(); window.scrollTo(0, 0); },
