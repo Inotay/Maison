@@ -91,6 +91,11 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
   (grève, balade, faim, crottes, soif, câlins ; sinon un mot doux une fois sur quatre). Jauges recalculées côté
   serveur comme dans l'app. Déjà envoyé : reglages 'azami:notifs'. Réglages → « Un mot d'Azami le soir » → Essayer.
 
+## Le ménage (v244)
+- Azami voit chaque corvée (tour, faite quand et par qui, retard, machines en route), répond « c'est à qui ? »,
+  coche une corvée (corvee, faite par moi ou par l'autre : le tour passe), lance le lave-vaisselle ou la lessive
+  (machine : lancer, séchage, fini), et peut rappeler doucement un vrai retard, au plus une fois par jour.
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.
