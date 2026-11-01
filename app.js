@@ -707,6 +707,7 @@ async function loadAll() {
     algoReg: Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('algo:')).map(r => [r.cle.slice(5), r.valeur || {}])) });
   { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
   if (tamaTick()) tamaSave();
+  S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
   await ensureDechets();
@@ -2571,9 +2572,10 @@ function viewMaison() {
       <button data-action="az-mode" data-mode="bavarde" aria-pressed="${AZ_MODE() === 'bavarde'}">Bavarde</button>
       <button data-action="az-mode" data-mode="discrete" aria-pressed="${AZ_MODE() === 'discrete'}">Discrète</button>
       <button data-action="az-mode" data-mode="muette" aria-pressed="${AZ_MODE() === 'muette'}">Si je lui parle</button></div></div>
+    ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v234</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v235</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5331,6 +5333,11 @@ async function azamiAgir(a) {
 // Une partie du temps c'est elle qui improvise (le modèle reçoit l'événement, avec l'app et ses films) ;
 // sinon une phrase locale.
 const AZ_MODE = () => safeGet('maison-az-mode') || 'bavarde';
+// Le serveur doit connaître ce réglage pour le mot du soir (une notification au plus par jour, en mode Bavarde).
+function azamiModeSync() {
+  if (DEMO || !S.me || S.azModeSrv === AZ_MODE()) return;
+  S.azModeSrv = AZ_MODE(); api.upsert('reglages', { cle: `azami:mode:${S.me}`, valeur: { mode: AZ_MODE() } }).catch(e => console.warn('mode', e));
+}
 // Ses heures : calme de minuit à 7 h (elle dort, aucune initiative) ; folie de 22 h à minuit et de 7 h à 8 h
 // (elle court partout, elle embête, elle parle deux fois plus).
 const azamiNuit = () => { const h = new Date().getHours(); return h < 7; };
@@ -5964,7 +5971,11 @@ async function azamiMemoire() {
 
 const actions = {
   'son-mode': el => { safeSet('maison-son-mode', el.dataset.mode); unlockAudio(); render(); toast(el.dataset.mode === 'jeu' ? 'Les sons sortent même en silence (ça coupe la musique en cours)' : 'L’app se mêle à la musique ; l’interrupteur silence la coupe'); },
-  'az-mode': el => { safeSet('maison-az-mode', el.dataset.mode); render(); },
+  'az-mode': el => { safeSet('maison-az-mode', el.dataset.mode); azamiModeSync(); render(); },
+  'azami-notif-test': async () => {
+    try { const { data, error } = await sb.functions.invoke('rappels', { body: { action: 'azami_test' } }); if (error) throw error; toast(data?.sent ? 'Azami t’envoie un mot. Regarde tes notifications.' : 'Aucun appareil à prévenir. Active les notifications sur ce téléphone.'); }
+    catch (e) { toast(e.message || 'Le mot n’est pas parti.'); }
+  },
   'tama-menu': () => { S.tamaMenu = S.tamaMenu === 'nourrir' ? null : 'nourrir'; render(); haptic(1); },
   'tama-geste': el => tamaGeste(el.dataset.geste),
   'tama-jouer': () => S.jeu ? tamaJeuFin(false) : tamaJeu(),

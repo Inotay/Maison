@@ -177,6 +177,57 @@ async function fresh(db: ReturnType<typeof admin>) {
   return { sent, items: due.length };
 }
 
+// Azami : au plus un petit mot par jour et par personne, le soir, seulement pour qui l'a laissée « bavarde »
+// (réglage de l'app, recopié dans reglages 'azami:mode:<e-mail>'), et seulement si elle a quelque chose à dire :
+// grève, balade, faim, crottes, soif, câlins ; sinon, une fois sur quatre, un mot doux. Ses jauges sont
+// recalculées ici comme dans l'app (elles baissent avec le temps depuis la dernière mise à jour).
+const AZ_MOTS: Record<string, string[]> = {
+  greve: ["Grève. Une friandise et on en parle.", "Je fais toujours grève. Tu connais le tarif : une friandise."],
+  balade: ["Je suis partie me balader dans l'app. Tu me trouves ?", "Cache-cache ! Je suis quelque part dans l'app…"],
+  faim: ["Mon ventre fait des bruits bizarres… Tu passes me voir ?", "Ma gamelle est vide. Je dis ça, je dis rien.", "Onaka suita… (j'ai faim) Des croquettes au poisson, peut-être ?"],
+  crottes: ["Il y a des petites choses à ramasser dans l'app. C'est pas moi.", "J'ai laissé des petits cadeaux. Tu sais où est la poubelle."],
+  soif: ["J'ai la langue comme du papier de verre. Un peu d'eau fraîche ?", "Il reste une casserole sale quelque part ? Sinon de l'eau, ça ira."],
+  calins: ["Personne ne m'a gratté le menton aujourd'hui. C'est noté.", "Je viens me frotter contre ton écran. C'est un indice."],
+  mot: ["J'ai trouvé un rayon de soleil parfait. Je te garde une place.", "J'ai surveillé la fenêtre toute la journée. Rien à signaler. Enfin si, un pigeon.", "Je pense à toi. Enfin, à mes croquettes. Mais un peu à toi.", "Okaeri ! (bon retour) Enfin, quand tu rentreras."],
+};
+const pick = (a: string[]) => a[Math.floor(Math.random() * a.length)];
+async function azami(db: ReturnType<typeof admin>, seul?: string) {
+  const now = new Date(), today = zurich(now);
+  const [{ data: reg }, { data: members }, { data: subs }] = await Promise.all([
+    db.from("reglages").select("cle, valeur").like("cle", "azami:%"),
+    db.from("members").select("email"),
+    db.from("push_subscriptions").select("endpoint, email, sub"),
+  ]);
+  const R = Object.fromEntries((reg ?? []).map((r: { cle: string; valeur: unknown }) => [r.cle, r.valeur as Record<string, unknown>]));
+  const e = (R["azami:etat"] ?? {}) as Record<string, number | unknown[] | boolean | null | undefined>;
+  const h = Math.max(0, (now.getTime() - Number(e.maj || now.getTime())) / 3.6e6);
+  const jauge = (k: string, par: number) => Math.max(0, Number(e[k] ?? 70) - par * h);
+  const jours = e.soin ? (now.getTime() - Number(e.soin)) / DAY : 0;
+  const crottes = Array.isArray(e.crottes) ? e.crottes.length : 0;
+  const quoi = e.greve || jours >= 4 ? "greve" : e.balade || jours >= 2 ? "balade" : jauge("faim", 4) < 25 ? "faim" : crottes >= 3 ? "crottes"
+    : jauge("soif", 3) < 25 ? "soif" : jauge("calins", 3) < 25 ? "calins" : (seul || Math.random() < .25) ? "mot" : null;
+  if (!quoi) return { sent: 0, quoi: null };
+  const deja = { ...((R["azami:notifs"] ?? {}) as Record<string, string>) };
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  let sent = 0; const dead: string[] = [];
+  for (const { email } of (members ?? []) as { email: string }[]) {
+    if (seul && email !== seul) continue;
+    const mode = (R[`azami:mode:${email}`] as { mode?: string } | undefined)?.mode || "bavarde";
+    if (!seul && (mode !== "bavarde" || deja[email] === today)) continue;
+    const payload = JSON.stringify({ title: "Azami", body: pick(AZ_MOTS[quoi]), tag: "azami", url: "./?v=maison" });
+    let ok = false;
+    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === email)) {
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 4 * 3600 }); sent++; ok = true; }
+      catch (err) { const st = (err as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (err as Error).message); }
+    }
+    if (ok && !seul) deja[email] = today;
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  if (!seul) await db.from("reglages").upsert({ cle: "azami:notifs", valeur: deja });
+  return { sent, quoi };
+}
+
 // Demande d'aide entre vous deux : notification à l'autre (nouvelle demande) ou à qui l'a demandée (réponse).
 async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
   const { data: h } = await db.from("help_requests").select("*").eq("id", id).maybeSingle();
@@ -233,7 +284,9 @@ Deno.serve(async (req) => {
         const h = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Zurich", hour: "numeric", hour12: false }).format(new Date())) % 24;
         if (h !== Number(body.heure)) return json({ skipped: `il est ${h} h à Zurich` });
       }
-      return json({ ...(await run(db)), frais: await fresh(db) });
+      // le petit mot d'Azami part avec la tournée du soir
+      const soir = body.heure !== undefined && Number(body.heure) >= 12;
+      return json({ ...(await run(db)), frais: await fresh(db), ...(soir ? { azami: await azami(db) } : {}) });
     }
     if (action === "minuteurs") return json(await minuteurs(db));
     if (action === "test") {
@@ -253,6 +306,14 @@ Deno.serve(async (req) => {
       }
       if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
       return json({ sent, devices: (subs ?? []).length, dead: dead.length });
+    }
+    if (action === "azami_test") {
+      // Un mot d'Azami tout de suite, seulement sur les appareils de la personne qui le demande (pour essayer).
+      const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+      const me = (user?.email ?? "").toLowerCase();
+      const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+      if (!member) return json({ error: "Pas membre de la maison." }, 401);
+      return json(await azami(db, me));
     }
     if (action === "aide") {
       const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
