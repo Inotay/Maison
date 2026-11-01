@@ -4,6 +4,22 @@
 // et gardées dans app_secrets, une table sans règle d'accès pour les comptes de l'app.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
+// Suivi de chaque envoi : la dernière réussite et la dernière erreur par appareil (pour comprendre une
+// notification qui n'arrive pas).
+let SUIVI: ReturnType<typeof admin> | null = null;
+const envoiBrut = webpush.sendNotification.bind(webpush);
+(webpush as unknown as { sendNotification: typeof envoiBrut }).sendNotification = async (sub, payload, opts) => {
+  const ep = (sub as { endpoint?: string })?.endpoint ?? "";
+  try {
+    const r = await envoiBrut(sub, payload, opts);
+    if (SUIVI && ep) await SUIVI.from("push_subscriptions").update({ ok_at: new Date().toISOString() }).eq("endpoint", ep);
+    return r;
+  } catch (e) {
+    const st = (e as { statusCode?: number }).statusCode, msg = (e as Error).message ?? String(e);
+    if (SUIVI && ep) await SUIVI.from("push_subscriptions").update({ err: `${st ?? ""} ${msg}`.trim().slice(0, 200), err_at: new Date().toISOString() }).eq("endpoint", ep);
+    throw e;
+  }
+};
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -145,7 +161,7 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     const q = SEQ[c.sorte]; const nx = q.steps[Math.min((Number(c.step) || 0) + 1, q.steps.length - 1)];
     const payload = JSON.stringify({ title: `${q.label} : prêt`, body: nx.meta || nx.btn, tag: `maison-seq-${c.id}`, url: "./?v=menage" });
     for (const s of (subs ?? []).filter((s: { email: string }) => !c.turn || s.email === c.turn)) {
-      try { await webpush.sendNotification(s.sub, payload, { TTL: 3600 }); sent++; }
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 3 * 3600, urgency: "high" }); sent++; }
       catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
     }
     await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
@@ -264,7 +280,7 @@ async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  const db = admin();
+  const db = admin(); SUIVI = db;
   let body: Record<string, unknown> = {};
   if (req.method === "POST") { try { body = await req.json(); } catch { body = {}; } }
   const action = String(body.action ?? new URL(req.url).searchParams.get("action") ?? "run");

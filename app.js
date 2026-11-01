@@ -9,7 +9,7 @@ import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
-import { MOTS, HIRA, exemple } from './jp.js';
+import { MOTS, HIRA, exemple, MOTS_COURS, LECONS } from './jp.js';
 // Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
 let VISITES = [], visitesP = null;
 const loadVisites = () => visitesP ||= import('./visites.js').then(m => { VISITES = m.VISITES; }).catch(e => { visitesP = null; console.warn('visites', e); });
@@ -244,10 +244,12 @@ const ctxAudio = () => { audioCtx ||= new (window.AudioContext || window.webkitA
 // (L'ancienne astuce de la piste muette en boucle rendait les sons audibles en mode silence,
 // mais prenait la main sur la musique en cours.)
 // Deux réglages possibles (accueil → « Sons même en silence ») :
-// - « jeu » (par défaut) : les sons sortent même avec l'interrupteur silence, comme un jeu ; pour ça, iOS passe en
+// - « jeu » : les sons sortent même avec l'interrupteur silence, comme un jeu ; pour ça, iOS passe en
 //   mode lecture (une piste muette tourne en boucle), ce qui interrompt une musique en cours ;
-// - « mix » : l'app se mélange à la musique qui joue, mais l'interrupteur silence la coupe.
-const SON_JEU = () => safeGet('maison-son-mode') !== 'mix';
+// - « mix » (par défaut depuis v252) : l'app se mélange à la musique qui joue, mais l'interrupteur silence la coupe.
+// v252 : « mix » devient le réglage par défaut (la musique en cours n'est plus coupée) ; « jeu » reste au choix.
+if (safeGet('maison-son-mode-v2') !== '1') { safeSet('maison-son-mode', 'mix'); safeSet('maison-son-mode-v2', '1'); }
+const SON_JEU = () => safeGet('maison-son-mode') === 'jeu';
 const SILENCE_WAV = 'sounds/silence.wav';   // (un fichier : la politique de sécurité de la page interdit les médias en data:)
 // iOS 17 et plus : navigator.audioSession dit directement « mes sons passent même en silence », sans piste muette.
 // La piste muette faisait croire à iOS qu'un son était en lecture : l'app restait dans l'île dynamique et sur
@@ -540,7 +542,7 @@ async function subscribePush() {
     if (!swReg || !sb || !('pushManager' in swReg)) return;
     const key = await pushKey(); if (!key) return;
     const sub = await swReg.pushManager.getSubscription() || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(key) });
-    await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON() });
+    await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON(), origin: location.host });
   } catch (e) { console.warn('push', e); }
 }
 function vapidKey(b64) {
@@ -717,6 +719,7 @@ async function loadAll() {
   { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
+  { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
@@ -1761,6 +1764,7 @@ function morphChildren(from, to) {
 // ── Nos icônes : dessinées pour la maison (trait rond, chaud, un peu dodu), jamais d'émoji ──
 // Toutes en 24×24, couleur héritée du texte, taille 1em : elles suivent la taille de police de leur bouton.
 const IC = {
+  son: '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',
   non: '<path d="M7 7l10 10M17 7 7 17" stroke-width="2.6"/>',
   horloge: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
   poisson: '<path d="M3.5 12c2.5-3.5 5.5-5 9-5 3 0 5.5 2 7 5-1.5 3-4 5-7 5-3.5 0-6.5-1.5-9-5z"/><path d="M19.5 12l2.5-3v6z"/><circle cx="7.5" cy="11.5" r=".7" fill="currentColor"/><path d="M12 7.5c-1 1.5-1 7.5 0 9"/>',
@@ -2433,7 +2437,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage(); crottesPlace(); tamaScene(); annivFete();
+  azamiType(); azamiNuage(); crottesPlace(); tamaScene(); annivFete(); agendaRappel();
   glisseApres(glisse);   // après le dessin des bulles : leurs marges intérieures changent aussi la place du reste if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
@@ -2638,7 +2642,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v251</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v252</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5242,7 +5246,7 @@ function viewCare() {
   const tabs = `<div class="seg loisirs-tabs" role="tablist" aria-label="Loisirs">${[['cine', `${icn('popcorn')} Ciné`], ['mots', `${icn('lettre')} Petits mots`], ['carnet', `${icn('carnet')} Carnet d’Azami`]].map(([k, l]) => `<button role="tab" data-action="loisir-tab" data-t="${k}" aria-pressed="${tab === k}" aria-selected="${tab === k}">${l}${k === 'mots' && unread.length ? ` <b class="nb">${unread.length}</b>` : ''}</button>`).join('')}</div>`;
   const waiting = unread.length && tab !== 'mots' ? `<button class="mot-attend" data-action="loisir-tab" data-t="mots"><img src="icons/themes/care_${esc(['merci', 'besoin', 'poids', 'envie', 'tendresse'].includes(unread[0].kind) ? unread[0].kind : 'merci')}.webp" alt="" width="34" height="34"><span>${unread.length > 1 ? `${unread.length} mots t’attendent` : `Un mot de ${esc(nameOf(unread[0].author))} t’attend`}</span><b aria-hidden="true">›</b></button>` : '';
   if (tab === 'cine') return `${tabs}${waiting}${cineSection()}`;
-  if (tab === 'carnet') return `${tabs}${waiting}${carnetSection()}`;
+  if (tab === 'carnet') return `${tabs}${waiting}${jpCoursCarte()}${carnetSection()}`;
   return `${tabs}
     <section class="mots" id="mots"><h2 class="first">Ta boîte aux lettres</h2>
     ${unread.length ? `<div class="letters">${unread.map(letter).join('')}</div>` : emptyArt('vide_care', 'Aucun mot en attente.')}
@@ -5284,6 +5288,7 @@ async function azamiCall(body) {
       const cv = String(body.texte).match(/^(?:j'ai|j’ai)\s+(?:fait|passé|sorti|nettoyé|vidé)\s+(?:l'|l’|la |le |les )?(.+?)\.?$/i);
       if (cv) return { reponse: `Bravo ! Je coche « ${cv[1]} ».`, humeur: 'contente', action: { type: 'corvee', texte: cv[1], pour: 'moi', demande: true }, retenu: [], notes: [] };
       if (/lance.*(lave|lessive)/i.test(body.texte)) return { reponse: 'C’est parti, je lance le minuteur.', humeur: 'contente', action: { type: 'machine', texte: /lessive/i.test(body.texte) ? 'Lessive' : 'Lave-vaisselle', etape: 'lancer', demande: true }, retenu: [], notes: [] };
+      if (/rendez-vous|rdv|agenda/i.test(body.texte)) { const d = new Date(Date.now() + 2 * DAY); return { reponse: 'Je le mets dans l’agenda des quatre pattes ?', humeur: 'curieuse', action: { type: 'rdv', texte: 'Dîner chez Laura', date: isoDate(d), heure: '19:30', duree: 180, demande: false }, retenu: [], notes: [] }; }
       if (/menu|mang/i.test(body.texte)) return { reponse: 'Des pâtes à la sauce tomate ce soir ? Je te les mets au menu ?', humeur: 'curieuse', action: { type: 'menu', texte: 'Pâtes à la sauce tomate', demande: false }, retenu: [], notes: [] };
       return { reponse: pick(AZ_DEMO), humeur: 'contente', retenu: [], notes: [] };
     }
@@ -5327,7 +5332,14 @@ function azamiContexte(txt = '') {
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
+  { const j = JP(); if (j.lecon || Object.keys(j.srs || {}).length) l.push(`COURS DE JAPONAIS DE ${firstName().toUpperCase()} : leçon ${j.lecon || 0} sur ${LECONS.length} finie${LECONS[j.lecon || 0] ? `, la prochaine : ${LECONS[j.lecon || 0].t}` : ''} ; ${jpDus(j).length} à réviser. (Le cours est dans l'onglet Loisirs, Carnet d'Azami. Tu peux l'encourager, jamais insister.)`); }
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
+  { // l'agenda commun : les deux semaines qui viennent
+    const auj = isoDate(new Date()), dem = isoDate(new Date(Date.now() + DAY)), fin = isoDate(new Date(Date.now() + 14 * DAY));
+    const evs = S.agenda?.configured ? (S.agenda.events || []).filter(e => evDay(e) <= fin && (e.allDay ? e.end > auj : e.end > new Date().toISOString())).slice(0, 14) : [];
+    const jour = e => { const d = evDay(e); return d <= auj ? 'aujourd’hui' : d === dem ? 'demain' : new Date(d + 'T12:00').toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' }); };
+    if (S.agenda?.configured) l.push(`AGENDA « ${S.agenda.calendar || 'Les quatre pattes'} » (14 jours) : ${evs.length ? evs.map(e => `${jour(e)}${e.allDay ? '' : ` à ${evTime(e.start)}`} : ${e.title}${e.place ? ` (${e.place})` : ''}`).join(' ; ') : 'rien de prévu'}.`);
+  }
   l.push(tamaContexte());
   { const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'], fmt = d => d ? `${Number(d.slice(3))} ${MOIS[Number(d.slice(0, 2)) - 1]}` : null;
     l.push(`ANNIVERSAIRES : ${S.members.map(m => `${nom(m.email)} : ${fmt(S.anniv?.[m.email]) || 'inconnu (demande-le un jour, au détour d’une conversation, puis action anniversaire avec la date)'}`).join(' ; ')}.`); }
@@ -5456,6 +5468,7 @@ const AZ_FAIT = {
   tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
   menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
+  rdv: ['C’est dans l’agenda des quatre pattes. Je surveille la date.', 'Noté dans l’agenda ! Je te le rappellerai, une fois, gentiment.'],
   anniversaire: ['C’est noté dans ma tête, et dans mon cœur. Je ne l’oublierai pas.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
   corvee: ['Cochée ! Le tour passe, la maison brille, et moi je surveille.', 'C’est noté dans le ménage. Je fais semblant d’avoir aidé.', 'Une de faite ! Tu mérites une sieste au soleil.'],
   machine: ['C’est lancé. Je te préviens quand c’est fini, promis.', 'Le minuteur tourne. Je reste à côté de la machine, elle fait des bruits intéressants.'],
@@ -5481,6 +5494,15 @@ async function azamiAgir(a) {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, 'oui');
+    } else if (a.type === 'rdv') {
+      if (!S.agenda?.configured) { azamiPose('L’agenda des quatre pattes n’est pas encore relié à l’app. Ça se règle dans Réglages, et après je m’en occupe.', 'curieuse'); render(); return false; }
+      const jour = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : null;
+      if (!jour) { azamiPose('C’est pour quel jour, exactement ?', 'curieuse'); render(); return false; }
+      let ev;
+      if (/^\d{1,2}:\d{2}$/.test(a.heure || '')) { const st = new Date(`${jour}T${a.heure.padStart(5, '0')}`); ev = { title: texte, start: st.toISOString(), end: new Date(st.getTime() + (a.duree || 60) * 60e3).toISOString(), allDay: false, notes: 'Ajouté par Azami' }; }
+      else { const n = new Date(jour + 'T12:00'); n.setDate(n.getDate() + 1); ev = { title: texte, start: jour, end: isoDate(n), allDay: true, notes: 'Ajouté par Azami' }; }
+      await agendaCall({ action: 'create', event: ev });
+      await loadAgenda();
     } else if (a.type === 'anniversaire') {
       // la date peut arriver en AAAA-MM-JJ, MM-JJ ou JJ/MM
       const d = String(a.date || texte), m = d.match(/(\d{4})-(\d{2})-(\d{2})/) || d.match(/^(\d{2})-(\d{2})$/) || d.match(/(\d{1,2})[\/.](\d{1,2})/);
@@ -5694,7 +5716,12 @@ function jpAujourdhui() {
   j.jour = jour; j.mots ||= []; j.hira ||= [];
   const wd = new Date().getDay();
   // lundi, mercredi, vendredi : un hiragana nouveau ; les autres jours, un mot ; de temps en temps, une révision
-  if ([1, 3, 5].includes(wd) && j.hira.length < HIRA.length && Math.random() < .8) {
+  // le cours a commencé : une fois par jour, Azami propose la leçon (ou les révisions) au lieu du hiragana du jour
+  const Ln = LECONS[j.lecon || 0], dus = jpDus(j).length;
+  if ((j.lecon || 0) > 0 || Math.random() < .5) {
+    if (j.coursJour !== jour && (Ln || dus >= 5)) { jpSave(j); AZ.quiz = { lecon: true }; azamiPose(Ln ? `Une petite leçon de japonais ? Cinq minutes. Aujourd’hui : ${Ln.t.toLowerCase()}.` : `Tu as ${dus} mots qui attendent une révision. Cinq minutes ?`, 'curieuse', ['Oui !', 'Plus tard']); if (!Ln) AZ.quiz = { lecon: true, rev: true }; render(); return true; }
+  }
+  if ((j.lecon || 0) === 0 && [1, 3, 5].includes(wd) && j.hira.length < HIRA.length && Math.random() < .8) {
     const [h, r] = HIRA[j.hira.length]; j.hira.push(h); jpSave(j);
     const ex = exemple(h);
     AZ.jp = { k: h }; azamiPose(`Nouveau hiragana : ${h}, ça se lit « ${r} ».${ex ? ` Comme dans ${ex.k} (${ex.r}, ${ex.f}).` : ''} Touche-le pour l’entendre.`, 'curieuse'); render();
@@ -5717,9 +5744,170 @@ function jpQuiz(m) {
 }
 function jpReponse(txt) {
   const q = AZ.quiz; AZ.quiz = null; if (!q) return;
+  if (q.lecon) { if (/^oui/i.test(txt)) { AZ.bulle = null; render(); jpcOuvrir(q.rev ? 'revision' : 'lecon'); } else { azamiPose('D’accord. La leçon t’attend dans le carnet, onglet Loisirs.', 'calme'); render(); } return; }
   if (txt === q.bon) { azamiPose(pick([`Sugoi ! ${q.k}, c’est bien « ${q.bon} ». Tu progresses plus vite que moi avec la poubelle.`, `Oui ! ${q.k} = ${q.bon}. Je ronronne de fierté.`]), 'contente'); sfx('done'); }
   else azamiPose(`Presque. ${q.k} (${q.r}), c’est « ${q.bon} ». On le reverra, promis.`, 'calme');
   render();
+}
+
+// ── Les cours (v252) ──
+// Une leçon : les nouveautés présentées une par une (on les entend), puis des exercices variés (le sens, l'inverse,
+// la lecture, l'écoute, assembler un mot avec des tuiles). Ce qui est appris revient en révision, de plus en plus
+// espacé (1, 2, 4, 7, 15, 30 jours) ; une erreur le fait revenir plus tôt. Le carnet de chacun est sur l'appareil
+// et suit la personne (copie dans les réglages).
+const JP_MOT = new Map([...MOTS, ...MOTS_COURS].map(m => [m.k, m]));
+const JP_HIRA = new Map(HIRA.map(([h, r]) => [h, r]));
+const JP_ECART = [0, 1, 2, 4, 7, 15, 30];
+const jpItem = id => { const [kind, k] = [id[0], id.slice(2)]; if (kind === 'h') return JP_HIRA.has(k) ? { id, kind, k, r: JP_HIRA.get(k) } : null; const m = JP_MOT.get(k); return m ? { id, kind, k, r: m.r, f: m.f } : null; };
+const jpVoix = () => { try { return 'speechSynthesis' in window && speechSynthesis.getVoices().some(v => /^ja/i.test(v.lang)); } catch { return false; } };
+try { speechSynthesis?.getVoices(); } catch {}
+const jpDus = (j = JP()) => { const auj = isoDate(new Date()); return Object.entries(j.srs || {}).filter(([, x]) => (x.due || '') <= auj).map(([id]) => id).filter(jpItem); };
+const jpHiragana = k => /^[ぁ-ゖ]+$/.test(k);
+function jpSync() {
+  clearTimeout(jpSync.t); if (DEMO || !S.me) return;
+  jpSync.t = setTimeout(() => { const j = JP(); api.upsert('reglages', { cle: `azami:jp:${S.me}`, valeur: { srs: j.srs || {}, lecon: j.lecon || 0, mots: j.mots || [], hira: j.hira || [], maj: j.maj || Date.now() } }).catch(e => console.warn('jp', e)); }, 1500);
+}
+function jpcExos(nouveaux, revs) {
+  const tous = [...JP_MOT.values()], kanaConnus = [...new Set([...(JP().hira || []), ...HIRA.slice(0, 10).map(h => h[0])])];
+  const proches = new Set([...(JP().hira || []), ...LECONS.slice(0, (JP().lecon || 0) + 1).flatMap(l => l.kana || [])]);
+  const autres = (it, n, f) => { const kana = HIRA.filter(([h]) => h !== it.k).map(([h, r]) => ({ k: h, r })), pres = kana.filter(x => proches.has(x.k)).sort(() => Math.random() - .5); const pool = it.kind === 'h' ? (pres.length >= n ? pres : [...pres, ...kana.filter(x => !proches.has(x.k)).slice(0, 15)]) : tous.filter(m => m.k !== it.k && m.f !== it.f); return pool.sort(() => Math.random() - .5).slice(0, n).map(f); };
+  const melange = a => a.sort(() => Math.random() - .5);
+  const exo = (it, type) => {
+    if (type === 'lire') return { type, it, q: it.k, aide: 'Ça se lit…', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]) };
+    if (type === 'trouve') return { type, it, q: `« ${it.r} »`, aide: it.kind === 'h' ? 'Lequel se lit comme ça ?' : 'Lequel est-ce ?', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true };
+    if (type === 'sens') return { type, it, q: it.k, sous: it.r, aide: 'Ça veut dire…', bon: it.f, choix: melange([it.f, ...autres(it, 3, x => x.f)]) };
+    if (type === 'inverse') return { type, it, q: it.f, aide: 'En japonais ?', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true };
+    if (type === 'ecoute') return { type, it, q: '', aide: 'Écoute, et touche ce que tu entends', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true, ecoute: true };
+    if (type === 'assemble') { const lettres = [...it.k], intrus = melange(kanaConnus.filter(h => !lettres.includes(h))).slice(0, Math.min(3, 7 - lettres.length)); return { type, it, q: it.f, sous: it.r, aide: 'Assemble le mot', bon: it.k, tuiles: melange([...lettres, ...intrus]) }; }
+  };
+  const types = (it, neuf) => {
+    const t = it.kind === 'h' ? ['lire', 'trouve'] : ['sens', 'inverse'];
+    if (jpVoix()) t.push('ecoute');
+    if (it.kind === 'm' && jpHiragana(it.k) && [...it.k].length >= 2 && [...it.k].length <= 6 && !neuf) t.push('assemble', 'assemble');
+    if (it.kind === 'm' && jpHiragana(it.k) && [...it.k].length <= 5 && neuf) t.push('assemble');
+    return melange(t);
+  };
+  const intro = nouveaux.map(it => ({ type: 'decouvre', it }));
+  const suite = [];
+  for (const it of nouveaux) { const t = types(it, true); suite.push(exo(it, t[0]), exo(it, t[1] || t[0])); }
+  for (const it of revs) suite.push(exo(it, types(it, false)[0]));
+  // pas deux fois le même élément d'affilée, autant que possible
+  const ord = melange(suite); for (let i = 1; i < ord.length; i++) if (ord[i].it.id === ord[i - 1].it.id) { const k = ord.findIndex((x, n) => n > i && x.it.id !== ord[i].it.id); if (k > 0) [ord[i], ord[k]] = [ord[k], ord[i]]; }
+  // les nouveautés par deux ou trois : on présente, on s'exerce, puis la suite
+  if (nouveaux.length <= 3) return [...intro, ...ord];
+  const moitie = Math.ceil(nouveaux.length / 2), a = new Set(nouveaux.slice(0, moitie).map(x => x.id));
+  return [...intro.slice(0, moitie), ...ord.filter(x => a.has(x.it.id)), ...intro.slice(moitie), ...ord.filter(x => !a.has(x.it.id))];
+}
+let jpc = null;
+function jpcOuvrir(mode = 'lecon') {
+  const j = JP(), n = j.lecon || 0, L = LECONS[n];
+  const dus = jpDus(j).sort(() => Math.random() - .5);
+  let nouveaux = [], revs = [], titre;
+  if (mode === 'lecon' && L) {
+    nouveaux = [...(L.kana || []).map(h => 'h:' + h), ...(L.mots || []).map(k => 'm:' + k)].map(jpItem).filter(Boolean);
+    revs = dus.slice(0, 3).map(jpItem); titre = `Leçon ${n + 1} · ${L.t}`;
+  } else { mode = 'revision'; revs = dus.slice(0, 12).map(jpItem); if (!revs.length) revs = Object.keys(j.srs || {}).sort(() => Math.random() - .5).slice(0, 8).map(jpItem).filter(Boolean); titre = 'Révisions'; }
+  if (!nouveaux.length && !revs.length) { toast('Rien à réviser pour l’instant.'); return; }
+  document.getElementById('jpc')?.remove();
+  const box = document.createElement('div'); box.id = 'jpc'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', titre);
+  box.innerHTML = `<div class="jpc-top"><button class="jpc-x" data-j="fermer" aria-label="Fermer">✕</button><div class="jpc-barre"><i></i></div></div><div class="jpc-corps"></div>`;
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
+  jpc = { box, mode, n, titre, exos: jpcExos(nouveaux, revs), i: 0, erreurs: {}, vus: new Set(), repris: new Set(), nouveaux: nouveaux.map(x => x.id), juste: 0, total: 0, rep: [] };
+  box.addEventListener('click', jpcClic);
+  jpcDraw();
+}
+const JPC_BRAVO = ['Sugoi !', 'Yoshi !', 'Parfait.', 'Oui !', 'Bien vu.', 'Jōzu ! (doué)', 'Exact.'];
+function jpcAz(reac) { const im = jpc?.box.querySelector('.jpc-az'); if (im) im.src = reactSrc(reac); }
+function jpcDraw() {
+  const c = jpc?.box.querySelector('.jpc-corps'); if (!c) return;
+  const e = jpc.exos[jpc.i];
+  jpc.box.querySelector('.jpc-barre i').style.width = `${Math.round(jpc.i / jpc.exos.length * 100)}%`;
+  if (!e) return jpcFin();
+  jpc.rep = []; jpc.fait = false;
+  const az = (txt, reac = 'visite_langue') => `<div class="jpc-tete"><img class="jpc-az" alt="" src="${reactSrc(reac)}"><p class="jpc-bulle">${txt}</p></div>`;
+  const dire = k => `<button type="button" class="jpc-son" data-j="dire" data-txt="${esc(k)}" aria-label="Écouter">${icn('son')}</button>`;
+  if (e.type === 'decouvre') {
+    const it = e.it;
+    c.innerHTML = `${az(it.kind === 'h' ? 'Un nouveau hiragana' : 'Un nouveau mot')}<div class="jpc-carte neuf"><p class="jpc-jp grand" lang="ja">${esc(it.k)}</p><p class="jpc-r">${esc(it.r)}</p>${it.f ? `<p class="jpc-f">${esc(it.f)}</p>` : ''}${it.kind === 'h' && exemple(it.k) ? `<p class="jpc-ex">comme dans <span lang="ja">${esc(exemple(it.k).k)}</span> (${esc(exemple(it.k).r)}, ${esc(exemple(it.k).f)})</p>` : ''}${dire(it.k)}</div><button class="btn jpc-go" data-j="suite">Compris</button>`;
+    setTimeout(() => jpDire(it.k), 350);
+    return;
+  }
+  const choix = e.tuiles ? `<div class="jpc-ligne"><div class="jpc-reponse" aria-live="polite"></div><button type="button" class="jpc-efface" data-j="efface" aria-label="Effacer la dernière tuile">⌫</button></div><div class="jpc-tuiles">${e.tuiles.map((t, n) => `<button type="button" class="jpc-tuile" data-j="tuile" data-n="${n}" lang="ja">${esc(t)}</button>`).join('')}</div>`
+    : `<div class="jpc-choix${e.jp ? ' jp' : ''}">${e.choix.map(x => `<button type="button" class="jpc-c" data-j="choix" data-v="${esc(x)}"${e.jp ? ' lang="ja"' : ''}>${esc(x)}</button>`).join('')}</div>`;
+  const montreRomaji = e.sous && (jpc.nouveaux.includes(e.it.id) || (JP().srs?.[e.it.id]?.b || 0) < 3);
+  c.innerHTML = `${az(e.aide)}<div class="jpc-carte">${e.ecoute ? `<button type="button" class="jpc-son grand" data-j="dire" data-txt="${esc(e.it.k)}" aria-label="Réécouter">${icn('son')}</button>` : `<p class="jpc-q${/^[぀-ヿ一-龯 ]+$/.test(e.q) ? ' jpc-jp' : ''}" ${/^[぀-ヿ]/.test(e.q) ? 'lang="ja"' : ''}>${esc(e.q)}</p>${montreRomaji && e.type !== 'assemble' ? `<p class="jpc-r">${esc(e.sous)}</p>` : ''}${['sens', 'lire'].includes(e.type) ? dire(e.it.k) : ''}`}</div>${choix}<div class="jpc-pied"></div>`;
+  if (e.ecoute || e.type === 'sens') setTimeout(() => jpDire(e.it.k), 300);
+}
+function jpcClic(ev) {
+  const b = ev.target.closest('[data-j]'); if (!b || !jpc) return;
+  const k = b.dataset.j, e = jpc.exos[jpc.i];
+  if (k === 'fermer') { jpcFermer(); return; }
+  if (k === 'dire') { jpDire(b.dataset.txt); return; }
+  if (k === 'suite') { if (e?.type === 'decouvre') jpc.vus.add(e.it.id); jpc.i++; jpcDraw(); haptic(1); return; }
+  if (k === 'fin') { jpcFermer(); return; }
+  if (!e || jpc.fait) return;
+  if (k === 'choix') jpcJuge(b.dataset.v === e.bon, b);
+  if (k === 'tuile') {
+    if (b.disabled) return; b.disabled = true; jpc.rep.push(Number(b.dataset.n)); sfx('tick');
+    const r = jpc.box.querySelector('.jpc-reponse'); r.innerHTML = jpc.rep.map(n => `<span lang="ja">${esc(e.tuiles[n])}</span>`).join('');
+    if (jpc.rep.length === [...e.bon].length) jpcJuge(jpc.rep.map(n => e.tuiles[n]).join('') === e.bon, r);
+  }
+  if (k === 'efface') { const n = jpc.rep.pop(); if (n !== undefined) { jpc.box.querySelector(`.jpc-tuile[data-n="${n}"]`).disabled = false; jpc.box.querySelector('.jpc-reponse').innerHTML = jpc.rep.map(m => `<span lang="ja">${esc(e.tuiles[m])}</span>`).join(''); } }
+}
+function jpcJuge(ok, el) {
+  const e = jpc.exos[jpc.i]; jpc.fait = true; jpc.total++;
+  const pied = jpc.box.querySelector('.jpc-pied');
+  jpc.box.querySelectorAll('.jpc-c').forEach(x => { if (x.dataset.v === e.bon) x.classList.add('bon'); });
+  if (ok) {
+    jpc.juste++; el.classList.add('bon'); sfx('done'); haptic('medium'); jpcAz(pick(['visite_fier', 'visite_coeur', 'visite_rire']));
+    jpc.box.querySelector('.jpc-bulle').textContent = pick(JPC_BRAVO);
+    if (e.type !== 'ecoute') jpDire(e.it.k);
+    setTimeout(() => { if (jpc && jpc.exos[jpc.i] === e) { jpc.i++; jpcDraw(); } }, 900);
+  } else {
+    el.classList.add('faux'); haptic('heavy'); jpcAz('visite_malice');
+    jpc.erreurs[e.it.id] = (jpc.erreurs[e.it.id] || 0) + 1;
+    jpc.box.querySelector('.jpc-bulle').textContent = 'Presque. On le revoit tout à l’heure.';
+    pied.innerHTML = `<p class="jpc-sol"><span lang="ja">${esc(e.it.k)}</span> · ${esc(e.it.r)}${e.it.f ? ` · ${esc(e.it.f)}` : ''}</p><button class="btn jpc-go" data-j="suite">Continuer</button>`;
+    jpDire(e.it.k);
+    // l'élément revient une fois en fin de leçon, sous une autre forme
+    if (!jpc.repris.has(e.it.id)) { jpc.repris.add(e.it.id); let alt = null; for (let n = 0; n < 6 && (!alt || alt.type === e.type); n++) alt = jpcExos([], [e.it])[0]; jpc.exos.push(alt); }
+  }
+}
+function jpcFin() {
+  const j = JP(), auj = new Date(); j.srs ||= {}; j.mots ||= []; j.hira ||= [];
+  const touches = new Set(jpc.exos.filter(x => x.it).map(x => x.it.id));
+  for (const id of touches) {
+    const x = j.srs[id] || { b: 0 }, err = jpc.erreurs[id] || 0;
+    x.b = jpc.nouveaux.includes(id) ? (err ? 1 : 2) : err ? Math.max(1, x.b - 1) : Math.min(JP_ECART.length - 1, x.b + 1);
+    const d = new Date(auj); d.setDate(d.getDate() + JP_ECART[x.b]); x.due = isoDate(d); j.srs[id] = x;
+    const it = jpItem(id); if (it?.kind === 'h' && !j.hira.includes(it.k)) j.hira.push(it.k); if (it?.kind === 'm' && !j.mots.includes(it.k)) j.mots.push(it.k);
+  }
+  const lecon = jpc.mode === 'lecon';
+  if (lecon) j.lecon = (j.lecon || 0) + 1;
+  j.coursJour = isoDate(auj); j.maj = Date.now(); jpSave(j); jpSync();
+  const pct = jpc.total ? Math.round(jpc.juste / jpc.total * 100) : 100;
+  const c = jpc.box.querySelector('.jpc-corps'); jpc.box.querySelector('.jpc-barre i').style.width = '100%';
+  const L = LECONS[j.lecon];
+  c.innerHTML = `<div class="jpc-tete fin"><img class="jpc-az" alt="" src="${reactSrc('fete_reussites')}"><p class="jpc-bulle">${lecon ? `Leçon finie ! ${jpc.nouveaux.length} nouveaux, ${pct} % de bonnes réponses.` : `Révisions faites : ${pct} % de bonnes réponses.`} ${pct >= 90 ? 'Otsukaresama ! (bon travail)' : 'Ce qui a coincé reviendra bientôt.'}</p></div>
+    ${lecon && L ? `<p class="hint jpc-next">Prochaine leçon : ${esc(L.t)}</p>` : lecon ? '<p class="hint jpc-next">Tu as fini toutes les leçons. Les révisions continuent.</p>' : ''}<button class="btn jpc-go" data-j="fin">Terminer</button>`;
+  sfx('big'); haptic('heavy'); burst?.('sparkle', c.querySelector('.jpc-az'), 14);
+  jpc.fini = true;
+}
+function jpcFermer() {
+  const b = jpc?.box; const fini = jpc?.fini; jpc = null; if (!b) return;
+  b.classList.remove('on'); setTimeout(() => b.remove(), 250);
+  try { speechSynthesis.cancel(); } catch {}
+  if (fini && S.view === 'maison' && !AZ.bulle) setTimeout(() => { azamiPose(pick(['Ganbatta ne ! (tu as bien travaillé) Je suis fière de toi.', 'Une leçon de plus. Bientôt tu liras mes étiquettes de croquettes.', 'Bravo. Moi, je retiens surtout « sakana » (poisson). Priorités.']), 'contente'); render(); }, 400);
+  render();
+}
+// La carte du cours, dans l'onglet Carnet d'Azami
+function jpCoursCarte() {
+  const j = JP(), n = j.lecon || 0, dus = jpDus(j).length, L = LECONS[n];
+  const chemin = LECONS.map((l, i) => `<span class="jpl ${i < n ? 'fait' : i === n ? 'ici' : ''}" title="${esc(l.t)}">${i < n ? '✓' : i + 1}</span>`).join('');
+  return `<section class="jp-cours"><div class="jp-cours-h"><p class="jp-cours-t"><span lang="ja">にほんご</span> Japonais avec Azami</p><small>${n}/${LECONS.length} leçons</small></div>
+    <div class="jp-chemin">${chemin}</div>
+    <div class="jp-cours-b">${L ? `<button class="btn" data-action="jp-lecon">Leçon ${n + 1} · ${esc(L.t)}</button>` : ''}${dus || (!L && Object.keys(j.srs || {}).length) ? `<button class="btn ${L ? 'ghost' : ''}" data-action="jp-revision">Réviser${dus ? ` (${dus})` : ''}</button>` : ''}</div>
+    <p class="hint">${n ? `${Object.keys(j.srs || {}).length} mots et hiragana appris. Ce que tu sais revient de temps en temps, juste avant de l’oublier.` : 'Cinq minutes par leçon : Azami présente, tu écoutes, puis de petits jeux. Chacun son carnet.'}</p></section>`;
 }
 
 // Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
@@ -5928,6 +6116,29 @@ function tresorAuHasard() {
 }
 // Les anniversaires : le jour venu, une fête pour la personne (confettis, un mot, un cadeau dessiné, une fois par an) ;
 // pour l'autre, un petit rappel la veille et le jour même. Une seule fois par jour et par téléphone.
+// L'agenda : un petit rappel, une seule fois par rendez-vous et par téléphone. Le jour même (avant l'heure) ou la
+// veille au soir, sur l'accueil, quand elle n'a rien d'autre à dire. Jamais en mode muette ni la nuit.
+const RDV_MOTS = {
+  auj: [t => `Aujourd’hui, il y a « ${t} ». Je dis ça pour que tu n’oublies pas, pas pour te stresser.`, t => `Petit rappel de chat : « ${t} », c’est aujourd’hui.`],
+  dem: [t => `Demain, c’est « ${t} ». Je le note dans un coin de ma tête, à côté des croquettes.`, t => `Psst… demain : « ${t} ». Voilà, c’est dit.`],
+};
+function agendaRappel() {
+  if (!S.me || S.view !== 'maison' || !S.agenda?.configured || AZ.bulle || AZ.busy || AZ.ecrit || AZ_MODE() === 'muette' || azamiNuit() || tamaAbsente()) return;
+  if (agendaRappel.at && Date.now() - agendaRappel.at < 60e3) return; agendaRappel.at = Date.now();
+  const now = new Date(), auj = isoDate(now), dem = isoDate(new Date(now.getTime() + DAY)), soir = now.getHours() >= 17;
+  let vus = {}; try { vus = JSON.parse(safeGet('maison-rdv-dits') || '{}'); } catch {}
+  const pas = e => !vus[`${e.id}|${evDay(e)}`];
+  const e = (S.agenda.events || []).find(e => pas(e) && !e.recurring && ((evDay(e) === auj && (e.allDay || new Date(e.start) > now)) || (soir && evDay(e) === dem)));
+  if (!e) return;
+  const quand = evDay(e) === auj ? 'auj' : 'dem', titre = e.allDay ? e.title : `${e.title} à ${evTime(e.start)}`;
+  setTimeout(() => {
+    if (AZ.bulle || AZ.busy || AZ.ecrit || S.view !== 'maison') return;   // elle a autre chose à dire : ce sera pour la prochaine fois
+    vus[`${e.id}|${evDay(e)}`] = Date.now();
+    for (const k of Object.keys(vus)) if (Date.now() - vus[k] > 30 * DAY) delete vus[k];
+    safeSet('maison-rdv-dits', JSON.stringify(vus));
+    azamiPose(pick(RDV_MOTS[quand])(titre), 'curieuse'); render();
+  }, 2200);
+}
 function annivFete() {
   if (DEMO && /azami=anniv/.test(location.search) && !S.anniv) S.anniv = {};
   if (!S.me || S.view !== 'maison' || !S.anniv) return;
@@ -6372,6 +6583,8 @@ const actions = {
   'azami-ecrire': () => azamiEcrire(),
   'azami-choix': el => AZ.quiz ? jpReponse(el.dataset.txt) : azamiEnvoyer(el.dataset.txt),
   'jp-dire': el => jpDire(el.dataset.txt),
+  'jp-lecon': () => jpcOuvrir('lecon'),
+  'jp-revision': () => jpcOuvrir('revision'),
   'azami-lire': () => { const id = AZ.courrier; AZ.courrier = null; AZ.bulle = ''; safeSet('maison-az-bulle', ''); S.loisirTab = 'mots'; S.openLetter = id; S.view = 'nuit'; render(); window.scrollTo(0, 0); },
   'azami-oui': async () => { const a = AZ.action; AZ.action = null; haptic(1); await azamiAgir(a); },
   'azami-non': () => { AZ.action = null; azamiPose(pick(['D’accord, je laisse. Je n’insiste jamais. Presque jamais.', 'Bon. Je range l’idée dans ma mémoire à moi.']), 'calme'); render(); },

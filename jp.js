@@ -40,3 +40,38 @@ export const HIRA = [
 ];
 // Un mot qui contient ce hiragana, pour l'exemple.
 export const exemple = h => MOTS.find(m => m.k.includes(h)) || null;
+
+// Les vrais cours (v252) : des leçons dans l'ordre, chacune avec quelques hiragana ou quelques mots nouveaux,
+// puis des exercices ; ce qui est appris revient ensuite en révision, de plus en plus espacée.
+export const MOTS_COURS = [
+  { k: 'うえ', r: 'ue', f: 'en haut' }, { k: 'ここ', r: 'koko', f: 'ici' }, { k: 'かお', r: 'kao', f: 'le visage' }, { k: 'あかい', r: 'akai', f: 'rouge' },
+  { k: 'すみません', r: 'sumimasen', f: 'excusez-moi, pardon' }, { k: 'はい', r: 'hai', f: 'oui' }, { k: 'いいえ', r: 'iie', f: 'non' },
+  { k: 'すし', r: 'sushi', f: 'les sushis' }, { k: 'あさ', r: 'asa', f: 'le matin' }, { k: 'うし', r: 'ushi', f: 'la vache' },
+  { k: 'て', r: 'te', f: 'la main' }, { k: 'くち', r: 'kuchi', f: 'la bouche' }, { k: 'たこ', r: 'tako', f: 'le poulpe' },
+  { k: 'なに', r: 'nani', f: 'quoi ?' }, { k: 'いぬ', r: 'inu', f: 'le chien' }, { k: 'はな', r: 'hana', f: 'la fleur, le nez' },
+  { k: 'ひと', r: 'hito', f: 'une personne' }, { k: 'ふね', r: 'fune', f: 'le bateau' }, { k: 'みみ', r: 'mimi', f: 'l’oreille' },
+  { k: 'め', r: 'me', f: 'l’œil' }, { k: 'もも', r: 'momo', f: 'la pêche' }, { k: 'やま', r: 'yama', f: 'la montagne' },
+  { k: 'ゆき', r: 'yuki', f: 'la neige' }, { k: 'ほん', r: 'hon', f: 'le livre' }, { k: 'はる', r: 'haru', f: 'le printemps' }, { k: 'さる', r: 'saru', f: 'le singe' },
+  { k: 'ねこがすき', r: 'neko ga suki', f: 'j’aime les chats' }, { k: 'おなかすいた', r: 'onaka suita', f: 'j’ai faim' },
+  { k: 'いってきます', r: 'ittekimasu', f: 'j’y vais (en partant)' }, { k: 'いってらっしゃい', r: 'itterasshai', f: 'bonne journée (à qui part)' },
+];
+export const LECONS = [
+  { t: 'Les premiers sons', kana: ['あ', 'い', 'う', 'え', 'お'], mots: ['いえ', 'うえ'] },
+  { t: 'Saluer', mots: ['おはよう', 'こんにちは', 'こんばんは', 'おやすみ'] },
+  { t: 'La rangée K', kana: ['か', 'き', 'く', 'け', 'こ'], mots: ['ここ', 'かお', 'あかい'] },
+  { t: 'Merci, pardon, oui, non', mots: ['ありがとう', 'すみません', 'はい', 'いいえ'] },
+  { t: 'La rangée S', kana: ['さ', 'し', 'す', 'せ', 'そ'], mots: ['すし', 'あさ', 'うし'] },
+  { t: 'Le chat', mots: ['ねこ', 'かわいい', 'ねむい', 'だいすき'] },
+  { t: 'La rangée T', kana: ['た', 'ち', 'つ', 'て', 'と'], mots: ['て', 'くち', 'たこ'] },
+  { t: 'À la maison', mots: ['ただいま', 'おかえり', 'げんき', 'すごい'] },
+  { t: 'La rangée N', kana: ['な', 'に', 'ぬ', 'ね', 'の'], mots: ['なに', 'いぬ'] },
+  { t: 'Le ménage', mots: ['そうじ', 'せんたく', 'ごみ', 'きれい'] },
+  { t: 'La rangée H', kana: ['は', 'ひ', 'ふ', 'へ', 'ほ'], mots: ['はな', 'ひと', 'ふね'] },
+  { t: 'Les courses', mots: ['かいもの', 'たまご', 'やさい', 'みず'] },
+  { t: 'La rangée M', kana: ['ま', 'み', 'む', 'め', 'も'], mots: ['みみ', 'め', 'もも'] },
+  { t: 'À table', mots: ['いただきます', 'ごちそうさま', 'おいしい', 'ごはん'] },
+  { t: 'Y, W et N', kana: ['や', 'ゆ', 'よ', 'わ', 'を', 'ん'], mots: ['やま', 'ゆき', 'ほん'] },
+  { t: 'Le soir à deux', mots: ['よる', 'いっしょに', 'たのしい', 'あいしてる'] },
+  { t: 'La rangée R', kana: ['ら', 'り', 'る', 'れ', 'ろ'], mots: ['りんご', 'はる', 'さる'] },
+  { t: 'Petites phrases', mots: ['ねこがすき', 'おなかすいた', 'いってきます', 'いってらっしゃい'] },
+];

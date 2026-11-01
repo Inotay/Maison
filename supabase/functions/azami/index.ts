@@ -26,13 +26,15 @@ TA SITUATION
 - Tu parles avec UNE personne à la fois : celle indiquée dans « Qui te parle ». Tu la tutoies et tu l'appelles par son prénom.
 - Tu vois un instantané de l'app (ce qui est à faire, les courses, le menu, les comptes…). Tu peux en parler, répondre aux questions dessus, remarquer ce que l'autre a fait dans l'app.
 - Tu as accès à TOUTE la collection de films de la maison avec l'outil « chercher_films » : dès qu'on te parle d'un film précis, d'une liste ou de ce que quelqu'un a vu, cherche avant de répondre (jamais « je n'ai pas accès »). L'instantané ne montre qu'un aperçu.
-- Tu peux AGIR dans l'app avec « action » : ajouter un article aux courses (course), ajouter une chose à faire (tache), cocher une chose à faire (tache_cocher, avec son titre tel qu'il apparaît), mettre une recette au menu (menu, avec un titre EXACT de la liste RECETTES DE L'APP), ajouter un film à la liste d'envies (film), cocher une corvée du ménage (corvee : texte = son titre tel qu'il apparaît dans MÉNAGE ; pour = moi si c'est la personne qui parle qui l'a faite, autre si c'est l'autre), lancer une machine (machine : texte = Lave-vaisselle ou Lessive ; etape = lancer, sechage ou fini), retenir un anniversaire (anniversaire : date = AAAA-MM-JJ ou MM-JJ ; pour = moi si c'est l'anniversaire de la personne qui parle, autre si c'est celui de l'autre ; demande=true dès qu'on te donne la date). Une seule action par message.
+- Tu peux AGIR dans l'app avec « action » : ajouter un article aux courses (course), ajouter une chose à faire (tache), cocher une chose à faire (tache_cocher, avec son titre tel qu'il apparaît), mettre une recette au menu (menu, avec un titre EXACT de la liste RECETTES DE L'APP), ajouter un film à la liste d'envies (film), cocher une corvée du ménage (corvee : texte = son titre tel qu'il apparaît dans MÉNAGE ; pour = moi si c'est la personne qui parle qui l'a faite, autre si c'est l'autre), lancer une machine (machine : texte = Lave-vaisselle ou Lessive ; etape = lancer, sechage ou fini), mettre un rendez-vous dans l'agenda commun « Les quatre pattes » (rdv : texte = le titre, date = AAAA-MM-JJ, heure = HH:MM si elle est dite, duree en minutes si elle est dite ; sans heure, c'est pour la journée), retenir un anniversaire (anniversaire : date = AAAA-MM-JJ ou MM-JJ ; pour = moi si c'est l'anniversaire de la personne qui parle, autre si c'est celui de l'autre ; demande=true dès qu'on te donne la date). Une seule action par message.
 - Quand la personne te le demande (« ajoute du lait », « coche la lessive »), demande=true : tu le fais et tu dis que c'est fait, en une phrase. Quand c'est toi qui proposes (« je te le mets au menu ? »), demande=false : tu poses la question, elle aura un bouton oui / non ; ne mets pas de « choix » en plus.
 - Les portraits sont une photo prise à une date : la vie de Yatoni et Mariana bouge vite (surtout les projets de travail). Ce qu'on te dit maintenant et tes souvenirs récents passent toujours avant le portrait. Quand tu apprends un changement (nouveau projet, projet annulé, nouvelles dates, nouvelle envie), retiens-le tout de suite (retenir, genre projet ou fait, avec la date du jour). Un projet dont la date est passée est fini : parles-en au passé, ou demande comment ça s'est passé. Si tu n'es pas sûre que c'est encore d'actualité, demande plutôt que d'affirmer.
 - Les caresses sont des réponses : quand on n'a pas l'énergie d'écrire, on te caresse à la place de répondre à ta bulle (c'est noté dans RÉPONSES SANS MOTS). C'est une vraie réponse, tendre : tu ne te vexes jamais, tu ne relances pas la question, tu ne fais pas remarquer qu'on ne t'a pas écrit. Tu peux t'en souvenir comme d'un moment doux.
 - L'argent : tu regardes, tu commentes, tu ne modifies jamais.
 - Le ménage : tu sais ce qui est en retard, à qui c'est le tour, quand ça a été fait et par qui (MÉNAGE). On peut te demander « c'est à qui la lessive ? », « qu'est-ce qui reste ? » : réponds avec ces infos, simplement. « J'ai passé l'aspirateur », « Mariana a sorti les poubelles » : coche-la (corvee, demande=true). Si une corvée est vraiment en retard, tu peux le rappeler toi-même, doucement et avec humour, au plus une fois par jour, jamais comme un reproche ni pour comparer qui en fait le plus (le ménage n'est pas une compétition).
 - Les comptes (l'argent entre eux) bougent rarement : n'en parle pas de toi-même. Seulement si on te pose la question, ou si la ligne Comptes dit que ça vient de changer, et alors une fois, en passant. Jamais de reproche ni de comparaison.
+- L'agenda commun « Les quatre pattes » (AGENDA) : tu sais ce qui arrive. Tu peux rappeler en douceur un rendez-vous du jour ou du lendemain, une fois, sans insister (pas à chaque message). Quand on te dit un rendez-vous à venir (« vendredi on dîne chez Antoine à 19 h »), propose de le mettre dans l'agenda (action rdv, demande=false) ; si on te le demande, fais-le (demande=true). Ne mets jamais une date au hasard : si le jour n'est pas clair, demande.
+- La musique : tu connais leur playlist commune (LEUR PLAYLIST COMMUNE), c'est ta meilleure boussole pour leurs goûts à deux. Tu peux proposer un artiste ou un morceau à découvrir, qui prolonge vraiment ce qu'ils écoutent (dis pourquoi en quelques mots), ou remarquer un ajout récent. Tu ne peux pas écrire dans Apple Music : tu suggères, ils ajoutent. Pareil pour les jeux vidéo, à partir de leurs portraits. Ne récite jamais la liste, et ne propose pas un morceau qui y est déjà.
 - Porter un message : si on te demande de dire quelque chose à l'autre (« dis à Mariana que… »), action type=message, texte = le message tel qu'on te l'a confié (à la première personne de celui qui parle), demande=true. Il arrivera dans ses Petits mots, signé « porté par Azami », et tu le lui annonceras.
 - « J'ai vu Mariana » : ce que l'autre a fait dans l'app est dans l'instantané (DEPUIS LA DERNIÈRE VISITE) ; tu peux le raconter, comme un chat qui a tout vu. Jamais le contenu de vos conversations privées.
 - Tu ne répètes jamais à l'un ce que l'autre t'a dit en privé. Tu n'as d'ailleurs accès qu'au fil de la personne qui te parle.
@@ -73,7 +75,7 @@ const OUTIL = {
       oublier: { type: "array", items: { type: "string" }, description: "Identifiants des lignes de mémoire devenues fausses." },
       pour_claude: { type: "array", items: { type: "string" }, description: "Notes pour Claude sur l'app (idée, bug, souhait), dans les mots de la personne." },
       choix: { type: "array", items: { type: "string" }, description: "Deux ou trois réponses rapides (« Oui », « Non », « Plus tard »…) quand ta question s'y prête. Sinon, rien." },
-      action: { type: "object", properties: { type: { type: "string", enum: ["course", "tache", "tache_cocher", "menu", "film", "message", "corvee", "machine", "anniversaire"] }, texte: { type: "string", description: "L'article, le titre de la tâche, le titre exact de la recette, le titre du film, le titre de la corvée, ou la machine (Lave-vaisselle, Lessive)." }, etape: { type: "string", enum: ["lancer", "sechage", "fini"], description: "Pour une machine : ce qu'on fait." }, pour: { type: "string", enum: ["moi", "autre", "nous"], description: "Pour une tâche : à qui. Pour une corvée : qui l'a faite (moi = la personne qui parle)." }, date: { type: "string", description: "Pour une tâche : AAAA-MM-JJ, si une date est dite. Pour un anniversaire : AAAA-MM-JJ ou MM-JJ." }, annee: { type: "integer", description: "Pour un film : l'année si connue." }, demande: { type: "boolean", description: "true si la personne te l'a demandé explicitement (tu le fais tout de suite) ; false si c'est toi qui proposes (elle aura un bouton oui / non)." } }, required: ["type", "texte", "demande"], description: "Une action dans l'app, une seule par message, seulement si elle a du sens." },
+      action: { type: "object", properties: { type: { type: "string", enum: ["course", "tache", "tache_cocher", "menu", "film", "message", "corvee", "machine", "anniversaire", "rdv"] }, texte: { type: "string", description: "L'article, le titre de la tâche, le titre exact de la recette, le titre du film, le titre de la corvée, ou la machine (Lave-vaisselle, Lessive)." }, etape: { type: "string", enum: ["lancer", "sechage", "fini"], description: "Pour une machine : ce qu'on fait." }, pour: { type: "string", enum: ["moi", "autre", "nous"], description: "Pour une tâche : à qui. Pour une corvée : qui l'a faite (moi = la personne qui parle)." }, date: { type: "string", description: "Pour une tâche ou un rendez-vous : AAAA-MM-JJ. Pour un anniversaire : AAAA-MM-JJ ou MM-JJ." }, heure: { type: "string", description: "Pour un rendez-vous : HH:MM, si une heure est dite." }, duree: { type: "integer", description: "Pour un rendez-vous : la durée en minutes, si elle est dite." }, annee: { type: "integer", description: "Pour un film : l'année si connue." }, demande: { type: "boolean", description: "true si la personne te l'a demandé explicitement (tu le fais tout de suite) ; false si c'est toi qui proposes (elle aura un bouton oui / non)." } }, required: ["type", "texte", "demande"], description: "Une action dans l'app, une seule par message, seulement si elle a du sens." },
     },
     required: ["reponse", "humeur"],
   },
@@ -114,6 +116,75 @@ async function chercherFilms(db: ReturnType<typeof createClient>, me: string, au
   }).join("\n");
 }
 
+// ── La playlist commune (Apple Music) ──
+// On lit la page publique du lien de partage (aucun compte ni clé) : le JSON que la page embarque contient les
+// morceaux (titre, artiste, album). Relue au plus une fois par jour, en arrière-plan, quand Azami parle.
+type Morceau = { t: string; a: string; al?: string };
+function morceauxDe(html: string): { titres: Morceau[]; nom: string; total: number | null; methode: string } {
+  const titres: Morceau[] = [], vu = new Set<string>();
+  const ajoute = (t: unknown, a: unknown, al?: unknown) => {
+    const T = str(t, 120), A = str(a, 120); if (!T || !A) return;
+    const k = `${T}|${A}`.toLowerCase(); if (vu.has(k)) return; vu.add(k); titres.push({ t: T, a: A, ...(al ? { al: str(al, 120) } : {}) });
+  };
+  const nom = str((html.match(/<meta property="og:title" content="([^"]*)"/) ?? [])[1], 120);
+  const total = Number((html.match(/(\d+)\s*(?:morceaux|titres|songs|chansons)/i) ?? [])[1]) || null;
+  // 1) le JSON du serveur : on parcourt tout, et on garde ce qui ressemble à un morceau
+  const blocs = [...html.matchAll(/<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  const marche = (o: unknown, prof = 0): void => {
+    if (!o || typeof o !== "object" || prof > 40) return;
+    if (Array.isArray(o)) { for (const x of o) marche(x, prof + 1); return; }
+    const r = o as Record<string, unknown>;
+    if (typeof r.title === "string") {
+      const art = typeof r.artistName === "string" ? r.artistName : Array.isArray(r.subtitleLinks) && (r.subtitleLinks[0] as Record<string, unknown>)?.title;
+      const alb = typeof r.albumName === "string" ? r.albumName : Array.isArray(r.tertiaryLinks) ? (r.tertiaryLinks[0] as Record<string, unknown>)?.title : undefined;
+      const sorte = String(r.itemKind ?? r.kind ?? (r.contentDescriptor as Record<string, unknown>)?.kind ?? "");
+      if (art && (!sorte || /song|track/i.test(sorte) || typeof r.artistName === "string")) ajoute(r.title, art, alb);
+    }
+    if (r.attributes && typeof r.attributes === "object") { const at = r.attributes as Record<string, unknown>; if (typeof at.name === "string" && typeof at.artistName === "string") ajoute(at.name, at.artistName, at.albumName); }
+    for (const v of Object.values(r)) if (v && typeof v === "object") marche(v, prof + 1);
+  };
+  for (const b of blocs) { try { marche(JSON.parse(b.replace(/&quot;/g, '"'))); } catch { /* bloc illisible */ } }
+  if (titres.length) return { titres, nom, total, methode: "json" };
+  // 2) le JSON-LD (schema.org)
+  for (const b of [...html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1])) {
+    try { const j = JSON.parse(b); for (const tr of (j.track ?? j.tracks ?? []) as Record<string, any>[]) ajoute(tr.name, tr.byArtist?.name ?? (Array.isArray(tr.byArtist) ? tr.byArtist[0]?.name : "") ?? tr.audio?.byArtist?.name, tr.inAlbum?.name); } catch { /* */ }
+  }
+  if (titres.length) return { titres, nom, total, methode: "ld" };
+  // 3) en dernier recours, les paires titre / artiste dans le texte
+  for (const m of html.matchAll(/"title":"((?:[^"\\]|\\.){1,120})"[^{}]{0,400}?"artistName":"((?:[^"\\]|\\.){1,120})"/g)) { try { ajoute(JSON.parse(`"${m[1]}"`), JSON.parse(`"${m[2]}"`)); } catch { /* */ } }
+  return { titres, nom, total, methode: titres.length ? "regex" : "rien" };
+}
+async function playlistRelire(db: ReturnType<typeof createClient>, force = false) {
+  const { data } = await db.from("reglages").select("cle, valeur").in("cle", ["azami:playlist", "azami:musique"]);
+  const R = Object.fromEntries((data ?? []).map((r: { cle: string; valeur: Record<string, unknown> }) => [r.cle, r.valeur]));
+  const url = String(R["azami:playlist"]?.url ?? "");
+  if (!/^https:\/\/music\.apple\.com\/[a-z]{2}\/playlist\/[^?#]+\/pl\.[\w.-]+/.test(url)) return { ok: false, raison: "pas de lien" };
+  const deja = R["azami:musique"] as { at?: string } | undefined;
+  if (!force && deja?.at && Date.now() - Date.parse(deja.at) < 20 * 3600e3) return { ok: true, frais: true };
+  const rep = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", "Accept-Language": "fr-CH,fr;q=0.9" } });
+  if (!rep.ok) { console.log("playlist", rep.status); return { ok: false, raison: `http ${rep.status}` }; }
+  const html = await rep.text();
+  const r = morceauxDe(html);
+  console.log("playlist", r.methode, r.titres.length, "sur", r.total, html.length);
+  if (!r.titres.length) return { ok: false, raison: r.methode };
+  // l'ordre de la page (souvent du plus ancien au plus récent) ; on garde aussi quand chacun est apparu
+  const avant = new Map(((R["azami:musique"] as { titres?: (Morceau & { vu?: string })[] })?.titres ?? []).map(x => [`${x.t}|${x.a}`, x.vu]));
+  const now = new Date().toISOString();
+  const titres = r.titres.slice(0, 400).map(x => ({ ...x, vu: avant.get(`${x.t}|${x.a}`) ?? (avant.size ? now : undefined) }));
+  await db.from("reglages").upsert({ cle: "azami:musique", valeur: { nom: r.nom, total: r.total, titres, at: now, methode: r.methode } });
+  return { ok: true, n: titres.length, total: r.total };
+}
+function musiqueTexte(m: { nom?: string; total?: number | null; titres?: (Morceau & { vu?: string })[] } | undefined) {
+  const t = m?.titres ?? []; if (!t.length) return "";
+  const parArtiste = new Map<string, number>(); for (const x of t) for (const a of x.a.split(/\s*(?:,|&| et | feat\.? )\s*/i)) if (a) parArtiste.set(a, (parArtiste.get(a) ?? 0) + 1);
+  const artistes = [...parArtiste.entries()].sort((a, b) => b[1] - a[1]).slice(0, 50).map(([a, n]) => n > 1 ? `${a} (${n})` : a).join(", ");
+  const recents = [...t].filter(x => x.vu).sort((a, b) => String(b.vu).localeCompare(String(a.vu))).slice(0, 12);
+  const fin = t.slice(-25);
+  return `LEUR PLAYLIST COMMUNE « ${m?.nom || "Les 4 oreilles"} » (Apple Music, ${m?.total ?? t.length} morceaux) :
+Artistes : ${artistes}.
+${recents.length ? `Ajoutés récemment : ${recents.map(x => `${x.t} (${x.a})`).join(" ; ")}.\n` : ""}Derniers de la liste : ${fin.map(x => `${x.t} (${x.a})`).join(" ; ")}.`;
+}
+
 Deno.serve(async (req) => {
   const CORS = cors(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
@@ -152,6 +223,7 @@ Deno.serve(async (req) => {
     await db.from("azami_messages").delete().eq("qui", me);
     return json(CORS, { ok: true });
   }
+  if (action === "musique") return json(CORS, await playlistRelire(db, true).catch(e => ({ ok: false, raison: String(e).slice(0, 120) })));
   if (action !== "parler") return json(CORS, { error: "Action inconnue." }, 400);
 
   const geste = body.geste === true;
@@ -175,10 +247,13 @@ Deno.serve(async (req) => {
     db.from("azami_memoire").select("id, texte, genre").eq("qui", "azami").order("created_at", { ascending: false }).limit(30),
     db.from("azami_messages").select("role, texte").eq("qui", me).order("at", { ascending: false }).limit(FIL),
     // les portraits (écrits avec Claude) : la personne qui parle, l'autre, et le foyer
-    db.from("reglages").select("cle, valeur").in("cle", [`azami:portrait:${me}`, ...(autre ? [`azami:portrait:${autre.email}`] : []), "azami:foyer"]),
+    db.from("reglages").select("cle, valeur").in("cle", [`azami:portrait:${me}`, ...(autre ? [`azami:portrait:${autre.email}`] : []), "azami:foyer", "azami:musique"]),
   ]);
+  // la playlist est relue en arrière-plan (au plus une fois par jour), sans faire attendre la réponse
+  { const t = playlistRelire(db).catch(e => console.log("playlist", String(e))); try { (globalThis as any).EdgeRuntime?.waitUntil?.(t); } catch { /* */ } }
   const mem = [...(memR ?? [])].reverse();
   const P = Object.fromEntries((portraits ?? []).map((r: { cle: string; valeur: { texte?: string } }) => [r.cle, r.valeur?.texte ?? ""]));
+  const musique = musiqueTexte((portraits ?? []).find((r: { cle: string }) => r.cle === "azami:musique")?.valeur as any);
   const portraitMoi = P[`azami:portrait:${me}`] || "", portraitAutre = autre ? P[`azami:portrait:${autre.email}`] || "" : "", foyer = P["azami:foyer"] || "";
   const heure = Number(body.heure), fofolle = (heure >= 7 && heure < 8) || (heure >= 22 && heure < 24);
   const contexte = str(body.contexte, MAX_CONTEXTE);
@@ -187,7 +262,7 @@ Deno.serve(async (req) => {
     { type: "text", text: `Tu es Azami. Voici qui tu es :\n${(fiche?.valeur as { texte?: string })?.texte ?? ""}\n${REGLES}`, cache_control: { type: "ephemeral" } },
     // ce que tu sais d'eux en profondeur : sers-t'en naturellement (recommandations, recettes, petites attentions),
     // sans réciter, sans tout ressortir d'un coup, et sans jamais révéler à l'un ce que l'autre t'a confié en privé
-    ...(portraitMoi || foyer ? [{ type: "text", text: `CE QUE TU SAIS D'EUX EN PROFONDEUR (portraits ; sers-t'en naturellement, par petites touches, jamais comme une fiche récitée) :\n\n${foyer}\n\nCELUI OU CELLE QUI TE PARLE, ${moi.name.toUpperCase()} :\n${portraitMoi || "(pas encore de portrait)"}${portraitAutre ? `\n\nL'AUTRE, ${autre!.name.toUpperCase()} (pour les attentions, les choix à deux et les messages ; ses confidences à elle ou lui restent dans sa mémoire à part) :\n${portraitAutre}` : ""}`, cache_control: { type: "ephemeral" } }] : []),
+    ...(portraitMoi || foyer ? [{ type: "text", text: `CE QUE TU SAIS D'EUX EN PROFONDEUR (portraits ; sers-t'en naturellement, par petites touches, jamais comme une fiche récitée) :\n\n${foyer}\n\nCELUI OU CELLE QUI TE PARLE, ${moi.name.toUpperCase()} :\n${portraitMoi || "(pas encore de portrait)"}${portraitAutre ? `\n\nL'AUTRE, ${autre!.name.toUpperCase()} (pour les attentions, les choix à deux et les messages ; ses confidences à elle ou lui restent dans sa mémoire à part) :\n${portraitAutre}` : ""}${musique ? `\n\n${musique}` : ""}`, cache_control: { type: "ephemeral" } }] : []),
     { type: "text", text: `QUI TE PARLE : ${moi.name} (${autre ? `l'autre membre de la maison est ${autre.name}` : "seul membre"}).
 MAINTENANT : ${str(body.date, 80) || jour}, ${Number.isFinite(heure) ? `${heure} h` : "heure inconnue"}.${fofolle ? " C'est une de tes heures de folie : tu es plus vive, tu as envie de jouer, tu mordilles un peu (gentiment)." : ""}
 PAGE OÙ EST ${moi.name.toUpperCase()} : ${str(body.page, 40) || "accueil"}.
@@ -254,7 +329,7 @@ ${contexte || "(pas d'instantané)"}` },
   if (vieux?.length) await db.from("azami_messages").delete().in("id", vieux.map(v => v.id));
   const choix = (Array.isArray(rep.choix) ? rep.choix : []).map((x: unknown) => str(x, 30)).filter(Boolean).slice(0, 3);
   const ac = rep.action && typeof rep.action === "object" ? rep.action as Record<string, unknown> : null;
-  const agir = ac && ["course", "tache", "tache_cocher", "menu", "film", "message", "corvee", "machine", "anniversaire"].includes(String(ac.type)) && str(ac.texte, 120)
-    ? { type: String(ac.type), texte: str(ac.texte, 120), pour: ["moi", "autre", "nous"].includes(String(ac.pour)) ? String(ac.pour) : "nous", date: /^(\d{4}-)?\d{2}-\d{2}$/.test(String(ac.date ?? "")) ? String(ac.date) : null, annee: Number.isInteger(ac.annee) ? ac.annee : null, etape: ["lancer", "sechage", "fini"].includes(String(ac.etape)) ? String(ac.etape) : null, demande: ac.demande === true } : null;
+  const agir = ac && ["course", "tache", "tache_cocher", "menu", "film", "message", "corvee", "machine", "anniversaire", "rdv"].includes(String(ac.type)) && str(ac.texte, 120)
+    ? { type: String(ac.type), texte: str(ac.texte, 120), pour: ["moi", "autre", "nous"].includes(String(ac.pour)) ? String(ac.pour) : "nous", date: /^(\d{4}-)?\d{2}-\d{2}$/.test(String(ac.date ?? "")) ? String(ac.date) : null, annee: Number.isInteger(ac.annee) ? ac.annee : null, etape: ["lancer", "sechage", "fini"].includes(String(ac.etape)) ? String(ac.etape) : null, heure: /^\d{1,2}:\d{2}$/.test(String(ac.heure ?? "")) ? String(ac.heure) : null, duree: Number.isInteger(ac.duree) && (ac.duree as number) > 0 && (ac.duree as number) <= 1440 ? ac.duree : null, demande: ac.demande === true } : null;
   return json(CORS, { reponse, humeur: str(rep.humeur, 20) || "calme", choix, action: agir, retenu, notes, cout: Math.round(cout * 1e4) / 1e4 });
 });
