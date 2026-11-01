@@ -85,6 +85,12 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
   (balai au sol, casserole et toque de travers, sac, tirelire, lettre, lunettes 3D et pop-corn, album) : dortprops.py.
 - Gros Z tracés à l'encre (contour clair), qui montent en grossissant.
 
+## Le mot du soir (v235)
+- Fonction rappels, tournée de 18 h 30 : au plus une notification Azami par jour et par personne, seulement en mode
+  Bavarde (réglage recopié dans reglages 'azami:mode:<e-mail>'), seulement si elle a quelque chose à dire
+  (grève, balade, faim, crottes, soif, câlins ; sinon un mot doux une fois sur quatre). Jauges recalculées côté
+  serveur comme dans l'app. Déjà envoyé : reglages 'azami:notifs'. Réglages → « Un mot d'Azami le soir » → Essayer.
+
 ## Ordre de fabrication
 1. L'état partagé + les jauges + ce qu'elle en dit dans ses bulles (sans nouvelle animation).
 2. Nourrir : la gamelle, le choix dessiné, l'animation « mange », le gargouillis.
