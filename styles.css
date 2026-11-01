@@ -2112,3 +2112,16 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 @media (prefers-reduced-motion: reduce) { .hd .azami.cachee { animation: none; } }
 .az-barre.az-partie { justify-content: center; padding: 12px 18px; }
 .az-barre.az-partie p { margin: 0; font-family: 'Patrick Hand', sans-serif; font-size: 19px; line-height: 1.25; color: #2A1C15; text-align: center; }
+
+/* Zoomies et départ en balade : l'image traverse l'écran (propriété translate, indépendante du scale de l'en-tête). */
+.hd img.azami.court { animation: az-court 2.4s linear both; position: relative; z-index: 40; }
+@keyframes az-court {
+  0% { translate: 0 0; animation-timing-function: cubic-bezier(.5, 0, .9, .6); }
+  37.5% { translate: -120vw 0; }
+  37.6% { translate: 120vw 0; animation-timing-function: cubic-bezier(.1, .5, .4, 1); }
+  79% { translate: 0 0; }
+  100% { translate: 0 0; }
+}
+.hd img.azami.sen-va { animation: az-sen-va 3s linear both; position: relative; z-index: 40; }
+@keyframes az-sen-va { 0%, 16% { translate: 0 0; animation-timing-function: cubic-bezier(.4, 0, .9, .7); } 100% { translate: 110vw 0; } }
+@media (prefers-reduced-motion: reduce) { .hd img.azami.court, .hd img.azami.sen-va { animation: none; } }

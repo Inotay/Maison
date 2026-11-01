@@ -1976,6 +1976,8 @@ function playOnImg(img, id, ms, then) {
   setTimeout(() => { if (img.dataset.caresse !== tok) return; delete img.dataset.caresse; then ? then(back) : restoreScene(img, back); }, ms);
 }
 const azamiAway = () => Date.now() < awayUntil;
+// Quand elle court ou s'en va, c'est l'image entière qui traverse l'écran (sinon le dessin se fait couper aux bords de sa boîte).
+function traverse(img, cls, ms) { img.classList.remove(cls); void img.offsetWidth; img.classList.add(cls); setTimeout(() => img.classList.remove(cls), ms + 50); }
 // Son état (dort…) dans la scène de la page : sur une page à accessoires, elle dort à côté de son balai, de sa casserole…
 const TAMA_HABILLE = ['dort'];
 function tamaSrc(img, etat) {
@@ -2327,22 +2329,48 @@ function deepLink() {
 }
 // Quand quelque chose apparaît ou disparaît (une bulle d'Azami, une ligne cochée…), le reste de la page ne se
 // téléporte pas : chaque bloc part de son ancienne place et glisse jusqu'à la nouvelle (technique « FLIP »).
+// Chaque bloc est suivi par son identité (sa classe principale, son id…), pas par sa boîte : quand la page est
+// redessinée, une même boîte peut être réutilisée pour un autre bloc (la barre d'Azami devient la carte d'en dessous…).
+const GLISSE_ETATS = new Set(['on', 'part', 'vif', 'seule', 'sous', 'open', 'done', 'fresh', 'tape', 'active']);
+function glisseBlocs() {
+  const vus = {}, out = [];
+  for (const e of $app.querySelectorAll(':scope > *:not(.nav):not(.demo), .item')) {
+    const k0 = nodeKey(e) ? `${e.tagName}#${nodeKey(e)}` : `${e.tagName}.${[...e.classList].filter(c => !GLISSE_ETATS.has(c)).slice(0, 3).join('.')}`;
+    const n = vus[k0] = (vus[k0] || 0) + 1;
+    out.push([`${k0}~${n}`, e]);
+  }
+  return out;
+}
 function glisseAvant() {
   if (render.view !== S.view || reducedMotion() || !$app.querySelector('.nav')) return null;
   const m = new Map();
-  for (const e of $app.querySelectorAll(':scope > *:not(.nav):not(.demo), .item')) m.set(e, e.getBoundingClientRect().top);
+  for (const [k, e] of glisseBlocs()) {
+    const vu = e.getBoundingClientRect().top;
+    m.set(k, { vu, place: vu - glisseDecal(e), e });   // où on la voit (avec un glissement en cours) et où elle est vraiment
+  }
   return m;
+}
+// Décalage vertical d'un glissement en cours (0 s'il n'y en a pas).
+function glisseDecal(e) {
+  if (!e.getAnimations?.().some(a => a.id === 'glisse')) return 0;
+  try { return new DOMMatrixReadOnly(getComputedStyle(e).transform).m42 || 0; } catch { return 0; }
 }
 function glisseApres(m) {
   if (!m) return;
   const H = innerHeight;
-  for (const [e, avant] of m) {
-    if (!e.isConnected) continue;
-    const dy = avant - e.getBoundingClientRect().top;
+  for (const [k, e] of glisseBlocs()) {
+    const avant = m.get(k); if (!avant) continue;   // un bloc nouveau : il apparaît à sa place (sa propre animation d'entrée)
+    const { vu, place } = avant;
+    const enCours = e.getAnimations?.().filter(a => a.id === 'glisse') || [];
+    // la boîte a pu changer de rôle : son glissement en cours ne la concerne plus
+    if (avant.e !== e) enCours.forEach(a => a.cancel());
+    const nouvelle = e.getBoundingClientRect().top - glisseDecal(e);
+    if (avant.e === e && Math.abs(nouvelle - place) < 2) continue;   // rien n'a bougé pour elle : un glissement en cours continue tranquillement
+    const dy = vu - nouvelle;
+    e.getAnimations?.().filter(a => a.id === 'glisse').forEach(a => a.cancel());
     if (Math.abs(dy) < 2 || Math.abs(dy) > H * 1.5) continue;
-    if (e.getBoundingClientRect().top > H + 40 && avant > H + 40) continue;   // hors de l'écran avant et après : inutile
-    e.getAnimations?.().forEach(a => { if (a.id === 'glisse') a.cancel(); });
-    const a = e.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 420, easing: 'cubic-bezier(.22,.9,.3,1)' }); a.id = 'glisse';
+    if (nouvelle > H + 40 && vu > H + 40) continue;   // hors de l'écran avant et après : inutile
+    const a = e.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 460, easing: 'cubic-bezier(.33,0,.2,1)' }); a.id = 'glisse';
   }
 }
 function render() {
@@ -2575,7 +2603,7 @@ function viewMaison() {
     ${DEMO ? '' : `<div class="theme-row"><span>Un mot d’Azami le soir</span>${AZ_MODE() !== 'bavarde' ? '<span class="hint">Seulement en mode Bavarde</span>' : notifOn() ? '<button class="btn ghost small" data-action="azami-notif-test">Essayer</button>' : '<button class="btn ghost small" data-action="notif">Activer les notifications</button>'}</div>`}
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v236</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v237</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5630,7 +5658,7 @@ function tamaScene() {
     if (etat) img.dataset.tama = etat; else delete img.dataset.tama;
     if (!img.dataset.caresse) { if (etat) { stopPropSounds(); img.src = tamaSrc(img, etat); } else restoreScene(img, azamiSrc(Object.keys(azamiImgs).find(k => azamiImgs[k] === img) || 'v44_repos')); }
   }
-  if (!etat && !ou && S.view === 'maison' && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); }
+  if (!etat && !ou && S.view === 'maison' && (azamiFolie() || essai === 'zoomies') && !img.dataset.caresse && Date.now() - zoomiesAt > 90e3 && Math.random() < .4) { zoomiesAt = Date.now(); playOnImg(img, 'zoomies', 2400); traverse(img, 'court', 2400); }
 }
 // Oubliée plusieurs jours (aucun geste de personne : nourrir, boire, jouer, caresser) : au bout de deux jours elle part
 // se balader et se cache sur une autre page de l'app (on la voit dépasser, il faut la toucher pour la ramener) ; au
@@ -5655,7 +5683,7 @@ function tamaOubli(t, img) {
     const pages = CROTTE_PAGES.filter(p => p !== 'maison' && p !== S.view);
     t.balade = { page: /azami=tama:balade/.test(location.search) ? 'recettes' : pick(pages), at: Date.now() }; tamaSave(true);
     AZ.bulle = ''; AZ.choix = [];
-    if (img && S.view === 'maison') { playOnImg(img, 'part', 3000, () => { img.dataset.tama = 'part'; render(); }); meow(true, .3, 'mrrr'); }
+    if (img && S.view === 'maison') { playOnImg(img, 'part', 3000, () => { img.dataset.tama = 'part'; render(); }); traverse(img, 'sen-va', 3000); meow(true, .3, 'mrrr'); }
   }
 }
 // On la touche là où elle se cache : retrouvailles.

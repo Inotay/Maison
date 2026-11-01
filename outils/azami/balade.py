@@ -18,11 +18,11 @@ def anims():
     a = Anim('part', 3.0, loop=False, title='Azami · Part en balade', desc='Elle se retourne, jette un regard par-dessus l’épaule, et s’en va tranquillement par la droite.')
     marche(a)
     c = 'character'
-    a.at(c, 0, {'sx': -1}, LIN).at(c, .5, {'sx': -1}, SOFT).at(c, 2.9, {'sx': -1, 'x': 560}, LIN).at(c, 3.0, {'sx': -1, 'x': 560, 'o': 0}, STEP)
+    # elle marche sur place : dans l'app, c'est l'image entière qui s'en va vers la droite (rien ne la coupe)
+    a.at(c, 0, {'sx': -1}, LIN).at(c, 3.0, {'sx': -1}, LIN)
     a.at('head', 0, {}, SOFT).at('head', .3, {'r': -14, 'x': 10}, OUTQ).at('head', 1.0, {'r': -14, 'x': 10}, ANT).at('head', 1.3, {}, SOFT).at('head', 3.0, {}, LIN)
     a.look(.3, 8, 0, .7); a.blink(1.6)
     a.at('tail', 0, {'r': -18}, LIN).at('tail', 3.0, {'r': -18}, LIN)
-    a.at('ground-shadow', 0, {}, SOFT).at('ground-shadow', .5, {}, SOFT).at('ground-shadow', 2.9, {'x': 560}, LIN).at('ground-shadow', 3.0, {'x': 560, 'o': 0}, STEP)
     out.append(a)
 
     # ── grève (boucle) : assise, dos tourné, oreilles plates, rien ne bouge sauf le bout de la queue ──

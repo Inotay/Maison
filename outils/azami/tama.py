@@ -100,9 +100,10 @@ def anims():
     a.cycle('core', .18, [(0, {'y': 0}, SOFT), (.09, {'y': -6}, SOFT), (.18, {'y': 0}, SOFT)])
     for e in ('ear-left', 'ear-right'): a.at(e, 0, {'r': 30 if e == 'ear-left' else -30}, LIN).at(e, 2.4, {'r': 30 if e == 'ear-left' else -30}, LIN)
     a.at('tail', 0, {'r': 20}, LIN).at('tail', 2.4, {'r': 20}, LIN)
+    # elle court sur place : c'est l'image entière qui traverse l'écran (dans l'app), pour que rien ne la coupe
     c = 'character'
-    a.at(c, 0, {'x': 0, 'r': -6}, 'cubic-bezier(.4,0,.6,1)').at(c, .9, {'x': -620, 'r': -6}, STEP)       # file à gauche
-    a.at(c, .92, {'x': 620, 'r': 6, 'sx': -1}, 'cubic-bezier(.4,0,.6,1)').at(c, 1.9, {'x': 0, 'r': 6, 'sx': -1}, STEP)   # revient par la droite, à l'envers
+    a.at(c, 0, {'r': -6}, LIN).at(c, .9, {'r': -6}, STEP)                       # file à gauche
+    a.at(c, .92, {'r': 6, 'sx': -1}, LIN).at(c, 1.9, {'r': 6, 'sx': -1}, STEP)   # revient par la droite, à l'envers
     a.at(c, 1.92, {'sx': 1, 'r': 0}, OUTQ).at(c, 2.4, {}, LIN)
     out.append(a)
 
