@@ -2207,3 +2207,30 @@ svg.tresor { width: 44px; height: 44px; filter: drop-shadow(0 2px 0 rgba(42, 28,
 .jpl.ici { border-color: var(--ink); color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 60%, transparent); }
 .jp-cours-b { display: flex; flex-wrap: wrap; gap: 8px; }
 .jp-cours .hint { margin: 10px 0 0; }
+/* v254 : parler d'abord — le rōmaji en grand, l'écriture japonaise en petit */
+.jpc-carte .jpc-ro, .jpc-carte .jpc-q { padding: 0 40px; }
+.jpc-ro { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: .01em; line-height: 1.2; }
+.jpc-kana { margin: 6px 0 0; font-family: var(--mincho); font-size: 15px; color: #6A8AA0; letter-spacing: .04em; }
+.jpc-note { margin: 8px 4px 0; padding: 8px 12px; border-radius: 12px; background: #FFF7E3; color: #5A4632; font-size: 14px; font-weight: 600; line-height: 1.35; }
+.jpc-carte.gram { align-items: stretch; text-align: left; gap: 10px; padding: 20px 18px; }
+.jpc-gt { margin: 0; font-size: 22px; font-weight: 900; }
+.jpc-gx { margin: 0; font-size: 16px; line-height: 1.45; font-weight: 600; color: #2B4356; }
+.jpc-exl { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); color: #1E2F3F; font: inherit; text-align: left; }
+.jpc-exl .icn { width: 22px; height: 22px; flex: none; color: var(--accent-edge); }
+.jpc-exl span { display: flex; flex-direction: column; }
+.jpc-exl small { font-size: 13px; color: #3E6680; font-weight: 600; }
+.jpc-choix.ro .jpc-c { font-size: 17px; }
+.jpc-tuiles.mots .jpc-tuile { width: auto; min-width: 64px; padding: 0 14px; font-family: var(--sans); font-size: 18px; font-weight: 800; }
+.jpc-reponse.mots { font-family: var(--sans); font-size: 20px; font-weight: 800; flex-wrap: wrap; gap: 8px; padding: 8px; }
+.jpc-mic { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 8px; border: 0; background: none; color: var(--text); font: inherit; font-weight: 800; }
+.jpc-mic .icn { width: 92px; height: 92px; padding: 24px; border-radius: 50%; background: var(--accent); color: var(--accent-text); box-shadow: 0 5px 0 var(--accent-edge); box-sizing: border-box; }
+.jpc-mic.on .icn { background: #E2574C; color: #fff; box-shadow: 0 5px 0 #A93A31; animation: jpc-ecoute 1s ease-in-out infinite; }
+.jpc-mic.bon .icn { background: #58B33A; color: #fff; box-shadow: 0 5px 0 #3D8A24; }
+@keyframes jpc-ecoute { 50% { transform: scale(1.08); } }
+.jpc-entendu { margin: 0; text-align: center; font-weight: 700; font-size: 18px; }
+.jpc-entendu.bon { color: #2F7A16; }
+.jpc-entendu.vide { font-size: 15px; color: var(--muted); }
+.jpc-2 { display: flex; gap: 10px; } .jpc-2 .btn { flex: 1; }
+.jpc-sol { display: flex; flex-direction: column; gap: 2px; }
+.jpc-sol b { font-size: 20px; } .jpc-sol small { font-family: var(--mincho); font-size: 14px; color: #8A7460; font-weight: 400; }
+.jp-ecrit { margin-top: 12px; } .jp-ecrit summary { font-weight: 800; font-size: 14px; color: var(--muted); cursor: pointer; } .jp-ecrit summary span { font-family: var(--mincho); margin-right: 4px; }

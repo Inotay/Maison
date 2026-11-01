@@ -9,7 +9,7 @@ import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
-import { MOTS, HIRA, exemple, MOTS_COURS, LECONS } from './jp.js';
+import { MOTS, HIRA, exemple, MOTS_COURS, LECONS, ORAL, LECONS_ORAL, NOMS_JP } from './jp.js';
 // Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
 let VISITES = [], visitesP = null;
 const loadVisites = () => visitesP ||= import('./visites.js').then(m => { VISITES = m.VISITES; }).catch(e => { visitesP = null; console.warn('visites', e); });
@@ -2642,7 +2642,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v253</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v254</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5332,7 +5332,7 @@ function azamiContexte(txt = '') {
   const ev = recentEvents().map(e => `${e.who ? nom(e.who) : 'Quelqu’un'} ${e.text} (${ago(e.at)})`);
   if (ev.length) l.push(`Récemment dans l'app : ${ev.join(' ; ')}.`);
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
-  { const j = JP(); if (j.lecon || Object.keys(j.srs || {}).length) l.push(`COURS DE JAPONAIS DE ${firstName().toUpperCase()} : leçon ${j.lecon || 0} sur ${LECONS.length} finie${LECONS[j.lecon || 0] ? `, la prochaine : ${LECONS[j.lecon || 0].t}` : ''} ; ${jpDus(j).length} à réviser. (Le cours est dans l'onglet Loisirs, Carnet d'Azami. Tu peux l'encourager, jamais insister.)`); }
+  { const j = jpEtat(); if (j.oral || Object.keys(j.srs || {}).length) l.push(`COURS DE JAPONAIS DE ${firstName().toUpperCase()} (à l'oral d'abord ; l'écriture plus tard) : leçon ${j.oral || 0} sur ${LECONS_ORAL.length} finie${LECONS_ORAL[j.oral || 0] ? `, la prochaine : ${LECONS_ORAL[j.oral || 0].t}` : ''} ; ${jpDus(j).length} à réviser ; phrases apprises : ${Object.keys(j.srs || {}).filter(id => id[0] === 'o').map(id => jpItem(id)?.r).filter(Boolean).slice(-20).join(', ') || 'aucune'}. Tu peux les réutiliser avec elle ou lui en conversation (en rōmaji, avec la traduction). (Le cours est dans l'onglet Loisirs, Carnet d'Azami. Tu peux l'encourager, jamais insister.)`); }
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   { // l'agenda commun : les deux semaines qui viennent
     const auj = isoDate(new Date()), dem = isoDate(new Date(Date.now() + DAY)), fin = isoDate(new Date(Date.now() + 14 * DAY));
@@ -5715,13 +5715,13 @@ function jpAujourdhui() {
   const heure = new Date().getHours(); if (heure < 9) return false;   // le mot du jour attend que la journée commence
   j.jour = jour; j.mots ||= []; j.hira ||= [];
   const wd = new Date().getDay();
-  // lundi, mercredi, vendredi : un hiragana nouveau ; les autres jours, un mot ; de temps en temps, une révision
-  // le cours a commencé : une fois par jour, Azami propose la leçon (ou les révisions) au lieu du hiragana du jour
-  const Ln = LECONS[j.lecon || 0], dus = jpDus(j).length;
-  if ((j.lecon || 0) > 0 || Math.random() < .5) {
+  // une fois par jour, Azami propose la leçon de japonais (ou les révisions) ; sinon un mot du jour, parfois une
+  // révision. (L'écriture ne vient plus d'elle-même : c'est un parcours à part, quand on veut.)
+  const je = jpEtat(), Ln = LECONS_ORAL[je.oral || 0], dus = jpDus(je).length;
+  if ((je.oral || 0) > 0 || Math.random() < .5) {
     if (j.coursJour !== jour && (Ln || dus >= 5)) { jpSave(j); AZ.quiz = { lecon: true }; azamiPose(Ln ? `Une petite leçon de japonais ? Cinq minutes. Aujourd’hui : ${Ln.t.toLowerCase()}.` : `Tu as ${dus} mots qui attendent une révision. Cinq minutes ?`, 'curieuse', ['Oui !', 'Plus tard']); if (!Ln) AZ.quiz = { lecon: true, rev: true }; render(); return true; }
   }
-  if ((j.lecon || 0) === 0 && [1, 3, 5].includes(wd) && j.hira.length < HIRA.length && Math.random() < .8) {
+  if (false && [1, 3, 5].includes(wd) && j.hira.length < HIRA.length) {
     const [h, r] = HIRA[j.hira.length]; j.hira.push(h); jpSave(j);
     const ex = exemple(h);
     AZ.jp = { k: h }; azamiPose(`Nouveau hiragana : ${h}, ça se lit « ${r} ».${ex ? ` Comme dans ${ex.k} (${ex.r}, ${ex.f}).` : ''} Touche-le pour l’entendre.`, 'curieuse'); render();
@@ -5750,69 +5750,106 @@ function jpReponse(txt) {
   render();
 }
 
-// ── Les cours (v252) ──
-// Une leçon : les nouveautés présentées une par une (on les entend), puis des exercices variés (le sens, l'inverse,
-// la lecture, l'écoute, assembler un mot avec des tuiles). Ce qui est appris revient en révision, de plus en plus
-// espacé (1, 2, 4, 7, 15, 30 jours) ; une erreur le fait revenir plus tôt. Le carnet de chacun est sur l'appareil
-// et suit la personne (copie dans les réglages).
+// ── Les cours ──
+// Parler d'abord (v254) : chaque leçon apprend des phrases à dire (rōmaji en grand, l'écriture japonaise en
+// petit), un point de grammaire, la prononciation ; puis des exercices surtout à l'oreille et à voix haute
+// (écouter, comprendre, remettre les mots dans l'ordre, le dire au micro). L'écriture (hiragana) est un
+// parcours à part, pour plus tard. Ce qui est appris revient en révision, de plus en plus espacé (1, 2, 4, 7,
+// 15, 30 jours) ; une erreur le fait revenir plus tôt. Chacun son carnet, qui suit la personne (réglages).
 const JP_MOT = new Map([...MOTS, ...MOTS_COURS].map(m => [m.k, m]));
 const JP_HIRA = new Map(HIRA.map(([h, r]) => [h, r]));
 const JP_ECART = [0, 1, 2, 4, 7, 15, 30];
-const jpItem = id => { const [kind, k] = [id[0], id.slice(2)]; if (kind === 'h') return JP_HIRA.has(k) ? { id, kind, k, r: JP_HIRA.get(k) } : null; const m = JP_MOT.get(k); return m ? { id, kind, k, r: m.r, f: m.f } : null; };
+const LECONS_ECRIT = LECONS.filter(l => l.kana?.length).map(l => ({ t: l.t, kana: l.kana }));
+const jpNom = () => { const n = firstName() || 'moi'; return { r: n, k: NOMS_JP[n] || n }; };
+const jpItem = id => {
+  const kind = id[0], k = id.slice(2);
+  if (kind === 'h') return JP_HIRA.has(k) ? { id, kind, k, r: JP_HIRA.get(k) } : null;
+  if (kind === 'o') { const o = ORAL[k]; if (!o) return null; const n = jpNom(), sub = s => String(s || '').replaceAll('{nom}', n.r); const subk = s => String(s || '').replaceAll('{nom}', n.k); return { id, kind, k: subk(o.k), j: subk(o.j), r: sub(o.r), f: sub(o.f), n: o.n, alt: o.alt || [], re: o.re }; }
+  const m = JP_MOT.get(k); return m ? { id, kind, k, r: m.r, f: m.f } : null;
+};
 const jpVoix = () => { try { return 'speechSynthesis' in window && speechSynthesis.getVoices().some(v => /^ja/i.test(v.lang)); } catch { return false; } };
 try { speechSynthesis?.getVoices(); } catch {}
+const jpMicOk = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 const jpDus = (j = JP()) => { const auj = isoDate(new Date()); return Object.entries(j.srs || {}).filter(([, x]) => (x.due || '') <= auj).map(([id]) => id).filter(jpItem); };
 const jpHiragana = k => /^[ぁ-ゖ]+$/.test(k);
+// l'état : les anciens carnets (v252, leçons mélangées) passent sur les deux parcours
+function jpEtat() {
+  const j = JP();
+  if (j.oral === undefined) { j.oral = 0; j.ecrit = j.ecrit ?? LECONS.slice(0, j.lecon || 0).filter(l => l.kana?.length).length; jpSave(j); }
+  return j;
+}
 function jpSync() {
   clearTimeout(jpSync.t); if (DEMO || !S.me) return;
-  jpSync.t = setTimeout(() => { const j = JP(); api.upsert('reglages', { cle: `azami:jp:${S.me}`, valeur: { srs: j.srs || {}, lecon: j.lecon || 0, mots: j.mots || [], hira: j.hira || [], maj: j.maj || Date.now() } }).catch(e => console.warn('jp', e)); }, 1500);
+  jpSync.t = setTimeout(() => { const j = JP(); api.upsert('reglages', { cle: `azami:jp:${S.me}`, valeur: { srs: j.srs || {}, lecon: j.lecon || 0, oral: j.oral || 0, ecrit: j.ecrit || 0, mots: j.mots || [], hira: j.hira || [], maj: j.maj || Date.now() } }).catch(e => console.warn('jp', e)); }, 1500);
+}
+// on compare ce qu'on a dit (texte reconnu) à la phrase : en kana, comme on l'écrit, ou en chiffres
+const jpNorm = s => String(s || '').replace(/[\s、。！？!?.,，・「」…~〜ー-]/g, '').replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).toLowerCase();
+function jpProche(a, b) {
+  a = jpNorm(a); b = jpNorm(b); if (!a || !b) return 0; if (a === b) return 1;
+  const d = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) { let p = d[0]; d[0] = i; for (let k = 1; k <= b.length; k++) { const t = d[k]; d[k] = Math.min(d[k] + 1, d[k - 1] + 1, p + (a[i - 1] === b[k - 1] ? 0 : 1)); p = t; } }
+  return 1 - d[b.length] / Math.max(a.length, b.length);
 }
 function jpcExos(nouveaux, revs) {
   const tous = [...JP_MOT.values()], kanaConnus = [...new Set([...(JP().hira || []), ...HIRA.slice(0, 10).map(h => h[0])])];
-  const proches = new Set([...(JP().hira || []), ...LECONS.slice(0, (JP().lecon || 0) + 1).flatMap(l => l.kana || [])]);
-  const autres = (it, n, f) => { const kana = HIRA.filter(([h]) => h !== it.k).map(([h, r]) => ({ k: h, r })), pres = kana.filter(x => proches.has(x.k)).sort(() => Math.random() - .5); const pool = it.kind === 'h' ? (pres.length >= n ? pres : [...pres, ...kana.filter(x => !proches.has(x.k)).slice(0, 15)]) : tous.filter(m => m.k !== it.k && m.f !== it.f); return pool.sort(() => Math.random() - .5).slice(0, n).map(f); };
+  const proches = new Set([...(JP().hira || []), ...LECONS_ECRIT.slice(0, (JP().ecrit || 0) + 1).flatMap(l => l.kana)]);
+  const oraux = Object.keys(ORAL).map(k => jpItem('o:' + k));
   const melange = a => a.sort(() => Math.random() - .5);
+  const autres = (it, n, f) => {
+    let pool;
+    if (it.kind === 'h') { const kana = HIRA.filter(([h]) => h !== it.k).map(([h, r]) => ({ k: h, r })), pres = melange(kana.filter(x => proches.has(x.k))); pool = pres.length >= n ? pres : [...pres, ...melange(kana.filter(x => !proches.has(x.k))).slice(0, 15)]; return pool.slice(0, n).map(f); }
+    pool = it.kind === 'o' ? oraux.filter(x => x.id !== it.id && x.f !== it.f && x.r !== it.r) : tous.filter(m => m.k !== it.k && m.f !== it.f);
+    // des pièges qui se ressemblent : même longueur à peu près
+    const nb = it.r.split(' ').length; const proche = melange(pool.filter(x => Math.abs(String(x.r).split(' ').length - nb) <= 1));
+    return [...new Set([...proche, ...melange(pool)].map(f))].slice(0, n);
+  };
   const exo = (it, type) => {
-    if (type === 'lire') return { type, it, q: it.k, aide: 'Ça se lit…', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]) };
-    if (type === 'trouve') return { type, it, q: `« ${it.r} »`, aide: it.kind === 'h' ? 'Lequel se lit comme ça ?' : 'Lequel est-ce ?', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true };
-    if (type === 'sens') return { type, it, q: it.k, sous: it.r, aide: 'Ça veut dire…', bon: it.f, choix: melange([it.f, ...autres(it, 3, x => x.f)]) };
-    if (type === 'inverse') return { type, it, q: it.f, aide: 'En japonais ?', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true };
-    if (type === 'ecoute') return { type, it, q: '', aide: 'Écoute, et touche ce que tu entends', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true, ecoute: true };
+    if (type === 'lire') return { type, it, q: it.k, aide: 'Ça se lit…', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]), qjp: true };
+    if (type === 'trouve') return { type, it, q: `« ${it.r} »`, aide: 'Lequel se lit comme ça ?', bon: it.k, choix: melange([it.k, ...autres(it, 3, x => x.k)]), jp: true };
+    if (type === 'sens') return { type, it, q: it.r, sous: it.k, aide: 'Ça veut dire…', bon: it.f, choix: melange([it.f, ...autres(it, 3, x => x.f)]) };
+    if (type === 'inverse') return { type, it, q: it.f, aide: 'Comment on dit ?', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]), romaji: true };
+    if (type === 'ecoute') return { type, it, q: '', aide: 'Écoute. Ça veut dire…', bon: it.f, choix: melange([it.f, ...autres(it, 3, x => x.f)]), ecoute: true };
+    if (type === 'dictee') return { type, it, q: '', aide: 'Écoute, et touche ce que tu entends', bon: it.r, choix: melange([it.r, ...autres(it, 3, x => x.r)]), ecoute: true, romaji: true };
+    if (type === 'ordre') { const mots = it.r.replace(/,/g, '').split(' '), intrus = melange(oraux.flatMap(x => x.r.replace(/,/g, '').split(' ')).filter(w => !mots.includes(w))).slice(0, 2); return { type, it, q: it.f, aide: 'Remets les mots dans l’ordre', bon: mots.join(' '), tuiles: melange([...mots, ...[...new Set(intrus)]]), mots: true }; }
+    if (type === 'dis') return { type, it, q: it.f, sous: it.r, aide: jpMicOk() ? 'À toi : dis-le à voix haute' : 'À toi : dis-le à voix haute, puis touche « Je l’ai dit »', bon: it.r, dis: true };
     if (type === 'assemble') { const lettres = [...it.k], intrus = melange(kanaConnus.filter(h => !lettres.includes(h))).slice(0, Math.min(3, 7 - lettres.length)); return { type, it, q: it.f, sous: it.r, aide: 'Assemble le mot', bon: it.k, tuiles: melange([...lettres, ...intrus]) }; }
   };
-  const types = (it, neuf) => {
-    const t = it.kind === 'h' ? ['lire', 'trouve'] : ['sens', 'inverse'];
-    if (jpVoix()) t.push('ecoute');
-    if (it.kind === 'm' && jpHiragana(it.k) && [...it.k].length >= 2 && [...it.k].length <= 6 && !neuf) t.push('assemble', 'assemble');
-    if (it.kind === 'm' && jpHiragana(it.k) && [...it.k].length <= 5 && neuf) t.push('assemble');
+  const types = it => {
+    if (it.kind === 'h') { const t = ['lire', 'trouve']; if (jpVoix()) t.push('trouve'); return melange(t); }
+    const t = ['sens', 'inverse'];
+    if (jpVoix()) t.push('ecoute', 'dictee', 'ecoute');
+    if (it.r.replace(/,/g, '').split(' ').length >= 3) t.push('ordre', 'ordre');
     return melange(t);
   };
   const intro = nouveaux.map(it => ({ type: 'decouvre', it }));
   const suite = [];
-  for (const it of nouveaux) { const t = types(it, true); suite.push(exo(it, t[0]), exo(it, t[1] || t[0])); }
-  for (const it of revs) suite.push(exo(it, types(it, false)[0]));
-  // pas deux fois le même élément d'affilée, autant que possible
+  for (const it of nouveaux) { const t = types(it); suite.push(exo(it, t[0]), exo(it, t.find(x => x !== t[0]) || t[0])); }
+  // le dire à voix haute : au moins deux fois par leçon, sur les phrases les plus longues
+  const aDire = [...nouveaux].filter(x => x.kind === 'o').sort((a, b) => b.r.length - a.r.length).slice(0, Math.max(2, Math.ceil(nouveaux.length / 2)));
+  for (const it of revs) suite.push(exo(it, it.kind === 'o' && Math.random() < .3 ? 'dis' : types(it)[0]));
   const ord = melange(suite); for (let i = 1; i < ord.length; i++) if (ord[i].it.id === ord[i - 1].it.id) { const k = ord.findIndex((x, n) => n > i && x.it.id !== ord[i].it.id); if (k > 0) [ord[i], ord[k]] = [ord[k], ord[i]]; }
-  // les nouveautés par deux ou trois : on présente, on s'exerce, puis la suite
+  for (const it of aDire) ord.push(exo(it, 'dis'));   // à la fin, quand la phrase est connue
   if (nouveaux.length <= 3) return [...intro, ...ord];
   const moitie = Math.ceil(nouveaux.length / 2), a = new Set(nouveaux.slice(0, moitie).map(x => x.id));
-  return [...intro.slice(0, moitie), ...ord.filter(x => a.has(x.it.id)), ...intro.slice(moitie), ...ord.filter(x => !a.has(x.it.id))];
+  const dits = ord.filter(x => x.type === 'dis' && aDire.includes(x.it)), reste = ord.filter(x => !dits.includes(x));
+  return [...intro.slice(0, moitie), ...reste.filter(x => a.has(x.it.id)), ...intro.slice(moitie), ...reste.filter(x => !a.has(x.it.id)), ...dits];
 }
 let jpc = null;
 function jpcOuvrir(mode = 'lecon') {
-  const j = JP(), n = j.lecon || 0, L = LECONS[n];
-  const dus = jpDus(j).sort(() => Math.random() - .5);
-  let nouveaux = [], revs = [], titre;
-  if (mode === 'lecon' && L) {
-    nouveaux = [...(L.kana || []).map(h => 'h:' + h), ...(L.mots || []).map(k => 'm:' + k)].map(jpItem).filter(Boolean);
-    revs = dus.slice(0, 3).map(jpItem); titre = `Leçon ${n + 1} · ${L.t}`;
-  } else { mode = 'revision'; revs = dus.slice(0, 12).map(jpItem); if (!revs.length) revs = Object.keys(j.srs || {}).sort(() => Math.random() - .5).slice(0, 8).map(jpItem).filter(Boolean); titre = 'Révisions'; }
+  const j = jpEtat(), dus = jpDus(j).sort(() => Math.random() - .5);
+  let nouveaux = [], revs = [], titre, gram = null;
+  const L = LECONS_ORAL[j.oral || 0], E = LECONS_ECRIT[j.ecrit || 0];
+  if (mode === 'lecon' && L) { nouveaux = L.items.map(k => jpItem('o:' + k)).filter(Boolean).filter(it => !(j.srs?.[it.id]) || L.items.length <= 2); if (!nouveaux.length) nouveaux = L.items.map(k => jpItem('o:' + k)); revs = dus.filter(id => !L.items.includes(id.slice(2))).slice(0, 3).map(jpItem); titre = `Leçon ${(j.oral || 0) + 1} · ${L.t}`; gram = L.gram || null; }
+  else if (mode === 'ecrit' && E) { nouveaux = E.kana.map(h => jpItem('h:' + h)); revs = dus.filter(id => id[0] === 'h').slice(0, 3).map(jpItem); titre = `L’écriture · ${E.t}`; }
+  else { mode = 'revision'; revs = dus.slice(0, 12).map(jpItem); if (!revs.length) revs = Object.keys(j.srs || {}).sort(() => Math.random() - .5).slice(0, 8).map(jpItem).filter(Boolean); titre = 'Révisions'; }
   if (!nouveaux.length && !revs.length) { toast('Rien à réviser pour l’instant.'); return; }
   document.getElementById('jpc')?.remove();
   const box = document.createElement('div'); box.id = 'jpc'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', titre);
   box.innerHTML = `<div class="jpc-top"><button class="jpc-x" data-j="fermer" aria-label="Fermer">✕</button><div class="jpc-barre"><i></i></div></div><div class="jpc-corps"></div>`;
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
-  jpc = { box, mode, n, titre, exos: jpcExos(nouveaux, revs), i: 0, erreurs: {}, vus: new Set(), repris: new Set(), nouveaux: nouveaux.map(x => x.id), juste: 0, total: 0, rep: [] };
+  const exos = jpcExos(nouveaux, revs);
+  if (gram) exos.unshift({ type: 'grammaire', gram });
+  jpc = { box, mode, titre, exos, i: 0, erreurs: {}, repris: new Set(), nouveaux: nouveaux.map(x => x.id), juste: 0, total: 0, rep: [] };
   box.addEventListener('click', jpcClic);
   jpcDraw();
 }
@@ -5820,39 +5857,75 @@ const JPC_BRAVO = ['Sugoi !', 'Yoshi !', 'Parfait.', 'Oui !', 'Bien vu.', 'Jōzu
 function jpcAz(reac) { const im = jpc?.box.querySelector('.jpc-az'); if (im) im.src = reactSrc(reac); }
 function jpcDraw() {
   const c = jpc?.box.querySelector('.jpc-corps'); if (!c) return;
+  jpcMicStop();
   const e = jpc.exos[jpc.i];
   jpc.box.querySelector('.jpc-barre i').style.width = `${Math.round(jpc.i / jpc.exos.length * 100)}%`;
   if (!e) return jpcFin();
   jpc.rep = []; jpc.fait = false;
   const az = (txt, reac = 'visite_langue') => `<div class="jpc-tete"><img class="jpc-az" alt="" src="${reactSrc(reac)}"><p class="jpc-bulle">${txt}</p></div>`;
   const dire = k => `<button type="button" class="jpc-son" data-j="dire" data-txt="${esc(k)}" aria-label="Écouter">${icn('son')}</button>`;
+  if (e.type === 'grammaire') {
+    const g = e.gram, ex = (g.ex || []).map(k => jpItem('o:' + k)).filter(Boolean);
+    c.innerHTML = `${az('Un peu de grammaire')}<div class="jpc-carte gram"><p class="jpc-gt">${esc(g.t)}</p><p class="jpc-gx">${esc(g.txt)}</p>${ex.map(it => `<button type="button" class="jpc-exl" data-j="dire" data-txt="${esc(it.k)}">${icn('son')}<span><b>${esc(it.r)}</b><small>${esc(it.f)}</small></span></button>`).join('')}</div><button class="btn jpc-go" data-j="suite">Compris</button>`;
+    return;
+  }
   if (e.type === 'decouvre') {
-    const it = e.it;
-    c.innerHTML = `${az(it.kind === 'h' ? 'Un nouveau hiragana' : 'Un nouveau mot')}<div class="jpc-carte neuf"><p class="jpc-jp grand" lang="ja">${esc(it.k)}</p><p class="jpc-r">${esc(it.r)}</p>${it.f ? `<p class="jpc-f">${esc(it.f)}</p>` : ''}${it.kind === 'h' && exemple(it.k) ? `<p class="jpc-ex">comme dans <span lang="ja">${esc(exemple(it.k).k)}</span> (${esc(exemple(it.k).r)}, ${esc(exemple(it.k).f)})</p>` : ''}${dire(it.k)}</div><button class="btn jpc-go" data-j="suite">Compris</button>`;
+    const it = e.it, h = it.kind === 'h', ex = h && exemple(it.k);
+    c.innerHTML = `${az(h ? 'Un nouveau hiragana' : it.r.includes(' ') ? 'Une nouvelle phrase. Répète-la à voix haute.' : 'Un nouveau mot. Répète-le.')}<div class="jpc-carte neuf">${h ? `<p class="jpc-jp grand" lang="ja">${esc(it.k)}</p><p class="jpc-r">${esc(it.r)}</p>${ex ? `<p class="jpc-ex">comme dans <span lang="ja">${esc(ex.k)}</span> (${esc(ex.r)}, ${esc(ex.f)})</p>` : ''}`
+      : `<p class="jpc-ro">${esc(it.r)}</p><p class="jpc-f">${esc(it.f)}</p>${it.n ? `<p class="jpc-note">${esc(it.n)}</p>` : ''}<p class="jpc-kana" lang="ja">${esc(it.k)}</p>`}${dire(it.k)}</div><button class="btn jpc-go" data-j="suite">${h ? 'Compris' : 'Je l’ai répété'}</button>`;
     setTimeout(() => jpDire(it.k), 350);
     return;
   }
-  const choix = e.tuiles ? `<div class="jpc-ligne"><div class="jpc-reponse" aria-live="polite"></div><button type="button" class="jpc-efface" data-j="efface" aria-label="Effacer la dernière tuile">⌫</button></div><div class="jpc-tuiles">${e.tuiles.map((t, n) => `<button type="button" class="jpc-tuile" data-j="tuile" data-n="${n}" lang="ja">${esc(t)}</button>`).join('')}</div>`
-    : `<div class="jpc-choix${e.jp ? ' jp' : ''}">${e.choix.map(x => `<button type="button" class="jpc-c" data-j="choix" data-v="${esc(x)}"${e.jp ? ' lang="ja"' : ''}>${esc(x)}</button>`).join('')}</div>`;
-  const montreRomaji = e.sous && (jpc.nouveaux.includes(e.it.id) || (JP().srs?.[e.it.id]?.b || 0) < 3);
-  c.innerHTML = `${az(e.aide)}<div class="jpc-carte">${e.ecoute ? `<button type="button" class="jpc-son grand" data-j="dire" data-txt="${esc(e.it.k)}" aria-label="Réécouter">${icn('son')}</button>` : `<p class="jpc-q${/^[぀-ヿ一-龯 ]+$/.test(e.q) ? ' jpc-jp' : ''}" ${/^[぀-ヿ]/.test(e.q) ? 'lang="ja"' : ''}>${esc(e.q)}</p>${montreRomaji && e.type !== 'assemble' ? `<p class="jpc-r">${esc(e.sous)}</p>` : ''}${['sens', 'lire'].includes(e.type) ? dire(e.it.k) : ''}`}</div>${choix}<div class="jpc-pied"></div>`;
+  if (e.dis) {
+    c.innerHTML = `${az(e.aide)}<div class="jpc-carte"><p class="jpc-q">${esc(e.q)}</p><p class="jpc-r">${esc(e.sous)}</p><p class="jpc-kana" lang="ja">${esc(e.it.k)}</p>${dire(e.it.k)}</div>
+      ${jpMicOk() ? `<button type="button" class="jpc-mic" data-j="micro" aria-label="Parler">${icn('micro')}<span>Touche, puis parle</span></button>` : ''}<div class="jpc-pied"></div>${jpMicOk() ? '' : '<button class="btn jpc-go" data-j="dit">Je l’ai dit</button>'}`;
+    return;
+  }
+  const choix = e.tuiles ? `<div class="jpc-ligne"><div class="jpc-reponse${e.mots ? ' mots' : ''}" aria-live="polite"></div><button type="button" class="jpc-efface" data-j="efface" aria-label="Effacer la dernière tuile">⌫</button></div><div class="jpc-tuiles${e.mots ? ' mots' : ''}">${e.tuiles.map((t, n) => `<button type="button" class="jpc-tuile" data-j="tuile" data-n="${n}"${e.mots ? '' : ' lang="ja"'}>${esc(t)}</button>`).join('')}</div>`
+    : `<div class="jpc-choix${e.jp ? ' jp' : ''}${e.romaji ? ' ro' : ''}">${e.choix.map(x => `<button type="button" class="jpc-c" data-j="choix" data-v="${esc(x)}"${e.jp ? ' lang="ja"' : ''}>${esc(x)}</button>`).join('')}</div>`;
+  const kanaDiscret = e.sous && e.type === 'sens' ? `<p class="jpc-kana" lang="ja">${esc(e.sous)}</p>` : '';
+  c.innerHTML = `${az(e.aide)}<div class="jpc-carte">${e.ecoute ? `<button type="button" class="jpc-son grand" data-j="dire" data-txt="${esc(e.it.k)}" aria-label="Réécouter">${icn('son')}</button>` : `<p class="${e.qjp ? 'jpc-q jpc-jp' : e.type === 'sens' ? 'jpc-ro' : 'jpc-q'}"${e.qjp ? ' lang="ja"' : ''}>${esc(e.q)}</p>${kanaDiscret}${['sens', 'lire'].includes(e.type) ? dire(e.it.k) : ''}`}</div>${choix}<div class="jpc-pied"></div>`;
   if (e.ecoute || e.type === 'sens') setTimeout(() => jpDire(e.it.k), 300);
+}
+function jpcMicStop() { try { jpc?.rec?.abort(); } catch {} if (jpc) jpc.rec = null; }
+function jpcMicro(btn) {
+  const e = jpc.exos[jpc.i]; if (!e?.dis || jpc.fait) return;
+  if (jpc.rec) { jpc.rec.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
+  try { speechSynthesis.cancel(); } catch {}
+  const rec = new SR(); rec.lang = 'ja-JP'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 3;
+  let entendu = '', alts = [];
+  const pied = jpc.box.querySelector('.jpc-pied');
+  rec.onresult = ev => { entendu = ''; alts = []; for (const r of ev.results) { entendu += r[0].transcript; for (let a = 0; a < r.length; a++) alts.push(r[a].transcript); } pied.innerHTML = `<p class="jpc-entendu" lang="ja">${esc(entendu)}</p>`; };
+  rec.onerror = ev => { if (ev.error === 'not-allowed') { toast('Le micro n’est pas autorisé.'); pied.innerHTML = '<button class="btn jpc-go" data-j="dit">Je l’ai dit</button>'; } };
+  rec.onend = () => {
+    if (!jpc || jpc.rec !== rec) return; jpc.rec = null; btn.classList.remove('on');
+    if (!entendu) { pied.innerHTML = '<p class="jpc-entendu vide">Je n’ai rien entendu. Touche le micro et parle.</p>'; return; }
+    const cibles = [e.it.k, e.it.j, ...(e.it.alt || [])].filter(Boolean);
+    const score = e.it.re && [entendu, ...alts].some(t => new RegExp(e.it.re).test(t)) ? 1 : Math.max(...[entendu, ...alts].flatMap(t => cibles.map(c => jpProche(t, c))));
+    if (score >= .72) { jpcJuge(true, btn); pied.innerHTML = `<p class="jpc-entendu bon" lang="ja">${esc(entendu)}</p>`; }
+    else { jpcAz('visite_malice'); jpc.box.querySelector('.jpc-bulle').textContent = 'Pas tout à fait. Écoute encore, et redis-le.'; pied.innerHTML = `<p class="jpc-entendu" lang="ja">J’ai entendu : ${esc(entendu)}</p><div class="jpc-2"><button class="btn ghost" data-j="dire" data-txt="${esc(e.it.k)}">Réécouter</button><button class="btn ghost" data-j="passe">Passer</button></div>`; }
+  };
+  try { rec.start(); jpc.rec = rec; btn.classList.add('on'); haptic('medium'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
 }
 function jpcClic(ev) {
   const b = ev.target.closest('[data-j]'); if (!b || !jpc) return;
   const k = b.dataset.j, e = jpc.exos[jpc.i];
   if (k === 'fermer') { jpcFermer(); return; }
   if (k === 'dire') { jpDire(b.dataset.txt); return; }
-  if (k === 'suite') { if (e?.type === 'decouvre') jpc.vus.add(e.it.id); jpc.i++; jpcDraw(); haptic(1); return; }
+  if (k === 'suite' || k === 'passe') { jpc.i++; jpcDraw(); haptic(1); return; }
   if (k === 'fin') { jpcFermer(); return; }
   if (!e || jpc.fait) return;
+  if (k === 'micro') { jpcMicro(b); return; }
+  if (k === 'dit') { jpcJuge(true, b); return; }
   if (k === 'choix') jpcJuge(b.dataset.v === e.bon, b);
+  const montre = () => jpc.box.querySelector('.jpc-reponse').innerHTML = jpc.rep.map(n => `<span${e.mots ? '' : ' lang="ja"'}>${esc(e.tuiles[n])}</span>`).join('');
   if (k === 'tuile') {
-    if (b.disabled) return; b.disabled = true; jpc.rep.push(Number(b.dataset.n)); sfx('tick');
-    const r = jpc.box.querySelector('.jpc-reponse'); r.innerHTML = jpc.rep.map(n => `<span lang="ja">${esc(e.tuiles[n])}</span>`).join('');
-    if (jpc.rep.length === [...e.bon].length) jpcJuge(jpc.rep.map(n => e.tuiles[n]).join('') === e.bon, r);
+    if (b.disabled) return; b.disabled = true; jpc.rep.push(Number(b.dataset.n)); sfx('tick'); montre();
+    const n = e.mots ? e.bon.split(' ').length : [...e.bon].length;
+    if (jpc.rep.length === n) jpcJuge(jpc.rep.map(m => e.tuiles[m]).join(e.mots ? ' ' : '') === e.bon, jpc.box.querySelector('.jpc-reponse'));
   }
-  if (k === 'efface') { const n = jpc.rep.pop(); if (n !== undefined) { jpc.box.querySelector(`.jpc-tuile[data-n="${n}"]`).disabled = false; jpc.box.querySelector('.jpc-reponse').innerHTML = jpc.rep.map(m => `<span lang="ja">${esc(e.tuiles[m])}</span>`).join(''); } }
+  if (k === 'efface') { const n = jpc.rep.pop(); if (n !== undefined) { jpc.box.querySelector(`.jpc-tuile[data-n="${n}"]`).disabled = false; montre(); } }
 }
 function jpcJuge(ok, el) {
   const e = jpc.exos[jpc.i]; jpc.fait = true; jpc.total++;
@@ -5861,53 +5934,54 @@ function jpcJuge(ok, el) {
   if (ok) {
     jpc.juste++; el.classList.add('bon'); sfx('done'); haptic('medium'); jpcAz(pick(['visite_fier', 'visite_coeur', 'visite_rire']));
     jpc.box.querySelector('.jpc-bulle').textContent = pick(JPC_BRAVO);
-    if (e.type !== 'ecoute') jpDire(e.it.k);
-    setTimeout(() => { if (jpc && jpc.exos[jpc.i] === e) { jpc.i++; jpcDraw(); } }, 900);
+    if (!e.ecoute && !e.dis) jpDire(e.it.k);
+    setTimeout(() => { if (jpc && jpc.exos[jpc.i] === e) { jpc.i++; jpcDraw(); } }, e.dis ? 1200 : 1000);
   } else {
     el.classList.add('faux'); haptic('heavy'); jpcAz('visite_malice');
     jpc.erreurs[e.it.id] = (jpc.erreurs[e.it.id] || 0) + 1;
     jpc.box.querySelector('.jpc-bulle').textContent = 'Presque. On le revoit tout à l’heure.';
-    pied.innerHTML = `<p class="jpc-sol"><span lang="ja">${esc(e.it.k)}</span> · ${esc(e.it.r)}${e.it.f ? ` · ${esc(e.it.f)}` : ''}</p><button class="btn jpc-go" data-j="suite">Continuer</button>`;
+    pied.innerHTML = `<p class="jpc-sol"><b>${esc(e.it.r)}</b>${e.it.f ? ` · ${esc(e.it.f)}` : ''}<small lang="ja">${esc(e.it.k)}</small></p><button class="btn jpc-go" data-j="suite">Continuer</button>`;
     jpDire(e.it.k);
-    // l'élément revient une fois en fin de leçon, sous une autre forme
     if (!jpc.repris.has(e.it.id)) { jpc.repris.add(e.it.id); let alt = null; for (let n = 0; n < 6 && (!alt || alt.type === e.type); n++) alt = jpcExos([], [e.it])[0]; jpc.exos.push(alt); }
   }
 }
 function jpcFin() {
-  const j = JP(), auj = new Date(); j.srs ||= {}; j.mots ||= []; j.hira ||= [];
+  const j = jpEtat(), auj = new Date(); j.srs ||= {}; j.mots ||= []; j.hira ||= [];
   const touches = new Set(jpc.exos.filter(x => x.it).map(x => x.it.id));
   for (const id of touches) {
-    const x = j.srs[id] || { b: 0 }, err = jpc.erreurs[id] || 0;
-    x.b = jpc.nouveaux.includes(id) ? (err ? 1 : 2) : err ? Math.max(1, x.b - 1) : Math.min(JP_ECART.length - 1, x.b + 1);
+    const x = j.srs[id] || { b: 0 }, err = jpc.erreurs[id] || 0, neuf = !j.srs[id];
+    x.b = neuf ? (err ? 1 : 2) : err ? Math.max(1, x.b - 1) : Math.min(JP_ECART.length - 1, x.b + 1);
     const d = new Date(auj); d.setDate(d.getDate() + JP_ECART[x.b]); x.due = isoDate(d); j.srs[id] = x;
-    const it = jpItem(id); if (it?.kind === 'h' && !j.hira.includes(it.k)) j.hira.push(it.k); if (it?.kind === 'm' && !j.mots.includes(it.k)) j.mots.push(it.k);
+    const it = jpItem(id); if (it?.kind === 'h' && !j.hira.includes(it.k)) j.hira.push(it.k); if (it?.kind !== 'h' && it && !j.mots.includes(it.r)) j.mots.push(it.r);
   }
-  const lecon = jpc.mode === 'lecon';
-  if (lecon) j.lecon = (j.lecon || 0) + 1;
+  if (jpc.mode === 'lecon') j.oral = (j.oral || 0) + 1;
+  if (jpc.mode === 'ecrit') j.ecrit = (j.ecrit || 0) + 1;
   j.coursJour = isoDate(auj); j.maj = Date.now(); jpSave(j); jpSync();
   const pct = jpc.total ? Math.round(jpc.juste / jpc.total * 100) : 100;
   const c = jpc.box.querySelector('.jpc-corps'); jpc.box.querySelector('.jpc-barre i').style.width = '100%';
-  const L = LECONS[j.lecon];
-  c.innerHTML = `<div class="jpc-tete fin"><img class="jpc-az" alt="" src="${reactSrc('fete_reussites')}"><p class="jpc-bulle">${lecon ? `Leçon finie ! ${jpc.nouveaux.length} nouveaux, ${pct} % de bonnes réponses.` : `Révisions faites : ${pct} % de bonnes réponses.`} ${pct >= 90 ? 'Otsukaresama ! (bon travail)' : 'Ce qui a coincé reviendra bientôt.'}</p></div>
-    ${lecon && L ? `<p class="hint jpc-next">Prochaine leçon : ${esc(L.t)}</p>` : lecon ? '<p class="hint jpc-next">Tu as fini toutes les leçons. Les révisions continuent.</p>' : ''}<button class="btn jpc-go" data-j="fin">Terminer</button>`;
+  const L = jpc.mode === 'ecrit' ? LECONS_ECRIT[j.ecrit] : LECONS_ORAL[j.oral], lecon = jpc.mode !== 'revision';
+  c.innerHTML = `<div class="jpc-tete fin"><img class="jpc-az" alt="" src="${reactSrc('fete_reussites')}"><p class="jpc-bulle">${lecon ? `Leçon finie ! ${jpc.nouveaux.length} nouveautés, ${pct} % de bonnes réponses.` : `Révisions faites : ${pct} % de bonnes réponses.`} ${pct >= 90 ? 'Otsukaresama ! (bon travail)' : 'Ce qui a coincé reviendra bientôt.'}</p></div>
+    ${lecon && L ? `<p class="hint jpc-next">Prochaine leçon : ${esc(L.t)}</p>` : lecon ? '<p class="hint jpc-next">Tu as fini ce parcours. Les révisions continuent.</p>' : ''}<button class="btn jpc-go" data-j="fin">Terminer</button>`;
   sfx('big'); haptic('heavy'); burst?.('sparkle', c.querySelector('.jpc-az'), 14);
   jpc.fini = true;
 }
 function jpcFermer() {
+  jpcMicStop();
   const b = jpc?.box; const fini = jpc?.fini; jpc = null; if (!b) return;
   b.classList.remove('on'); setTimeout(() => b.remove(), 250);
   try { speechSynthesis.cancel(); } catch {}
-  if (fini && S.view === 'maison' && !AZ.bulle) setTimeout(() => { azamiPose(pick(['Ganbatta ne ! (tu as bien travaillé) Je suis fière de toi.', 'Une leçon de plus. Bientôt tu liras mes étiquettes de croquettes.', 'Bravo. Moi, je retiens surtout « sakana » (poisson). Priorités.']), 'contente'); render(); }, 400);
+  if (fini && S.view === 'maison' && !AZ.bulle) setTimeout(() => { azamiPose(pick(['Ganbatta ne ! (tu as bien travaillé) Je suis fière de toi.', 'Une leçon de plus. Bientôt on pourra se parler en japonais, toi et moi.', 'Bravo. Moi, je retiens surtout « sakana » (poisson). Priorités.']), 'contente'); render(); }, 400);
   render();
 }
-// La carte du cours, dans l'onglet Carnet d'Azami
+// La carte du cours, dans l'onglet Carnet d'Azami : parler d'abord ; l'écriture en dessous, discrète.
 function jpCoursCarte() {
-  const j = JP(), n = j.lecon || 0, dus = jpDus(j).length, L = LECONS[n];
-  const chemin = LECONS.map((l, i) => `<span class="jpl ${i < n ? 'fait' : i === n ? 'ici' : ''}" title="${esc(l.t)}">${i < n ? '✓' : i + 1}</span>`).join('');
-  return `<section class="jp-cours"><div class="jp-cours-h"><p class="jp-cours-t"><span lang="ja">にほんご</span> Japonais avec Azami</p><small>${n}/${LECONS.length} leçons</small></div>
+  const j = jpEtat(), n = j.oral || 0, e = j.ecrit || 0, dus = jpDus(j).length, L = LECONS_ORAL[n], E = LECONS_ECRIT[e];
+  const chemin = LECONS_ORAL.map((l, i) => `<span class="jpl ${i < n ? 'fait' : i === n ? 'ici' : ''}" title="${esc(l.t)}">${i < n ? '✓' : i + 1}</span>`).join('');
+  return `<section class="jp-cours"><div class="jp-cours-h"><p class="jp-cours-t">Parler japonais avec Azami</p><small>${n}/${LECONS_ORAL.length} leçons</small></div>
     <div class="jp-chemin">${chemin}</div>
     <div class="jp-cours-b">${L ? `<button class="btn" data-action="jp-lecon">Leçon ${n + 1} · ${esc(L.t)}</button>` : ''}${dus || (!L && Object.keys(j.srs || {}).length) ? `<button class="btn ${L ? 'ghost' : ''}" data-action="jp-revision">Réviser${dus ? ` (${dus})` : ''}</button>` : ''}</div>
-    <p class="hint">${n ? `${Object.keys(j.srs || {}).length} mots et hiragana appris. Ce que tu sais revient de temps en temps, juste avant de l’oublier.` : 'Cinq minutes par leçon : Azami présente, tu écoutes, puis de petits jeux. Chacun son carnet.'}</p></section>`;
+    <p class="hint">${n ? `${Object.keys(j.srs || {}).filter(id => id[0] !== 'h').length} phrases et mots appris. Ce que tu sais revient de temps en temps, juste avant de l’oublier.` : 'Cinq minutes par leçon : des phrases de tous les jours, un peu de grammaire, et tu le dis à voix haute (au micro, Azami écoute). Chacun son carnet.'}</p>
+    <details class="fold jp-ecrit" data-fold="jp-ecrit"><summary><span lang="ja">ひらがな</span> L’écriture, pour plus tard · ${e}/${LECONS_ECRIT.length}</summary><p class="hint">Les hiragana, rangée par rangée, quand tu voudras. Pas besoin pour parler.</p>${E ? `<button class="btn small ghost" data-action="jp-ecrit">${esc(E.t)}</button>` : ''}</details></section>`;
 }
 
 // Le tamagotchi (étape 4, point 1) : des jauges cachées, un seul chat pour vous deux. Elles baissent avec le temps
@@ -6600,6 +6674,7 @@ const actions = {
   'jp-dire': el => jpDire(el.dataset.txt),
   'jp-lecon': () => jpcOuvrir('lecon'),
   'jp-revision': () => jpcOuvrir('revision'),
+  'jp-ecrit': () => jpcOuvrir('ecrit'),
   'azami-lire': () => { const id = AZ.courrier; AZ.courrier = null; AZ.bulle = ''; safeSet('maison-az-bulle', ''); S.loisirTab = 'mots'; S.openLetter = id; S.view = 'nuit'; render(); window.scrollTo(0, 0); },
   'azami-oui': async () => { const a = AZ.action; AZ.action = null; haptic(1); await azamiAgir(a); },
   'azami-non': () => { AZ.action = null; azamiPose(pick(['D’accord, je laisse. Je n’insiste jamais. Presque jamais.', 'Bon. Je range l’idée dans ma mémoire à moi.']), 'calme'); render(); },
