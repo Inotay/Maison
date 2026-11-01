@@ -2136,7 +2136,7 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 #jouet.arrache .fil { display: none; }
 #jouet.arrache .plume { animation: none; }
 #jouet.arrache svg { opacity: 0; }   /* la plume est dessinée dans sa gueule ; le plumeau invisible reste là pour qu'on la lui reprenne */
-.hd img.azami.en-jeu { will-change: translate, scale; }
+.hd img.azami.en-jeu { will-change: transform; animation: none; }
 #jouet { will-change: transform; }
 
 /* Ses trésors : petits objets dessinés à l'encre */

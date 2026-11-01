@@ -2642,7 +2642,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v252</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v253</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -6199,17 +6199,27 @@ function tamaJeu() {
   el.addEventListener('pointermove', e => {
     if (!drag || !S.jeu) return;
     const nx = Math.max(20, Math.min(innerWidth - 20, e.pageX + drag.dx)), ny = Math.max(scrollY + 120, Math.min(scrollY + innerHeight - 60, e.pageY + drag.dy));
-    pos.vx = pos.vx * .6 + (nx - pos.x) * .4; pos.x = nx; pos.y = ny; place(); jeu.vu = Date.now();
+    pos.vx = pos.vx * .6 + (nx - pos.x) * .4; pos.x = nx; pos.y = ny; jeu.vu = Date.now();
+    if (!jeu.placeRaf) jeu.placeRaf = requestAnimationFrame(() => { jeu.placeRaf = 0; if (!jeu.arrache) place(); });   // une écriture par image, pas une par mouvement du doigt
   });
   const lache = () => { drag = null; el.classList.remove('tenu'); pos.vx = 0; place(); };
   el.addEventListener('pointerup', lache); el.addEventListener('pointercancel', lache);
   img.classList.add('en-jeu');
   // elle quitte son coin : l'image entière se déplace (translate) et se retourne (scale) selon où est le plumeau
   const anim = nom => { if (jeu.etat === nom) return; jeu.etat = nom; img.src = reactSrc(nom); };
+  // les dessins du jeu, décodés d'avance : changer de pose ne doit jamais attendre (c'était une saccade)
+  for (const n of ['court', 'marche', 'guette', 'bondit', 'rate', 'emporte', 'calin']) { try { const im = new Image(); im.src = reactSrc(n); im.decode?.().catch(() => {}); } catch {} }
   anim('guette');
-  const pas = () => {
+  // sa place de départ, mesurée une seule fois (en coordonnées de page) : plus aucune mesure pendant la partie,
+  // donc plus de recalcul de la mise en page à chaque image
+  const base = (() => { const r = ri; return { cx: r.left + r.width / 2, cy: r.top + r.height * .62 + scrollY, w: r.width, h: r.height, top: r.top + scrollY, left: r.left }; })();
+  jeu.base = base;
+  let avant = performance.now();
+  const pas = now => {
     if (S.jeu !== jeu) return;
-    const r0 = img.getBoundingClientRect(), cx0 = r0.left + r0.width / 2 - jeu.x, cy0 = r0.top + r0.height * .62 - jeu.y + scrollY;   // son point de départ
+    // le temps qui passe, et non le nombre d'images : même vitesse à 60 Hz (iPhone SE) et à 120 Hz (iPhone Pro)
+    const k = Math.min(3, Math.max(.25, ((now || performance.now()) - avant) / 16.667)); avant = now || performance.now();
+    const cx0 = base.cx, cy0 = base.cy;   // son point de départ
     // elle se tourne vers la plume seulement quand la plume est franchement de l'autre côté (sinon elle se retournait
     // sans arrêt : le point visé changeait de côté à chaque demi-tour)
     const rel = pos.x - (cx0 + jeu.x);
@@ -6218,21 +6228,26 @@ function tamaJeu() {
     const by = jeu.arrache ? jeu.y : Math.max(-40, Math.min(innerHeight * .7, pos.y + 70 - cy0));   // elle vise un peu à côté, la tête vers la plume
     const dx = bx - jeu.x, dy = by - jeu.y, d = Math.hypot(dx, dy);
     const enBond = Date.now() - jeu.bondAt < (jeu.rate ? 1400 : 1500);
-    if (jeu.arrache) { const v = 4; jeu.x += Math.sign(dx) * Math.min(Math.abs(dx), v); anim('emporte'); }   // assez lentement pour qu'on puisse la rattraper
+    if (jeu.arrache) { const v = 4 * k; jeu.x += Math.sign(dx) * Math.min(Math.abs(dx), v); anim('emporte'); }   // assez lentement pour qu'on puisse la rattraper
     else if (!enBond) {
       // loin : elle court (plus vite si c'est loin) ; près : elle se met à l'affût un instant, puis elle bondit
       // loin : elle galope ; plus près : elle s'approche à pas de velours ; tout près : elle se prépare à bondir
-      if (d > 150) { const v = Math.min(d, 5 + Math.min(3, d / 120)); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('court'); jeu.pret = 0; }
-      else if (d > 34) { const v = Math.min(d, 2.2); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('marche'); jeu.pret = 0; }
-      else { if (!jeu.pret) jeu.pret = Date.now(); anim('guette'); if (Date.now() - jeu.pret > 650 && Date.now() - jeu.bondAt > 2200) { jeu.pret = 0; tamaJeuBond(); } }
+      // (avec une marge entre les allures : elle ne repasse pas sans cesse du galop à la marche autour du seuil)
+      const galop = jeu.etat === 'court' ? d > 120 : d > 170, approche = ['marche', 'court'].includes(jeu.etat) ? d > 26 : d > 44;
+      // la vitesse suit la distance en douceur (elle accélère et ralentit, au lieu de changer d'un coup)
+      const cible = galop ? 5 + Math.min(3, d / 120) : approche ? 2.2 : 0;
+      jeu.v = (jeu.v ?? 0) + (cible - (jeu.v ?? 0)) * Math.min(1, .12 * k);
+      if (galop || approche) { const v = Math.min(d, jeu.v * k); jeu.x += dx / d * v; jeu.y += dy / d * v; anim(galop ? 'court' : 'marche'); jeu.pret = 0; }
+      else { jeu.v = 0; if (!jeu.pret) jeu.pret = Date.now(); anim('guette'); if (Date.now() - jeu.pret > 650 && Date.now() - jeu.bondAt > 2200) { jeu.pret = 0; tamaJeuBond(); } }
     }
-    if (jeu.arrache) {   // la plume, arrachée, suit sa gueule
-      const r = img.getBoundingClientRect();
+    if (jeu.arrache) {   // la plume, arrachée, suit sa gueule (calculé, pas mesuré)
+      const l = base.left + jeu.x, r = { left: l, right: l + base.w, top: base.top - scrollY + jeu.y, height: base.h };
       jeu.el.style.transform = `translate(${(jeu.face < 0 ? r.right - 38 : r.left + 38) - 45}px, ${r.top + r.height * .58 + scrollY - 156}px)`;   // droit et centré sur sa gueule : c'est là qu'on la lui reprend
       if (r.right < -40 || r.left > innerWidth + 40) { jeu.arrache = false; tamaJeuFin('arrache'); return; }
     }
-    img.style.translate = `${Math.round(jeu.x)}px ${Math.round(jeu.y)}px`;
-    img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`;
+    // une seule écriture par image, au dixième de pixel (les pas lents ne sautillent plus de pixel en pixel)
+    const tr = `translate3d(${jeu.x.toFixed(1)}px, ${jeu.y.toFixed(1)}px, 0) scaleX(${jeu.face < 0 ? -1 : 1})`;
+    if (tr !== jeu.tr) { jeu.tr = tr; img.style.transform = tr; }
     jeu.raf = requestAnimationFrame(pas);
   };
   jeu.raf = requestAnimationFrame(pas);
@@ -6279,9 +6294,9 @@ function tamaJeuFin(gagne, silence) {
   if (gagne === 'arrache') {
     // elle est partie avec la plume : elle revient un peu plus tard, par l'autre côté, sans plume, très fière
     S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf); jeu.el.remove();
-    const img = jeu.img; img.style.transition = 'none'; img.style.translate = `${jeu.face < 0 ? -innerWidth : innerWidth}px ${Math.round(jeu.y)}px`; img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`; img.src = reactSrc('court');
-    setTimeout(() => { img.style.transition = 'translate 1.1s cubic-bezier(.3,.6,.3,1)'; img.style.translate = '0px 0px'; }, 1400);
-    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.style.scale = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); azamiPose(pick(['Je l’ai ! Il est à moi maintenant. Je l’ai caché quelque part. Non, je ne dirai pas où.', 'Le plumeau a perdu. Je l’ai mis en lieu sûr, sous le canapé.', 'Trop facile. Il te faudra un nouveau plumeau. Demain.']), 'joueuse'); render(); }, 2600);
+    const img = jeu.img; img.style.transition = 'none'; img.style.transform = `translate3d(${jeu.face < 0 ? -innerWidth : innerWidth}px, ${Math.round(jeu.y)}px, 0) scaleX(${jeu.face < 0 ? -1 : 1})`; img.src = reactSrc('court');
+    setTimeout(() => { img.style.transition = 'transform 1.1s cubic-bezier(.3,.6,.3,1)'; img.style.transform = `translate3d(0, 0, 0) scaleX(${jeu.face < 0 ? -1 : 1})`; }, 1400);
+    setTimeout(() => { img.style.transition = ''; img.style.transform = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); azamiPose(pick(['Je l’ai ! Il est à moi maintenant. Je l’ai caché quelque part. Non, je ne dirai pas où.', 'Le plumeau a perdu. Je l’ai mis en lieu sûr, sous le canapé.', 'Trop facile. Il te faudra un nouveau plumeau. Demain.']), 'joueuse'); render(); }, 2600);
     return;
   }
   S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf);
@@ -6289,8 +6304,8 @@ function tamaJeuFin(gagne, silence) {
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 350); }
   // elle rentre dans son coin, en trottinant
   if (img) {
-    img.style.transition = 'translate .7s cubic-bezier(.4,0,.2,1)'; img.style.translate = '0px 0px'; img.style.scale = '';
-    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ render(); }, 720);
+    img.style.transition = 'transform .7s cubic-bezier(.4,0,.2,1)'; img.style.transform = 'translate3d(0, 0, 0)';
+    setTimeout(() => { img.style.transition = ''; img.style.transform = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ render(); }, 720);
   }
   if (bonds) { const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); }
   if (gagne) { azamiPose(bonds >= 8 ? pick(JEU_MOTS.fin) : `${bonds} fois attrapé ! ${pick(['Pas mal pour une chatte avec un petit bide.', 'Encore un peu et je l’avais pour de bon.', 'Asobō ! On rejoue bientôt ?'])}`, 'contente'); }
