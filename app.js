@@ -717,6 +717,7 @@ async function loadAll() {
   { const e = (reglages || []).find(r => r.cle === 'azami:etat')?.valeur; if (e && typeof e === 'object' && (!S.tama || (e.maj || 0) >= (S.tama.maj || 0))) S.tama = { ...TAMA_DEF(), ...e }; }
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
+  S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
@@ -1988,7 +1989,7 @@ function reactSrc(id) {
   return `azami/v44/reactions/${id}_anime.svg?${Date.now()}`;
 }
 // Au calme après l'ouverture : les réactions les plus jouées (caresses, tamagotchi, jeu), pour qu'elles partent tout de suite.
-const REACT_PRECHARGE = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour', 'calin', 'mange', 'ragout', 'friandise', 'boit', 'faim', 'dort', 'boude', 'zoomies', 'guette', 'bondit', 'court', 'marche', 'rate', 'emporte', 'part', 'retrouvailles', 'greve'];
+const REACT_PRECHARGE = ['fenetre', 'toilette_patte', 'caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour', 'calin', 'mange', 'ragout', 'friandise', 'boit', 'faim', 'dort', 'boude', 'zoomies', 'guette', 'bondit', 'court', 'marche', 'rate', 'emporte', 'part', 'retrouvailles', 'greve'];
 setTimeout(() => (window.requestIdleCallback || (f => setTimeout(f, 1)))(() => { let i = 0; const suite = () => { if (i < REACT_PRECHARGE.length) (reactCharge(REACT_PRECHARGE[i++]) || Promise.resolve()).then(() => setTimeout(suite, 60)); }; suite(); }), 6000);
 // Joue une réaction dans l'image d'Azami puis revient à sa scène (une seule à la fois : la dernière gagne).
 function playOnImg(img, id, ms, then) {
@@ -2432,7 +2433,7 @@ function render() {
   const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
-  azamiType(); azamiNuage(); crottesPlace(); tamaScene();
+  azamiType(); azamiNuage(); crottesPlace(); tamaScene(); annivFete();
   glisseApres(glisse);   // après le dessin des bulles : leurs marges intérieures changent aussi la place du reste if (!azamiCourrier() && !jpAujourdhui()) tamaDire();
   cookSave();
   propEnter();
@@ -2637,7 +2638,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v250</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v251</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4003,6 +4004,18 @@ const TEST_GOUT = [['Le Parrain', 1972], ['Pulp Fiction', 1994], ['Le Fabuleux D
   ['Get Out', 2017], ['The Grand Budapest Hotel', 2014], ['Interstellar', 2014], ['Amour', 2012], ['Barbie', 2023], ['Oppenheimer', 2023], ['Shrek', 2001], ['Mamma Mia!', 2008],
   ['N’oublie jamais', 2004], ['Old Boy', 2003], ['Portrait de la jeune fille en feu', 2019], ['Everything Everywhere All at Once', 2022], ['Joker', 2019], ['Le Silence des agneaux', 1991],
   ['Toy Story', 1995], ['2001 : L’Odyssée de l’espace', 1968], ['Le Diable s’habille en Prada', 2006]];
+// « Les films que tu as déjà vus » : des films que presque tout le monde a vus, pour noter vite ceux qu'on connaît.
+// ↑ vu (on note sur la jauge), ← ou ↓ pas vu (aucun avis enregistré), → envie de le voir.
+const DEJA_VUS = [['Titanic', 1997], ['Le Fabuleux Destin d’Amélie Poulain', 2001], ['Le Voyage de Chihiro', 2001], ['Mon voisin Totoro', 1988], ['Princesse Mononoké', 1997], ['Harry Potter à l’école des sorciers', 2001],
+  ['Le Seigneur des anneaux : La Communauté de l’anneau', 2001], ['Pulp Fiction', 1994], ['Forrest Gump', 1994], ['Le Roi lion', 1994], ['Intouchables', 2011], ['Inception', 2010], ['Matrix', 1999],
+  ['Retour vers le futur', 1985], ['E.T., l’extra-terrestre', 1982], ['Jurassic Park', 1993], ['Shrek', 2001], ['Toy Story', 1995], ['Le Monde de Nemo', 2003], ['Ratatouille', 2007], ['Vice-versa', 2015],
+  ['La La Land', 2016], ['Parasite', 2019], ['Le Diable s’habille en Prada', 2006], ['Mamma Mia!', 2008], ['Pretty Woman', 1990], ['Coup de foudre à Notting Hill', 1999], ['Love Actually', 2003],
+  ['Bridget Jones : Le Journal', 2001], ['Dirty Dancing', 1987], ['Grease', 1978], ['Le Parrain', 1972], ['Fight Club', 1999], ['Le Silence des agneaux', 1991], ['Shining', 1980], ['Seven', 1995],
+  ['Kill Bill : Volume 1', 2003], ['Black Swan', 2010], ['Her', 2013], ['Eternal Sunshine of the Spotless Mind', 2004], ['Lost in Translation', 2003], ['Marie-Antoinette', 2006], ['Virgin Suicides', 1999],
+  ['The Grand Budapest Hotel', 2014], ['Moonrise Kingdom', 2012], ['Call Me by Your Name', 2017], ['Portrait de la jeune fille en feu', 2019], ['Little Women', 2019], ['Lady Bird', 2017],
+  ['Barbie', 2023], ['Oppenheimer', 2023], ['Everything Everywhere All at Once', 2022], ['Joker', 2019], ['Interstellar', 2014], ['Avatar', 2009], ['Gladiator', 2000], ['Pirates des Caraïbes : La Malédiction du Black Pearl', 2003],
+  ['La Reine des neiges', 2013], ['Le Prénom', 2012], ['Bienvenue chez les Ch’tis', 2008], ['Les Visiteurs', 1993], ['Le Dîner de cons', 1998], ['La Vie d’Adèle', 2013], ['Mommy', 2014], ['Get Out', 2017],
+  ['Midsommar', 2019], ['Mulholland Drive', 2001], ['In the Mood for Love', 2000], ['Old Boy', 2003], ['Twilight, chapitre 1 : Fascination', 2008], ['Hunger Games', 2012], ['Le Cercle des poètes disparus', 1989], ['Amadeus', 1984]];
 // Les règles à la main : « plus de ça » ou « jamais ça » sur une personne, un thème, un genre…
 function setRule(k, kind, label) {
   const old = JSON.parse(JSON.stringify(gReg(S.me)));
@@ -4370,13 +4383,15 @@ function tasteCard(email) {
   if (!email) return '';
   const t = tastes(), p = t.by[email]; if (!p) return '';
   const self = email === S.me, who = self ? 'tes' : `les goûts de ${esc(nameOf(email))}`;
-  const tools = self ? `<div class="taste-tools"><button class="btn small" data-action="taste-test">${icn('fiole')} Test de goût</button><button class="btn small ghost" data-action="lb-import">${icn('import')} Importer Letterboxd</button></div>` : '';
-  if (p.n < 3) return `<div class="taste"><p class="taste-t">${self ? 'Azami apprend tes goûts' : `Azami ne connaît pas encore ${who}`}</p><p class="hint">Chaque avis compte : ♥ ou ✕ dans Cinder, une note sur un film déjà vu, un coup de cœur. Le plus rapide : le test de goût (2 minutes) ou ton export Letterboxd.</p>${tools}</div>`;
+  const nNotes = self ? S.films.filter(f => f.ratings?.[S.me]?.note).length : 99;
+  const deja = nNotes < 25 ? `<div class="taste-deja"><p><b>Les films que tu as déjà vus</b></p><p class="hint">Des films que presque tout le monde a vus : tu notes ceux que tu connais, tu passes les autres. Chaque note aide Azami à te proposer mieux, et à trouver des films pour vous deux.</p><button class="btn small" data-action="taste-deja">${icn('flamme')} C’est parti</button></div>` : '';
+  const tools = self ? `<div class="taste-tools"><button class="btn small" data-action="taste-test">${icn('fiole')} Test de goût</button>${nNotes >= 25 ? `<button class="btn small ghost" data-action="taste-deja">${icn('flamme')} Films déjà vus</button>` : ''}<button class="btn small ghost" data-action="lb-import">${icn('import')} Importer Letterboxd</button></div>` : '';
+  if (p.n < 3) return `<div class="taste"><p class="taste-t">${self ? 'Azami apprend tes goûts' : `Azami ne connaît pas encore ${who}`}</p><p class="hint">Chaque avis compte : ♥ ou ✕ dans Cinder, une note sur un film déjà vu, un coup de cœur. Le plus rapide : le test de goût (2 minutes) ou ton export Letterboxd.</p>${deja}${tools}</div>`;
   const top = T.top(p, S.films), reg = gReg(email);
   const chips = (l, cls = '') => l.map(r => self ? `<button type="button" class="tchip ${cls}${reg.boost?.[r[0]] ? ' boost' : ''}" data-action="taste-rule" data-k="${esc(r[0])}" data-l="${esc(r[2])}">${esc(r[2])}</button>` : `<span class="tchip ${cls}">${esc(r[2])}</span>`).join('');
   const rules = [...Object.entries(reg.boost || {}).map(([k, l]) => [k, l, 'boost']), ...Object.entries(reg.ban || {}).map(([k, l]) => [k, l, 'ban'])];
   const lvl = p.n < 15 ? 'débute' : p.n < 40 ? 'commence à bien connaître' : p.n < 100 ? 'connaît bien' : 'connaît par cœur';
-  return `<div class="taste"><p class="taste-t">Azami ${lvl} ${self ? 'tes goûts' : `les goûts de ${esc(nameOf(email))}`} <small>${p.n} avis</small></p>
+  return `<div class="taste"><p class="taste-t">Azami ${lvl} ${self ? 'tes goûts' : `les goûts de ${esc(nameOf(email))}`} <small>${p.n} avis</small></p>${deja}
     ${top.people.length ? `<p class="taste-k">Côté équipes</p><div class="tchips">${chips(top.people)}</div>` : ''}
     ${top.themes.length || top.genres.length || top.langs.length ? `<p class="taste-k">Ce qui ${self ? 'te' : 'lui'} plaît</p><div class="tchips">${chips([...top.genres, ...top.langs, ...top.themes].slice(0, 8))}</div>` : ''}
     ${p.src && p.src !== 'tmdb' && p.corr > .2 ? `<p class="taste-k">${self ? 'Ton' : 'Son'} public le plus proche</p><p class="taste-pub">${({ lb: 'Les cinéphiles de Letterboxd', imdb: 'Le grand public d’IMDb', presse: 'La presse (Metacritic, Rotten Tomatoes)', public: 'Les spectateurs de Rotten Tomatoes' })[p.src]} <small>Entre la presse, le grand public et les cinéphiles, c’est leur avis qui ressemble le plus ${self ? 'au tien' : 'au sien'}.</small></p>` : ''}
@@ -4564,6 +4579,11 @@ async function deckOpen(mood = '') {
   box.addEventListener('pointerup', fwEnd, true); box.addEventListener('pointercancel', fwEnd, true); box.addEventListener('lostpointercapture', fwEnd, true);
   box.addEventListener('click', e => { if (performance.now() - fwAt < 350) { e.stopPropagation(); e.preventDefault(); } }, true);
   if (mood === 'test') box.querySelector('.deck-hint').textContent = 'Test de goût : vu ou pas, dis ce que tu en penses. Une trentaine de films, très différents.';
+  if (mood === 'deja') {
+    box.querySelector('.deck-hint').textContent = '↑ vu (puis ta note) · ← pas vu · → envie de le voir';
+    box.querySelector('.deck-moods').hidden = true;
+    for (const [sel, txt] of [['.deck-bof small', 'Pas vu'], ['.deck-no small', 'Pas vu']]) { const e = box.querySelector(sel); if (e) e.textContent = txt; }
+  }
   await deckMore(true);
   deckDraw();
 }
@@ -4571,14 +4591,15 @@ async function deckOpen(mood = '') {
 // par le goût (le tien, et celui de l'autre pour viser les matchs), avec un peu de hasard pour apprendre.
 async function deckMore(first = false) {
   if (!deck || deck.loading) return; deck.loading = true;
-  if (deck.mood === 'test') {
+  if (deck.mood === 'test' || deck.mood === 'deja') {
+    const liste = deck.mood === 'deja' ? DEJA_VUS : TEST_GOUT;
     const have = new Set(S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me] || fSeen(f, S.me)).map(f => nt(f.title)));
-    const items = TEST_GOUT.filter(([t]) => !have.has(nt(t)));
+    const items = liste.filter(([t]) => !have.has(nt(t)));
     let res = [];
     try { res = DEMO ? FILM_DEMO : (await filmsCall({ action: 'resolve', lite: true, items: items.map(([title, year]) => ({ title, media: 'movie', year })) })).results || []; } catch (e) { console.warn('test', e); }
     const cards = res.filter(f => f?.tmdb_id && !deck.keys.has(fkey(f)) && !S.films.some(x => fkey(x) === fkey(f) && (fVotes(x)[S.me] || x.ratings?.[S.me])));
     for (const f of cards) deck.keys.add(fkey(f));
-    deck.cards.push(...cards); deck.mood = ''; deck.loading = false; deck.test = cards.length;
+    deck.cards.push(...cards); if (deck.mood === 'deja') deck.deja = cards.length; else deck.test = cards.length; deck.mood = ''; deck.loading = false;
     return;
   }
   const o = other(), t0 = tastes([], true);
@@ -4655,7 +4676,7 @@ function deckDraw() {
   const st = deck?.box.querySelector('.deck-stack'); if (!st) return;
   const t = tastes(deck.cards, true), o = other();
   const n = deck.box.querySelector('.deck-n');
-  if (n) { const fresh = (deck.voted || []).filter(x => x > (tasteMemo?.at || 0)).length; n.textContent = deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n + fresh} avis` : ''; }
+  if (n) { const fresh = (deck.voted || []).filter(x => x > (tasteMemo?.at || 0)).length; n.textContent = deck.deja && deck.i < deck.deja ? `${deck.i + 1}/${deck.deja}` : deck.test && deck.i < deck.test ? `Test ${deck.i + 1}/${deck.test}` : t.me?.n ? `${t.me.n + fresh} avis` : ''; }
   const cur = deck.cards[deck.i], nxt = deck.cards[deck.i + 1];
   if (cur && deck.shownAt !== deck.i) { deck.shownAt = deck.i; deck.t0 = deck.act = performance.now() + 220; deck.gap = 0; deck.away = document.hidden; deck.fiche = false; deck.lire = 0; const c0 = cur; setTimeout(() => shownAdd(c0), 400); }
   // plus que quelques cartes : on en cherche d'autres (une seule fois de suite si la pioche revient vide)
@@ -4908,6 +4929,8 @@ function deckFly(el, v, from) {
 async function deckVote(v, from) {
   const f = deck?.cards[deck.i]; if (!f) return;
   if (deck.asking) { deck.asking = false; deck.box.querySelector('.dseen')?.remove(); }
+  // « déjà vus » : pas vu ne dit rien des goûts, la carte passe simplement
+  if (deck.deja && deck.i < deck.deja && (v === 'non' || v === 'beurk')) { deckWhyHide(); deckFly(deck.box.querySelector('.dcard.top:not(.gone)'), 'non', from); haptic(1); deck.i++; deckDraw(); return; }
   const tv = performance.now();
   deckWhyHide();
   const el = deck.box.querySelector('.dcard.top:not(.gone)');
@@ -5272,7 +5295,14 @@ async function azamiCall(body) {
   return data;
 }
 // L'instantané de l'app qu'elle reçoit avec chaque message : court, et seulement ce qui se dit.
-function azamiContexte() {
+// Les comptes bougent rarement : Azami n'en parle que s'ils ont changé depuis la dernière fois qu'elle les a vus,
+// ou si on lui en parle. Le dernier solde vu et la dernière remarque sont gardés sur le téléphone.
+const COMPTES_MOTS = /argent|compte|doi[st]\b|dois|dépens|rembours|\bchf\b|franc|dette|payé|payer|thune|sous\b/i;
+const comptesNet = () => Math.round((balances()[S.me] || 0) * 100);
+const comptesVu = () => { try { return JSON.parse(safeGet('maison-az-comptes') || 'null') || {}; } catch { return {}; } };
+const comptesBouge = () => { const v = comptesVu(); return v.net !== undefined && v.net !== comptesNet(); };
+function comptesNote(dit, net = true) { const v = comptesVu(); safeSet('maison-az-comptes', JSON.stringify({ net: net || v.net === undefined ? comptesNet() : v.net, dit: dit ? Date.now() : (v.dit || 0) })); }
+function azamiContexte(txt = '') {
   const l = [], nom = e => e === S.me ? firstName() : nameOf(e);
   // le ménage, corvée par corvée : à qui le tour, quand et par qui, ce qui est dû, les machines en route
   const men = S.chores.slice(0, 30).map(c => {
@@ -5287,8 +5317,9 @@ function azamiContexte() {
   const shop = S.shopping.filter(s => !s.checked);
   l.push(`Courses à acheter : ${shop.length ? shop.slice(0, 20).map(s => s.label).join(', ') : 'liste vide'}.`);
   if (S.plans?.length) l.push(`Au menu : ${S.plans.map(p => p.title).join(', ')}.`);
-  const net = balances()[S.me] || 0;
-  l.push(Math.abs(net) < .01 ? 'Comptes : vous êtes quittes.' : net > 0 ? `Comptes : ${nameOf(other())} doit ${chf(net)} à ${firstName()}.` : `Comptes : ${firstName()} doit ${chf(-net)} à ${nameOf(other())}.`);
+  const net = balances()[S.me] || 0, bouge = comptesBouge();
+  if (S.view === 'argent' || bouge || COMPTES_MOTS.test(txt)) l.push((Math.abs(net) < .01 ? 'Comptes : vous êtes quittes.' : net > 0 ? `Comptes : ${nameOf(other())} doit ${chf(net)} à ${firstName()}.` : `Comptes : ${firstName()} doit ${chf(-net)} à ${nameOf(other())}.`) + (bouge ? ' (ça vient de changer)' : ' (rien n’a bougé : n’en parle pas sauf si on te le demande)'));
+  if (bouge) comptesNote(false);   // elle l'a vu
   const env = (S.films || []).filter(f => f.votes?.[S.me] === 'oui' || f.votes?.[S.me] === 'super').slice(-6).map(f => f.title);
   if (env.length) l.push(`Derniers films dont ${firstName()} a envie : ${env.join(', ')}.`);
   const vus = (S.films || []).filter(f => f.ratings?.[S.me]?.note).sort((a, b) => String(b.vuAt || '').localeCompare(String(a.vuAt || ''))).slice(0, 5).map(f => `${f.title} (${noteMot(f.ratings[S.me].note).toLowerCase()})`);
@@ -5298,6 +5329,8 @@ function azamiContexte() {
   const vu = azamiDepuis(); if (vu.length) l.push(`DEPUIS LA DERNIÈRE VISITE DE ${firstName().toUpperCase()} : ${nameOf(other())} ${vu.map(e => `${e.text} (${ago(e.at)})`).join(' ; ')}.`);
   { const j = JP(); if (j.mots?.length || j.hira?.length) l.push(`JAPONAIS DÉJÀ VU PAR ${firstName().toUpperCase()} : mots ${(j.mots || []).slice(-15).join(' ') || 'aucun'} ; hiragana ${(j.hira || []).join('') || 'aucun'}. Tu peux les réutiliser, les faire réviser, en apprendre un nouveau si on te le demande (kana, romaji, sens).`); }
   l.push(tamaContexte());
+  { const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'], fmt = d => d ? `${Number(d.slice(3))} ${MOIS[Number(d.slice(0, 2)) - 1]}` : null;
+    l.push(`ANNIVERSAIRES : ${S.members.map(m => `${nom(m.email)} : ${fmt(S.anniv?.[m.email]) || 'inconnu (demande-le un jour, au détour d’une conversation, puis action anniversaire avec la date)'}`).join(' ; ')}.`); }
   if (azamiContexte.enReponseA) l.push(`TA BULLE À L'ÉCRAN (dite à l'instant, hors conversation) : « ${azamiContexte.enReponseA} ». ${firstName()} répond à CETTE bulle, pas à tes messages d'avant : un « oui » ou un « non » la concerne elle. Une ancienne proposition (recette, film…) n'est pas acceptée par ce oui.`);
   { const sm = azamiSansMots(); if (sm.length) l.push(`RÉPONSES SANS MOTS (${firstName()} t'a caressée au lieu d'écrire, c'est sa réponse, tendre) : ${sm.map(x => `à « ${x.bulle} » (${ago(new Date(x.at).toISOString())})`).join(' ; ')}.`); }
   if (S.view === 'recettes' || /recett|menu|mang|cuisin|d[iî]ner|souper|repas|plat/i.test(azamiContexte.texte || '')) l.push(`RECETTES DE L'APP (titres exacts, pour « menu ») : ${RECETTES.map(r => r.titre).join(' · ')}.`);
@@ -5423,6 +5456,7 @@ const AZ_FAIT = {
   tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
   menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
+  anniversaire: ['C’est noté dans ma tête, et dans mon cœur. Je ne l’oublierai pas.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
   corvee: ['Cochée ! Le tour passe, la maison brille, et moi je surveille.', 'C’est noté dans le ménage. Je fais semblant d’avoir aidé.', 'Une de faite ! Tu mérites une sieste au soleil.'],
   machine: ['C’est lancé. Je te préviens quand c’est fini, promis.', 'Le minuteur tourne. Je reste à côté de la machine, elle fait des bruits intéressants.'],
   message: ['Je le porte dans ma gueule, comme une lettre. Promis, je ne le mâchouille pas.', 'Message pris. Je le lui dis dès qu’elle passe. Enfin, dès qu’il passe. Enfin, l’autre.'],
@@ -5447,6 +5481,15 @@ async function azamiAgir(a) {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». Tu es sûr du titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, 'oui');
+    } else if (a.type === 'anniversaire') {
+      // la date peut arriver en AAAA-MM-JJ, MM-JJ ou JJ/MM
+      const d = String(a.date || texte), m = d.match(/(\d{4})-(\d{2})-(\d{2})/) || d.match(/^(\d{2})-(\d{2})$/) || d.match(/(\d{1,2})[\/.](\d{1,2})/);
+      let mmjj = null;
+      if (m && m.length === 4 && m[1].length === 4) mmjj = `${m[2]}-${m[3]}`; else if (m && /^\d{2}-\d{2}$/.test(d)) mmjj = d; else if (m) mmjj = `${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+      if (!mmjj) { azamiPose('Je n’ai pas bien compris la date. Tu me la redis, jour et mois ?', 'curieuse'); render(); return false; }
+      const qui = a.pour === 'autre' && other() ? other() : S.me;
+      await api.upsert('reglages', { cle: `azami:anniv:${qui}`, valeur: { date: mmjj, par: S.me } });
+      S.anniv = { ...(S.anniv || {}), [qui]: mmjj };
     } else if (a.type === 'corvee') {
       const c = azTrouve(S.chores, texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
       const par = a.pour === 'autre' && other() ? other() : S.me;
@@ -5517,9 +5560,12 @@ function azamiRemarque(evt, detail = '') {
   const folie = azamiFolie();
   const now = Date.now(), delai = (mode === 'bavarde' ? 80e3 : 8 * 60e3) / (folie ? 2 : 1);
   if (now - azDernier < delai || now - (AZ.at || 0) < 40e3) return;
+  // les comptes : une remarque seulement s'ils ont bougé, sinon au plus une fois par mois
+  if (evt === 'page' && detail === 'argent') { const v = comptesVu(); if (!comptesBouge() && now - (v.dit || 0) < 30 * 864e5) { if (v.net === undefined) comptesNote(false); return; } }
   const chance = evt === 'inactif' ? .9 : (mode === 'bavarde' ? .3 : .1) * (folie ? 2 : 1);
   if (Math.random() > chance) return;
   azDernier = now;
+  if (evt === 'page' && detail === 'argent') comptesNote(true, false);   // le solde, lui, est noté quand elle le voit (contexte) ou dit sa phrase
   const nom = firstName();
   if (!DEMO && !S.offline && Math.random() < (evt === 'inactif' ? .6 : .35)) {
     const desc = evt === 'page' ? `${nom} arrive sur la page ${AZ_PAGE[detail] || detail}.` : evt === 'fait' ? `${nom} vient de faire quelque chose dans l'app : ${detail}.` : `${nom} regarde la page ${AZ_PAGE[S.view] || 'accueil'} sans rien faire depuis une minute.`;
@@ -5528,8 +5574,10 @@ function azamiRemarque(evt, detail = '') {
   let pool = evt === 'page' ? AZ_PAGES_MOTS[detail] : evt === 'fait' ? AZ_FAIT_MOTS : AZ_INACTIF_MOTS;
   // devant l'écran sans rien faire : parfois un film de ta liste, au hasard
   if (evt === 'inactif' && Math.random() < .4) { const env = (S.films || []).filter(f => f.status === 'a_voir' && T.wants(f.votes?.[S.me])); if (env.length) pool = [`Dis, « ${pick(env).title} » attend dans ta liste. Ce soir, peut-être ?`]; }
+  if (evt === 'page' && detail === 'nuit' && Math.random() < .4 && S.films.filter(f => f.ratings?.[S.me]?.note).length < 25) pool = ['Tu as cinq minutes ? Dans tes goûts, « Les films que tu as déjà vus » : tu notes ceux que tu connais, et je te trouve mieux.'];
   if (folie && Math.random() < .5) pool = AZ_FOLIE_MOTS;   // à ses heures de folie, elle embête
   if (!pool?.length) return;
+  if (evt === 'page' && detail === 'argent') comptesNote(true);
   azamiPose(pick(pool), folie ? 'joueuse' : evt === 'fait' ? 'contente' : 'curieuse'); render();
   meow(true, folie ? .5 : .35, pick(folie ? ['grogne', 'chirp', 'mewmew', 'gazouille'] : ['mrrr', 'chirp', 'question']));
   if (folie) { const img = document.querySelector('.hd img.azami'); if (img && !img.dataset.caresse) playOnImg(img, 'attaque', 1750); }
@@ -5722,6 +5770,7 @@ function tamaGeste(k) {
     S.tamaMenu = null;
     const img = document.querySelector('.hd img.azami'); if (img) playOnImg(img, g.reac, g.ms || 2500);
     if (g.bruit) sfx(g.bruit);
+    if (['croquettes', 'ragout'].includes(k) && Math.random() < .4) setTimeout(() => { const im = document.querySelector('.hd img.azami'); if (im && !im.dataset.caresse && !im.dataset.tama && S.view === 'maison') playOnImg(im, 'toilette_patte', 4400); }, (g.ms || 2500) + 400);   // après manger : un brin de toilette
     meow(true, .5, pick(g.son)); haptic('medium'); if (img) burst('hearts', img, 6);
     // une fois sur deux, c'est elle qui improvise (le modèle reçoit le geste, pas une phrase) ; sinon une phrase locale
     if (!DEMO && !S.offline && Math.random() < .5) { azamiEnvoyer(`${firstName()} ${g.geste}.`, true); return; }
@@ -5775,7 +5824,7 @@ function tamaScene() {
   const etat = !S.me || S.recovery ? null
     : ou ? (S.view === ou ? 'guette' : null)
     : S.view !== 'maison' ? (azamiNuit() || essai === 'dort' || (now >= (t.siesteDe || 0) && now < (t.sieste || 0)) ? 'dort' : null)   // la nuit et en sieste, elle dort aussi sur les autres pages
-    : essai && !['zoomies', 'balade', 'greve'].includes(essai) ? essai
+    : essai && !['zoomies', 'balade', 'greve', 'arrache'].includes(essai) ? essai
     : S.jeu ? 'guette'
     : t.greve ? 'greve'
     : azamiNuit() || (now >= (t.siesteDe || 0) && now < (t.sieste || 0)) ? 'dort'
@@ -5820,6 +5869,7 @@ function tamaTrouvee(img) {
   img.classList.remove('cachee'); delete img.dataset.tama;
   playOnImg(img, 'retrouvailles', 2600); burst('hearts', img, 10); haptic('heavy'); meow(true, .6, pick(['trille', 'chirp', 'mewmew']));
   azamiPose(pick(GREVE_MOTS.trouvee), 'contente'); render();
+  setTimeout(() => tresorDonne(tresorAuHasard()), 3000);   // elle rapporte toujours quelque chose de sa balade
   return true;
 }
 function tamaGreveFin() {
@@ -5827,6 +5877,78 @@ function tamaGreveFin() {
   const img = document.querySelector('.hd img.azami'); delete img?.dataset.tama;
   if (img) { playOnImg(img, 'retrouvailles', 2600); burst('hearts', img, 10); }
   haptic('heavy'); meow(true, .6, pick(['trille', 'chirp'])); azamiPose(pick(GREVE_MOTS.fin), 'contente'); render();
+}
+// Sa vie quand on ne fait rien : de temps en temps, sur l'accueil, elle va regarder par la fenêtre (et commente
+// parfois ce qu'elle voit), ou elle fait sa toilette. Jamais la nuit, jamais pendant une bulle ou une partie.
+const FENETRE_MOTS = ['Un pigeon. Encore. Il me nargue.', 'Un oiseau sur la branche. Kakakaka… pardon, c’est nerveux.', 'Tori ! (oiseau) Là, là ! Tu l’as vu ?', 'Les jardins sont calmes. Trop calmes.', 'Quelqu’un passe à vélo. Je le surveille.', 'Un chien dans le jardin. Je le juge très fort.', 'Il pleut ? Non. Bon. Je surveille quand même.', 'Les voisins rentrent. Je fais semblant de ne pas les regarder.'];
+let vieAt = Date.now();
+function tamaVie() {
+  if (document.hidden || S.view !== 'maison' || !S.me || S.jeu || AZ.busy || AZ.ecrit || azamiNuit()) return;
+  const img = document.querySelector('.hd img.azami'); if (!img || img.dataset.caresse || img.dataset.tama || tamaAbsente()) return;
+  if (Date.now() - vieAt < 3 * 60e3 || Math.random() < .5) return;
+  vieAt = Date.now();
+  if (Math.random() < .6) {
+    playOnImg(img, 'fenetre', 14000);
+    if (!AZ.bulle && AZ_MODE() !== 'muette' && Math.random() < .45) setTimeout(() => { if (!AZ.bulle && img.dataset.caresse) { azamiPose(pick(FENETRE_MOTS), 'curieuse'); render(); } }, 3200);
+  } else playOnImg(img, 'toilette_patte', 4400);
+}
+setInterval(tamaVie, 30e3);
+// Ses trésors : ce qu'elle rapporte de balade (et pour les grandes occasions). Des petits objets dessinés à l'encre,
+// gardés pour toujours dans l'état partagé (t.tresors), à voir dans Souvenirs. Chacun avec sa petite phrase.
+const TR_INK = '#2A1C15';
+const TRESORS = {
+  plume: { nom: 'une plume bleue', svg: `<path d="M34 6 C20 12 12 26 12 42 L16 42 C18 30 26 18 36 10Z" fill="#7FB3DE" stroke="${TR_INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M33 9 C24 20 18 30 14 44" stroke="${TR_INK}" stroke-width="2" fill="none" stroke-linecap="round"/>`, mot: 'Je t’ai rapporté une plume. Ne demande pas à qui elle était.' },
+  bouton: { nom: 'un bouton doré', svg: `<circle cx="24" cy="24" r="15" fill="#F2C94C" stroke="${TR_INK}" stroke-width="2.6"/><circle cx="19" cy="20" r="2.4" fill="${TR_INK}"/><circle cx="29" cy="20" r="2.4" fill="${TR_INK}"/><circle cx="19" cy="29" r="2.4" fill="${TR_INK}"/><circle cx="29" cy="29" r="2.4" fill="${TR_INK}"/>`, mot: 'Un bouton doré ! Il était par terre. Enfin, presque par terre.' },
+  feuille: { nom: 'une feuille d’érable', svg: `<path d="M24 6 L28 16 L38 12 L33 22 L42 26 L32 30 L34 40 L24 34 L14 40 L16 30 L6 26 L15 22 L10 12 L20 16Z" fill="#E8833A" stroke="${TR_INK}" stroke-width="2.4" stroke-linejoin="round"/><path d="M24 14 V44" stroke="${TR_INK}" stroke-width="2" stroke-linecap="round"/>`, mot: 'Une feuille rouge du jardin. Elle croustille, c’est mon bruit préféré.' },
+  caillou: { nom: 'un caillou tout lisse', svg: `<path d="M8 30 C8 18 20 12 30 14 C40 16 42 26 38 32 C34 38 14 40 8 30Z" fill="#B9B4AA" stroke="${TR_INK}" stroke-width="2.6"/><path d="M16 24 C20 20 26 19 30 21" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" opacity=".7"/>`, mot: 'Un caillou très lisse. Je l’ai poussé jusqu’ici avec le nez.' },
+  ruban: { nom: 'un bout de ruban', svg: `<path d="M6 30 C14 18 20 34 28 22 C34 14 40 22 42 18" stroke="#E7776B" stroke-width="7" fill="none" stroke-linecap="round"/><path d="M6 30 C14 18 20 34 28 22 C34 14 40 22 42 18" stroke="${TR_INK}" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".5"/>`, mot: 'Un ruban rouge. J’ai joué avec tout le long du chemin.' },
+  capsule: { nom: 'une capsule', svg: `<path d="M24 8 L28 11 L33 10 L35 15 L40 17 L39 22 L42 26 L38 30 L38 35 L33 36 L30 40 L25 38 L20 40 L17 36 L12 35 L12 30 L8 26 L11 22 L10 17 L15 15 L17 10 L22 11Z" fill="#9CC9A0" stroke="${TR_INK}" stroke-width="2.4" stroke-linejoin="round"/><circle cx="24" cy="24" r="8" fill="none" stroke="${TR_INK}" stroke-width="2"/>`, mot: 'Une capsule. Elle roule si bien, je n’ai pas pu résister.' },
+  gland: { nom: 'un gland', svg: `<path d="M14 22 C14 36 34 36 34 22Z" fill="#C98B5E" stroke="${TR_INK}" stroke-width="2.6"/><path d="M11 22 C11 12 37 12 37 22Z" fill="#7A5A40" stroke="${TR_INK}" stroke-width="2.6"/><path d="M24 12 V6" stroke="${TR_INK}" stroke-width="2.6" stroke-linecap="round"/>`, mot: 'Un gland. Pour plus tard. On ne sait jamais.' },
+  ticket: { nom: 'un ticket de métro', svg: `<rect x="6" y="14" width="36" height="20" rx="3" fill="#FFF7E3" stroke="${TR_INK}" stroke-width="2.6"/><path d="M12 20 H30 M12 26 H24" stroke="${TR_INK}" stroke-width="2" stroke-linecap="round"/><circle cx="35" cy="24" r="3" fill="#E7776B"/>`, mot: 'Un ticket de métro. Je ne suis pas allée à Ouchy. Peut-être.' },
+  kanji: { nom: 'une carte « 猫 » (neko, chat)', svg: `<rect x="10" y="6" width="28" height="36" rx="4" fill="#FFF7E3" stroke="${TR_INK}" stroke-width="2.6"/><text x="24" y="31" text-anchor="middle" font-size="17" font-family="serif" fill="${TR_INK}">猫</text>`, mot: 'Une carte avec 猫 dessus. Neko. Ça veut dire moi.' },
+  coquillage: { nom: 'un petit coquillage', svg: `<path d="M24 40 C10 36 6 22 12 12 C18 6 30 6 36 12 C42 22 38 36 24 40Z" fill="#F6D3C6" stroke="${TR_INK}" stroke-width="2.6"/><path d="M24 40 L16 12 M24 40 L24 9 M24 40 L32 12" stroke="${TR_INK}" stroke-width="1.8" stroke-linecap="round"/>`, mot: 'Un coquillage ! Le lac, il est grand quand même.' },
+  bille: { nom: 'une bille en verre', svg: `<circle cx="24" cy="24" r="14" fill="#9AD3F2" stroke="${TR_INK}" stroke-width="2.6"/><path d="M15 28 C20 18 28 30 33 20" stroke="#E7776B" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="19" cy="18" r="3" fill="#fff" opacity=".8"/>`, mot: 'Une bille. Elle était sous le canapé de quelqu’un. Pas le nôtre.' },
+  gateau: { nom: 'une part de gâteau dessinée', svg: `<path d="M8 34 L40 34 L40 22 L8 26Z" fill="#F6D3C6" stroke="${TR_INK}" stroke-width="2.6" stroke-linejoin="round"/><path d="M8 26 L40 22 L30 14Z" fill="#FFF7E3" stroke="${TR_INK}" stroke-width="2.6" stroke-linejoin="round"/><circle cx="30" cy="12" r="3" fill="#E7776B" stroke="${TR_INK}" stroke-width="2"/>`, mot: 'Joyeux anniversaire ! J’ai dessiné un gâteau. Je l’aurais mangé, sinon.', special: true },
+};
+const tresorSvg = (k, cls = '') => `<svg class="tresor ${cls}" viewBox="0 0 48 48" aria-hidden="true">${TRESORS[k]?.svg || ''}</svg>`;
+// Elle donne un trésor : il apparaît au milieu de l'écran, puis va se ranger ; elle dit sa petite phrase.
+function tresorDonne(k) {
+  const t = tamaEtat(), tr = TRESORS[k] || TRESORS.plume;
+  (t.tresors ||= []).push({ k, at: Date.now(), par: S.me }); tamaSave(true);
+  const el = document.createElement('div'); el.className = 'tresor-pop'; el.innerHTML = `${tresorSvg(k)}<p>${esc(`Azami t’a rapporté ${tr.nom}`)}</p>`;
+  document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
+  burst('sparkle', el.querySelector('svg'), 12); sfx('heart'); haptic('medium');
+  setTimeout(() => { el.classList.add('part'); setTimeout(() => el.remove(), 600); }, 3200);
+  azamiPose(tr.mot, 'contente'); render();
+}
+function tresorAuHasard() {
+  const deja = new Set((tamaEtat().tresors || []).map(x => x.k)), tous = Object.keys(TRESORS).filter(k => !TRESORS[k].special);
+  const neufs = tous.filter(k => !deja.has(k));
+  return pick(neufs.length ? neufs : tous);
+}
+// Les anniversaires : le jour venu, une fête pour la personne (confettis, un mot, un cadeau dessiné, une fois par an) ;
+// pour l'autre, un petit rappel la veille et le jour même. Une seule fois par jour et par téléphone.
+function annivFete() {
+  if (DEMO && /azami=anniv/.test(location.search) && !S.anniv) S.anniv = {};
+  if (!S.me || S.view !== 'maison' || !S.anniv) return;
+  const now = new Date(), auj = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const dem = new Date(now.getTime() + 864e5), demain = `${String(dem.getMonth() + 1).padStart(2, '0')}-${String(dem.getDate()).padStart(2, '0')}`;
+  if (DEMO && /azami=anniv/.test(location.search)) S.anniv = { [S.me]: auj };   // pour essayer : ?azami=anniv
+  const cle = 'maison-anniv-' + isoDate(now); if (safeGet(cle)) return;
+  if (S.anniv[S.me] === auj) {
+    safeSet(cle, '1');
+    setTimeout(() => {
+      celebrate({ title: `Joyeux anniversaire ${firstName()} !`, sub: 'Azami a préparé quelque chose', level: 'big', reaction: 'retrouvailles' });
+      meow(true, .6, 'trille');
+      const t = tamaEtat(), an = now.getFullYear();
+      if (!(t.tresors || []).some(x => x.k === 'gateau' && new Date(x.at).getFullYear() === an && x.par === S.me)) setTimeout(() => tresorDonne('gateau'), 2500);
+      else { azamiPose(`Joyeux anniversaire ${firstName()} ! Tanjōbi omedetō ! (お誕生日おめでとう) Aujourd’hui, tout est permis. Même deux friandises.`, 'contente'); render(); }
+    }, 1200);
+    return;
+  }
+  const o = other(); if (!o || !S.anniv[o]) return;
+  if (S.anniv[o] === auj) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`C’est l’anniversaire de ${nameOf(o)} aujourd’hui ! Tu as pensé à elle ? Moi, je lui prépare un ronron spécial.`, 'joueuse'); render(); }, 1500); }
+  else if (S.anniv[o] === demain) { safeSet(cle, '1'); setTimeout(() => { azamiPose(`Psst… demain, c’est l’anniversaire de ${nameOf(o)}. Je dis ça, je dis rien.`, 'curieuse'); render(); }, 1500); }
 }
 // Jouer : un plumeau dessiné qu'on promène au doigt. Elle le guette (accroupie, le derrière qui frétille) ;
 // quand il passe près d'elle, elle bondit dessus. Cinq bonds et elle a son compte ; sans mouvement pendant
@@ -5948,7 +6070,7 @@ function tamaJeuFin(gagne, silence) {
     S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf); jeu.el.remove();
     const img = jeu.img; img.style.transition = 'none'; img.style.translate = `${jeu.face < 0 ? -innerWidth : innerWidth}px ${Math.round(jeu.y)}px`; img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`; img.src = reactSrc('court');
     setTimeout(() => { img.style.transition = 'translate 1.1s cubic-bezier(.3,.6,.3,1)'; img.style.translate = '0px 0px'; }, 1400);
-    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.style.scale = ''; img.classList.remove('en-jeu'); delete img.dataset.tama; const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); azamiPose(pick(['Je l’ai ! Il est à moi maintenant. Je l’ai caché quelque part. Non, je ne dirai pas où.', 'Le plumeau a perdu. Je l’ai mis en lieu sûr, sous le canapé.', 'Trop facile. Il te faudra un nouveau plumeau. Demain.']), 'joueuse'); render(); }, 2600);
+    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.style.scale = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); azamiPose(pick(['Je l’ai ! Il est à moi maintenant. Je l’ai caché quelque part. Non, je ne dirai pas où.', 'Le plumeau a perdu. Je l’ai mis en lieu sûr, sous le canapé.', 'Trop facile. Il te faudra un nouveau plumeau. Demain.']), 'joueuse'); render(); }, 2600);
     return;
   }
   S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf);
@@ -5957,7 +6079,7 @@ function tamaJeuFin(gagne, silence) {
   // elle rentre dans son coin, en trottinant
   if (img) {
     img.style.transition = 'translate .7s cubic-bezier(.4,0,.2,1)'; img.style.translate = '0px 0px'; img.style.scale = '';
-    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.classList.remove('en-jeu'); delete img.dataset.tama; render(); }, 720);
+    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.classList.remove('en-jeu'); img.dataset.tama = 'jeu';   /* marqué « en jeu » : au rendu suivant, sa scène normale revient */ render(); }, 720);
   }
   if (bonds) { const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); }
   if (gagne) { azamiPose(bonds >= 8 ? pick(JEU_MOTS.fin) : `${bonds} fois attrapé ! ${pick(['Pas mal pour une chatte avec un petit bide.', 'Encore un peu et je l’avais pour de bon.', 'Asobō ! On rejoue bientôt ?'])}`, 'contente'); }
@@ -6125,7 +6247,7 @@ async function azamiEnvoyer(txt, geste = false) {
   try {
     const now = new Date();
     azamiContexte.texte = txt; azamiContexte.enReponseA = enReponseA;
-    const r = await azamiCall({ action: 'parler', texte: txt, geste, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte() });
+    const r = await azamiCall({ action: 'parler', texte: txt, geste, page: AZ_PAGE[S.view] || 'accueil', heure: now.getHours(), date: now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), contexte: azamiContexte(txt) });
     AZ.busy = false; azamiPose(r.reponse, r.humeur || 'calme', (r.choix || []).slice(0, 3)); AZ.dernierModele = r.reponse;
     AZ.action = r.action && r.action.type ? r.action : null;
     if (AZ.action && AZ.action.demande) { const a = AZ.action; AZ.action = null; render(); await azamiAgir(a); return; }   // demandé par la personne : tout de suite
@@ -6182,6 +6304,7 @@ function azamiFil() {
   const box = document.createElement('div'); box.id = 'chat';
   box.innerHTML = `<div class="visite-card chat long" role="dialog" aria-modal="true" aria-label="Nos conversations">
     <p class="visite-kind">Nos conversations</p><button class="visite-x" data-c="close" aria-label="Fermer">×</button>
+    ${(() => { const l = (tamaEtat().tresors || []); return l.length ? `<div class="tresors"><p class="chip-label">Ses trésors · ${l.length}</p><div class="tresors-l">${l.slice().reverse().map(x => `<span title="${esc(TRESORS[x.k]?.nom || '')}">${tresorSvg(x.k)}<small>${esc(vuDay(new Date(x.at).toISOString()))}</small></span>`).join('')}</div></div>` : '<p class="hint tresors-vide">Ses trésors arriveront ici : quand elle part en balade, elle rapporte toujours quelque chose.</p>'; })()}
     <div class="visite-talk"><p class="chat-wait">…</p></div>
     <p class="chat-foot"><button type="button" class="link" data-c="memoire">Ce qu’elle sait de moi</button></p></div>`;
   document.body.appendChild(box);
@@ -6291,6 +6414,7 @@ const actions = {
     try { const t = x.title.replace(/\s*\((19|20)\d{2}\)\s*/, ' ').trim(); const r = DEMO ? { results: FILM_DEMO.filter(f => nt(f.title) === nt(t)) } : await filmsCall({ action: 'resolve', items: [{ title: t.split(' (')[0], media: 'movie', year: x.year }] }); const d = r.results?.[0];
       const saved = await filmVote(d?.tmdb_id ? d : { title: t, media: 'movie', year: x.year || null }, 'oui', false); toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter.'); el.disabled = false; } },
   'taste-test': () => deckOpen('test'),
+  'taste-deja': () => deckOpen('deja'),
   'cine-sort': el => uiMenu(el, [{ h: 'Afficher' }, ...CM.map(([k, l]) => ['m:' + k, l]), { h: 'Trier par' }, ...CS.map(([k, l]) => ['s:' + k, l])], ['m:' + (S.cineM || ''), 's:' + (S.cineS || 'envie')], k => { const [g, v] = [k.slice(0, 1), k.slice(2)]; if (g === 'm') S.cineM = v; else S.cineS = v; S.cineMore = null; render(); }),
   'pk-open': el => pickOpen(el),
   'gout-kind': el => { S.goutKind = el.dataset.k; el.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === el)); haptic(1); document.getElementById('gout-t')?.focus(); },

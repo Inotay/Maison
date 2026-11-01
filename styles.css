@@ -1642,6 +1642,9 @@ html[data-theme="brun"] .srows.hot .srow { background: #5E3036; }
 .trule { text-align: center; }
 
 /* Ciné : outils du goût, mesures, filtres, ménage, journal */
+.taste-deja { margin: 12px 0 4px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent, #C2603E) 9%, transparent); }
+.taste-deja p { margin: 0 0 6px; }
+.taste-deja .btn { margin-top: 4px; }
 .taste-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .taste-tools .btn { font-size: 13.5px; }
 .taste-meter { margin-top: 10px; display: grid; gap: 6px; }
@@ -2135,3 +2138,15 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 #jouet.arrache svg { opacity: 0; }   /* la plume est dessinée dans sa gueule ; le plumeau invisible reste là pour qu'on la lui reprenne */
 .hd img.azami.en-jeu { will-change: translate, scale; }
 #jouet { will-change: transform; }
+
+/* Ses trésors : petits objets dessinés à l'encre */
+.tresors { margin: 4px 0 12px; }
+.tresors-l { display: flex; flex-wrap: wrap; gap: 10px; }
+.tresors-l span { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 56px; }
+.tresors-l small { font-size: 11px; color: var(--muted); }
+svg.tresor { width: 44px; height: 44px; filter: drop-shadow(0 2px 0 rgba(42, 28, 21, .15)); }
+.tresor-pop { position: fixed; left: 50%; top: 38%; z-index: 120; transform: translate(-50%, -50%) scale(.4); opacity: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; transition: transform .45s cubic-bezier(.34, 1.56, .64, 1), opacity .3s ease; }
+.tresor-pop.on { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+.tresor-pop.part { transform: translate(40vw, -40vh) scale(.2); opacity: 0; transition: transform .6s cubic-bezier(.5, 0, .7, .4), opacity .6s ease; }
+.tresor-pop svg.tresor { width: 120px; height: 120px; }
+.tresor-pop p { margin: 0; padding: 8px 14px; background: #FFFDF8; border: 3px solid #22170F; border-radius: 18px; font-family: 'Patrick Hand', sans-serif; font-size: 19px; color: #2A1C15; text-align: center; max-width: 80vw; }

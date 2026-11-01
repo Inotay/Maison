@@ -108,8 +108,8 @@ friandise. Jouer : une balle / plumeau qu'on fait bouger au doigt, elle le suit.
 4. Jouer, câlins, sieste et nuit.
 5. Boude, balade, grève, retrouvailles.
 
-## Plus tard
-- Anniversaire : Azami ne le connaît pas ; c'est elle qui le demande à Mariana, au détour d'une conversation, et le retient. Le jour venu : fête, cadeau.
-- Cadeaux : elle ramène de balade des petits objets (une plume, un bouton, une feuille, un mot japonais) qui se collectionnent dans ses souvenirs.
-- Fenêtre : de temps en temps elle regarde dehors (animation) et commente les voisins.
-- Toilette : elle se lèche, juste pour le plaisir de la voir faire.
+6. La vie autour (v251) :
+   - Fenêtre : sur l'accueil, au calme, au plus une fois toutes les 3 minutes, elle s'assoit devant la fenêtre et suit un oiseau (fenetre, outils/azami/vie.py) ; parfois elle commente.
+   - Toilette : après un repas (4 fois sur 10) ou au calme, elle se lèche la patte et se la passe sur la tête (toilette_patte).
+   - Trésors : quand on la retrouve après une balade, elle rapporte un petit objet dessiné (plume, bouton, feuille, caillou, ruban, capsule, gland, ticket, kanji, coquillage, bille) ; ils se collectionnent dans Souvenirs, « Ses trésors ».
+   - Anniversaires : elle demande la date et la retient (action anniversaire, réglage azami:anniv:<email>). Le jour J : fête et une part de gâteau dessinée ; la veille et le jour, elle prévient l'autre. Essai : ?azami=anniv.
