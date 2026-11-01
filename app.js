@@ -2610,7 +2610,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v241</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v242</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4140,8 +4140,10 @@ async function algoTemps() {
   await algoSauve({ ...r, temps });
   algoPeutEtre();
 }
+const ALGO_V = 2;   // v2 : il apprend aussi ce que compte chaque sorte d'indice (réalisateur, ton, thème…) : un nouveau réglage tout de suite
 function algoDu() {
   const r = algoMoi(), etape = r.etape || 0, avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
+  if ((r.v || 1) < ALGO_V && avis >= 80) return true;
   if (etape < ALGO_PLAN.length) return (r.temps || 0) >= ALGO_PLAN[etape];
   return Date.now() - Date.parse(r.at || 0) > 4 * 864e5 && avis - (r.avis || 0) >= 20;
 }
@@ -4157,7 +4159,7 @@ function algoPeutEtre() {
     wk.onmessage = async ({ data }) => {
       clearTimeout(stop); wk.terminate(); algoTourne = false;
       const r = algoMoi(), avis = S.films.filter(f => fVotes(f)[S.me] || f.ratings?.[S.me]).length;
-      const v = { ...r, etape: Math.min(ALGO_PLAN.length, (r.etape || 0) + 1), at: new Date().toISOString(), avis };
+      const v = { ...r, etape: Math.min(ALGO_PLAN.length, (r.etape || 0) + 1), at: new Date().toISOString(), avis, v: ALGO_V };
       if (data?.ok) { v.mesure = { avant: data.avant, apres: data.apres }; if (data.adopte) v.w = data.w; v.dernier = data.adopte ? 'ajusté' : 'inchangé'; }
       else v.dernier = data?.raison || 'pas encore';
       await algoSauve(v); algoApplique();
@@ -4350,7 +4352,7 @@ function tasteCard(email) {
     ${(() => { const tw = T.twins(p), hi = tw.filter(([, c]) => c.adj > .22).slice(0, 4), lo = tw.filter(([, c]) => c.adj < .08 && c.n >= 30).slice(-2).reverse(); return hi.length ? `<p class="taste-k">${self ? 'Tes' : 'Ses'} jumeaux critiques</p><div class="tchips">${hi.map(([o]) => `<span class="tchip">${esc(o)}</span>`).join('')}</div>${lo.length ? `<p class="hint taste-lo">Moins proches : ${lo.map(([o]) => esc(o)).join(', ')}</p>` : ''}` : ''; })()}
     ${top.dislikes.length ? `<p class="taste-k">Moins ${self ? 'ton' : 'son'} truc</p><div class="tchips">${chips(top.dislikes, 'no')}</div>` : ''}
     ${rules.length ? `<p class="taste-k">${self ? 'Tes règles' : 'Ses règles'}</p><div class="tchips">${rules.map(([k, l, kind]) => `<span class="tchip rule ${kind}">${kind === 'ban' ? 'Jamais' : 'Plus de'} ${esc(l)}${self ? `<button type="button" data-action="taste-rule-del" data-k="${esc(k)}" aria-label="Retirer la règle">×</button>` : ''}</span>`).join('')}</div>` : ''}
-    ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
+    ${self ? (() => { const a = tasteAccuracy(), c = cinderRate(); return a || c || enviesTenues() ? `<div class="taste-meter">${a ? `<p><b>${Math.round(a.acc * 100)} %</b> Azami devine l’ordre de tes notes dans ${Math.round(a.acc * 100)} % des cas, testé sur ${a.n} films notés (50 % = au hasard).</p>` : ''}${(() => { const e = enviesTenues(); return e ? `<p><b>${e.ok} sur ${e.n}</b> de tes envies vues et notées t’ont plu (au-dessus de ta moyenne).</p>` : ''; })()}${c ? `<p><b>${Math.round(c.now * 100)} %</b> d’envie sur tes dernières cartes Cinder${c.before != null ? ` (${Math.round(c.before * 100)} % juste avant${c.now > c.before + .03 ? ', ça s’améliore' : ''})` : ''}.</p>` : ''}</div>` : ''; })() : ''}
     ${self ? '<p class="hint taste-tip">Touche une pastille pour dire « plus de ça » ou « jamais ça ».</p>' : ''}${tools ? `<details class="fold taste-reglages" data-fold="taste-reglages"><summary>Réglages</summary>${algoLigne()}${tools}</details>` : ''}</div>`;
 }
 function compromisHtml() {
@@ -4575,7 +4577,7 @@ async function deckMore(first = false) {
   const portes = t.me?.n >= 40 && !deck.mood ? reste.filter(f => (T.quality(f) || 0) >= 7.2 && neuf(f) >= .5).sort((a, b) => neuf(b) - neuf(a)).slice(0, Math.max(1, Math.round(keepN / 8))) : [];
   portes.forEach(f => f._porte = true);
   const choisis = [...pool0.slice(0, keepN).map(x => x[0]), ...portes, ...reste.filter(f => !portes.includes(f)).slice(0, Math.ceil(keepN / 8))];
-  const ordered = T.order(choisis.filter(f => !f._porte), sc);
+  const ordered = T.order(choisis.filter(f => !f._porte), sc, undefined, .25, t.me?.n >= 40 ? f => T.doute(t.me, f) : null);   // les cartes d'exploration : là où Azami hésite le plus
   portes.forEach((f, i) => ordered.splice(Math.min(ordered.length, 3 + i * 7), 0, f));   // une porte de temps en temps, pas toutes à la fin
   const pw = f => { const v = fVotes(f)[o], r = f.ratings?.[o]?.note || 0; return (v === 'super' ? 3 : T.wants(v) ? 2 : (f.coeur || []).includes(o) || r >= 5 ? 1.8 : 1.2) * Math.exp(Math.max(-1.5, Math.min(1.5, T.score(t.me, f) / 3))) * (.7 + Math.random() * .6); };
   const ps = pending.map(f => [f, pw(f)]).sort((x, y) => y[1] - x[1]).map(x => x[0]);
@@ -4976,10 +4978,11 @@ async function cineOpen(id) {
       if (!final) return;
       const mine = f.ratings?.[S.me] || {};
       if (mine.note === nv) return;
+      const promesse = enviePromesse(f, nv);
       const back = filmBefore(f, ['ratings', 'seen']);
       const patch = { ratings: { ...(f.ratings || {}), [S.me]: { ...mine, note: nv, j: 1, at: mine.at || new Date().toISOString() } }, ...(fSeen(f, S.me) ? {} : { seen: { ...(f.seen || {}), [S.me]: true } }) };
       Object.assign(f, patch); tasteMemo = null; if (!DEMO) FDB.put([{ ...f }]).catch(() => {});
-      run(() => api.update('films', { id: f.id }, patch), mine.note ? `Note changée : ${noteMot(nv).toLowerCase()}` : 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : note`, [back]));
+      run(() => api.update('films', { id: f.id }, patch), mine.note ? `Note changée : ${noteMot(nv).toLowerCase()}` : promesse || 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : note`, [back]));
     });
     document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   };
@@ -4991,6 +4994,26 @@ async function cineOpen(id) {
     const patch = Object.fromEntries(['runtime', 'seasons', 'genres', 'director', 'providers', 'trailer', 'overview', 'poster'].filter(k => full[k] != null && JSON.stringify(full[k]) !== JSON.stringify(f[k])).map(k => [k, full[k]]));
     if (Object.keys(patch).length) { Object.assign(f, patch); api.update('films', { id: f.id }, patch).catch(() => {}); if (document.querySelector('.fsheet')) draw(); }
   }
+}
+// Une envie qui tient (ou pas) sa promesse : quand tu notes un film que tu voulais voir, Azami dit où elle le
+// classait parmi tes films notés, et si elle avait vu juste.
+function enviePromesse(f, note) {
+  if (!T.wants(fVotes(f)[S.me]) || f.ratings?.[S.me]?.note) return '';
+  const t = tastes(); if (!t.me?.n) return '';
+  const notes = S.films.filter(x => x !== f && x.ratings?.[S.me]?.note); if (notes.length < 20) return '';
+  const s = T.score(t.me, f), haut = notes.filter(x => T.score(t.me, x) > s).length / notes.length;
+  const moy = notes.reduce((a, x) => a + x.ratings[S.me].note, 0) / notes.length;
+  const top = Math.max(1, Math.round(haut * 100));
+  const vu = haut <= .5 ? note >= moy : note < moy;
+  return `Azami le voyait ${haut <= .5 ? `dans ton top ${top} %` : 'plutôt moyen pour toi'} : ${vu ? 'bien vu' : 'raté cette fois, elle retient la leçon'}`;
+}
+// Tes envies tiennent-elles leurs promesses ? Parmi les films que tu voulais voir et que tu as notés, combien tu as aimés
+// (au-dessus de ta moyenne).
+function enviesTenues() {
+  const n = S.films.filter(f => f.ratings?.[S.me]?.note); if (n.length < 20) return null;
+  const moy = n.reduce((a, f) => a + f.ratings[S.me].note, 0) / n.length;
+  const e = n.filter(f => T.wants(fVotes(f)[S.me])); if (e.length < 5) return null;
+  return { ok: e.filter(f => f.ratings[S.me].note >= moy).length, n: e.length };
 }
 function cineRate(id, solo = false) {
   const f = S.films.find(x => x.id === id); if (!f) return;
@@ -5010,11 +5033,12 @@ function cineRate(id, solo = false) {
     if (e.target.closest('[data-r="ok"]')) {
       const ratings = { ...(f.ratings || {}), [S.me]: { note, j: 1, mot: box.querySelector('#f-mot').value.trim() } };
       const back = filmBefore(f, ['ratings', 'seen', 'status', 'seen_at']);
-      if (solo) { const patch = { ratings, seen: { ...(f.seen || {}), [S.me]: true } }; Object.assign(f, patch); closeTicket(); run(() => api.update('films', { id: f.id }, patch), 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : noté`, [back])); return; }
+      const promesse = enviePromesse(f, note);
+      if (solo) { const patch = { ratings, seen: { ...(f.seen || {}), [S.me]: true } }; Object.assign(f, patch); closeTicket(); run(() => api.update('films', { id: f.id }, patch), promesse || 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : noté`, [back])); return; }
       const first = f.status !== 'vu';
       const patch = { ratings, status: 'vu', ...(first ? { seen_at: new Date().toISOString() } : {}) };
       Object.assign(f, patch); closeTicket();
-      run(() => api.update('films', { id: f.id }, patch), first ? 'Dans votre journal du ciné' : 'Note enregistrée').then(ok => { if (ok) cineUndo(`${f.title} : vu`, [back]); if (ok && first) { sfx('done'); setTimeout(() => visitMaybe('cine', 2), 1500); } });
+      run(() => api.update('films', { id: f.id }, patch), promesse || (first ? 'Dans votre journal du ciné' : 'Note enregistrée')).then(ok => { if (ok) cineUndo(`${f.title} : vu`, [back]); if (ok && first) { sfx('done'); setTimeout(() => visitMaybe('cine', 2), 1500); } });
     }
   });
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));

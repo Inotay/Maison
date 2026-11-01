@@ -5,7 +5,7 @@
 // qui ont servi à apprendre. Une valeur n'est adoptée que si elle fait vraiment mieux.
 import * as T from './taste.js';
 
-const GRILLE = { cBof: [.4, .55, .7, .85, 1], mix: [.6, .75, .9, 1], aBof: [.02, .05, .1, .16], qA: [1.5, 2.25, 3, 4], qC: [1, 2, 3], crA: [1, 2, 3] };
+const GRILLE = { cBof: [.4, .55, .7, .85, 1], mix: [.6, .75, .9, 1], aBof: [.02, .05, .1, .16], qA: [1.5, 2.25, 3, 4], qC: [1, 2, 3], crA: [1, 2, 3], aOui: [.25, .5, .8], aSuper: [.6, 1, 1.5] };
 
 // curiosité : est-ce que les envies passent devant les bofs ? (aire sous la courbe, en %)
 function curiosite(films, email, idf) {
@@ -25,8 +25,13 @@ function curiosite(films, email, idf) {
   return ok / (pos.length * neg.length) * 100;
 }
 
+// Ce que compte chaque sorte d'indice pour toi (multiplié au poids de départ). Jugé sur l'ordre de tes notes ;
+// un changement n'est gardé que s'il fait vraiment mieux et ne fait pas baisser la curiosité (Cinder).
+const SORTES = ['dir', 'crea', 'wri', 'comp', 'dop', 'cast', 'studio', 'saga', 'kw', 'genre', 'gm', 'lang', 'pays', 'dec', 'rt', 'bo', 'cert', 'presse', 'palmares', 'ton', 'ry', 'in', 'media'];
+const FACTEURS = [0, .5, 2];
 // chaque valeur se juge sur ce qu'elle change : la curiosité (Cinder) ou l'ordre des notes
-const QUOI = { cBof: 'c', mix: 'c', qC: 'c', aBof: 'n', qA: 'n', crA: 'n' };
+// aOui, aSuper : combien pèse une envie ; jugé sur tes notes (une envie qui annonce bien tes notes compte plus)
+const QUOI = { cBof: 'c', mix: 'c', qC: 'c', aBof: 'n', qA: 'n', crA: 'n', aOui: 'n', aSuper: 'n' };
 self.onmessage = ({ data }) => {
   const { films, email, depart } = data;
   try {
@@ -58,6 +63,28 @@ self.onmessage = ({ data }) => {
       }
       if (!bouge) break;
     }
-    self.postMessage({ ok: true, adopte: change, w: change ? Object.fromEntries(Object.keys(GRILLE).map(k => [k, w[k]])) : (depart || null), avant, apres: best });
+    // puis ce que compte chaque sorte d'indice (seulement avec assez de notes pour que ce soit fiable)
+    if (best.notes != null && nNotes >= 80) {
+      const k = { ...(w.k || {}) };
+      for (const sorte of SORTES) {
+        const de = k[sorte] ?? 1;
+        let garde = de;
+        for (const fct of FACTEURS) {
+          const v = fct === 0 ? 0 : Math.round(de * fct * 100) / 100;
+          if (v === de || v > 4) continue;
+          const essai = { ...w, k: { ...k, [sorte]: v } };
+          T.setReglage(email, essai);
+          const r = juge.n();
+          // plus exigeant ici : on essaie beaucoup de choses, un petit mieux pourrait être de la chance
+          if (r != null && r > best.notes + seuil.notes * 1.5) {
+            const c = best.curiosite != null ? juge.c() : null;
+            if (c == null || c >= best.curiosite - 1) { best.notes = r; if (c != null) best.curiosite = Math.max(best.curiosite, c); garde = v; }
+          }
+        }
+        if (garde !== de) { k[sorte] = garde; w = { ...w, k: { ...k } }; change = true; }
+        T.setReglage(email, w);
+      }
+    }
+    self.postMessage({ ok: true, adopte: change, w: change ? { ...Object.fromEntries(Object.keys(GRILLE).map(k => [k, w[k]])), ...(w.k ? { k: w.k } : {}) } : (depart || null), avant, apres: best });
   } catch (e) { self.postMessage({ ok: false, raison: String(e?.message || e) }); }
 };

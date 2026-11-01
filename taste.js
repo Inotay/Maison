@@ -145,6 +145,9 @@ export const W = { aSuper: 1, aOui: .5, aBof: .05, cBof: .7, mix: .9, qA: 3, qC:
 const WU = {};
 export const setReglage = (email, w) => { if (w) WU[email] = { ...W, ...w }; else delete WU[email]; };
 export const Wf = email => WU[email] || W;
+// Ce que compte chaque sorte d'indice POUR TOI (réalisateur, scénariste, ton, thème, langue…) : 1 = le poids de départ.
+// Appris sur tes notes par reglage.js ; sans réglage, tout vaut 1.
+const KM = (email) => { const k = WU[email]?.k; return k ? kind => k[kind] ?? 1 : () => 1; };
 export function curiosity(f, email, now = Date.now(), st = STATS[email] || { mu: 3, sd: 1.2, bof: 1 }) {
   const r = f.ratings?.[email]?.note, v = f.votes?.[email];
   let c = 0;
@@ -196,7 +199,7 @@ const WHY = {
 export const RAISONS = [['bof_bof', 'Pas l’air incroyable'], ['flemme', 'Flemme'], ['sujet', 'Le sujet'], ['ton', 'Le ton'], ['lent', 'Trop lent'], ['violent', 'Trop violent'], ['equipe', 'L’équipe'], ['deja', 'Déjà trop vu']];
 export function profile(films, email, idf = () => 1, manual = {}, sig = signal) {
   const P = new Map(), N = new Map(), C = new Map(), NC = new Map(), liked = new Map(); let n = 0, pos = 0, neg = 0;
-  const now = Date.now(), st = stats(films, email), solo = sig === signal;
+  const now = Date.now(), st = stats(films, email), solo = sig === signal, km = KM(email);
   const xs = [], CR = {};
   for (const f of films) {
     const w = sig(f, email, now, st), c = solo ? curiosity(f, email, now, st) : 0; if (!w && !c) continue;
@@ -204,7 +207,8 @@ export function profile(films, email, idf = () => 1, manual = {}, sig = signal) 
     const bof = solo && !f.ratings?.[email]?.note && f.votes?.[email] === 'non';
     if (f.ratings?.[email]?.note) { xs.push([f, w]); if (f.critiques && !f.critiques.aucune) for (const [o, v] of Object.entries(f.critiques)) (CR[o] = CR[o] || []).push([+v, w]); }
     const rz = solo ? (f.raisons?.[email] || []).filter(r => WHY[r]) : [];
-    for (const [k, fw, label, kind] of feats(f)) {
+    for (const [k, fw0, label, kind] of feats(f)) {
+      const fw = fw0 * km(kind);
       let damp = bof && PEOPLE.has(kind) ? .35 : 1;
       if (rz.length) damp = rz.reduce((x, r) => Math.max(x, WHY[r](kind)), 0) * (bof && PEOPLE.has(kind) && !rz.includes('equipe') ? .35 : 1);
       if (w) { P.set(k, (P.get(k) || 0) + w * damp * fw * idf(k)); N.set(k, (N.get(k) || 0) + 1); }
@@ -259,8 +263,8 @@ export function score(prof, f, mix = Wf(prof?.email).mix) {
   const useC = prof?.Cn?.size ? mix : 0, q = quality(f, prof?.src);
   const extra = (q ? (q - 6.8) * (prof?.beta ?? .5) * ((1 - useC) * W.qA + useC * W.qC) : 0) + (f.reco > 1 ? .5 * Math.log2(f.reco) : 0) + critTerm(prof, f) * ((1 - useC) * W.crA + useC * W.crC);
   if (!prof || (!prof.n && !prof.ban?.size)) return extra;
-  let a = 0, c = 0, norm = 0, banned = false;
-  for (const [k, fw] of feats(f)) { const w = fw * prof.idf(k); norm += w * w; a += w * (prof.Pn.get(k) || 0); if (useC) c += w * (prof.Cn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
+  let a = 0, c = 0, norm = 0, banned = false; const km = KM(prof.email);
+  for (const [k, fw0, , kind] of feats(f)) { const w = fw0 * km(kind) * prof.idf(k); norm += w * w; a += w * (prof.Pn.get(k) || 0); if (useC) c += w * (prof.Cn.get(k) || 0); if (prof.ban?.has(k)) banned = true; }
   const s = norm ? ((1 - useC) * a + useC * c) / Math.sqrt(norm) : 0;
   const conf = Math.min(1, prof.n / 25);
   return s * (.4 + .6 * conf) + extra - (banned ? 8 : 0);
@@ -337,12 +341,25 @@ export function prefs(prof) {
 const simKeys = f => new Set(feats(f).filter(([, , , kind]) => kind === 'dir' || kind === 'crea' || kind === 'kw').map(([k]) => k));
 // L'ordre des cartes : les mieux notés d'abord, sans enchaîner trois films du même réalisateur, et une carte
 // sur quatre tirée au hasard pour continuer d'apprendre (sinon le profil s'enferme dans ce qu'il connaît).
-export function order(list, scoreOf, n = list.length, explore = .25) {
+// Ce qu'Azami ne sait pas encore d'un film : la part de ses indices (pondérés) sur lesquels le profil n'a presque
+// rien appris. Un avis sur un film « inconnu » apprend bien plus qu'un avis de plus sur ce qu'elle connaît déjà.
+export function doute(prof, f) {
+  if (!prof?.Pn) return 1;
+  let tout = 0, inconnu = 0;
+  for (const [k, fw] of feats(f)) { const w = fw * (prof.idf?.(k) ?? 1); tout += w; if (Math.abs(prof.Pn.get(k) || 0) < .08) inconnu += w; }
+  return tout ? inconnu / tout : 1;
+}
+// incertain (facultatif) : pour les cartes d'exploration, on prend le film sur lequel Azami hésite le plus
+// (avec un peu de hasard), au lieu d'un film tiré complètement au hasard.
+export function order(list, scoreOf, n = list.length, explore = .25, incertain = null) {
   const pool = list.map(f => ({ f, s: scoreOf(f), k: simKeys(f) })).sort((a, b) => b.s - a.s);
   const out = [];
   while (pool.length && out.length < n) {
     let idx = 0;
-    if (out.length % 4 === 3 && Math.random() < explore * 4) idx = Math.floor(Math.random() * pool.length);
+    if (out.length % 4 === 3 && Math.random() < explore * 4) {
+      if (incertain) { let best = -1; pool.forEach((c, i) => { const v = (c.d ??= incertain(c.f)) + Math.random() * .35; if (v > best) { best = v; idx = i; } }); }
+      else idx = Math.floor(Math.random() * pool.length);
+    }
     else {
       const recent = out.slice(-5);
       let best = -1e9;
