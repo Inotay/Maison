@@ -2129,3 +2129,7 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 .azmem-p { white-space: pre-wrap; font-size: 15px; line-height: 1.45; margin: 8px 0 0; }
 /* Pendant la partie, Azami sort de son coin et poursuit le plumeau partout sur l'écran. */
 .hd img.azami.en-jeu { position: relative; z-index: 55; pointer-events: none; }
+/* Arrachée : la plume n'a plus de fil, elle est dans sa gueule (on peut la lui reprendre au doigt). */
+#jouet.arrache .fil { display: none; }
+#jouet.arrache .plume { animation: none; }
+#jouet.arrache svg { opacity: 0; }   /* la plume est dessinée dans sa gueule ; le plumeau invisible reste là pour qu'on la lui reprenne */

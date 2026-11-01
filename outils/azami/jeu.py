@@ -73,6 +73,88 @@ def anims():
     a.at('tail', 0, {'r': 34}, LIN).at('tail', .36, {'r': 34}, LIN)
     for p in ('pupils-l', 'pupils-r'): a.at(p, 0, {'x': -9, 'y': -2, 's': 1.1}, LIN).at(p, .36, {'x': -9, 'y': -2, 's': 1.1}, LIN)
     out.append(a)
+    # ── rate (une fois) : elle retombe dans le vide, cherche autour d'elle, secoue la tête, un peu vexée ──
+    a = Anim('rate', 1.4, loop=False, title='Azami · Raté', desc='Elle retombe sans rien : regarde à gauche, à droite, cligne, secoue la tête, la queue fouette.')
+    c = 'character'
+    a.at(c, 0, {'y': -30, 'sy': 1.05, 'sx': .96}, 'cubic-bezier(.5,0,1,1)').at(c, .12, {'y': 0, 'sx': 1.12, 'sy': .86}, SNAP).at(c, .3, {}, OUTQ).at(c, 1.4, {}, LIN)
+    a.look(.35, -12, 0, .25); a.look(.75, 12, 0, .2)
+    a.at('head', .3, {}, SOFT).at('head', .45, {'r': -8}, SOFT).at('head', .8, {'r': 8}, SOFT).at('head', 1.0, {}, SOFT)
+    a.blink(1.02); a.shake('head', 1.08, amp=7, n=4, period=.06)
+    for e, r in (('ear-left', -14), ('ear-right', 14)): a.at(e, .15, {}, SNAP).at(e, .3, {'r': r}, OUTQ).at(e, 1.2, {'r': r}, ANT).at(e, 1.4, {}, LIN)
+    a.flick(.4, 30); a.flick(.9, 24)
+    out.append(a)
+
+    # ── emporte (boucle) : elle court la tête haute, la plume dans la gueule (la plume est dessinée dans sa bouche) ──
+    plume = f'<g id="Xplume" transform="translate(158 266) rotate(62) scale(1.55)"><path d="M0 0 C-14 14 -18 40 -10 70 C-6 60 -2 52 0 46 C2 52 6 60 10 70 C18 40 14 14 0 0Z" fill="#E7776B" stroke="{INK}" stroke-width="3.5" stroke-linejoin="round"/><path d="M0 4 V66 M0 22 l-8 7 M0 36 l-9 8 M0 22 l8 7 M0 36 l9 8" fill="none" stroke="{INK}" stroke-width="2.2" stroke-linecap="round"/></g>'
+    a = Anim('emporte', .36, loop=True, title='Azami · Emporte la plume', desc='Elle file, fière, la plume arrachée dans la gueule.', head_extra=plume)
+    P = .18
+    a.cycle('front-near', P, [(0, {'r': 26}, SOFT), (P / 2, {'r': -26}, SOFT), (P, {'r': 26}, SOFT)])
+    a.cycle('front-far', P, [(0, {'r': -26}, SOFT), (P / 2, {'r': 26}, SOFT), (P, {'r': -26}, SOFT)])
+    a.cycle('back-near', P, [(0, {'r': -24}, SOFT), (P / 2, {'r': 24}, SOFT), (P, {'r': -24}, SOFT)])
+    a.cycle('back-far', P, [(0, {'r': 24}, SOFT), (P / 2, {'r': -24}, SOFT), (P, {'r': 24}, SOFT)])
+    a.cycle('core', P, [(0, {'y': 0}, SOFT), (P / 2, {'y': -7}, SOFT), (P, {'y': 0}, SOFT)])
+    a.at('head', 0, {'r': -8, 'y': -4}, LIN).at('head', .36, {'r': -8, 'y': -4}, LIN)
+    for e, r in (('ear-left', 10), ('ear-right', -10)): a.at(e, 0, {'r': r}, LIN).at(e, .36, {'r': r}, LIN)
+    a.at('tail', 0, {'r': -24}, LIN).at('tail', .36, {'r': -24}, LIN)
+    for e in ('eye-l', 'eye-r'): a.base[e] = {'o': 0}; a.at(e, 0, {'o': 0}, LIN).at(e, .36, {'o': 0}, LIN)
+    a.base['eyes-happy'] = {'o': 1}; a.at('eyes-happy', 0, {'o': 1}, LIN).at('eyes-happy', .36, {'o': 1}, LIN); a.hidden.discard('eyes-happy')
+    out.append(a)
+    out = [x for x in out if x.name not in ('guette', 'court')]
+
+    # ── guette (boucle) : la préparation au saut. Aplatie, la tête basse et tendue, les fesses qui frétillent de plus
+    # en plus vite, les pattes arrière qui piétinent, la queue qui fouette, les pupilles énormes.
+    a = Anim('guette', 1.2, loop=True, title='Azami · Prête à bondir', desc='Aplatie, les fesses qui frétillent, les pattes arrière qui piétinent : elle va bondir.')
+    base = {'character': {'sy': .86, 'sx': 1.06, 'y': 24}, 'head': {'r': 10, 'x': -16, 'y': 22}, 'neck': {'r': 8, 'y': 12, 'x': -4},
+            'ear-left': {'r': 14}, 'ear-right': {'r': -6}, 'front-near': {'r': 18, 'y': -6}, 'front-far': {'r': 14, 'y': -6}}
+    for k, v in base.items(): a.base[k] = v; a.at(k, 0, v, LIN).at(k, 1.2, v, LIN)
+    for p_ in ('pupils-l', 'pupils-r'): a.at(p_, 0, {'x': -6, 'y': -1, 's': 1.06}, LIN).at(p_, 1.2, {'x': -6, 'y': -1, 's': 1.06}, LIN)
+    # le frétillement : lent puis de plus en plus vite (le bassin et les pattes arrière)
+    pts_core, pts_bn, pts_bf = [], [], []
+    t, per, k = 0, .3, 0
+    while t < 1.2 - 1e-6:
+        sgn = 1 if k % 2 == 0 else -1
+        pts_core.append((round(t, 3), {'r': 2.8 * sgn, 'x': 2 * sgn}, SOFT)); pts_bn.append((round(t, 3), {'x': 5 * sgn, 'r': -6 * sgn}, SOFT)); pts_bf.append((round(t, 3), {'x': 5 * sgn, 'r': 6 * sgn}, SOFT))
+        t += per; per = max(.1, per * .78); k += 1
+    for tr, pts in (('core', pts_core), ('back-near', pts_bn), ('back-far', pts_bf)):
+        for (tt, v, e) in pts: a.at(tr, tt, v, e)
+        a.at(tr, 1.2, pts[0][1], LIN)
+    a.cycle('tail', .6, [(0, {'r': -10}, SOFT), (.3, {'r': 14}, SOFT), (.6, {'r': -10}, SOFT)])
+    a.flick(.2, 28); a.flick(.7, 22); a.flick(1.0, 30)
+    out.append(a)
+
+    # ── court (boucle) : le galop. Pattes avant ensemble, pattes arrière ensemble (un peu décalées, proche/loin) ;
+    # le corps s'étire en l'air, se ramasse au sol ; la tête compense ; la queue ondule.
+    D = .42
+    a = Anim('court', D, loop=True, title='Azami · Galop', desc='Elle galope : le corps s’étire en l’air et se ramasse au sol, les oreilles en arrière, la queue qui ondule.')
+    def g(tr, pts): a.cycle(tr, D, pts + [(D, pts[0][1], SOFT)])
+    g('front-near', [(0, {'r': 38}, SOFT), (.16, {'r': 10}, SOFT), (.27, {'r': -30}, SOFT)])
+    g('front-far', [(0, {'r': 30}, SOFT), (.19, {'r': 4}, SOFT), (.3, {'r': -34}, SOFT)])
+    g('back-near', [(0, {'r': -38}, SOFT), (.14, {'r': -10}, SOFT), (.26, {'r': 32}, SOFT)])
+    g('back-far', [(0, {'r': -32}, SOFT), (.17, {'r': -4}, SOFT), (.29, {'r': 36}, SOFT)])
+    g('core', [(0, {'sx': 1.09, 'sy': .95, 'y': -4}, SOFT), (.13, {'sx': 1.02, 'y': -9}, SOFT), (.27, {'sx': .93, 'sy': 1.05, 'y': 1, 'r': -3}, SOFT)])
+    g('character', [(0, {'y': -10}, SOFT), (.12, {'y': -16}, SOFT), (.27, {'y': 0}, SOFT)])
+    g('head', [(0, {'x': -8, 'y': 4}, SOFT), (.13, {'x': -8, 'y': 0}, SOFT), (.27, {'x': -4, 'y': 8, 'r': 4}, SOFT)])
+    g('neck', [(0, {'x': -4}, SOFT), (.27, {'x': -2, 'y': 4}, SOFT)])
+    g('tail', [(0, {'r': 40}, SOFT), (.21, {'r': 28}, SOFT)])
+    g('tail-tip', [(0, {'r': -14}, SOFT), (.21, {'r': 16}, SOFT)])
+    for e, r in (('ear-left', 28), ('ear-right', -28)): a.base[e] = {'r': r}; a.at(e, 0, {'r': r}, LIN).at(e, D, {'r': r}, LIN)
+    for p_ in ('pupils-l', 'pupils-r'): a.at(p_, 0, {'x': -6, 'y': -1}, LIN).at(p_, D, {'x': -6, 'y': -1}, LIN)
+    out.append(a)
+
+    # ── marche (boucle) : elle s'approche à pas de velours, pattes en diagonale, la tête basse et attentive.
+    D = .9
+    a = Anim('marche', D, loop=True, title='Azami · Marche', desc='Elle s’approche à pas de velours, la tête basse, les yeux sur la plume.')
+    def m(tr, amp, phase=0):
+        q = D / 2
+        pts = [(0, {'r': amp if phase == 0 else -amp}, SOFT), (q, {'r': -amp if phase == 0 else amp}, SOFT)]
+        a.cycle(tr, D, pts + [(D, pts[0][1], SOFT)])
+    m('front-near', 18, 0); m('back-far', 16, 1); m('front-far', 18, 1); m('back-near', 16, 0)
+    a.cycle('core', D / 2, [(0, {'y': 0}, SOFT), (D / 4, {'y': -2.5}, SOFT), (D / 2, {'y': 0}, SOFT)])
+    a.cycle('head', D / 2, [(0, {'x': -8, 'y': 10, 'r': 6}, SOFT), (D / 4, {'x': -8, 'y': 7, 'r': 4}, SOFT), (D / 2, {'x': -8, 'y': 10, 'r': 6}, SOFT)])
+    a.cycle('tail', D, [(0, {'r': -6}, SOFT), (D / 2, {'r': 8}, SOFT), (D, {'r': -6}, SOFT)])
+    for e, r in (('ear-left', 10), ('ear-right', -4)): a.base[e] = {'r': r}; a.at(e, 0, {'r': r}, LIN).at(e, D, {'r': r}, LIN)
+    for p_ in ('pupils-l', 'pupils-r'): a.at(p_, 0, {'x': -6, 'y': 0}, LIN).at(p_, D, {'x': -6, 'y': 0}, LIN)
+    out.append(a)
     return out
 
 if __name__ == '__main__':

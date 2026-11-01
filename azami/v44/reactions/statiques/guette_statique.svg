@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Azami · Guette">
-<title>Azami · Guette</title><desc>Accroupie, le derrière qui frétille, les yeux rivés sur le jouet : elle va bondir.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Azami · Prête à bondir">
+<title>Azami · Prête à bondir</title><desc>Aplatie, les fesses qui frétillent, les pattes arrière qui piétinent : elle va bondir.</desc>
 <style><![CDATA[
 *{animation-fill-mode:both}
 #character{transform-box:view-box;transform-origin:255px 402px}#core{transform-box:view-box;transform-origin:268px 330px}#neck{transform-box:view-box;transform-origin:196px 300px}#head{transform-box:view-box;transform-origin:178px 290px}#ear-left{transform-box:view-box;transform-origin:112px 170px}#ear-right{transform-box:view-box;transform-origin:231px 170px}#tail{transform-box:view-box;transform-origin:339px 296px}#tail-tip{transform-box:view-box;transform-origin:377px 214px}#eye-l{transform-box:view-box;transform-origin:146px 211px}#eye-r{transform-box:view-box;transform-origin:207px 211px}#pupils-l{transform-box:view-box;transform-origin:146px 211px}#pupils-r{transform-box:view-box;transform-origin:207px 211px}#mouth-open{transform-box:view-box;transform-origin:177px 262px}#blush{transform-box:view-box;transform-origin:177px 245px}#whiskers{transform-box:view-box;transform-origin:177px 262px}#front-near{transform-box:view-box;transform-origin:211px 312px}#front-far{transform-box:view-box;transform-origin:210px 312px}#back-near{transform-box:view-box;transform-origin:324px 316px}#back-far{transform-box:view-box;transform-origin:320px 316px}
-#eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}
+#eyes-blink{opacity:0}#eyes-happy{opacity:0}#mouth-open{opacity:0}#character{transform:translate(0px,24px) rotate(0deg) scale(1.06,0.86)}#head{transform:translate(-16px,22px) rotate(10deg) scale(1,1)}#neck{transform:translate(-4px,12px) rotate(8deg) scale(1,1)}#ear-left{transform:translate(0px,0px) rotate(14deg) scale(1,1)}#ear-right{transform:translate(0px,0px) rotate(-6deg) scale(1,1)}#front-near{transform:translate(0px,-6px) rotate(18deg) scale(1,1)}#front-far{transform:translate(0px,-6px) rotate(14deg) scale(1,1)}
 
 ]]></style>
 

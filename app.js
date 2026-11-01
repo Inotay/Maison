@@ -2620,7 +2620,7 @@ function viewMaison() {
     <div class="theme-row"><span>Azami</span><button class="btn ghost small" data-action="azami-memoire">Ce qu’elle sait de moi</button></div>
     <div class="theme-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir le guide</button></div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v248</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v249</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4850,10 +4850,10 @@ function deckAskSeen(redraw = false) {
   const st = deck.box.querySelector('.deck-stack');
   st.querySelector('.dseen')?.remove();
   st.insertAdjacentHTML('beforeend', `<div class="dseen" role="dialog" aria-label="Tu l’as vu"><p class="dseen-t">Tu as vu <b>${esc(f.title)}</b>. Alors ?</p>
-    ${jauge(0)}
-    <div class="dseen-acts"><button class="link" data-d="skip">Annuler</button><button class="btn dseen-ok" data-seen-ok disabled>C’est noté</button></div></div>`);
-  const box = st.querySelector('.dseen'), ok = box.querySelector('[data-seen-ok]');
-  jaugeBind(box.querySelector('.jauge'), (v, fin) => { ok.disabled = false; ok.dataset.note = v; ok.textContent = `C’est noté · ${noteMot(v)}`; });
+    ${jauge(0)}</div>`);
+  // on lâche la jauge : c'est noté (pas de bouton à confirmer ; une erreur se rattrape avec Annuler ou ⌘Z)
+  const box = st.querySelector('.dseen');
+  jaugeBind(box.querySelector('.jauge'), (v, fin) => { if (!fin || box.dataset.fait) return; box.dataset.fait = '1'; setTimeout(() => { if (deck?.asking) deckSeen(v); }, 260); });
 }
 async function deckSeen(note) {
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');
@@ -4999,7 +4999,7 @@ async function cineOpen(id) {
       const back = filmBefore(f, ['ratings', 'seen']);
       const patch = { ratings: { ...(f.ratings || {}), [S.me]: { ...mine, note: nv, j: 1, at: mine.at || new Date().toISOString() } }, ...(fSeen(f, S.me) ? {} : { seen: { ...(f.seen || {}), [S.me]: true } }) };
       Object.assign(f, patch); tasteMemo = null; if (!DEMO) FDB.put([{ ...f }]).catch(() => {});
-      run(() => api.update('films', { id: f.id }, patch), mine.note ? `Note changée : ${noteMot(nv).toLowerCase()}` : promesse || 'Noté, Azami s’en souviendra').then(ok => ok && cineUndo(`${f.title} : note`, [back]));
+      haptic(1); run(() => api.update('films', { id: f.id }, patch), promesse || null);   // pas de confirmation : lâcher la jauge suffit (⌘Z pour se raviser)
     });
     document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   };
@@ -5834,7 +5834,15 @@ function tamaJeu() {
   place(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
   jeu.pos = pos;
   let drag = null;
-  el.addEventListener('pointerdown', e => { e.preventDefault(); el.setPointerCapture(e.pointerId); drag = { dx: pos.x - e.pageX, dy: pos.y - e.pageY }; el.classList.add('tenu'); haptic(1); });
+  el.addEventListener('pointerdown', e => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    if (jeu.arrache) {   // on lui reprend la plume de la gueule : elle est surprise, puis la partie continue
+      jeu.arrache = false; el.classList.remove('arrache'); pos.x = e.pageX; pos.y = e.pageY + 150; place();
+      jeu.serie = 0; jeu.rate = true; jeu.bondAt = Date.now(); jeu.etat = 'rate'; img.src = reactSrc('rate');
+      meow(true, .5, pick(['grogne', 'question'])); haptic('heavy'); floatUp(el, 'repris !');
+    }
+    drag = { dx: pos.x - e.pageX, dy: pos.y - e.pageY }; el.classList.add('tenu'); haptic(1);
+  });
   el.addEventListener('pointermove', e => {
     if (!drag || !S.jeu) return;
     const nx = Math.max(20, Math.min(innerWidth - 20, e.pageX + drag.dx)), ny = Math.max(scrollY + 120, Math.min(scrollY + innerHeight - 60, e.pageY + drag.dy));
@@ -5849,14 +5857,26 @@ function tamaJeu() {
   const pas = () => {
     if (S.jeu !== jeu) return;
     const r0 = img.getBoundingClientRect(), cx0 = r0.left + r0.width / 2 - jeu.x, cy0 = r0.top + r0.height * .62 - jeu.y + scrollY;   // son point de départ
-    const bx = pos.x - cx0 + jeu.face * 52, by = Math.max(-40, Math.min(innerHeight * .7, pos.y + 70 - cy0));   // elle vise un peu à côté, la tête vers la plume
+    // elle se tourne vers la plume seulement quand la plume est franchement de l'autre côté (sinon elle se retournait
+    // sans arrêt : le point visé changeait de côté à chaque demi-tour)
+    const rel = pos.x - (cx0 + jeu.x);
+    if (!jeu.arrache && Date.now() - jeu.bondAt > 1500) { if (rel < -30) jeu.face = 1; else if (rel > 30) jeu.face = -1; }   // le dessin regarde à gauche
+    const bx = jeu.arrache ? (jeu.face < 0 ? innerWidth + 260 : -innerWidth - 260) - cx0 : pos.x - cx0 + jeu.face * 52;
+    const by = jeu.arrache ? jeu.y : Math.max(-40, Math.min(innerHeight * .7, pos.y + 70 - cy0));   // elle vise un peu à côté, la tête vers la plume
     const dx = bx - jeu.x, dy = by - jeu.y, d = Math.hypot(dx, dy);
-    const enBond = Date.now() - jeu.bondAt < 1500;
-    if (!enBond) {
-      if (Math.abs(dx) > 8) jeu.face = dx > 0 ? -1 : 1;   // le dessin regarde à gauche : on le retourne pour aller à droite
+    const enBond = Date.now() - jeu.bondAt < (jeu.rate ? 1400 : 1500);
+    if (jeu.arrache) { const v = 4; jeu.x += Math.sign(dx) * Math.min(Math.abs(dx), v); anim('emporte'); }   // assez lentement pour qu'on puisse la rattraper
+    else if (!enBond) {
       // loin : elle court (plus vite si c'est loin) ; près : elle se met à l'affût un instant, puis elle bondit
-      if (d > 34) { const v = Math.min(d, 3.5 + Math.min(4, d / 90)); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('court'); jeu.pret = 0; }
+      // loin : elle galope ; plus près : elle s'approche à pas de velours ; tout près : elle se prépare à bondir
+      if (d > 150) { const v = Math.min(d, 5 + Math.min(3, d / 120)); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('court'); jeu.pret = 0; }
+      else if (d > 34) { const v = Math.min(d, 2.2); jeu.x += dx / d * v; jeu.y += dy / d * v; anim('marche'); jeu.pret = 0; }
       else { if (!jeu.pret) jeu.pret = Date.now(); anim('guette'); if (Date.now() - jeu.pret > 650 && Date.now() - jeu.bondAt > 2200) { jeu.pret = 0; tamaJeuBond(); } }
+    }
+    if (jeu.arrache) {   // la plume, arrachée, suit sa gueule
+      const r = img.getBoundingClientRect();
+      jeu.el.style.transform = `translate(${(jeu.face < 0 ? r.right - 38 : r.left + 38) - 45}px, ${r.top + r.height * .58 + scrollY - 156}px)`;   // droit et centré sur sa gueule : c'est là qu'on la lui reprend
+      if (r.right < -40 || r.left > innerWidth + 40) { jeu.arrache = false; tamaJeuFin('arrache'); return; }
     }
     img.style.translate = `${Math.round(jeu.x)}px ${Math.round(jeu.y)}px`;
     img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`;
@@ -5867,23 +5887,50 @@ function tamaJeu() {
 }
 function tamaJeuBond() {
   const jeu = S.jeu; if (!jeu) return;
-  jeu.bondAt = Date.now(); jeu.bonds++; jeu.etat = 'bondit'; jeu.img.src = reactSrc('bondit');
-  sfx('swish'); haptic('medium'); meow(true, .45, pick(['chirp', 'gazouille', 'mewmew']));
-  jeu.el.classList.remove('touche'); void jeu.el.offsetWidth; jeu.el.classList.add('touche');
-  floatUp(jeu.el, `${jeu.bonds}`);
-  // le plumeau s'échappe : il saute un peu plus loin, à elle de courir
+  jeu.bondAt = Date.now(); jeu.rate = false; jeu.etat = 'bondit'; jeu.img.src = reactSrc('bondit');
+  sfx('swish'); haptic(1);
+  const cible = { x: jeu.pos.x, y: jeu.pos.y };
+  // à l'atterrissage : la plume est-elle toujours là ? Si on l'a retirée pendant le saut, elle se loupe.
   setTimeout(() => {
     if (S.jeu !== jeu) return;
-    // loin d'elle, de l'autre côté de l'écran, plus haut ou plus bas : à elle de traverser
-    const p = jeu.pos, w = innerWidth; p.x = p.x < w / 2 ? w * (.62 + Math.random() * .3) : w * (.08 + Math.random() * .3);
-    p.y = scrollY + innerHeight * (.25 + Math.random() * .45); p.vx = 0;
-    jeu.el.style.transition = 'transform .35s cubic-bezier(.3,1.4,.6,1)'; jeu.el.style.transform = `translate(${p.x - 45}px, ${p.y - 190}px)`; setTimeout(() => { jeu.el.style.transition = ''; }, 380);
-  }, 700);
-  const t = tamaEtat(); t.jeu = clamp100((t.jeu ?? 50) + 5); t.poids = Math.max(40, (t.poids ?? 50) - .4); tamaSave();
-  if (jeu.bonds >= 8) setTimeout(() => tamaJeuFin(true), 1500);
+    if (Math.hypot(jeu.pos.x - cible.x, jeu.pos.y - cible.y) > 55) {
+      jeu.rate = true; jeu.serie = 0; jeu.etat = 'rate'; jeu.img.src = reactSrc('rate'); jeu.bondAt = Date.now() - 100;
+      meow(true, .35, pick(['grogne', 'mrrr'])); haptic(1);
+      if (!jeu.vexe && Math.random() < .5) { jeu.vexe = true; floatUp(jeu.img, 'raté !'); }
+      return;
+    }
+    jeu.bonds++; jeu.serie = (jeu.serie || 0) + 1;
+    haptic('medium'); meow(true, .45, pick(['chirp', 'gazouille', 'mewmew']));
+    jeu.el.classList.remove('touche'); void jeu.el.offsetWidth; jeu.el.classList.add('touche');
+    floatUp(jeu.el, `${jeu.bonds}`);
+    const t = tamaEtat(); t.jeu = clamp100((t.jeu ?? 50) + 5); t.poids = Math.max(40, (t.poids ?? 50) - .4); tamaSave();
+    // trop facile ? Après quelques prises d'affilée, elle l'arrache et part avec
+    if ((DEMO && /azami=tama:arrache/.test(location.search) && jeu.bonds >= 2) || (jeu.bonds >= 4 && (jeu.serie >= 4 || Math.random() < .18))) {   // (pour essayer : ?azami=tama:arrache)
+      jeu.arrache = true; jeu.el.classList.add('arrache'); jeu.el.style.transition = '';
+      { const r = jeu.img.getBoundingClientRect(); jeu.face = (r.left + r.width / 2) < innerWidth / 2 ? -1 : 1; }   // elle file vers le côté le plus loin : le temps de la rattraper
+      sfx('swish'); meow(true, .55, 'trille'); haptic('heavy');
+      return;
+    }
+    if (jeu.bonds >= 8) { setTimeout(() => tamaJeuFin(true), 1100); return; }
+    // le plumeau s'échappe : loin d'elle, de l'autre côté de l'écran, plus haut ou plus bas
+    setTimeout(() => {
+      if (S.jeu !== jeu || jeu.arrache) return;
+      const p = jeu.pos, w = innerWidth; p.x = p.x < w / 2 ? w * (.62 + Math.random() * .3) : w * (.08 + Math.random() * .3);
+      p.y = scrollY + innerHeight * (.25 + Math.random() * .45); p.vx = 0;
+      jeu.el.style.transition = 'transform .35s cubic-bezier(.3,1.4,.6,1)'; jeu.el.style.transform = `translate(${p.x - 45}px, ${p.y - 190}px)`; setTimeout(() => { jeu.el.style.transition = ''; }, 380);
+    }, 450);
+  }, 480);
 }
 function tamaJeuFin(gagne, silence) {
   const jeu = S.jeu; if (!jeu) return;
+  if (gagne === 'arrache') {
+    // elle est partie avec la plume : elle revient un peu plus tard, par l'autre côté, sans plume, très fière
+    S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf); jeu.el.remove();
+    const img = jeu.img; img.style.transition = 'none'; img.style.translate = `${jeu.face < 0 ? -innerWidth : innerWidth}px ${Math.round(jeu.y)}px`; img.style.scale = `${jeu.face < 0 ? -1 : 1} 1`; img.src = reactSrc('court');
+    setTimeout(() => { img.style.transition = 'translate 1.1s cubic-bezier(.3,.6,.3,1)'; img.style.translate = '0px 0px'; }, 1400);
+    setTimeout(() => { img.style.transition = ''; img.style.translate = ''; img.style.scale = ''; img.classList.remove('en-jeu'); delete img.dataset.tama; const t = tamaEtat(); (t.repas ||= []).push({ q: 'jeu', at: Date.now(), par: S.me, caca: true }); tamaSave(true); azamiPose(pick(['Je l’ai ! Il est à moi maintenant. Je l’ai caché quelque part. Non, je ne dirai pas où.', 'Le plumeau a perdu. Je l’ai mis en lieu sûr, sous le canapé.', 'Trop facile. Il te faudra un nouveau plumeau. Demain.']), 'joueuse'); render(); }, 2600);
+    return;
+  }
   S.jeu = null; clearInterval(jeu.minute); cancelAnimationFrame(jeu.raf);
   const { el, img, bonds } = jeu;
   if (el) { el.classList.remove('on'); setTimeout(() => el.remove(), 350); }
