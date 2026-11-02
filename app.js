@@ -770,6 +770,8 @@ function piecesMaj(solde) {
   return { avant, ecrit };
 }
 const piecesAvant = avant => ({ t: 'reglages', cle: 'lessive:pieces', row: avant });
+// les pièces qu'on remet sont une dépense de la maison, partagée en deux
+const piecesDepense = (n, par = S.me) => ({ amount: Math.round(n * 100) / 100, label: 'Pièces pour les machines', paid_by: par, payer_share: 0.5, category: 'maison', spent_on: isoDate(new Date()), icon: 't:lessive' });
 // ce que les pièces permettent encore
 function piecesTexte(s = piecesSolde()) {
   if (s < 0) return `Il manque ${chf(-s)} CHF de pièces`;
@@ -2791,7 +2793,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v272</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v273</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3176,7 +3178,7 @@ function lessiveCard() {
   const ouvert = S.open === 'pieces';
   const pieces = `<li class="dech-row pieces-row"><img class="ticon" src="icons/themes/cash.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Pièces · ${chf(so)} CHF</div><div class="item-meta ${bas ? 'late' : ''}">${esc(piecesTexte(so))}</div></div>
     <div class="item-trail"><button class="btn dech-btn ${bas ? 'due' : 'libre'}" data-action="pieces-ouvrir" aria-expanded="${ouvert}">${bas ? 'Recharger' : 'Ajouter'}</button></div>
-    ${ouvert ? `<div class="item-actions pieces-actions"><div class="chips">${[1, 2, 5, 10].map(n => `<button type="button" data-action="pieces-plus" data-n="${n}">+${n} CHF</button>`).join('')}</div><form class="pieces-juste" data-form="pieces"><label>Ou le compte exact <input class="field" name="solde" inputmode="decimal" placeholder="${chf(so)}" autocomplete="off"></label><button class="btn small">OK</button></form><p class="hint">Lessive ${chf(PRIX_MACHINE.lessive)} CHF, séchage ${chf(PRIX_MACHINE.sechage)} CHF : décompté à chaque lancement.</p></div>` : ''}</li>`;
+    ${ouvert ? `<div class="item-actions pieces-actions"><div class="chips">${[1, 2, 5, 10].map(n => `<button type="button" data-action="pieces-plus" data-n="${n}">+${n} CHF</button>`).join('')}</div><form class="pieces-juste" data-form="pieces"><label>Ou le compte exact <input class="field" name="solde" inputmode="decimal" placeholder="${chf(so)}" autocomplete="off"></label><button class="btn small">OK</button></form><p class="hint">Ce que tu ajoutes va dans les dépenses, partagé en deux. Lessive ${chf(PRIX_MACHINE.lessive)} CHF, séchage ${chf(PRIX_MACHINE.sechage)} CHF : décompté à chaque lancement. Le compte exact corrige sans rien dépenser.</p></div>` : ''}</li>`;
   return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary: summary + (bas ? ` · ${so < PRIX_MACHINE.lessive ? 'plus de pièces' : `plus que ${chf(so)} CHF de pièces`}` : ''), dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join('') + (bas ? '<span class="dot dot-non"></span>' : ''), rows: [...mine.map(seqRow), pieces] });
 }
 
@@ -5719,7 +5721,9 @@ async function azamiAgir(a) {
       await filmVote(it, null, true, Math.round(note * 10) / 10);
     } else if (a.type === 'pieces') {
       const n = Number(a.note); if (!(n >= 0 && n <= 500)) { azamiPose('Combien de francs, exactement ?', 'curieuse'); render(); return false; }
-      await piecesMaj(/compte|reste|il y a|exact/i.test(texte) ? n : piecesSolde() + n).ecrit;
+      const exact = /compte|reste|il y a|exact/i.test(texte);
+      await piecesMaj(exact ? n : piecesSolde() + n).ecrit;
+      if (!exact && n > 0) await api.insert('expenses', piecesDepense(n));
     } else if (a.type === 'corvee_creer' || a.type === 'tache_vers_menage') {
       let titre = texte, pour = a.pour;
       const t = a.type === 'tache_vers_menage' ? azTrouve(S.tasks.filter(x => !x.done), texte, 'title') : null;
@@ -7174,7 +7178,8 @@ const actions = {
   },
 
   'pieces-ouvrir': () => { S.open = S.open === 'pieces' ? null : 'pieces'; haptic(1); render(); },
-  'pieces-plus': el => { const n = Number(el.dataset.n) || 0; const p = piecesMaj(piecesSolde() + n); haptic('medium'); sfx('tick'); floatUp(el, `+${n}`); undoable(`+${n} CHF de pièces`, [piecesAvant(p.avant)], () => p.ecrit, `${chf(piecesSolde())} CHF de pièces`); },
+  'pieces-plus': el => { const n = Number(el.dataset.n) || 0; const p = piecesMaj(piecesSolde() + n); haptic('medium'); sfx('coin'); floatUp(el, `+${n}`); burst('coins', el, 6);
+    undoable(`+${n} CHF de pièces`, [piecesAvant(p.avant)], async () => { await p.ecrit; await api.insert('expenses', piecesDepense(n)); }, `${chf(piecesSolde())} CHF de pièces · ${chf(n)} CHF ajoutés aux dépenses, moitié-moitié`); },
   'seq-adjust': el => { S.adjust = S.adjust === el.dataset.id ? null : el.dataset.id; haptic(1); render(); },
   'seq-shift': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
