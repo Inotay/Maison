@@ -134,7 +134,9 @@ async function run(db: ReturnType<typeof admin>) {
 // corvée personnelle, aux deux sinon). Appelé chaque minute par le planificateur.
 const SEQ: Record<string, { label: string; steps: { key: string; minutes?: number; meta?: string; btn: string }[] }> = {
   lavevaisselle: { label: "Lave-vaisselle", steps: [{ key: "cycle", minutes: 60, btn: "Lancer" }, { key: "sortir", btn: "Sortie", meta: "Fini : sortir la vaisselle" }] },
-  lessive: { label: "Lessive", steps: [{ key: "lavage", minutes: 60, btn: "Lancer" }, { key: "sechage", minutes: 80, btn: "Au séchage", meta: "Lavage fini : mettre au séchage" }, { key: "ranger", btn: "Rangée", meta: "Sec : plier et ranger" }] },
+  // la machine à laver se libère dès que le linge part au séchoir : le séchoir a son propre minuteur
+  lessive: { label: "Lessive", steps: [{ key: "lavage", minutes: 60, btn: "Lancer" }, { key: "sortir", btn: "Au séchoir", meta: "Lavage fini : mettre au séchoir" }] },
+  sechage: { label: "Séchage", steps: [{ key: "sechage", minutes: 80, btn: "Lancer" }, { key: "ranger", btn: "Rangée", meta: "Sec : sortir, plier et ranger" }] },
 };
 async function minuteurs(db: ReturnType<typeof admin>) {
   const now = Date.now();

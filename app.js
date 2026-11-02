@@ -745,9 +745,15 @@ async function loadAll() {
 const SEQ = {
   lavevaisselle: { label: 'Lave-vaisselle', icon: 'lavevaisselle', every: 4, personal: false, done: 'Lave-vaisselle vidé',
     steps: [{ key: 'cycle', btn: 'Lancer', doing: 'En route', minutes: 60 }, { key: 'sortir', btn: 'Sortie', meta: 'Fini : sortir la vaisselle' }] },
-  lessive: { label: 'Lessive', icon: 'lessive', every: 14, personal: true, done: 'Lessive rangée',
-    steps: [{ key: 'lavage', btn: 'Lancer', doing: 'Lavage en cours', minutes: 60 }, { key: 'sechage', btn: 'Au séchage', doing: 'Séchage en cours', minutes: 80 }, { key: 'ranger', btn: 'Rangée', meta: 'Sec : plier et ranger' }] },
+  // La lessive passe d'une machine à l'autre : la machine à laver se libère dès que le linge part au séchoir, on peut
+  // relancer une machine pendant que la précédente sèche (une seule lessive à la fois dans chaque machine).
+  lessive: { label: 'Lessive', titre: 'Machine à laver', icon: 'lessive', every: 14, personal: true, done: 'Lessive rangée',
+    steps: [{ key: 'lavage', btn: 'Lancer', doing: 'Lavage en cours', minutes: 60 }, { key: 'sortir', btn: 'Au séchoir', meta: 'Lavage fini : mettre au séchoir', vers: 'sechage' }] },
+  sechage: { label: 'Séchage', titre: 'Séchoir', icon: 'seche_linge', every: 3650, personal: true, done: 'Lessive rangée', libre: true,
+    steps: [{ key: 'sechage', btn: 'Lancer', doing: 'Séchage en cours', minutes: 80 }, { key: 'ranger', btn: 'Rangée', meta: 'Sec : plier et ranger' }] },
 };
+// Le séchoir de la même personne que cette lessive.
+const sechoirDe = c => S.chores.find(x => x.sorte === 'sechage' && x.turn === c.turn);
 const seqOf = c => c?.sorte && SEQ[c.sorte];
 // Durées d'une corvée en étapes : gardées pour les fois suivantes. La lessive, c'est la même machine
 // pour vous deux, donc la durée vaut aussi pour la lessive de l'autre.
@@ -765,6 +771,7 @@ const seqMinutes = (c, st) => Number(c.options?.minutes?.[st.key]) || st.minutes
 function seqState(c, now = Date.now()) {
   const q = seqOf(c); const i = Math.min(Number(c.step) || 0, q.steps.length - 1);
   if (c.started_at) {
+    if (!q.steps[i].minutes) return { phase: 'next', i: Math.min(i + (i ? 0 : 1), q.steps.length - 1) };
     const ready = new Date(c.started_at).getTime() + seqMinutes(c, q.steps[i]) * 60000;
     if (now < ready) return { phase: 'timer', i, ready, left: Math.ceil((ready - now) / 60000) };
     return { phase: 'next', i: i + 1 };
@@ -776,9 +783,19 @@ async function ensureDechets() {
     const owners = q.personal ? S.members.map(m => m.email) : [null];
     for (const who of owners) {
       if (S.chores.some(c => c.sorte === id && (c.turn || null) === who)) continue;
-      const row = { title: q.label, every_days: q.every, weight: 1, fixed: true, turn: who, sorte: id, icon: `t:${q.icon}`, step: 0 };
+      const avant = id === 'sechage' ? S.chores.find(c => c.sorte === 'lessive' && c.turn === who) : null;
+      const row = { title: q.titre || q.label, every_days: q.every, weight: 1, fixed: true, turn: who, sorte: id, icon: `t:${q.icon}`, step: 0,
+        ...(id === 'sechage' ? { last_done_at: new Date().toISOString(), options: { minutes: { sechage: Number(avant?.options?.minutes?.sechage) || 80 } } } : {}) };
       try { const r = await api.insert('chores', row); S.chores.push(r || row); } catch (e) { console.warn(id, e); }
     }
+  }
+  // ancien modèle : une lessive en train de sécher était l'étape 1 de la machine ; elle passe au séchoir
+  for (const c of S.chores.filter(x => x.sorte === 'lessive' && Number(x.step) >= 1)) {
+    const d = sechoirDe(c);
+    try {
+      if (d && c.started_at) { Object.assign(d, { step: 0, started_at: c.started_at, notified_at: c.notified_at || null }); await api.update('chores', { id: d.id }, { step: 0, started_at: c.started_at, notified_at: c.notified_at || null }); }
+      Object.assign(c, { step: 0, started_at: null }); await api.update('chores', { id: c.id }, { step: 0, started_at: null });
+    } catch (e) { console.warn('lessive', e); }
   }
   for (const s of SORTES) {
     if (S.chores.some(c => c.sorte === s.id)) continue;
@@ -2750,7 +2767,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v266</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v267</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3027,7 +3044,11 @@ function seqRow(c) {
   if (S.edit?.id === c.id) return `<li class="dech-row editing">${editChore(c)}</li>`;
   const s = seqState(c);
   let meta, btn;
-  if (s.phase === 'start') {
+  if (s.phase === 'start' && q.libre) {
+    const j = c.last_done_at && c.last_done_by ? Math.floor((Date.now() - new Date(c.last_done_at).getTime()) / DAY) : -1;   // (créé sans avoir servi : juste « Libre »)
+    meta = j < 0 ? 'Libre' : `Libre · dernier séchage ${j === 0 ? 'aujourd’hui' : j === 1 ? 'hier' : `il y a ${j} jours`}`;
+    btn = `<button class="btn dech-btn libre" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0" aria-label="Lancer le séchoir">${esc(q.steps[0].btn)}</button>`;
+  } else if (s.phase === 'start') {
     const st = s.st;
     meta = st.due ? (st.late ? cap(st.label) : 'À lancer') : `${cap(st.label)}${c.last_done_by && !q.personal ? `, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : ''}`;
     btn = `<button class="btn dech-btn ${st.due ? 'due' : 'done'} ${st.late ? 'late' : ''}" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="0">${st.due ? esc(q.steps[0].btn) : '✓'}</button>`;
@@ -3037,13 +3058,14 @@ function seqRow(c) {
   } else {
     const nx = q.steps[s.i];
     meta = nx.meta || `Prêt : ${nx.btn.toLowerCase()}`;
+    if (nx.vers) { const d = sechoirDe(c), ds = d && seqState(d); if (ds?.phase === 'timer') meta = `Fini · séchoir pris jusqu’à ${hhmm(ds.ready)}`; else if (ds?.phase === 'next') meta = 'Fini · vider le séchoir d’abord'; }
     btn = `<button class="btn dech-btn due" id="done-${c.id}" data-action="seq-step" data-id="${c.id}" data-i="${s.i}">${esc(nx.btn)}</button>`;
   }
   const dots = q.steps.map((st, k) => `<span class="dot ${s.phase === 'start' ? (k === 0 ? (s.st.due ? 'dot-non' : 'dot-ok') : 'off') : k < s.i ? 'dot-ok' : k === s.i ? (s.phase === 'timer' ? 'dot-route' : 'dot-non') : 'off'}"></span>`).join('');
   const st0 = q.steps[s.i];
   const adjust = S.adjust === c.id && s.phase === 'timer' ? `<div class="item-actions seq-adjust"><div class="chips">${[-10, -5, 5, 10].map(d => `<button type="button" data-action="seq-shift" data-id="${c.id}" data-key="${st0.key}" data-d="${d}">${d > 0 ? '+' : '−'}${Math.abs(d)} min</button>`).join('')}</div><p class="hint">${esc(st0.doing)} : ${seqMinutes(c, st0)} min. Gardé pour les prochaines fois, chez vous deux.</p></div>` : '';
   const actions = adjust || S.open === c.id ? adjust + (S.open !== c.id ? '' : `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${c.started_at ? `<button class="btn ghost small" data-action="seq-reset" data-id="${c.id}">Annuler le cycle</button>` : ''}</div>`) : '';
-  const title = q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
+  const title = q.titre ? q.titre : q.personal ? (c.turn === S.me ? 'La mienne' : nameOf(c.turn)) : q.label;
   // L'image suit l'étape en cours (sauf si on a choisi une icône à la main).
   const stepIcon = (!c.icon || c.icon === `t:${q.icon}`) && s.phase !== 'start' ? (STEP_ICONS[c.sorte] || {})[`${s.phase}:${q.steps[s.i]?.key}`] : null;
   return `<li class="dech-row">${iconBtn('chores', stepIcon ? { ...c, icon: `t:${stepIcon}` } : c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline">${dots}</span>${esc(meta)}</div></div>
@@ -3051,7 +3073,8 @@ function seqRow(c) {
     ${iconPicker('chores', c)}${actions}</li>`;
 }
 const STEP_ICONS = {
-  lessive: { 'timer:lavage': 'lessive_lancer', 'next:sechage': 'linge_mouille', 'timer:sechage': 'seche_linge', 'next:ranger': 'plier' },
+  lessive: { 'timer:lavage': 'lessive_lancer', 'next:sortir': 'linge_mouille' },
+  sechage: { 'timer:sechage': 'seche_linge', 'next:ranger': 'plier' },
 };
 // Ligne d'une corvée ordinaire placée dans une carte groupée (la vaisselle à la main).
 function plainRow(c) {
@@ -3069,8 +3092,8 @@ function groupCard({ id, icon, title, summary, dots, rows }) {
   return `<details class="chore dech-card" data-fold="${id}" ${S.folds?.[id] === false ? '' : 'open'}><summary><img class="ticon" src="icons/themes/${icon}.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta">${esc(summary)}</div></div><div class="item-trail dots">${dots}</div></summary>
     <ul class="dech-list">${rows.join('')}</ul></details>`;
 }
-const dueDot = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'timer' ? 'dot-route' : (s.phase === 'next' || s.st.due) ? 'dot-non' : 'dot-ok'; } return choreStatus(c).due ? 'dot-non' : 'dot-ok'; };
-const isDue = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'next' || (s.phase === 'start' && s.st.due); } return choreStatus(c).due; };
+const dueDot = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'timer' ? 'dot-route' : (s.phase === 'next' || (s.st.due && !q.libre)) ? 'dot-non' : 'dot-ok'; } return choreStatus(c).due ? 'dot-non' : 'dot-ok'; };
+const isDue = c => { const q = seqOf(c); if (q) { const s = seqState(c); return s.phase === 'next' || (s.phase === 'start' && s.st.due && !q.libre); } return choreStatus(c).due; };
 function dechetsCard(waste) {
   const now = new Date();
   const dots = waste.map(c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c, now); return `<span class="dot ${st.due ? 'dot-non' : 'dot-ok'} ${d.possible ? '' : 'off'}" title="${esc(c.title)}"></span>`; }).join('');
@@ -3107,9 +3130,10 @@ function azamiCard() {
   return groupCard({ id: 'azami', icon: 'chat', title: 'Azami', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
 }
 function lessiveCard() {
-  const mine = S.chores.filter(c => c.sorte === 'lessive' && c.turn === S.me); if (!mine.length) return '';
-  const c = mine[0]; const s = seqState(c);
-  const summary = s.phase === 'timer' ? `${seqOf(c).steps[s.i].doing}, prêt dans ${s.left} min` : s.phase === 'next' ? 'Une étape à faire' : s.st.due ? 'À lancer' : cap(s.st.label);
+  const mine = S.chores.filter(c => (c.sorte === 'lessive' || c.sorte === 'sechage') && c.turn === S.me).sort((a, b) => (a.sorte === 'lessive' ? 0 : 1) - (b.sorte === 'lessive' ? 0 : 1)); if (!mine.length) return '';
+  const bout = c => { const s = seqState(c), q = seqOf(c); return s.phase === 'timer' ? `${q.steps[s.i].doing.replace(' en cours', '')} jusqu’à ${hhmm(s.ready)}` : s.phase === 'next' ? (q.steps[s.i].key === 'ranger' ? 'Linge sec à sortir' : 'Linge à mettre au séchoir') : ''; };
+  const lv = mine.find(c => c.sorte === 'lessive'), s = lv && seqState(lv);
+  const summary = mine.map(bout).filter(Boolean).join(' · ') || (s?.st?.due ? 'À lancer' : s ? cap(s.st.label) : '');
   return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary, dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: mine.map(seqRow) });
 }
 
@@ -5674,12 +5698,15 @@ async function azamiAgir(a) {
       if (!c) { azamiPose(`Je ne trouve pas de ${SEQ[sorte].label.toLowerCase()} dans le ménage.`, 'curieuse'); render(); return false; }
       const q = SEQ[sorte];
       if (a.etape === 'fini') {
+        const d = sorte === 'lessive' ? sechoirDe(c) : null;
+        if (d && d.started_at) await api.update('chores', { id: d.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: qui });
         await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: qui });
         await api.insert('chore_log', { chore_id: c.id, title: q.done, done_by: qui, weight: 1 });
         await api.insert('wins', { kind: 'chore', title: q.done, done_by: qui, done_at: new Date().toISOString(), weight: 1, icon: c.icon || null });
       } else {
-        const i = a.etape === 'sechage' ? Math.max(0, q.steps.findIndex(x => x.key === 'sechage')) : 0;
-        await api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null });
+        const d = sorte === 'lessive' && a.etape === 'sechage' ? sechoirDe(c) : null;
+        if (d) { const now = new Date().toISOString(); await api.update('chores', { id: c.id }, { step: 0, started_at: null, notified_at: null, last_done_at: now, last_done_by: qui }); await api.update('chores', { id: d.id }, { step: 0, started_at: now, notified_at: null }); }
+        else await api.update('chores', { id: c.id }, { step: 0, started_at: new Date().toISOString(), notified_at: null });
       }
     } else return false;
     ok = true; loadSeq++; await loadAll().catch(() => {}); render();
@@ -7165,9 +7192,24 @@ const actions = {
   go: el => { clearReaction(); const from = S.view; S.view = el.dataset.view; if (AZ.ecrit && !document.getElementById('az-in')?.value.trim()) AZ.ecrit = false;   // une bulle à écrire restée vide se ferme en changeant de page
     if (from !== S.view) setTimeout(() => azamiRemarque('page', S.view), 500); S.open = null; S.recette = null; S.cook = null; if (S.view === 'recettes' && from !== 'recettes') cookRestore(); safeSet('maison-view', S.view === 'nuit' ? 'maison' : S.view); render(); window.scrollTo(0, 0); if (S.view === 'nuit') refresh(); },
   // Corvées en étapes : chaque bouton valide l'étape ; une étape minutée lance son minuteur, la dernière termine le cycle.
-  'seq-step': el => {
+  'seq-step': async el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
     const i = Number(el.dataset.i); const st = q.steps[i];
+    if (st.vers) {   // le linge mouillé part au séchoir : la machine à laver est libre pour la suivante
+      const d = sechoirDe(c); if (!d) { toast('Pas de séchoir trouvé. Recharge l’app.'); return; }
+      const ds = seqState(d);
+      if (ds.phase === 'timer') { haptic(1); toast(`Le séchoir tourne encore jusqu’à ${hhmm(ds.ready)}. Le linge attend dans la machine.`); return; }
+      const dq = seqOf(d), now = new Date().toISOString(), sortie = ds.phase === 'next';   // du linge sec y attendait : on le sort au passage
+      haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(d, dq.steps[0])} min`); react('machine_lancee', el);
+      undoable('Lessive : au séchoir', [
+        { t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null, last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null } },
+        { t: 'chores', id: d.id, row: { step: d.step || 0, started_at: d.started_at || null, notified_at: d.notified_at || null, last_done_at: d.last_done_at || null, last_done_by: d.last_done_by || null } }], async () => {
+        await api.update('chores', { id: c.id }, { step: 0, started_at: null, notified_at: null, last_done_at: now, last_done_by: S.me });
+        await api.update('chores', { id: d.id }, { step: 0, started_at: now, notified_at: null, ...(sortie ? { last_done_at: now, last_done_by: S.me } : {}) });
+        if (sortie) { await api.insert('chore_log', { chore_id: d.id, title: dq.done, weight: 1 }); await win('chore', dq.done, 1, d.icon); }
+      }, sortie ? 'Linge sec sorti, le suivant sèche. La machine à laver est libre.' : 'Au séchoir. La machine à laver est libre.');
+      return;
+    }
     if (st.minutes) {
       haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(c, st)} min`); react('machine_lancee', el);
       undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }], () => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c’est prêt.' : 'C’est parti.');
@@ -7180,7 +7222,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { step: 0, started_at: null, last_done_at: new Date().toISOString(), last_done_by: S.me });
       await api.insert('chore_log', { chore_id: c.id, title: q.done, weight: 1 });
       await win('chore', q.done, 1, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: `Prochaine fois dans ${c.every_days} jours`, level: 'small', reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
+    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: q.libre ? 'Le séchoir est libre.' : `Prochaine fois dans ${c.every_days} jours`, level: 'small', reaction: 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'seq-reset': el => { S.open = null; run(() => api.update('chores', { id: el.dataset.id }, { step: 0, started_at: null }), 'Cycle annulé'); },
   'agenda-house': () => { S.agendaHouse = S.agendaHouse === false; safeSet('maison-agenda-house', S.agendaHouse ? '1' : '0'); render(); },

@@ -2304,3 +2304,5 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 @media (prefers-reduced-motion: reduce) { #jouet.doree svg { animation: none; } }
 /* recherche ciné : un film déjà à moi ouvre sa fiche (petite flèche) au lieu d'être ajouté */
 .cine-found button.connu::after { content: '›'; margin-left: auto; padding-left: 8px; font-size: 22px; font-weight: 700; color: var(--muted); }
+/* séchoir au repos : on peut le lancer à la main, sans que ce soit « à faire » */
+.dech-btn.libre { background: var(--surface-2); color: var(--ink); border: 2px solid color-mix(in srgb, var(--ink) 18%, transparent); box-shadow: none; font-weight: 700; }
