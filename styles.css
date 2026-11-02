@@ -2302,3 +2302,5 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 #jouet.doree svg { filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .15)) drop-shadow(0 0 10px rgba(242, 201, 76, .75)); animation: plume-brille 1.8s ease-in-out infinite; }
 @keyframes plume-brille { 50% { filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .15)) drop-shadow(0 0 18px rgba(255, 220, 110, .95)); } }
 @media (prefers-reduced-motion: reduce) { #jouet.doree svg { animation: none; } }
+/* recherche ciné : un film déjà à moi ouvre sa fiche (petite flèche) au lieu d'être ajouté */
+.cine-found button.connu::after { content: '›'; margin-left: auto; padding-left: 8px; font-size: 22px; font-weight: 700; color: var(--muted); }

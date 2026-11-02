@@ -2750,7 +2750,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v265</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v266</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4587,9 +4587,10 @@ function cineResHtml(res) {
   if (typeof res === 'string') return `<p class="hint">${esc(res)}</p>`;
   if (!res.length) return '<p class="hint">Rien trouvé. Essaie le titre original, ou colle un lien IMDb ou Letterboxd.</p>';
   const o = other(), st = f => { const x = S.films.find(y => fkey(y) === fkey(f)); if (!x) return '';
-    const v = fVotes(x)[S.me]; return T.wants(v) ? 'déjà dans ta liste' : x.status === 'vu' ? 'vu ensemble' : x.status === 'en_cours' ? 'en cours' : x.seen?.[S.me] ? 'déjà vu' : o && T.wants(fVotes(x)[o]) ? `dans la liste de ${nameOf(o)}` : ''; };
-  const mine = f => { const x = S.films.find(y => fkey(y) === fkey(f)); return x && (T.wants(fVotes(x)[S.me]) || x.status === 'vu' || x.status === 'en_cours'); };
-  return `<ul class="cine-found">${res.map((f, i) => `<li><button type="button" data-action="cine-pick" data-i="${i}" ${mine(f) ? 'disabled' : ''}>${fPoster(f, 'sposter')}<span><b>${esc(f.title)}</b><small>${esc([f.year, f.media === 'tv' ? 'Série' : 'Film'].filter(Boolean).join(' · '))}${st(f) ? ` · ${esc(st(f))}` : ''}</small></span></button></li>`).join('')}</ul>`;
+    const v = fVotes(x)[S.me], n = x.ratings?.[S.me]?.note; return T.wants(v) ? 'dans ta liste' : x.status === 'vu' ? 'vu ensemble' : x.status === 'en_cours' ? 'en cours' : n ? `vu, noté ${String(Math.round(n * 10) / 10).replace('.', ',')}` : x.seen?.[S.me] ? 'déjà vu' : o && T.wants(fVotes(x)[o]) ? `dans la liste de ${nameOf(o)}` : ''; };
+  // déjà à moi (dans ma liste, vu, noté, en cours) : on ne l'ajoute pas une deuxième fois, on ouvre sa fiche
+  const mine = f => { const x = S.films.find(y => fkey(y) === fkey(f)); return x && x.id && (T.wants(fVotes(x)[S.me]) || x.status === 'vu' || x.status === 'en_cours' || x.seen?.[S.me] || x.ratings?.[S.me]?.note) ? x : null; };
+  return `<ul class="cine-found">${res.map((f, i) => `<li><button type="button" ${mine(f) ? `class="connu" data-action="cine-open" data-id="${mine(f).id}" aria-label="${esc(f.title)} : ouvrir la fiche"` : `data-action="cine-pick" data-i="${i}"`}>${fPoster(f, 'sposter')}<span><b>${esc(f.title)}</b><small>${esc([f.year, f.media === 'tv' ? 'Série' : 'Film'].filter(Boolean).join(' · '))}${st(f) ? ` · ${esc(st(f))}` : ''}</small></span></button></li>`).join('')}</ul>`;
 }
 let cineT = null, cineSeq = 0;
 function cineSearch(q) {
