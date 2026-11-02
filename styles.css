@@ -2306,3 +2306,9 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 .cine-found button.connu::after { content: '›'; margin-left: auto; padding-left: 8px; font-size: 22px; font-weight: 700; color: var(--muted); }
 /* séchoir au repos : on peut le lancer à la main, sans que ce soit « à faire » */
 .dech-btn.libre { background: var(--surface-2); color: var(--ink); border: 2px solid color-mix(in srgb, var(--ink) 18%, transparent); box-shadow: none; font-weight: 700; }
+/* le micro, pour lui parler : gros et visible (48 px), même dans la petite bulle à côté d'elle */
+.az-moi .az-mic { width: 48px; height: 48px; background: #F6D3C6; color: #2A1C15; box-shadow: inset 0 0 0 2px rgba(42, 28, 21, .18); }
+.az-moi .az-mic .icn { width: 26px; height: 26px; }
+.cote .az-moi .az-mic { width: 44px; height: 44px; }
+.az-moi .az-mic.on { background: #E7505A; color: #fff; box-shadow: none; }
+.az-moi-btns { align-items: center; }
