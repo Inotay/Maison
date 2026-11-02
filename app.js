@@ -483,7 +483,8 @@ function demoSeed() {
     ],
     chores: [
       { id: uid(), title: 'Vaisselle', every_days: 3, weight: 1, fixed: true, turn: null, last_done_at: iso(4), last_done_by: M, created_by: Y, created_at: iso(30) },
-      { id: uid(), title: "Vider la caisse d’Azami", every_days: 1, fixed: true, turn: M, last_done_at: iso(1), last_done_by: M, created_by: Y, created_at: iso(30) },
+      { id: uid(), title: "Vider la caisse d’Azami", every_days: 1, fixed: true, turn: M, last_done_at: iso(1), last_done_by: M, created_by: Y, created_at: iso(30), options: { annonce: { titre: 'Caisse d’Azami vidée', texte: '{qui} l’a vidée à {heure}.' } } },
+      { id: uid(), title: 'Azami nourrie', every_days: 365, fixed: true, turn: M, icon: 't:gamelle', last_done_at: iso(1.2), last_done_by: M, created_by: Y, created_at: iso(30), options: { annonce: { libre: true, btn: 'Nourrie', titre: 'Azami a mangé', texte: '{qui} l’a nourrie à {heure}.' } } },
       { id: uid(), title: 'Aspirateur', every_days: 7, turn: M, last_done_at: iso(3), last_done_by: Y, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Salle de bain', every_days: 14, weight: 3, turn: Y, last_done_at: iso(10), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Changer les draps', every_days: 14, turn: M, last_done_at: null, last_done_by: null, created_by: M, created_at: iso(30) },
@@ -2767,7 +2768,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v267</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v268</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3077,13 +3078,27 @@ const STEP_ICONS = {
   sechage: { 'timer:sechage': 'seche_linge', 'next:ranger': 'plier' },
 };
 // Ligne d'une corvée ordinaire placée dans une carte groupée (la vaisselle à la main).
+// Une corvée qu'une personne fait d'habitude (Mariana nourrit Azami) : quand l'autre la fait, la personne
+// d'habitude est prévenue (options.annonce). « libre » : jamais « à faire », la ligne dit seulement quand c'était.
+function annonceMeta(c) {
+  const t = c.last_done_at && c.last_done_by ? new Date(c.last_done_at) : null, auj = t && isoDate(t) === isoDate(new Date());
+  const hier = t && isoDate(t) === isoDate(new Date(Date.now() - DAY));
+  const qui = c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by);
+  const txt = auj ? `Aujourd’hui à ${hhmm(t.getTime())}, par ${qui}` : hier ? `Hier à ${hhmm(t.getTime())}, par ${qui}` : c.turn && c.turn !== S.me ? `${nameOf(c.turn)} s’en occupe d’habitude` : 'Pas encore aujourd’hui';
+  return { auj, txt };
+}
+async function pingAnnonce(id) {
+  if (DEMO || !sb) return;
+  try { await sb.functions.invoke('rappels', { body: { action: 'annonce', id } }); } catch (e) { console.warn('annonce', e); }
+}
 function plainRow(c) {
   if (S.edit?.id === c.id) return `<li class="dech-row editing">${editChore(c)}</li>`;
   const st = choreStatus(c);
   const who = !c.turn ? 'Qui veut' : c.fixed ? (c.turn === S.me ? 'Toujours toi' : `Toujours ${nameOf(c.turn)}`) : (c.turn === S.me ? 'À toi' : `À ${nameOf(c.turn)}`);
   const title = /^vaisselle$/i.test(c.title.trim()) ? 'À la main' : c.title;
-  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline"><span class="dot ${st.due ? 'dot-non' : 'dot-ok'}"></span></span>${esc(who)}, ${esc(st.label)}</div>${nudgeBtn('chore', c, st.due)}</div>
-    <div class="item-trail">${choreBtn(c)}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
+  const an = c.options?.annonce?.libre ? annonceMeta(c) : null;
+  return `<li class="dech-row">${iconBtn('chores', c)}<div class="item-main"><div class="item-title">${esc(title)}</div><div class="item-meta"><span class="dots-inline"><span class="dot ${an ? (an.auj ? 'dot-ok' : 'off') : st.due ? 'dot-non' : 'dot-ok'}"></span></span>${esc(an ? an.txt : `${who}, ${st.label}`)}</div>${an ? '' : nudgeBtn('chore', c, st.due)}</div>
+    <div class="item-trail">${an ? `<button class="btn dech-btn libre" id="done-${c.id}" data-action="chore-done" data-id="${c.id}" aria-label="${esc(c.title)} : le signaler">${esc(c.options.annonce.btn || 'Fait')}</button>` : choreBtn(c)}<button class="more" id="more-${c.id}" aria-label="Options" aria-expanded="${S.open === c.id}" data-action="more" data-id="${c.id}">⋯</button></div>
     ${iconPicker('chores', c)}
     ${S.open === c.id ? `<div class="item-actions"><button class="btn ghost small" data-action="edit" data-type="chores" data-id="${c.id}">Modifier</button>${nudgeMenu('chore', c)}${c.fixed || !c.turn ? '' : `<button class="btn ghost small" data-action="chore-swap" data-id="${c.id}">Passer le tour</button>`}<button class="btn ghost small" data-action="chore-delete" data-id="${c.id}">Supprimer</button></div>` : ''}</li>`;
 }
@@ -7320,7 +7335,7 @@ const actions = {
       await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
-    }, null, c.id).then(ok => { if (!ok) return; azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
+    }, null, c.id).then(ok => { if (!ok) return; const prevenue = c.options?.annonce && c.turn && c.turn !== S.me; if (prevenue) pingAnnonce(c.id); azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: prevenue ? `Message envoyé à ${nameOf(c.turn)}` : c.options?.annonce?.libre ? 'C’est noté' : !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);

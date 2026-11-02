@@ -291,6 +291,30 @@ async function aide(db: ReturnType<typeof admin>, me: string, id: string) {
   return { sent };
 }
 
+// Une corvée que quelqu'un fait d'habitude (Mariana nourrit Azami, vide sa caisse) : quand l'autre la fait,
+// la personne d'habitude reçoit un mot (« Azami a mangé : Yatoni l'a nourrie à 14:15 »), pour ne pas la refaire.
+async function annonce(db: ReturnType<typeof admin>, me: string, id: string) {
+  const { data: c } = await db.from("chores").select("id, title, turn, options, last_done_at, last_done_by").eq("id", id).maybeSingle();
+  const a = c?.options?.annonce;
+  if (!c || !a || !c.turn || c.turn === me) return { sent: 0 };
+  if (c.last_done_by !== me || !c.last_done_at || Date.now() - new Date(c.last_done_at).getTime() > 10 * 60000) return { sent: 0 };   // seulement juste après l'avoir fait
+  const { data: members } = await db.from("members").select("email, name");
+  const name = (members ?? []).find((m: { email: string }) => m.email === me)?.name || me.split("@")[0];
+  const heure = new Date(c.last_done_at).toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Zurich" });
+  const payload = JSON.stringify({ title: a.titre || c.title, body: String(a.texte || "{qui} s'en est occupé à {heure}.").replace("{qui}", name).replace("{heure}", heure), tag: `annonce-${c.id}`, url: "./?v=menage" });
+  const { data: subs } = await db.from("push_subscriptions").select("endpoint, email, sub").eq("email", c.turn);
+  if (!(subs ?? []).length) return { sent: 0 };
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  let sent = 0; const dead: string[] = [];
+  for (const s of subs ?? []) {
+    try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600, urgency: "high" }); sent++; }
+    catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  return { sent };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin(); SUIVI = db; await vieuxAbonnements(db).catch(() => {});
@@ -350,6 +374,13 @@ Deno.serve(async (req) => {
       const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
       if (!member) return json({ error: "Pas membre de la maison." }, 401);
       return json(await aide(db, me, String(body.id ?? "")));
+    }
+    if (action === "annonce") {
+      const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+      const me = (user?.email ?? "").toLowerCase();
+      const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+      if (!member) return json({ error: "Pas membre de la maison." }, 401);
+      return json(await annonce(db, me, String(body.id ?? "")));
     }
     return json({ error: "Action inconnue." }, 400);
   } catch (e) {
