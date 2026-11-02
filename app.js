@@ -2768,7 +2768,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v269</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v270</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5653,6 +5653,9 @@ const AZ_FAIT = {
   tache_cocher: ['Cochée ! Une de moins. Tu mérites une sieste.', 'Fait. Je le note dans mes réussites. Les tiennes, pardon.'],
   menu: ['Au menu ! Laisse-moi une casserole sale après, s’il te plaît.', 'C’est au menu. Je m’installe déjà sur le plan de travail.'],
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
+  film_vu: ['Noté dans tes vus. Je range ça avec tes grands souvenirs de canapé.', 'C’est noté. Ta liste de vus s’allonge, ta culture aussi.'],
+  corvee_creer: ['C’est dans le ménage. Je surveillerai qu’elle ne prenne pas la poussière.', 'Nouvelle corvée créée. Je ne la ferai pas, mais je superviserai.'],
+  tache_vers_menage: ['C’est passé dans le ménage. Elle reviendra toute seule, maintenant.', 'Déplacée dans le ménage. Plus besoin d’y penser, je m’en souviens.'],
   rdv: ['C’est dans l’agenda des quatre pattes. Je surveille la date.', 'Noté dans l’agenda ! Je te le rappellerai, une fois, gentiment.'],
   anniversaire: ['C’est noté. Dans ma tête, il reste de la place : il n’y a que le pigeon et toi.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
   corvee: ['Cochée ! Le tour passe, la maison brille, et moi je surveille.', 'C’est noté dans le ménage. Je fais semblant d’avoir aidé.', 'Une de faite ! Tu mérites une sieste au soleil.'],
@@ -5679,6 +5682,19 @@ async function azamiAgir(a) {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». C’est bien le titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, 'oui');
+    } else if (a.type === 'film_vu') {
+      const note = Number(a.note); if (!(note >= 0.5 && note <= 5)) { azamiPose(`Tu lui mets combien, à « ${texte} », sur 5 ?`, 'curieuse'); render(); return false; }
+      const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
+      const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». C’est bien le titre ?`, 'curieuse'); render(); return false; }
+      await filmVote(it, null, true, Math.round(note * 10) / 10);
+    } else if (a.type === 'corvee_creer' || a.type === 'tache_vers_menage') {
+      let titre = texte, pour = a.pour;
+      const t = a.type === 'tache_vers_menage' ? azTrouve(S.tasks.filter(x => !x.done), texte, 'title') : null;
+      if (a.type === 'tache_vers_menage') { if (!t) { azamiPose(`Je ne trouve pas « ${texte} » dans les choses à faire.`, 'curieuse'); render(); return false; } titre = t.title; if (!a.pour || a.pour === 'nous') pour = t.assignee === S.me ? 'moi' : t.assignee ? 'autre' : 'nous'; }
+      if (azTrouve(S.chores, titre, 'title')?.title && azNorm(azTrouve(S.chores, titre, 'title').title) === azNorm(titre)) { azamiPose(`« ${titre} » est déjà dans le ménage.`, 'curieuse'); render(); return false; }
+      const turn = pour === 'autre' && other() ? other() : pour === 'nous' ? null : S.me;
+      await api.insert('chores', { title: titre, every_days: Math.max(1, Math.min(365, Number(a.jours) || 7)), weight: 2, fixed: pour !== 'tour', turn, icon: t?.icon || iconFor(titre, 'chore', S.hints) });
+      if (t) await api.remove('tasks', { id: t.id });
     } else if (a.type === 'rdv') {
       if (!S.agenda?.configured) { azamiPose('L’agenda des quatre pattes n’est pas encore relié à l’app. Ça se règle dans Réglages, et après je m’en occupe.', 'curieuse'); render(); return false; }
       const jour = /^\d{4}-\d{2}-\d{2}$/.test(a.date || '') ? a.date : null;
