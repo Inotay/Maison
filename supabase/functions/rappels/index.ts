@@ -315,6 +315,35 @@ async function annonce(db: ReturnType<typeof admin>, me: string, id: string) {
   return { sent };
 }
 
+// Les pièces des machines (compte tenu dans l'app) : sous 6 CHF, une notification à vous deux. Tout de suite quand
+// on vient de passer sous le seuil, sinon une fois par jour au plus tant qu'on reste en dessous.
+const PIECES_SEUIL = 6;
+async function pieces(db: ReturnType<typeof admin>) {
+  const [{ data: p }, { data: a }] = await Promise.all([
+    db.from("reglages").select("valeur").eq("cle", "lessive:pieces").maybeSingle(),
+    db.from("reglages").select("valeur").eq("cle", "lessive:pieces_alerte").maybeSingle(),
+  ]);
+  const solde = Number(p?.valeur?.solde); if (!Number.isFinite(solde) || solde >= PIECES_SEUIL) return { sent: 0 };
+  const dernier = a?.valeur ?? {}, at = Number(dernier.at) || 0;
+  const franchi = Number.isFinite(Number(dernier.solde)) ? Number(dernier.solde) >= PIECES_SEUIL : true;
+  if (!franchi && Date.now() - at < 20 * 3600e3) return { sent: 0, deja: true };
+  const f = (n: number) => n.toFixed(2);
+  const cycles = Math.floor(solde / 2.5 + 1e-9);
+  const reste = solde < 1 ? "plus assez pour une lessive" : cycles ? `de quoi faire ${cycles} lessive${cycles > 1 ? "s" : ""} avec séchage` : solde >= 1.5 ? "assez pour un séchage ou une lessive" : "assez pour une lessive, pas pour un séchage";
+  const payload = JSON.stringify({ title: "Pièces pour les machines", body: `Plus que ${f(solde)} CHF : ${reste}. Pensez à en remettre.`, tag: "maison-pieces", url: "./?v=menage" });
+  const { data: subs } = await db.from("push_subscriptions").select("endpoint, email, sub");
+  const keys = await vapid(db);
+  webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
+  let sent = 0; const dead: string[] = [];
+  for (const s of subs ?? []) {
+    try { await webpush.sendNotification(s.sub, payload, { TTL: 12 * 3600 }); sent++; }
+    catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+  }
+  if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
+  await db.from("reglages").upsert({ cle: "lessive:pieces_alerte", valeur: { at: Date.now(), solde } });
+  return { sent };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const db = admin(); SUIVI = db; await vieuxAbonnements(db).catch(() => {});
@@ -374,6 +403,13 @@ Deno.serve(async (req) => {
       const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
       if (!member) return json({ error: "Pas membre de la maison." }, 401);
       return json(await aide(db, me, String(body.id ?? "")));
+    }
+    if (action === "pieces") {
+      const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));
+      const me = (user?.email ?? "").toLowerCase();
+      const { data: member } = me ? await db.from("members").select("email").eq("email", me).maybeSingle() : { data: null };
+      if (!member) return json({ error: "Pas membre de la maison." }, 401);
+      return json(await pieces(db));
     }
     if (action === "annonce") {
       const { data: { user } } = await db.auth.getUser((req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, ""));

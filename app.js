@@ -730,7 +730,7 @@ async function loadAll() {
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
   { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
-  { const pc = (reglages || []).find(r => r.cle === 'lessive:pieces')?.valeur; if (pc && typeof pc.solde === 'number' && (pc.maj || 0) >= (S.pieces?.maj || 0)) S.pieces = pc; }
+  { const pc = (reglages || []).find(r => r.cle === 'lessive:pieces')?.valeur; if (pc && typeof pc.solde === 'number' && (pc.maj || 0) >= (S.pieces?.maj || 0)) S.pieces = pc; if (S.pieces && piecesSolde() < PIECES_SEUIL && safeGet('maison-pieces-alerte') !== isoDate(new Date())) { safeSet('maison-pieces-alerte', isoDate(new Date())); setTimeout(piecesAlerte, 4000); } }
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
@@ -756,12 +756,18 @@ const SEQ = {
 };
 // Les machines marchent aux pièces : 1 franc la lessive, 1,50 le séchage. On tient le compte des pièces qu'on a
 // (pour vous deux) : chaque lancement le débite, on le recharge quand on remet des pièces de côté.
-const PRIX_MACHINE = { lessive: 1, sechage: 1.5 };
+const PRIX_MACHINE = { lessive: 1, sechage: 1.5 }, PIECES_SEUIL = 6;   // en dessous de 6 CHF : alerte et notification
+// Sous le seuil : une notification à vous deux (le serveur n'en envoie qu'une par jour, et tout de suite si on vient de passer sous le seuil).
+async function piecesAlerte() {
+  if (DEMO || !sb || !S.pieces || piecesSolde() >= PIECES_SEUIL) return;
+  try { await sb.functions.invoke('rappels', { body: { action: 'pieces' } }); } catch (e) { console.warn('pièces', e); }
+}
 const piecesSolde = () => Number(S.pieces?.solde ?? 0);
 function piecesMaj(solde) {
   const avant = S.pieces ? { ...S.pieces } : { solde: 0, maj: 0 };
   S.pieces = { solde: Math.round(solde * 100) / 100, maj: Date.now(), par: S.me };
-  return { avant, ecrit: api.upsert('reglages', { cle: 'lessive:pieces', valeur: S.pieces }) };
+  const ecrit = api.upsert('reglages', { cle: 'lessive:pieces', valeur: S.pieces }); ecrit.then(() => { if (S.pieces.solde < PIECES_SEUIL && S.pieces.solde < avant.solde) piecesAlerte(); }).catch(() => {});
+  return { avant, ecrit };
 }
 const piecesAvant = avant => ({ t: 'reglages', cle: 'lessive:pieces', row: avant });
 // ce que les pièces permettent encore
@@ -2785,7 +2791,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v271</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v272</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3166,12 +3172,12 @@ function lessiveCard() {
   const bout = c => { const s = seqState(c), q = seqOf(c); return s.phase === 'timer' ? `${q.steps[s.i].doing.replace(' en cours', '')} jusqu’à ${hhmm(s.ready)}` : s.phase === 'next' ? (q.steps[s.i].key === 'ranger' ? 'Linge sec à sortir' : 'Linge à mettre au séchoir') : ''; };
   const lv = mine.find(c => c.sorte === 'lessive'), s = lv && seqState(lv);
   const summary = mine.map(bout).filter(Boolean).join(' · ') || (s?.st?.due ? 'À lancer' : s ? cap(s.st.label) : '');
-  const so = piecesSolde(), bas = so < PRIX_MACHINE.lessive + PRIX_MACHINE.sechage;
+  const so = piecesSolde(), bas = so < PIECES_SEUIL;
   const ouvert = S.open === 'pieces';
   const pieces = `<li class="dech-row pieces-row"><img class="ticon" src="icons/themes/cash.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Pièces · ${chf(so)} CHF</div><div class="item-meta ${bas ? 'late' : ''}">${esc(piecesTexte(so))}</div></div>
     <div class="item-trail"><button class="btn dech-btn ${bas ? 'due' : 'libre'}" data-action="pieces-ouvrir" aria-expanded="${ouvert}">${bas ? 'Recharger' : 'Ajouter'}</button></div>
     ${ouvert ? `<div class="item-actions pieces-actions"><div class="chips">${[1, 2, 5, 10].map(n => `<button type="button" data-action="pieces-plus" data-n="${n}">+${n} CHF</button>`).join('')}</div><form class="pieces-juste" data-form="pieces"><label>Ou le compte exact <input class="field" name="solde" inputmode="decimal" placeholder="${chf(so)}" autocomplete="off"></label><button class="btn small">OK</button></form><p class="hint">Lessive ${chf(PRIX_MACHINE.lessive)} CHF, séchage ${chf(PRIX_MACHINE.sechage)} CHF : décompté à chaque lancement.</p></div>` : ''}</li>`;
-  return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary: summary + (bas ? ` · ${so < PRIX_MACHINE.lessive ? 'plus de pièces' : 'pièces à recharger'}` : ''), dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join('') + (bas ? '<span class="dot dot-non"></span>' : ''), rows: [...mine.map(seqRow), pieces] });
+  return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary: summary + (bas ? ` · ${so < PRIX_MACHINE.lessive ? 'plus de pièces' : `plus que ${chf(so)} CHF de pièces`}` : ''), dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join('') + (bas ? '<span class="dot dot-non"></span>' : ''), rows: [...mine.map(seqRow), pieces] });
 }
 
 function pratiqueCard() {
