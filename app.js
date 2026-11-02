@@ -730,6 +730,7 @@ async function loadAll() {
   if (tamaTick()) tamaSave();
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
   { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
+  { const pc = (reglages || []).find(r => r.cle === 'lessive:pieces')?.valeur; if (pc && typeof pc.solde === 'number' && (pc.maj || 0) >= (S.pieces?.maj || 0)) S.pieces = pc; }
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
@@ -753,6 +754,22 @@ const SEQ = {
   sechage: { label: 'Séchage', titre: 'Séchoir', icon: 'seche_linge', every: 3650, personal: true, done: 'Lessive rangée', libre: true,
     steps: [{ key: 'sechage', btn: 'Lancer', doing: 'Séchage en cours', minutes: 80 }, { key: 'ranger', btn: 'Rangée', meta: 'Sec : plier et ranger' }] },
 };
+// Les machines marchent aux pièces : 1 franc la lessive, 1,50 le séchage. On tient le compte des pièces qu'on a
+// (pour vous deux) : chaque lancement le débite, on le recharge quand on remet des pièces de côté.
+const PRIX_MACHINE = { lessive: 1, sechage: 1.5 };
+const piecesSolde = () => Number(S.pieces?.solde ?? 0);
+function piecesMaj(solde) {
+  const avant = S.pieces ? { ...S.pieces } : { solde: 0, maj: 0 };
+  S.pieces = { solde: Math.round(solde * 100) / 100, maj: Date.now(), par: S.me };
+  return { avant, ecrit: api.upsert('reglages', { cle: 'lessive:pieces', valeur: S.pieces }) };
+}
+const piecesAvant = avant => ({ t: 'reglages', cle: 'lessive:pieces', row: avant });
+// ce que les pièces permettent encore
+function piecesTexte(s = piecesSolde()) {
+  if (s < 0) return `Il manque ${chf(-s)} CHF de pièces`;
+  const l = Math.floor(s / PRIX_MACHINE.lessive + 1e-9), cycles = Math.floor(s / (PRIX_MACHINE.lessive + PRIX_MACHINE.sechage) + 1e-9);
+  return cycles ? `De quoi faire ${cycles} lessive${cycles > 1 ? 's' : ''} avec séchage` : s >= PRIX_MACHINE.sechage ? 'Assez pour un séchage ou une lessive' : l ? 'Assez pour une lessive, pas pour un séchage' : 'Plus assez de pièces';
+}
 // Le séchoir de la même personne que cette lessive.
 const sechoirDe = c => S.chores.find(x => x.sorte === 'sechage' && x.turn === c.turn);
 const seqOf = c => c?.sorte && SEQ[c.sorte];
@@ -908,7 +925,7 @@ function doUndo() {
   run(async () => {
     if (u.wait) Object.assign(u, await u.wait);
     for (const [t, id] of [...u.cap].reverse()) await api.remove(t, { id }).catch(e => console.warn('annuler', t, e));
-    for (const b of u.before) { if (b.gone) await api.insert(b.t, b.row); else await api.update(b.t, { id: b.id }, b.row); }
+    for (const b of u.before) { if (b.cle) { await api.upsert(b.t, { cle: b.cle, valeur: b.row }); if (b.cle === 'lessive:pieces') S.pieces = b.row; } else if (b.gone) await api.insert(b.t, b.row); else await api.update(b.t, { id: b.id }, b.row); }
   }, `Annulé : ${u.label}`, 'annuler-' + Date.now());   // jamais bloqué par une autre action en cours
 }
 document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z' && UNDO && !typing()) { e.preventDefault(); doUndo(); } });
@@ -2768,7 +2785,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v270</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v271</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3149,7 +3166,12 @@ function lessiveCard() {
   const bout = c => { const s = seqState(c), q = seqOf(c); return s.phase === 'timer' ? `${q.steps[s.i].doing.replace(' en cours', '')} jusqu’à ${hhmm(s.ready)}` : s.phase === 'next' ? (q.steps[s.i].key === 'ranger' ? 'Linge sec à sortir' : 'Linge à mettre au séchoir') : ''; };
   const lv = mine.find(c => c.sorte === 'lessive'), s = lv && seqState(lv);
   const summary = mine.map(bout).filter(Boolean).join(' · ') || (s?.st?.due ? 'À lancer' : s ? cap(s.st.label) : '');
-  return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary, dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: mine.map(seqRow) });
+  const so = piecesSolde(), bas = so < PRIX_MACHINE.lessive + PRIX_MACHINE.sechage;
+  const ouvert = S.open === 'pieces';
+  const pieces = `<li class="dech-row pieces-row"><img class="ticon" src="icons/themes/cash.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Pièces · ${chf(so)} CHF</div><div class="item-meta ${bas ? 'late' : ''}">${esc(piecesTexte(so))}</div></div>
+    <div class="item-trail"><button class="btn dech-btn ${bas ? 'due' : 'libre'}" data-action="pieces-ouvrir" aria-expanded="${ouvert}">${bas ? 'Recharger' : 'Ajouter'}</button></div>
+    ${ouvert ? `<div class="item-actions pieces-actions"><div class="chips">${[1, 2, 5, 10].map(n => `<button type="button" data-action="pieces-plus" data-n="${n}">+${n} CHF</button>`).join('')}</div><form class="pieces-juste" data-form="pieces"><label>Ou le compte exact <input class="field" name="solde" inputmode="decimal" placeholder="${chf(so)}" autocomplete="off"></label><button class="btn small">OK</button></form><p class="hint">Lessive ${chf(PRIX_MACHINE.lessive)} CHF, séchage ${chf(PRIX_MACHINE.sechage)} CHF : décompté à chaque lancement.</p></div>` : ''}</li>`;
+  return groupCard({ id: 'lessive', icon: 'lessive', title: 'Lessive', summary: summary + (bas ? ` · ${so < PRIX_MACHINE.lessive ? 'plus de pièces' : 'pièces à recharger'}` : ''), dots: mine.map(c => `<span class="dot ${dueDot(c)}"></span>`).join('') + (bas ? '<span class="dot dot-non"></span>' : ''), rows: [...mine.map(seqRow), pieces] });
 }
 
 function pratiqueCard() {
@@ -5500,6 +5522,7 @@ function azamiContexte(txt = '') {
     return `${c.title} : ${c.turn ? `tour de ${nom(c.turn)}` : 'à vous deux'}, ${quand}, ${st.late ? 'EN RETARD' : st.due ? 'à faire aujourd’hui' : `prochaine ${st.label}`}${machine}`;
   });
   l.push(`MÉNAGE :\n${men.length ? men.join('\n') : 'aucune corvée'}`);
+  if (S.pieces) l.push(`PIÈCES POUR LES MACHINES (lessive 1 CHF, séchage 1.50 CHF, décomptées à chaque lancement) : ${chf(piecesSolde())} CHF, ${piecesTexte()}`);
   const todo = S.tasks.filter(t => !t.done);
   l.push(`Choses à faire : ${todo.length ? todo.slice(0, 10).map(t => `${t.title}${t.assignee ? ` (${nom(t.assignee)})` : ''}${t.due_on ? `, pour le ${t.due_on}` : ''}`).join(' ; ') : 'rien'}.`);
   const shop = S.shopping.filter(s => !s.checked);
@@ -5655,6 +5678,7 @@ const AZ_FAIT = {
   film: ['Glissé dans ta liste. Je prépare le pop-corn.', 'Ajouté à ta liste. Je l’ai mis en haut, discrètement.'],
   film_vu: ['Noté dans tes vus. Je range ça avec tes grands souvenirs de canapé.', 'C’est noté. Ta liste de vus s’allonge, ta culture aussi.'],
   corvee_creer: ['C’est dans le ménage. Je surveillerai qu’elle ne prenne pas la poussière.', 'Nouvelle corvée créée. Je ne la ferai pas, mais je superviserai.'],
+  pieces: [() => `C’est noté : ${chf(piecesSolde())} CHF de pièces. Je les compte avec la patte.`, () => `${chf(piecesSolde())} CHF dans la tirelire des machines. ${piecesTexte()}.`],
   tache_vers_menage: ['C’est passé dans le ménage. Elle reviendra toute seule, maintenant.', 'Déplacée dans le ménage. Plus besoin d’y penser, je m’en souviens.'],
   rdv: ['C’est dans l’agenda des quatre pattes. Je surveille la date.', 'Noté dans l’agenda ! Je te le rappellerai, une fois, gentiment.'],
   anniversaire: ['C’est noté. Dans ma tête, il reste de la place : il n’y a que le pigeon et toi.', 'Retenu ! Je prépare déjà quelque chose. Chut.'],
@@ -5687,6 +5711,9 @@ async function azamiAgir(a) {
       const r = await filmsCall({ action: 'search', q: a.annee ? `${texte} ${a.annee}` : texte });
       const it = (r.results || [])[0]; if (!it) { azamiPose(`Je ne trouve pas « ${texte} ». C’est bien le titre ?`, 'curieuse'); render(); return false; }
       await filmVote(it, null, true, Math.round(note * 10) / 10);
+    } else if (a.type === 'pieces') {
+      const n = Number(a.note); if (!(n >= 0 && n <= 500)) { azamiPose('Combien de francs, exactement ?', 'curieuse'); render(); return false; }
+      await piecesMaj(/compte|reste|il y a|exact/i.test(texte) ? n : piecesSolde() + n).ecrit;
     } else if (a.type === 'corvee_creer' || a.type === 'tache_vers_menage') {
       let titre = texte, pour = a.pour;
       const t = a.type === 'tache_vers_menage' ? azTrouve(S.tasks.filter(x => !x.done), texte, 'title') : null;
@@ -5736,8 +5763,8 @@ async function azamiAgir(a) {
         await api.insert('wins', { kind: 'chore', title: q.done, done_by: qui, done_at: new Date().toISOString(), weight: 1, icon: c.icon || null });
       } else {
         const d = sorte === 'lessive' && a.etape === 'sechage' ? sechoirDe(c) : null;
-        if (d) { const now = new Date().toISOString(); await api.update('chores', { id: c.id }, { step: 0, started_at: null, notified_at: null, last_done_at: now, last_done_by: qui }); await api.update('chores', { id: d.id }, { step: 0, started_at: now, notified_at: null }); }
-        else await api.update('chores', { id: c.id }, { step: 0, started_at: new Date().toISOString(), notified_at: null });
+        if (d) { const now = new Date().toISOString(); await api.update('chores', { id: c.id }, { step: 0, started_at: null, notified_at: null, last_done_at: now, last_done_by: qui }); await api.update('chores', { id: d.id }, { step: 0, started_at: now, notified_at: null }); await piecesMaj(piecesSolde() - PRIX_MACHINE.sechage).ecrit; }
+        else { await api.update('chores', { id: c.id }, { step: 0, started_at: new Date().toISOString(), notified_at: null }); if (PRIX_MACHINE[sorte]) await piecesMaj(piecesSolde() - PRIX_MACHINE[sorte]).ecrit; }
       }
     } else return false;
     ok = true; loadSeq++; await loadAll().catch(() => {}); render();
@@ -7140,6 +7167,8 @@ const actions = {
     undoable(`${x.label} ${el.dataset.s === 'mange' ? 'mangé' : 'jeté'}`, [{ t: 'pantry', id: x.id, row: { status: null } }], () => api.update('pantry', { id: x.id }, { status: el.dataset.s }), el.dataset.s === 'mange' ? 'Bien joué' : null);
   },
 
+  'pieces-ouvrir': () => { S.open = S.open === 'pieces' ? null : 'pieces'; haptic(1); render(); },
+  'pieces-plus': el => { const n = Number(el.dataset.n) || 0; const p = piecesMaj(piecesSolde() + n); haptic('medium'); sfx('tick'); floatUp(el, `+${n}`); undoable(`+${n} CHF de pièces`, [piecesAvant(p.avant)], () => p.ecrit, `${chf(piecesSolde())} CHF de pièces`); },
   'seq-adjust': el => { S.adjust = S.adjust === el.dataset.id ? null : el.dataset.id; haptic(1); render(); },
   'seq-shift': el => {
     const c = S.chores.find(x => x.id === el.dataset.id); const q = seqOf(c); if (!q) return;
@@ -7232,18 +7261,22 @@ const actions = {
       if (ds.phase === 'timer') { haptic(1); toast(`Le séchoir tourne encore jusqu’à ${hhmm(ds.ready)}. Le linge attend dans la machine.`); return; }
       const dq = seqOf(d), now = new Date().toISOString(), sortie = ds.phase === 'next';   // du linge sec y attendait : on le sort au passage
       haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(d, dq.steps[0])} min`); react('machine_lancee', el);
-      undoable('Lessive : au séchoir', [
+      const pc = piecesMaj(piecesSolde() - PRIX_MACHINE.sechage);
+      undoable('Lessive : au séchoir', [piecesAvant(pc.avant),
         { t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null, last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null } },
         { t: 'chores', id: d.id, row: { step: d.step || 0, started_at: d.started_at || null, notified_at: d.notified_at || null, last_done_at: d.last_done_at || null, last_done_by: d.last_done_by || null } }], async () => {
         await api.update('chores', { id: c.id }, { step: 0, started_at: null, notified_at: null, last_done_at: now, last_done_by: S.me });
         await api.update('chores', { id: d.id }, { step: 0, started_at: now, notified_at: null, ...(sortie ? { last_done_at: now, last_done_by: S.me } : {}) });
         if (sortie) { await api.insert('chore_log', { chore_id: d.id, title: dq.done, weight: 1 }); await win('chore', dq.done, 1, d.icon); }
-      }, sortie ? 'Linge sec sorti, le suivant sèche. La machine à laver est libre.' : 'Au séchoir. La machine à laver est libre.');
+        await pc.ecrit;
+      }, piecesSolde() < 0 ? `Au séchoir. Attention : il manque des pièces (${chf(piecesSolde())} CHF).` : sortie ? 'Linge sec sorti, le suivant sèche. La machine à laver est libre.' : 'Au séchoir. La machine à laver est libre.');
       return;
     }
     if (st.minutes) {
       haptic('medium'); sfx('done'); burst('sparkle', el, 12); floatUp(el, `${seqMinutes(c, st)} min`); react('machine_lancee', el);
-      undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }], () => api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }), i === 0 ? 'Lancé. Notification quand c’est prêt.' : 'C’est parti.');
+      const prix = i === 0 ? PRIX_MACHINE[c.sorte] : 0, p = prix ? piecesMaj(piecesSolde() - prix) : null;
+      undoable(`${q.label} : ${st.btn.toLowerCase()}`, [{ t: 'chores', id: c.id, row: { step: c.step || 0, started_at: c.started_at || null, notified_at: c.notified_at || null } }, ...(p ? [piecesAvant(p.avant)] : [])], async () => { await api.update('chores', { id: c.id }, { step: i, started_at: new Date().toISOString(), notified_at: null }); if (p) await p.ecrit; },
+        prix && piecesSolde() < 0 ? `Lancé. Attention : il manque des pièces (${chf(piecesSolde())} CHF).` : prix ? `Lancé. Il reste ${chf(piecesSolde())} CHF de pièces.` : i === 0 ? 'Lancé. Notification quand c’est prêt.' : 'C’est parti.');
       return;
     }
     meow(); haptic('heavy'); sfx('big'); el.classList.add('did'); el.textContent = '✓';
@@ -7515,6 +7548,12 @@ const forms = {
     const row = { body: f.body.value.trim(), important: f.important.checked };
     f.reset();
     run(() => api.insert('board', row), 'Affiché sur le tableau');
+  },
+  pieces(f) {
+    const v = Number(String(f.solde.value).replace(',', '.').replace(/[^\d.]/g, ''));
+    if (!f.solde.value.trim() || !Number.isFinite(v) || v > 500) { toast('Écris le montant, par exemple 4.50'); return; }
+    const p = piecesMaj(v); S.open = null;
+    undoable('Compte des pièces', [piecesAvant(p.avant)], () => p.ecrit, `Compte des pièces : ${chf(v)} CHF`);
   },
   chore(f) {
     if (!f.title.value.trim()) { toast('Donne un nom à la corvée'); return; }
