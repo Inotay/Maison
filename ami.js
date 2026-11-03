@@ -1,4 +1,4 @@
-// Ciné entre amis : la page des amis de la maison. Un lien à vie (le jeton est après le #, jamais envoyé au serveur
+// Le ciné d’Azami : la page des amis de la maison. Un lien à vie (le jeton est après le #, jamais envoyé au serveur
 // de la page ; il n'est transmis qu'à la fonction « amis ») ; seulement le cinéma : Cinder sur la collection de
 // la maison, ses films (envies, vus et notés), et la comparaison avec Yatoni, Mariana et les autres amis.
 // Tout ce qui vient des autres (prénoms, titres) est écrit comme du texte, jamais comme du HTML.
@@ -40,7 +40,7 @@ async function call(action, body = {}) {
   return j;
 }
 function fin(msg) {
-  $.innerHTML = `<section class="s-fin">${icn('film')}<h1>Ciné entre amis</h1><p></p></section>`;
+  $.innerHTML = `<section class="s-fin">${icn('film')}<h1>Le ciné d’Azami</h1><p></p></section>`;
   $.querySelector('p').textContent = msg;
 }
 let toastT;
@@ -74,7 +74,7 @@ function accueil() {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 const TUTO = [
-  { ic: 'film', t: () => `Le ciné de ${hotes()}`, p: () => `Ici, tu vois seulement la partie cinéma de leur maison. Tu y donnes tes goûts, et vous découvrez ce qui vous rapproche.` },
+  { ic: 'film', t: () => 'Le ciné d’Azami', p: () => `Chez Azami, la chatte de ${hotes()}, tu ne vois que le coin cinéma de la maison. Tu y donnes tes goûts, et vous découvrez ce qui vous rapproche.` },
   { ic: 'flamme', t: () => 'Cinder', p: () => 'Des affiches défilent. Glisse à droite si tu as envie de le voir, à gauche si bof, vers le haut si tu l’as déjà vu (tu lui mets une note). Touche l’affiche pour lire le résumé.' },
   { ic: 'deux', t: () => 'Vos matchs', p: () => `L’onglet « Matchs » te montre à quel point tu es d’accord avec ${hotes()} et les autres amis, les films que vous avez envie de voir ensemble, et leurs coups de cœur que tu n’as pas encore vus.` },
   { ic: 'loupe', t: () => 'Tes films', p: () => 'Tu peux chercher n’importe quel film pour le noter ou le mettre en envie, et changer d’avis quand tu veux dans « Mes films ».' },
