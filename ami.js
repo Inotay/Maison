@@ -1,4 +1,4 @@
-// Le ciné d’Azami : la page des amis de la maison. Un lien à vie (le jeton est après le #, jamais envoyé au serveur
+// Ciné Azami : la page des amis de la maison. Un lien à vie (le jeton est après le #, jamais envoyé au serveur
 // de la page ; il n'est transmis qu'à la fonction « amis ») ; seulement le cinéma : Cinder sur la collection de
 // la maison, ses films (envies, vus et notés), et la comparaison avec Yatoni, Mariana et les autres amis.
 // Tout ce qui vient des autres (prénoms, titres) est écrit comme du texte, jamais comme du HTML.
@@ -40,7 +40,7 @@ async function call(action, body = {}) {
   return j;
 }
 function fin(msg) {
-  $.innerHTML = `<section class="s-fin">${icn('film')}<h1>Le ciné d’Azami</h1><p></p></section>`;
+  $.innerHTML = `<section class="s-fin">${icn('film')}<h1>Ciné Azami</h1><p></p></section>`;
   $.querySelector('p').textContent = msg;
 }
 let toastT;
@@ -58,11 +58,11 @@ async function chargerMes() { try { const r = await call('mes'); MES = new Map(r
 
 // ── La première fois : le prénom, puis le tutoriel ──
 function accueil() {
-  $.innerHTML = `<section class="s-hello"><b class="s-logo big">${icn('flamme')} Ciné</b>
-    <h1>Bienvenue !</h1><p><b class="s-hotes"></b> t’ouvrent leur coin cinéma.</p>
-    <p class="s-small">Comment tu t’appelles ? C’est le prénom qu’ils verront.</p>
+  $.innerHTML = `<section class="s-hello"><b class="s-logo big">${icn('flamme')} Ciné Azami</b>
+    <h1>Bienvenue</h1><p>Espace cinéma partagé avec <b class="s-hotes"></b>.</p>
+    <p class="s-small">Indique ton prénom, il sera visible des autres.</p>
     <label class="s-lab" for="s-nom">Ton prénom</label><input id="s-nom" maxlength="24" autocomplete="given-name" enterkeyhint="go">
-    <button class="s-btn" data-go>C’est moi</button></section>`;
+    <button class="s-btn" data-go>Continuer</button></section>`;
   $.querySelector('.s-hotes').textContent = hotes();
   const inp = $.querySelector('#s-nom'); inp.value = P?.nom || '';
   const go = async () => {
@@ -74,17 +74,17 @@ function accueil() {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
 }
 const TUTO = [
-  { ic: 'film', t: () => 'Le ciné d’Azami', p: () => `Chez Azami, la chatte de ${hotes()}, tu ne vois que le coin cinéma de la maison. Tu y donnes tes goûts, et vous découvrez ce qui vous rapproche.` },
-  { ic: 'flamme', t: () => 'Cinder', p: () => 'Des affiches défilent. Glisse à droite si tu as envie de le voir, à gauche si bof, vers le haut si tu l’as déjà vu (tu lui mets une note). Touche l’affiche pour lire le résumé.' },
-  { ic: 'deux', t: () => 'Vos matchs', p: () => `L’onglet « Matchs » te montre à quel point tu es d’accord avec ${hotes()} et les autres amis, les films que vous avez envie de voir ensemble, et leurs coups de cœur que tu n’as pas encore vus.` },
-  { ic: 'loupe', t: () => 'Tes films', p: () => 'Tu peux chercher n’importe quel film pour le noter ou le mettre en envie, et changer d’avis quand tu veux dans « Mes films ».' },
-  { ic: 'coupe', t: () => 'Ton lien est à toi', p: () => 'Il marche à vie, sur tous tes appareils. Garde-le, ou ajoute cette page à ton écran d’accueil depuis ce lien. Ne le donne pas : il te représente.' },
+  { ic: 'film', t: () => 'Bienvenue', p: () => `Cet espace est dédié au cinéma. Tu indiques tes goûts, et tu vois ce que tu as en commun avec ${hotes()} et les autres invités.` },
+  { ic: 'flamme', t: () => 'Choisir des films', p: () => 'Des affiches défilent. Glisse à droite pour un film qui te tente, à gauche s’il ne t’intéresse pas, vers le haut si tu l’as déjà vu (tu peux alors lui donner une note). Touche l’affiche pour lire le résumé.' },
+  { ic: 'deux', t: () => 'Les points communs', p: () => `L’onglet « Matchs » montre ton accord avec ${hotes()} et les autres invités, les films que vous avez envie de voir ensemble, et leurs coups de cœur que tu n’as pas encore vus.` },
+  { ic: 'loupe', t: () => 'Tes films', p: () => 'Tu peux chercher n’importe quel film pour le noter ou l’ajouter à tes envies. Tout reste modifiable dans « Mes films ».' },
+  { ic: 'coupe', t: () => 'Ton lien', p: () => 'Ce lien est personnel et reste valable. Tu peux l’utiliser sur tous tes appareils ou ajouter cette page à ton écran d’accueil. Évite de le partager.' },
 ];
 function tuto(n) {
   const s = TUTO[n];
   $.innerHTML = `<section class="a-tuto"><div class="a-tuto-ic">${icn(s.ic)}</div><h1></h1><p></p>
     <div class="a-dots">${TUTO.map((_, k) => `<i class="${k === n ? 'on' : ''}"></i>`).join('')}</div>
-    <div class="a-tuto-btns">${n < TUTO.length - 1 ? '<button class="s-btn ghost" data-skip>Passer</button>' : ''}<button class="s-btn" data-next>${n < TUTO.length - 1 ? 'Suivant' : 'On y va !'}</button></div></section>`;
+    <div class="a-tuto-btns">${n < TUTO.length - 1 ? '<button class="s-btn ghost" data-skip>Passer</button>' : ''}<button class="s-btn" data-next>${n < TUTO.length - 1 ? 'Suivant' : 'Commencer'}</button></div></section>`;
   $.querySelector('h1').textContent = s.t(); $.querySelector('p').textContent = s.p();
   const finir = async () => { try { await call('profil', { tuto: true }); P.tuto = true; } catch {} await chargerMes(); onglet = 'cinder'; dessiner(); };
   $.querySelector('[data-next]').addEventListener('click', () => n < TUTO.length - 1 ? tuto(n + 1) : finir());
@@ -94,7 +94,7 @@ function tuto(n) {
 // ── L'écran : quatre onglets ──
 const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Matchs'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
-  $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné</b><button class="a-qui" data-nom aria-label="Changer mon prénom"></button></header>
+  $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Changer mon prénom"></button></header>
     <p class="s-sous">Chez <b class="s-hotes"></b></p>
     <div class="s-tabs a-tabs" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${onglet === k}">${l}</button>`).join('')}</div>
     <section class="s-body"></section>`;
@@ -106,7 +106,7 @@ function dessiner() {
 async function remplir() {
   if (enCharge) return; enCharge = true;
   try { const r = await call('deck', { n: 25 }); for (const f of r.films) if (!vusK.has(f.k) && !MES.has(f.k)) { vusK.add(f.k); pileF.push(f); } }
-  catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); toast('La pioche ne répond pas. Réessaie.'); }
+  catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); toast('Chargement impossible. Réessaie.'); }
   finally { enCharge = false; }
 }
 function carte(f, cls) {
@@ -119,7 +119,7 @@ async function pile() {
   const b = $.querySelector('.s-body');
   if (pileF.length < 4) { if (!pileF.length) b.innerHTML = '<p class="s-wait">La pioche arrive…</p>'; await remplir(); if (onglet !== 'cinder') return; }
   const cur = pileF[0], nxt = pileF[1];
-  if (!cur) { b.innerHTML = `<div class="s-vide">${icn('coupe')}<p>Tu as tout vu ! Reviens plus tard, la collection grandit.</p></div>`; return; }
+  if (!cur) { b.innerHTML = `<div class="s-vide">${icn('coupe')}<p>Il n’y a plus de films à proposer pour le moment.</p></div>`; return; }
   b.innerHTML = `<div class="s-stack">${nxt ? carte(nxt, 'next') : ''}${carte(cur, 'top')}</div>
     <div class="s-btns"><button class="b-non" data-v="non" aria-label="Bof">${icn('bof')}<small>Bof</small></button><button class="b-vu" data-v="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="b-super" data-v="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="b-oui" data-v="oui" aria-label="Envie">${icn('envie')}<small>Envie</small></button></div>
     <p class="s-aide">${MES.size} avis donnés · → envie · ← bof · ↑ déjà vu · touche l’affiche pour lire</p>`;
@@ -189,7 +189,7 @@ function demanderNote(f, actuelle = 4) {
 const rangee = (l, vide) => l.length ? `<div class="a-row">${l.map(f => `<button class="a-mini" data-film="${esc(f.k)}">${poster(f, 'a-mini-img')}<span>${esc(f.title)}</span>${f.note ? `<small>${note(f.note)}/5</small>` : f.super ? '<small>★ très envie</small>' : ''}</button>`).join('')}</div>` : `<p class="a-vide">${vide}</p>`;
 async function matchs() {
   const b = $.querySelector('.s-body');
-  if (!CMP) { b.innerHTML = '<p class="s-wait">Je compare vos goûts…</p>'; try { CMP = await call('comparer'); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">La comparaison ne répond pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
+  if (!CMP) { b.innerHTML = '<p class="s-wait">Comparaison en cours…</p>'; try { CMP = await call('comparer'); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">La comparaison ne répond pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
   const C = CMP, filmsDe = new Map();
   for (const p of C.personnes) for (const l of [p.matches, p.pourMoi, p.adores, p.desaccords]) for (const f of l) filmsDe.set(f.k, f);
   for (const f of C.ensemble) filmsDe.set(f.k, f);
@@ -222,7 +222,7 @@ function fichePop(f) {
     box.remove();
     if (v === 'vu') { const n = await demanderNote(f, a?.note || 4); if (n === undefined) return; await donner(f, 'vu', n); }
     else await donner(f, v);
-    toast(v === 'rien' ? 'Avis retiré' : 'C’est noté'); dessiner();
+    toast(v === 'rien' ? 'Avis retiré' : 'Enregistré'); dessiner();
   });
 }
 
@@ -255,7 +255,7 @@ $.addEventListener('click', async e => {
   const v = e.target.closest('.s-btns [data-v]'); if (v) { glisser(v.dataset.v); return; }
   const fl = e.target.closest('[data-f]'); if (fl) { filtre = fl.dataset.f; mes(); return; }
   if (e.target.closest('[data-nom]')) { accueil(); return; }
-  if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`Ce soir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }
+  if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`À voir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }
   const fm = e.target.closest('[data-film]');
   if (fm) { const k = fm.dataset.film; const f = MES.get(k) || recherche.find(x => x.k === k) || matchs.films?.get(k); if (f) fichePop(f); }
 });

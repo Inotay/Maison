@@ -2793,7 +2793,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v275</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v276</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4095,7 +4095,7 @@ function cineSection() {
     <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>Ciné à deux</h2>
       <p>${[L.nous.length ? `${L.nous.length} ${icn('deux')} en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
     <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck">${icn('flamme')} Cinder</button><button class="btn cta-soir" data-action="cine-soir">${icn('de')} Ce soir ?</button></div>
-    <div class="cine-invs"><button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button><button class="cine-inv" data-action="amis">${icn('deux')} Les amis d’Azami${S.amisN ? ` <b>${S.amisN}</b>` : ''}</button></div>
+    <div class="cine-invs"><button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button><button class="cine-inv" data-action="amis">${icn('deux')} Ciné Azami${S.amisN ? ` <b>${S.amisN}</b>` : ''}</button></div>
     <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Un film, une série…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
     <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span>${k === 'autre' ? '' : `<b>${n}</b>`}</button>`).join('')}</div>
@@ -4339,7 +4339,7 @@ async function soireeSheet() {
   });
   await load();
 }
-// ── Les amis d’Azami ──
+// ── Ciné Azami ──
 // Des amis qui viennent souvent : chacun a un lien à vie (révocable) vers une page à lui, seulement le cinéma
 // (ami.html, qui ne parle qu’à la fonction « amis »). Il donne son prénom, joue à Cinder sur la collection de la
 // maison, note ses films, et se compare à vous deux et aux autres amis. Ici, on voit leurs goûts et nos matchs.
@@ -4367,7 +4367,7 @@ const amiRangee = (l, plus) => `<div class="ami-row">${l.map(f => `<button type=
 async function amisSheet() {
   document.getElementById('ticket')?.remove();
   const box = document.createElement('div'); box.id = 'ticket';
-  box.innerHTML = '<div class="ticket-card fsheet soiree-sheet amis-sheet" role="dialog" aria-label="Les amis d’Azami"><p class="ticket-sub">Un instant…</p></div>';
+  box.innerHTML = '<div class="ticket-card fsheet soiree-sheet amis-sheet" role="dialog" aria-label="Ciné Azami"><p class="ticket-sub">Un instant…</p></div>';
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
   const card = box.firstElementChild;
   let D = null, ouvert = null, nouveau = null;
@@ -4376,7 +4376,7 @@ async function amisSheet() {
     const amis = (D?.amis || []).filter(a => !a.coupe);
     S.amisN = amis.length;
     const liens = amisLiens();
-    card.innerHTML = `<p class="ticket-title">${icn('deux')} Les amis d’Azami</p>
+    card.innerHTML = `<p class="ticket-title">${icn('deux')} Ciné Azami</p>
       <p class="ticket-sub">Pour les amis qui viennent souvent : chacun reçoit un lien à vie vers un ciné à lui (seulement le ciné, rien d’autre de la maison). Il y donne son prénom, joue à Cinder, note ses films, et se compare à vous.</p>
       ${nouveau ? `<div class="ami-neuf"><p class="chip-label">Le lien ${nouveau.nom ? `de ${esc(nouveau.nom)}` : 'du nouvel ami'}</p><div class="soiree-link"><span>${icn('lien')}</span><input class="field" readonly value="${esc(amiUrl(nouveau.jeton))}" aria-label="Lien de l’ami"></div>
         <div class="soiree-acts">${navigator.share ? '<button class="btn" data-a="share">Envoyer le lien</button>' : ''}<button class="btn ${navigator.share ? 'ghost' : ''}" data-a="copy">Copier</button></div><p class="hint">Ce lien est à lui seul et marche à vie : il peut l’ajouter à son écran d’accueil. Il reste aussi gardé sur ce téléphone.</p></div>`
@@ -4413,7 +4413,7 @@ async function amisSheet() {
     const k = b.dataset.a, a = (D?.amis || []).find(x => x.id === b.dataset.id);
     if (k === 'ouvrir') { ouvert = ouvert === b.dataset.id ? null : b.dataset.id; haptic(1); draw(); return; }
     const lien = card.querySelector('.ami-neuf input')?.value || '';
-    if (k === 'share') { try { await navigator.share({ title: 'Le ciné d’Azami', text: `${nameOf(S.me)} t’ouvre le ciné d’Azami`, url: lien }); } catch {} return; }
+    if (k === 'share') { try { await navigator.share({ title: 'Ciné Azami', text: `${nameOf(S.me)} t’invite sur Ciné Azami`, url: lien }); } catch {} return; }
     if (k === 'copy') { try { await navigator.clipboard.writeText(lien); toast('Lien copié'); haptic(1); } catch { card.querySelector('.ami-neuf input')?.select(); } return; }
     if (k === 'relien') { nouveau = { id: a.id, jeton: amisLiens()[a.id], nom: a.nom }; draw(); card.scrollTop = 0; return; }
     if (k === 'renouveler') {

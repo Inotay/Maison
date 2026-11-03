@@ -1,4 +1,4 @@
-/* Le ciné d’Azami : ce qui s'ajoute à la page Soirée (même esprit Cinder). */
+/* Ciné Azami : ce qui s'ajoute à la page Soirée (même esprit Cinder). */
 .a-qui { border: 2px solid rgba(250,243,232,.25); background: transparent; color: var(--gold); border-radius: 999px; padding: 4px 12px; font-weight: 900; font-size: 14px; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .a-tabs { grid-template-columns: repeat(4, 1fr); }
 .a-tabs button { padding: 9px 2px; font-size: 14px; }
