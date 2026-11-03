@@ -75,7 +75,7 @@ function accueil() {
 }
 const TUTO = [
   { ic: 'film', t: () => 'Bienvenue', p: () => `Cet espace est dédié au cinéma. Tu indiques tes goûts, et tu vois ce que tu as en commun avec ${hotes()} et les autres invités.` },
-  { ic: 'flamme', t: () => 'Choisir des films', p: () => 'Des affiches défilent. Glisse à droite pour un film qui te tente, à gauche s’il ne t’intéresse pas, vers le haut si tu l’as déjà vu (tu peux alors lui donner une note). Touche l’affiche pour lire le résumé.' },
+  { ic: 'flamme', t: () => 'Cinder', p: () => 'Dans Cinder, des affiches défilent. Glisse à droite pour un film qui te tente, à gauche s’il ne t’intéresse pas, vers le haut si tu l’as déjà vu (tu peux alors lui donner une note). Touche l’affiche pour lire le résumé.' },
   { ic: 'deux', t: () => 'Les points communs', p: () => `L’onglet « Matchs » montre ton accord avec ${hotes()} et les autres invités, les films que vous avez envie de voir ensemble, et leurs coups de cœur que tu n’as pas encore vus.` },
   { ic: 'loupe', t: () => 'Tes films', p: () => 'Tu peux chercher n’importe quel film pour le noter ou l’ajouter à tes envies. Tout reste modifiable dans « Mes films ».' },
   { ic: 'coupe', t: () => 'Ton lien', p: () => 'Ce lien est personnel et reste valable. Tu peux l’utiliser sur tous tes appareils ou ajouter cette page à ton écran d’accueil. Évite de le partager.' },
