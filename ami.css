@@ -66,3 +66,5 @@
 .a-search { display: flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 14px; border: 2px solid rgba(250,243,232,.25); background: rgba(250,243,232,.06); margin-bottom: 10px; }
 .a-search .icn { color: var(--soft); width: 20px; height: 20px; }
 #a-q { flex: 1; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: 17px; padding: 13px 0; outline: none; min-width: 0; }
+.a-sep { margin: 6px 2px 8px; font-size: 13px; font-weight: 900; color: var(--soft); text-transform: uppercase; letter-spacing: .06em; }
+.a-desac i { font-style: normal; }

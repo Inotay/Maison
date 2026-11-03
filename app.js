@@ -2793,7 +2793,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v273</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v274</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4095,7 +4095,7 @@ function cineSection() {
     <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>Ciné à deux</h2>
       <p>${[L.nous.length ? `${L.nous.length} ${icn('deux')} en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
     <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck">${icn('flamme')} Cinder</button><button class="btn cta-soir" data-action="cine-soir">${icn('de')} Ce soir ?</button></div>
-    <button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button>
+    <div class="cine-invs"><button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button><button class="cine-inv" data-action="amis">${icn('deux')} Les amis du ciné${S.amisN ? ` <b>${S.amisN}</b>` : ''}</button></div>
     <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Un film, une série…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
     <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span>${k === 'autre' ? '' : `<b>${n}</b>`}</button>`).join('')}</div>
@@ -4335,6 +4335,101 @@ async function soireeSheet() {
     if (k === 'couper') {
       if (!(await uiAsk('Les invités ne pourront plus ouvrir la soirée ni voter. Le lien est définitivement coupé.', { title: 'Couper le lien ?', ok: 'Couper', danger: true }))) return;
       try { await soireeCall({ action: 'couper', id: s.id }); s = null; draw(); toast('Lien coupé'); render(); } catch (err) { toast(err.message || 'Ça n’a pas marché.'); }
+    }
+  });
+  await load();
+}
+// ── Les amis du ciné ──
+// Des amis qui viennent souvent : chacun a un lien à vie (révocable) vers une page à lui, seulement le cinéma
+// (ami.html, qui ne parle qu’à la fonction « amis »). Il donne son prénom, joue à Cinder sur la collection de la
+// maison, note ses films, et se compare à vous deux et aux autres amis. Ici, on voit leurs goûts et nos matchs.
+// La base ne garde que l’empreinte du lien : il reste sur le téléphone qui l’a créé (ou on en refait un).
+const amiUrl = j => `${new URL('ami.html', location.href.split('#')[0]).href}#${j}`;
+const amisLiens = () => { try { return JSON.parse(safeGet('maison-amis-liens') || '{}') || {}; } catch { return {}; } };
+const amisLien = (id, j) => { const l = amisLiens(); if (j) l[id] = j; else delete l[id]; safeSet('maison-amis-liens', JSON.stringify(l)); };
+let amisDemo = null;
+async function amisCall(body) {
+  if (DEMO) {
+    amisDemo ||= [{ id: '11111111-1111-1111-1111-111111111111', nom: 'Léa', created_at: new Date(Date.now() - 9 * 864e5).toISOString(), vu_at: new Date(Date.now() - 3600e3).toISOString(), par: nameOf(S.me), nAvis: 48,
+      avecMoi: { compat: 81, communs: 31, nMatches: 3, matches: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', super: true }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }], pourMoi: [{ k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', note: 5 }], adores: [{ k: 'movie:129', title: 'Le Voyage de Chihiro', year: 2001, poster: null, media: 'movie' }], desaccords: [] },
+      avecAutre: { nom: nameOf(other()) || 'Mariana', compat: 74, nMatches: 2 }, aTrois: [{ k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }] }];
+    if (body.action === 'liste') return { amis: amisDemo, partage: true };
+    if (body.action === 'creer' || body.action === 'renouveler') { const j = [...crypto.getRandomValues(new Uint8Array(43))].map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join(""); const id = body.id || crypto.randomUUID(); if (!body.id) amisDemo.push({ id, nom: body.nom || null, created_at: new Date().toISOString(), nAvis: 0, avecMoi: { compat: null, communs: 0, nMatches: 0, matches: [], pourMoi: [], adores: [], desaccords: [] }, avecAutre: null, aTrois: [] }); return { id, jeton: j }; }
+    if (body.action === 'couper') { const a = amisDemo.find(x => x.id === body.id); if (a) a.coupe = true; return { ok: true }; }
+    return { ok: true };
+  }
+  const { data, error } = await sb.functions.invoke('amis', { body });
+  if (error) { let msg = error.message; try { const j = await error.context?.json(); if (j?.error) msg = j.error; } catch {} throw new Error(msg); }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+const amiRangee = (l, plus) => `<div class="ami-row">${l.map(f => `<button type="button" class="ami-mini" data-a="film" data-k="${esc(f.k)}" data-t="${esc(f.title)}" data-y="${f.year || ''}" data-p="${esc(f.poster || '')}" ${plus ? 'data-plus="1"' : ''}>${f.poster ? `<img src="${esc(f.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="noposter">${icn('film')}</span>`}<span>${esc(f.title)}</span>${f.note ? `<small>${String(f.note).replace('.', ',')}/5</small>` : f.super ? '<small>★</small>' : ''}</button>`).join('')}</div>`;
+async function amisSheet() {
+  document.getElementById('ticket')?.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = '<div class="ticket-card fsheet soiree-sheet amis-sheet" role="dialog" aria-label="Les amis du ciné"><p class="ticket-sub">Un instant…</p></div>';
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  const card = box.firstElementChild;
+  let D = null, ouvert = null, nouveau = null;
+  const o = other();
+  const draw = () => {
+    const amis = (D?.amis || []).filter(a => !a.coupe);
+    S.amisN = amis.length;
+    const liens = amisLiens();
+    card.innerHTML = `<p class="ticket-title">${icn('deux')} Les amis du ciné</p>
+      <p class="ticket-sub">Pour les amis qui viennent souvent : chacun reçoit un lien à vie vers un ciné à lui (seulement le ciné, rien d’autre de la maison). Il y donne son prénom, joue à Cinder, note ses films, et se compare à vous.</p>
+      ${nouveau ? `<div class="ami-neuf"><p class="chip-label">Le lien ${nouveau.nom ? `de ${esc(nouveau.nom)}` : 'du nouvel ami'}</p><div class="soiree-link"><span>${icn('lien')}</span><input class="field" readonly value="${esc(amiUrl(nouveau.jeton))}" aria-label="Lien de l’ami"></div>
+        <div class="soiree-acts">${navigator.share ? '<button class="btn" data-a="share">Envoyer le lien</button>' : ''}<button class="btn ${navigator.share ? 'ghost' : ''}" data-a="copy">Copier</button></div><p class="hint">Ce lien est à lui seul et marche à vie : il peut l’ajouter à son écran d’accueil. Il reste aussi gardé sur ce téléphone.</p></div>`
+        : `<form class="ami-inviter" data-a="inviter"><input class="field" name="nom" maxlength="24" placeholder="Son prénom" autocomplete="off"><button class="btn">Inviter un ami</button></form>`}
+      ${amis.length ? `<ul class="ami-liste">${amis.map(a => { const c = a.avecMoi || {}; const op = ouvert === a.id;
+        return `<li class="ami ${op ? 'open' : ''}"><button type="button" class="ami-tete" data-a="ouvrir" data-id="${a.id}" aria-expanded="${op}"><span class="ami-nom">${esc(a.nom || 'En attente de son prénom')}</span>
+          <span class="ami-meta">${a.nAvis ? `${a.nAvis} avis` : 'pas encore d’avis'}${a.vu_at ? ` · passé ${esc(ago(a.vu_at))}` : ' · pas encore venu'}</span>
+          <span class="ami-compat">${c.compat != null ? `<b>${c.compat} %</b><small>avec toi</small>` : `<small>${c.communs ? `${c.communs} en commun` : '—'}</small>`}${a.avecAutre?.compat != null ? `<small>${a.avecAutre.compat} % avec ${esc(a.avecAutre.nom)}</small>` : ''}</span></button>
+          ${op ? `<div class="ami-corps">
+            ${a.aTrois?.length ? `<p class="chip-label">${icn('deux')} Envie tous les trois</p>${amiRangee(a.aTrois)}` : ''}
+            <p class="chip-label">${icn('envie')} Envie tous les deux${c.nMatches ? ` · ${c.nMatches}` : ''}</p>${c.matches?.length ? amiRangee(c.matches) : '<p class="hint">Pas encore d’envie en commun.</p>'}
+            ${c.pourMoi?.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur, pas encore vus par toi</p>${amiRangee(c.pourMoi, true)}<p class="hint">Touche une affiche pour l’ajouter à tes envies.</p>` : ''}
+            ${c.adores?.length ? `<p class="chip-label">Adorés tous les deux</p>${amiRangee(c.adores)}` : ''}
+            ${c.desaccords?.length ? `<p class="chip-label">Vos grands désaccords</p><ul class="ami-desac">${c.desaccords.map(f => `<li><span>${esc(f.title)}</span><b>toi ${String(f.moi).replace('.', ',')} · ${esc(a.nom || 'lui')} ${String(f.lui).replace('.', ',')}</b></li>`).join('')}</ul>` : ''}
+            <div class="soiree-acts">${liens[a.id] ? `<button class="btn ghost" data-a="relien" data-id="${a.id}">Son lien</button>` : ''}<button class="btn ghost" data-a="renouveler" data-id="${a.id}">Nouveau lien</button><button class="btn ghost danger-t" data-a="couper" data-id="${a.id}">Couper</button></div></div>` : ''}</li>`; }).join('')}</ul>` : '<p class="hint">Pas encore d’ami invité.</p>'}
+      <label class="ami-partage"><input type="checkbox" data-a="partage" ${D?.partage !== false ? 'checked' : ''}> Les amis voient mes goûts (mes envies et mes notes)</label>
+      <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Fermer</button></div>`;
+  };
+  const load = async () => { try { D = await amisCall({ action: 'liste' }); draw(); } catch (e) { card.innerHTML = `<p class="ticket-sub">${esc(e.message || 'Les amis ne répondent pas.')}</p><div class="form-actions"><button class="btn ghost" data-action="sheet-close">Fermer</button></div>`; } };
+  box.addEventListener('submit', async e => {
+    e.preventDefault(); const f = e.target.closest('[data-a="inviter"]'); if (!f) return;
+    const nom = f.nom.value.trim().slice(0, 24); const b = f.querySelector('button'); b.disabled = true;
+    try { const r = await amisCall({ action: 'creer', nom }); amisLien(r.id, r.jeton); nouveau = { id: r.id, jeton: r.jeton, nom }; haptic('medium'); await load(); render(); }
+    catch (err) { toast(err.message || 'Le lien n’a pas pu être créé.'); b.disabled = false; }
+  });
+  box.addEventListener('change', async e => {
+    if (!e.target.matches('[data-a="partage"]')) return;
+    const on = e.target.checked;
+    try { await amisCall({ action: 'partage', on }); D.partage = on; toast(on ? 'Les amis voient tes goûts' : 'Tes goûts sont cachés aux amis'); } catch (err) { e.target.checked = !on; toast(err.message); }
+  });
+  box.addEventListener('click', async e => {
+    if (e.target === box) { closeTicket(); return; }
+    const b = e.target.closest('[data-a]'); if (!b || b.tagName === 'FORM' || b.type === 'checkbox') return;
+    const k = b.dataset.a, a = (D?.amis || []).find(x => x.id === b.dataset.id);
+    if (k === 'ouvrir') { ouvert = ouvert === b.dataset.id ? null : b.dataset.id; haptic(1); draw(); return; }
+    const lien = card.querySelector('.ami-neuf input')?.value || '';
+    if (k === 'share') { try { await navigator.share({ title: 'Ciné entre amis', text: `${nameOf(S.me)} t’ouvre son coin cinéma`, url: lien }); } catch {} return; }
+    if (k === 'copy') { try { await navigator.clipboard.writeText(lien); toast('Lien copié'); haptic(1); } catch { card.querySelector('.ami-neuf input')?.select(); } return; }
+    if (k === 'relien') { nouveau = { id: a.id, jeton: amisLiens()[a.id], nom: a.nom }; draw(); card.scrollTop = 0; return; }
+    if (k === 'renouveler') {
+      if (!(await uiAsk(`L’ancien lien de ${a.nom || 'cet ami'} ne marchera plus ; ses avis restent. Il faudra lui envoyer le nouveau.`, { title: 'Faire un nouveau lien ?', ok: 'Nouveau lien' }))) return;
+      try { const r = await amisCall({ action: 'renouveler', id: a.id }); amisLien(a.id, r.jeton); nouveau = { id: a.id, jeton: r.jeton, nom: a.nom }; draw(); card.scrollTop = 0; } catch (err) { toast(err.message); }
+      return;
+    }
+    if (k === 'couper') {
+      if (!(await uiAsk(`${a.nom || 'Cet ami'} ne pourra plus ouvrir le ciné. Ses avis sont gardés (on peut lui refaire un lien plus tard).`, { title: 'Couper son lien ?', ok: 'Couper', danger: true }))) return;
+      try { await amisCall({ action: 'couper', id: a.id }); amisLien(a.id, null); if (nouveau?.id === a.id) nouveau = null; await load(); render(); toast('Lien coupé'); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (k === 'film' && b.dataset.plus) {
+      const [media, id] = b.dataset.k.split(':');
+      try { await filmVote({ tmdb_id: Number(id), media, title: b.dataset.t, year: Number(b.dataset.y) || null, poster: b.dataset.p || null }, 'oui'); toast(`${b.dataset.t} : dans ta liste`); haptic('medium'); b.disabled = true; b.classList.add('pris'); }
+      catch { toast('Pas réussi à l’ajouter.'); }
     }
   });
   await load();
@@ -7073,6 +7168,7 @@ const actions = {
   'cine-menage': () => menageOpen(),
   'cine-cal': el => cineCal(el.dataset.id),
   'soiree': () => soireeSheet(),
+  'amis': () => amisSheet(),
   'lb-import': () => lbPick(),
   'taste-rule': el => tasteRule(el.dataset.k, el.dataset.l),
   'taste-rule-del': el => setRule(el.dataset.k, null),
