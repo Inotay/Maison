@@ -6,6 +6,7 @@
 // Côté maison, les actions sont réservées aux membres connectés.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+const SUPPRIME_PAR = "yatonirc@gmail.com";
 const ORIGINS = ["https://maison.yatoni.ch", "https://inotay.github.io", "http://localhost:8765"];
 const cors = (req: Request) => {
   const o = req.headers.get("Origin") ?? "";
@@ -214,6 +215,14 @@ Deno.serve(async (req) => {
     if (error) return json({ error: "Pas réussi." }, 500);
     return json({ id, jeton });
   }
+  // supprimer un ami pour de bon (lui et tous ses avis) : seul Yatoni peut le faire
+  if (action === "supprimer") {
+    if (me !== SUPPRIME_PAR) return json({ error: "Seul Yatoni peut supprimer un ami." }, 403);
+    const id = String(body.id ?? ""); if (!RE_ID.test(id)) return json({ error: "Ami inconnu." }, 400);
+    const { error } = await db.from("amis").delete().eq("id", id);
+    if (error) { console.error(error); return json({ error: "Pas réussi." }, 500); }
+    return json({ ok: true });
+  }
   if (action === "partage") {
     await db.from("reglages").upsert({ cle: `amis:partage:${me}`, valeur: { non: body.on === false } });
     return json({ ok: true });
@@ -241,7 +250,7 @@ Deno.serve(async (req) => {
       const aTrois = deux ? [...sien.values()].filter(x => envie(x) && envie(moi.get(x.k)) && envie(deux.get(x.k))).slice(0, 12).map(fiche) : [];
       return { id: a.id, nom: a.nom, created_at: a.created_at, vu_at: a.vu_at, par: ms.find(m => m.email === a.cree_par)?.name ?? "", nAvis: sien.size, avecMoi: c, avecAutre: avecAutre ? { nom: autre!.name, compat: avecAutre.compat, nMatches: avecAutre.nMatches } : null, aTrois };
     });
-    return json({ amis: liste, partage: !cachés.has(me) });
+    return json({ amis: liste, partage: !cachés.has(me), peutSupprimer: me === SUPPRIME_PAR });
   }
   return json({ error: "Action inconnue." }, 400);
 });

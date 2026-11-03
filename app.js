@@ -2793,7 +2793,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v277</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v278</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4353,7 +4353,8 @@ async function amisCall(body) {
     amisDemo ||= [{ id: '11111111-1111-1111-1111-111111111111', nom: 'Léa', created_at: new Date(Date.now() - 9 * 864e5).toISOString(), vu_at: new Date(Date.now() - 3600e3).toISOString(), par: nameOf(S.me), nAvis: 48,
       avecMoi: { compat: 81, communs: 31, nMatches: 3, matches: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', super: true }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }], pourMoi: [{ k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', note: 5 }], adores: [{ k: 'movie:129', title: 'Le Voyage de Chihiro', year: 2001, poster: null, media: 'movie' }], desaccords: [] },
       avecAutre: { nom: nameOf(other()) || 'Mariana', compat: 74, nMatches: 2 }, aTrois: [{ k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }] }];
-    if (body.action === 'liste') return { amis: amisDemo, partage: true };
+    if (body.action === 'liste') return { amis: amisDemo, partage: true, peutSupprimer: true };
+    if (body.action === 'supprimer') { amisDemo = amisDemo.filter(x => x.id !== body.id); return { ok: true }; }
     if (body.action === 'creer' || body.action === 'renouveler') { const j = [...crypto.getRandomValues(new Uint8Array(43))].map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join(""); const id = body.id || crypto.randomUUID(); if (!body.id) amisDemo.push({ id, nom: body.nom || null, created_at: new Date().toISOString(), nAvis: 0, avecMoi: { compat: null, communs: 0, nMatches: 0, matches: [], pourMoi: [], adores: [], desaccords: [] }, avecAutre: null, aTrois: [] }); return { id, jeton: j }; }
     if (body.action === 'couper') { const a = amisDemo.find(x => x.id === body.id); if (a) a.coupe = true; return { ok: true }; }
     return { ok: true };
@@ -4391,7 +4392,7 @@ async function amisSheet() {
             ${c.pourMoi?.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur, pas encore vus par toi</p>${amiRangee(c.pourMoi, true)}<p class="hint">Touche une affiche pour l’ajouter à tes envies.</p>` : ''}
             ${c.adores?.length ? `<p class="chip-label">Adorés tous les deux</p>${amiRangee(c.adores)}` : ''}
             ${c.desaccords?.length ? `<p class="chip-label">Vos grands désaccords</p><ul class="ami-desac">${c.desaccords.map(f => `<li><span>${esc(f.title)}</span><b>toi ${String(f.moi).replace('.', ',')} · ${esc(a.nom || 'lui')} ${String(f.lui).replace('.', ',')}</b></li>`).join('')}</ul>` : ''}
-            <div class="soiree-acts">${liens[a.id] ? `<button class="btn ghost" data-a="relien" data-id="${a.id}">Son lien</button>` : ''}<button class="btn ghost" data-a="renouveler" data-id="${a.id}">Nouveau lien</button><button class="btn ghost danger-t" data-a="couper" data-id="${a.id}">Couper</button></div></div>` : ''}</li>`; }).join('')}</ul>` : '<p class="hint">Pas encore d’ami invité.</p>'}
+            <div class="soiree-acts">${liens[a.id] ? `<button class="btn ghost" data-a="relien" data-id="${a.id}">Son lien</button>` : ''}<button class="btn ghost" data-a="renouveler" data-id="${a.id}">Nouveau lien</button><button class="btn ghost danger-t" data-a="couper" data-id="${a.id}">Couper</button>${D?.peutSupprimer ? `<button class="btn ghost danger-t" data-a="supprimer" data-id="${a.id}">Supprimer</button>` : ''}</div></div>` : ''}</li>`; }).join('')}</ul>` : '<p class="hint">Pas encore d’ami invité.</p>'}
       <label class="ami-partage"><input type="checkbox" data-a="partage" ${D?.partage !== false ? 'checked' : ''}> Les amis voient mes goûts (mes envies et mes notes)</label>
       <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Fermer</button></div>`;
   };
@@ -4424,6 +4425,11 @@ async function amisSheet() {
     if (k === 'couper') {
       if (!(await uiAsk(`${a.nom || 'Cet ami'} ne pourra plus ouvrir le ciné. Ses avis sont gardés (on peut lui refaire un lien plus tard).`, { title: 'Couper son lien ?', ok: 'Couper', danger: true }))) return;
       try { await amisCall({ action: 'couper', id: a.id }); amisLien(a.id, null); if (nouveau?.id === a.id) nouveau = null; await load(); render(); toast('Lien coupé'); } catch (err) { toast(err.message); }
+      return;
+    }
+    if (k === 'supprimer') {
+      if (!(await uiAsk(`${a.nom || 'Cet ami'} et tous ses avis seront effacés pour de bon. Son lien ne marchera plus.`, { title: 'Supprimer cet ami ?', ok: 'Supprimer', danger: true }))) return;
+      try { await amisCall({ action: 'supprimer', id: a.id }); amisLien(a.id, null); if (nouveau?.id === a.id) nouveau = null; if (ouvert === a.id) ouvert = null; await load(); render(); toast('Ami supprimé'); } catch (err) { toast(err.message); }
       return;
     }
     if (k === 'film' && b.dataset.plus) {
