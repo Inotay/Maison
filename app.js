@@ -484,6 +484,7 @@ function demoSeed() {
     chores: [
       { id: uid(), title: 'Vaisselle', every_days: 3, weight: 1, fixed: true, turn: null, last_done_at: iso(4), last_done_by: M, created_by: Y, created_at: iso(30) },
       { id: uid(), title: "Vider la caisse d’Azami", every_days: 1, fixed: true, turn: M, last_done_at: iso(1), last_done_by: M, created_by: Y, created_at: iso(30), options: { annonce: { titre: 'Caisse d’Azami vidée', texte: '{qui} l’a vidée à {heure}.' } } },
+      { id: uid(), title: 'Regaine', every_days: 1, fixed: true, turn: Y, prive: Y, icon: 't:lotion_cheveux', weight: 1, last_done_at: iso(1.1), last_done_by: Y, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Azami nourrie', every_days: 365, fixed: true, turn: M, icon: 't:gamelle', last_done_at: iso(1.2), last_done_by: M, created_by: Y, created_at: iso(30), options: { annonce: { libre: true, btn: 'Nourrie', titre: 'Azami a mangé', texte: '{qui} l’a nourrie à {heure}.' } } },
       { id: uid(), title: 'Aspirateur', every_days: 7, turn: M, last_done_at: iso(3), last_done_by: Y, created_by: Y, created_at: iso(30) },
       { id: uid(), title: 'Salle de bain', every_days: 14, weight: 3, turn: Y, last_done_at: iso(10), last_done_by: M, created_by: Y, created_at: iso(30) },
@@ -1234,6 +1235,7 @@ const nudgeOf = id => S.help.find(h => isRappel(h) && h.item_id === id && h.from
 const nudgeShared = (kind, row) => kind === 'task' && !row.assignee && !row.done;
 const nudgeWho = (kind, row) => { const o = other(); if (!o) return null; if (nudgeShared(kind, row)) return o; const w = kind === 'chore' ? row.turn : row.assignee; return w === o ? o : null; };
 function nudgeBtn(kind, row, due) {
+  if (row.prive) return '';   // une tâche perso ne se rappelle à personne d'autre
   const o = nudgeWho(kind, row), shared = nudgeShared(kind, row); if (!o || (!due && !shared)) return '';
   const n = nudgeOf(row.id);
   const label = n ? `Rappel envoyé à ${esc(nameOf(o))} ${esc(ago(n.created_at))}` : shared ? `Faire penser ${esc(nameOf(o))} à cette tâche pour vous deux` : `Rappeler à ${esc(nameOf(o))}`;
@@ -2793,7 +2795,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v278</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v279</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3147,7 +3149,7 @@ function dechetsCard(waste) {
   return groupCard({ id: 'dechets', icon: 'dechets', title: 'Déchets', summary: dechetsResume(waste, now), dots, rows });
 }
 function vaisselleCard() {
-  const main = S.chores.filter(c => !c.sorte && /vaisselle/i.test(c.title));
+  const main = S.chores.filter(c => !c.sorte && !c.prive && /vaisselle/i.test(c.title));
   const lv = S.chores.filter(c => c.sorte === 'lavevaisselle');
   const all = [...main, ...lv]; if (!all.length) return '';
   const n = all.filter(isDue).length;
@@ -3157,14 +3159,21 @@ function vaisselleCard() {
 // L'aspirateur : le lancer et son entretien (vider le bac, nettoyer les brosses…), groupés comme la vaisselle.
 const isAspi = c => /aspirateur/i.test(c.title || '');
 function aspiCard() {
-  const rows = S.chores.filter(c => !c.sorte && isAspi(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  const rows = S.chores.filter(c => !c.sorte && !c.prive && isAspi(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
   if (!rows.length) return '';
   const n = rows.filter(isDue).length;
   return groupCard({ id: 'aspirateur', icon: 'aspirateur', title: 'Aspirateur', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
 }
 // Azami : toutes les corvées qui la concernent (caisse, croquettes, véto…), groupées comme la vaisselle.
+// Pour moi : les tâches perso, que l'autre ne voit pas (la base ne les lui envoie même pas).
+function persoCard() {
+  const rows = S.chores.filter(c => c.prive === S.me).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  if (!rows.length) return '';
+  const n = rows.filter(isDue).length;
+  return groupCard({ id: 'perso', icon: 'lotion_cheveux', title: 'Pour moi', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
+}
 function azamiCard() {
-  const rows = S.chores.filter(c => !c.sorte && isAzami(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  const rows = S.chores.filter(c => !c.sorte && !c.prive && isAzami(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
   if (!rows.length) return '';
   const n = rows.filter(isDue).length;
   return groupCard({ id: 'azami', icon: 'chat', title: 'Azami', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
@@ -3201,11 +3210,11 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte && !/vaisselle/i.test(c.title) && !isAspi(c) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
+  const chores = S.chores.filter(c => !c.sorte && !c.prive && !/vaisselle/i.test(c.title) && !isAspi(c) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_menage', 'Azami passe le balai')}</button></header>
-    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${aspiCard()}${lessiveCard()}${azamiCard()}</div>
+    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${aspiCard()}${persoCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores" data-sort="chores">${chores.map(c => {
       const st = choreStatus(c);
@@ -5624,7 +5633,7 @@ function comptesNote(dit, net = true) { const v = comptesVu(); safeSet('maison-a
 function azamiContexte(txt = '') {
   const l = [], nom = e => e === S.me ? firstName() : nameOf(e);
   // le ménage, corvée par corvée : à qui le tour, quand et par qui, ce qui est dû, les machines en route
-  const men = S.chores.slice(0, 30).map(c => {
+  const men = S.chores.filter(c => !c.prive).slice(0, 30).map(c => {
     const st = choreStatus(c), q = seqOf(c), quand = c.last_done_at ? `faite ${ago(c.last_done_at)}${c.last_done_by ? ` par ${nom(c.last_done_by)}` : ''}` : 'jamais faite';
     let machine = '';
     if (q && c.started_at) { const e = q.steps[Math.min(c.step || 0, q.steps.length - 1)]; const fin = new Date(c.started_at).getTime() + seqMinutes(c, e) * 60e3; machine = Date.now() < fin ? `, ${e.doing || 'en route'} (fini dans ${Math.ceil((fin - Date.now()) / 60e3)} min)` : `, à l'étape suivante : ${q.steps[Math.min((c.step || 0) + 1, q.steps.length - 1)].meta || ''}`; }
@@ -5852,7 +5861,7 @@ async function azamiAgir(a) {
       await api.upsert('reglages', { cle: `azami:anniv:${qui}`, valeur: { date: mmjj, par: S.me } });
       S.anniv = { ...(S.anniv || {}), [qui]: mmjj };
     } else if (a.type === 'corvee') {
-      const c = azTrouve(S.chores, texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
+      const c = azTrouve(S.chores.filter(x => !x.prive), texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
       const par = a.pour === 'autre' && other() ? other() : S.me;
       if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 10 * 60e3) { azamiPose(`« ${c.title} » vient déjà d’être cochée. Bien joué, deux fois même.`, 'contente'); render(); return false; }
       const next = c.fixed ? c.turn : (S.members.find(m => m.email !== par)?.email || par);   // le tour passe à l'autre que celui qui l'a faite
@@ -7494,7 +7503,8 @@ const actions = {
     burst(isAzami(c) ? 'paws' : 'confetti', el, isAzami(c) ? 10 : 26);
     S.popId = c.id;
     undoable(c.title, [{ t: 'chores', id: c.id, row: { last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null, turn: c.turn || null } }], async () => {
-      await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next });
+      await api.update('chores', { id: c.id }, { last_done_at: new Date().toISOString(), last_done_by: S.me, turn: next, ...(c.prive ? { notified_at: null } : {}) });
+      if (c.prive) return;   // perso : rien dans l'historique ni les réussites partagées
       await api.insert('chore_log', { chore_id: c.id, title: c.title, weight: c.weight || 2 });
       await win('chore', c.title, c.weight || 2, c.icon);
     }, null, c.id).then(ok => { if (!ok) return; const prevenue = c.options?.annonce && c.turn && c.turn !== S.me; if (prevenue) pingAnnonce(c.id); azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: prevenue ? `Message envoyé à ${nameOf(c.turn)}` : c.options?.annonce?.libre ? 'C’est noté' : !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });

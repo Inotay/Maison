@@ -81,13 +81,14 @@ async function run(db: ReturnType<typeof admin>) {
   const now = new Date(), today = zurich(now);
   const [{ data: members }, { data: chores }, { data: tasks }, { data: subs }] = await Promise.all([
     db.from("members").select("email, name"),
-    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at, snooze_until"),
+    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at, snooze_until, prive"),
     db.from("tasks").select("id, title, assignee, due_on, done, notified_at, snooze_until"),
     db.from("push_subscriptions").select("endpoint, email, sub"),
   ]);
   const emails = (members ?? []).map((m: { email: string }) => m.email);
   const items: Item[] = [];
   for (const c of chores ?? []) {
+    if (c.prive) continue;   // les tâches perso ont leur propre rappel (minuteurs), à leur seule personne
     if (c.notified_at && zurich(new Date(c.notified_at)) === today) continue;
     if (c.snooze_until && c.snooze_until >= today) continue;   // repoussée en mode calme
     // Jamais faite : on compte depuis sa création n'est pas possible ici, on la considère due aujourd'hui (pas de rappel avant 2 jours de retard réel).
@@ -152,11 +153,20 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     const ready = new Date(c.started_at).getTime() + min * 60000;
     return now >= ready && !(c.notified_at && new Date(c.notified_at).getTime() >= new Date(c.started_at).getTime());
   });
+  // Tâches perso (« Pour moi ») : 24 h après la dernière fois sans l'avoir refaite, une notification à cette
+  // seule personne ; puis une par 24 h tant que ce n'est pas fait.
+  const { data: perso } = await db.from("chores").select("id, title, every_days, prive, last_done_at, created_at, notified_at").not("prive", "is", null);
+  const persoDues = (perso ?? []).filter((c: { every_days: number; last_done_at: string | null; created_at: string; notified_at: string | null }) => {
+    const depuis = new Date(c.last_done_at ?? c.created_at).getTime(), ecart = (Number(c.every_days) || 1) * DAY;
+    if (now < depuis + ecart) return false;
+    const n = c.notified_at ? new Date(c.notified_at).getTime() : 0;
+    return n < depuis + ecart || now - n >= DAY;
+  });
   // Minuteurs de cuisine lancés depuis une recette : une notification à la personne qui l'a lancé.
   const nowIso = new Date(now).toISOString();
   const { data: kt } = await db.from("kitchen_timers").select("id, owner, label, ends_at").is("notified_at", null).lte("ends_at", nowIso);
   await db.from("kitchen_timers").delete().lt("ends_at", new Date(now - DAY).toISOString());
-  if (!due.length && !(kt ?? []).length) return { sent: 0, items: 0 };
+  if (!due.length && !(kt ?? []).length && !persoDues.length) return { sent: 0, items: 0 };
   const keys = await vapid(db);
   webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
   let sent = 0; const dead: string[] = [];
@@ -177,8 +187,16 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     }
     await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
   }
+  for (const c of persoDues) {
+    const payload = JSON.stringify({ title: c.title, body: "Pas encore fait depuis 24 h.", tag: `maison-perso-${c.id}`, url: "./?v=menage" });
+    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === c.prive)) {
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600 }); sent++; }
+      catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+    }
+    await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
+  }
   if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
-  return { sent, items: due.length + (kt ?? []).length };
+  return { sent, items: due.length + (kt ?? []).length + persoDues.length };
 }
 
 // Frais : ce qui périme dans les deux jours (une seule notification par aliment, jamais le jour de l'achat).
