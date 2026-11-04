@@ -95,6 +95,20 @@ def anims():
     a.at('core', D, {'sy': 1.0}, LIN)
     a.at('tail', 0, {'r': -6}, SOFT).at('tail', 1.2, {'r': -14}, SOFT).at('tail', D, {'r': -6}, SOFT)
     out.append(a)
+
+    # ── pilule : la patte se pose doucement deux fois (« c'est fait »), puis un clignement lent ──
+    D = 2.2
+    a = Anim('pilule', D, loop=False, title='Azami · C’est noté', desc='Elle pose la patte, tout doucement, deux fois, puis cligne lentement des yeux.')
+    a.idle(breathe=2.2, tail=2.2, depth=.5)
+    a.at('front-near', 0, {}, ANT).at('front-near', .22, {'r': -48, 'y': -14}, OUTQ).at('front-near', .42, {'r': -6, 'y': -2}, SOFT) \
+     .at('front-near', .56, {'r': -40, 'y': -12}, OUTQ).at('front-near', .74, {'r': -4}, SOFT).at('front-near', .95, {}, SOFT)
+    a.at('head', 0, {}, SOFT).at('head', .3, {'r': 6, 'y': 4}, SOFT).at('head', .85, {'r': 6, 'y': 4}, SOFT).at('head', 1.25, {'r': -4, 'y': 2}, SOFT).at('head', 2.0, {}, SOFT)
+    for p in ('pupils-l', 'pupils-r'): a.at(p, 0, {}, SOFT).at(p, .25, {'x': 4, 'y': 6}, SOFT).at(p, .9, {'x': 4, 'y': 6}, SOFT).at(p, 1.1, {}, SOFT)
+    for e in ('eye-l', 'eye-r'):
+        a.at(e, 0, {'o': 1}, LIN).at(e, 1.1, {'o': 1}, SOFT).at(e, 1.32, {'o': 1, 'sy': .15}, STEP).at(e, 1.34, {'o': 0}, STEP).at(e, 1.82, {'o': 0}, STEP).at(e, 1.84, {'o': 1, 'sy': .15}, SOFT).at(e, 2.1, {'o': 1}, LIN)
+    a.at('eyes-blink', 0, {'o': 0}, STEP).at('eyes-blink', 1.33, {'o': 1}, STEP).at('eyes-blink', 1.83, {'o': 0}, STEP); a.hidden.add('eyes-blink')
+    a.ear('l', .3, -10, .3)
+    out.append(a)
     return out
 
 if __name__ == '__main__':

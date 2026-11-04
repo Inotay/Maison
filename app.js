@@ -732,6 +732,8 @@ async function loadAll() {
   S.azModeSrv = (reglages || []).find(r => r.cle === `azami:mode:${S.me}`)?.valeur?.mode || null; azamiModeSync();
   { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
   { const pc = (reglages || []).find(r => r.cle === 'lessive:pieces')?.valeur; if (pc && typeof pc.solde === 'number' && (pc.maj || 0) >= (S.pieces?.maj || 0)) S.pieces = pc; if (S.pieces && piecesSolde() < PIECES_SEUIL && safeGet('maison-pieces-alerte') !== isoDate(new Date())) { safeSet('maison-pieces-alerte', isoDate(new Date())); setTimeout(piecesAlerte, 4000); } }
+  S.pilAchat = (reglages || []).find(r => r.cle === 'pilule:achat')?.valeur || null;
+  setTimeout(pilSync, 0);
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
@@ -1105,7 +1107,7 @@ const snoozed = row => row.snooze_until && row.snooze_until >= isoDate(new Date(
 function myPending() {
   const today = isoDate(new Date()), out = [];
   for (const c of S.chores) {
-    if (snoozed(c)) continue;
+    if (snoozed(c) || isPil(c)) continue;
     const q = seqOf(c);
     if (q ? (q.personal ? c.turn !== S.me : false) : (c.turn && c.turn !== S.me)) continue;
     if (q && c.started_at) continue;              // machine en route : rien à faire pour l'instant
@@ -2730,7 +2732,7 @@ function viewMaison() {
   const calmExit = !calm && S.calmExit;
   const date = new Date().toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  const myChores = S.chores.filter(c => c.turn === S.me && choreStatus(c).due);
+  const myChores = S.chores.filter(c => c.turn === S.me && !isPil(c) && choreStatus(c).due);
   const lateChores = myChores.filter(c => choreStatus(c).late);
   const myTasks = S.tasks.filter(t => !t.done && (t.assignee === S.me || !t.assignee));
   const net = balances()[S.me] || 0;
@@ -2795,7 +2797,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v279</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v280</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -2808,6 +2810,7 @@ function houseItems() {
     out.push({ kind: 'task', row: t, day: t.due_on < today ? today : t.due_on, late: t.due_on < today, time: t.due_time ? String(t.due_time).slice(0, 5) : '' });
   }
   for (const c of S.chores) {
+    if (isPil(c)) continue;
     const q = seqOf(c);
     if (q) {
       if (q.personal && c.turn !== S.me) continue;
@@ -3165,12 +3168,171 @@ function aspiCard() {
   return groupCard({ id: 'aspirateur', icon: 'aspirateur', title: 'Aspirateur', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est propre', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
 }
 // Azami : toutes les corvées qui la concernent (caisse, croquettes, véto…), groupées comme la vaisselle.
+// ── La pilule : une carte « Pour moi » que seule sa personne voit ──
+// Slinda (drospirénone 4 mg), d'après la notice : 24 comprimés blancs actifs puis 4 verts sans hormone, un par jour
+// à peu près à la même heure, sans pause entre les plaquettes. Moins de 24 h de retard sur un blanc : la protection
+// reste complète. Au-delà : le prendre tout de suite (deux le même jour s'il le faut) et un préservatif 7 jours ;
+// oubli en 1re semaine avec un rapport la semaine d'avant : appeler le médecin ; oubli entre le 15e et le 24e : sauter
+// les verts et commencer la plaquette suivante. Un vert oublié ne compte pas. Une boîte = 3 plaquettes.
+// L'achat d'une boîte alterne entre les deux (une tâche partagée, dans l'agenda) ; le reste ne quitte pas la carte.
+const isPil = c => !!c.options?.pilule;
+const PIL_BLANCS = 24, PIL_TOTAL = 28, PIL_BOITE = 3;
+const addJ = (iso, n) => isoDate(new Date(new Date(iso + 'T12:00').getTime() + n * DAY));
+const pilDate = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' });
+const pilMs = (iso, h) => new Date(`${iso}T${h || '21:00'}:00`).getTime();
+function pilEtat(c) {
+  const P = c.options.pilule;
+  if (!P.heure || !P.jour || !P.n) return { config: true, aFaire: false };
+  const jour = addJ(P.jour, 1), due = pilMs(jour, P.heure), now = Date.now(), retard = now - due;
+  return { P, jour, due, retard, n: P.n, vert: P.n > PIL_BLANCS, peut: now >= due - 12 * 3600e3, aFaire: now >= due, h24: retard >= DAY };
+}
+const pilHeures = ms => { const h = Math.floor(ms / 3600e3), m = Math.floor(ms / 60e3) % 60; return h ? `${h} h${m ? ` ${String(m).padStart(2, '0')}` : ''}` : `${m} min`; };
+// Ce que dit la notice pour un retard de plus de 24 h, selon la place du comprimé dans la plaquette.
+function pilConsignes(e) {
+  if (e.vert) return `<p>C’est un comprimé vert, sans hormone : l’oublier ne change rien à la protection. Tu peux le jeter et continuer normalement.</p>`;
+  const l = [`<li>Prends ce comprimé maintenant, même si ça en fait deux aujourd’hui, puis reprends ton heure habituelle.</li>`,
+    `<li>Utilise en plus un préservatif pendant les 7 jours qui suivent.</li>`];
+  if (e.n <= 7) l.push(`<li>C’est la première semaine de la plaquette : s’il y a eu un rapport dans la semaine avant l’oubli, il y a un risque de grossesse. Appelle ton médecin ou ton pharmacien.</li>`);
+  if (e.n >= 15) l.push(`<li>Entre le 15e et le 24e comprimé : finis les blancs, puis ne prends pas les verts. Commence directement la plaquette suivante (l’app le fera pour toi).</li>`);
+  return `<p><b>Plus de 24 h de retard.</b> D’après la notice :</p><ul>${l.join('')}</ul><p class="hint">En cas de doute, ton pharmacien ou ton médecin peut te dire quoi faire.</p>`;
+}
+function pilRow(c) {
+  const e = pilEtat(c), P = c.options.pilule, ouvert = S.open === 'pil-' + c.id;
+  if (e.config || S.pilReglage === c.id) return `<li class="dech-row pil-row editing">${pilForm(c, e.config)}</li>`;
+  const today = isoDate(new Date());
+  const prise = (P.hist || []).filter(h => !h.x).slice(-1)[0];
+  const meta = e.aFaire
+    ? (e.h24 ? 'Plus de 24 h de retard' : e.retard < 15 * 60e3 ? `C’est l’heure (${P.heure})` : `En retard de ${pilHeures(e.retard)} · moins de 24 h, tout va bien`)
+    : (e.jour === today ? `Aujourd’hui à ${P.heure}` : prise && isoDate(prise.t) === today ? `Prise à ${new Date(prise.t).toTimeString().slice(0, 5)} · demain ${P.heure}` : `${relDay(e.jour)} à ${P.heure}`);
+  const btn = e.peut
+    ? (e.vert && e.h24 ? `<button class="btn dech-btn due" data-action="pil-jeter" data-id="${c.id}">Jeter</button>` : `<button class="btn dech-btn ${e.aFaire ? 'due' : ''}" data-action="pil-prise" data-id="${c.id}">Prise</button>`)
+    : `<button class="btn dech-btn libre" disabled>Prise ✓</button>`;
+  const cell = k => {
+    const cls = [k > PIL_BLANCS ? 'v' : 'b', k < e.n ? 'pris' : '', k === e.n ? 'jour' : '', P.saute && k > PIL_BLANCS ? 'saute' : ''].join(' ');
+    return `<i class="${cls}" title="${k}"></i>`;
+  };
+  const prudence = P.prudence && P.prudence >= today ? `<p class="pil-note">Préservatif en plus jusqu’au ${esc(pilDate(P.prudence))} inclus.</p>` : '';
+  const stock = Number(P.stock) || 0;
+  const achat = P.achat_id ? S.tasks.find(t => t.id === P.achat_id && !t.done) : null;
+  const ordoJ = P.ordo_fin ? dayDiff(new Date(P.ordo_fin + 'T12:00'), new Date()) : null;
+  return `<li class="dech-row pil-row"><img class="ticon" src="icons/themes/pilule.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Pilule · ${e.vert ? 'comprimé vert' : 'comprimé'} ${e.n} sur ${PIL_TOTAL}</div><div class="item-meta ${e.h24 && !e.vert ? 'late' : ''}"><span class="dots-inline"><span class="dot ${e.aFaire ? 'dot-non' : 'dot-ok'}"></span></span>${esc(meta)}</div></div>
+    <div class="item-trail">${btn}<button class="more" aria-label="Plaquette, calendrier et réglages" aria-expanded="${ouvert}" data-action="pil-ouvrir" data-id="${c.id}">⋯</button></div>
+    ${e.h24 && e.aFaire ? `<div class="pil-alerte">${pilConsignes(e)}</div>` : ''}
+    ${prudence}
+    <div class="pil-plaq" aria-label="Plaquette : ${e.n - 1} comprimés pris sur ${PIL_TOTAL}">${Array.from({ length: PIL_TOTAL }, (_, i) => cell(i + 1)).join('')}</div>
+    ${ouvert ? `<div class="pil-plus">
+      <p class="pil-ligne">${stock <= 1 ? `<b>Dernière plaquette.</b> ` : `${stock} plaquettes, celle-ci comprise. `}${achat ? `Achat d’une boîte : ${esc(achat.assignee === S.me ? 'toi' : nameOf(achat.assignee))}, d’ici le ${esc(pilDate(achat.due_on))}.` : `Prochain achat : ${esc(S.pilAchat?.prochain ? (S.pilAchat.prochain === S.me ? 'toi' : nameOf(S.pilAchat.prochain)) : 'à définir')}.`}</p>
+      ${ordoJ != null ? `<p class="pil-ligne ${ordoJ <= 45 ? 'late' : ''}">Ordonnance valable jusqu’au ${esc(new Date(P.ordo_fin + 'T12:00').toLocaleDateString('fr-CH'))}${ordoJ <= 45 ? ' : pense à la faire renouveler' : ''}.</p>` : ''}
+      ${pilCal(c, e)}
+      <details class="pil-info"><summary>Comment elle marche</summary><p>24 comprimés blancs, puis 4 verts sans hormone. Un par jour, à peu près à la même heure, et une nouvelle plaquette le lendemain du dernier vert, sans pause.</p><p>Moins de 24 h de retard : la protection reste complète, prends-le dès que tu y penses. Vomissements ou forte diarrhée dans les 3 à 4 h après un blanc : prends-en un autre, comme pour un oubli.</p><p>Des saignements irréguliers, ou pas de règles du tout, sont fréquents et ne veulent pas dire que la protection baisse.</p><p class="hint">Résumé de la notice de Slinda. En cas de doute : pharmacien ou médecin.</p></details>
+      <div class="pil-acts"><button class="btn ghost small" data-action="pil-boite" data-id="${c.id}">+1 boîte</button><button class="btn ghost small" data-action="pil-regler" data-id="${c.id}">Réglages</button></div>
+    </div>` : ''}</li>`;
+}
+// Le calendrier de la plaquette : ce qui a été pris (et quand), ce qui vient, les verts, l'achat, le préservatif.
+function pilCal(c, e) {
+  const P = c.options.pilule, today = isoDate(new Date());
+  const base = new Date(); base.setDate(1); base.setMonth(base.getMonth() + (S.pilMois || 0));
+  const y = base.getFullYear(), m = base.getMonth(), premier = new Date(y, m, 1), nb = new Date(y, m + 1, 0).getDate();
+  const decal = (premier.getDay() + 6) % 7;
+  const hist = new Map((P.hist || []).map(h => [h.j, h]));
+  // ce qui vient : à partir du prochain jour, la suite de la plaquette (verts sautés si besoin)
+  const futur = new Map(); { let n = e.n, j = e.jour, saute = !!P.saute; for (let k = 0; k < 120; k++) { futur.set(j, n); n++; if (n > PIL_TOTAL || (saute && n > PIL_BLANCS)) { n = 1; saute = false; } j = addJ(j, 1); } }
+  const achat = P.achat_id ? S.tasks.find(t => t.id === P.achat_id && !t.done)?.due_on : null;
+  const cases = [];
+  for (let i = 0; i < decal; i++) cases.push('<span></span>');
+  for (let d = 1; d <= nb; d++) {
+    const iso = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const h = hist.get(iso), f = futur.get(iso);
+    const n = h ? h.n : f;
+    const cls = ['', iso === today ? 'auj' : '', n ? (n > PIL_BLANCS ? 'v' : 'b') : '', h ? (h.x ? 'jete' : h.r > 120 ? 'tard' : 'pris') : f ? 'prevu' : '', n === 1 ? 'debut' : '', iso === achat ? 'achat' : '', P.prudence && P.prudence_debut && iso >= P.prudence_debut && iso <= P.prudence ? 'prud' : ''].filter(Boolean).join(' ');
+    const lab = h ? (h.x ? 'jeté' : `pris à ${new Date(h.t).toTimeString().slice(0, 5)}${h.r > 120 ? ` (${pilHeures(h.r * 60e3)} de retard)` : ''}`) : f ? `comprimé ${f}` : '';
+    cases.push(`<span class="${cls}" title="${d} : ${esc(lab)}"><b>${d}</b>${n ? `<small>${n}</small>` : ''}</span>`);
+  }
+  const titre = premier.toLocaleDateString('fr-CH', { month: 'long', year: 'numeric' });
+  return `<div class="pil-cal"><div class="pil-cal-tete"><button class="link" data-action="pil-mois" data-d="-1" aria-label="Mois précédent">‹</button><b>${esc(cap(titre))}</b><button class="link" data-action="pil-mois" data-d="1" aria-label="Mois suivant">›</button></div>
+    <div class="pil-cal-sem">${['L', 'M', 'M', 'J', 'V', 'S', 'D'].map(x => `<i>${x}</i>`).join('')}</div>
+    <div class="pil-cal-grille">${cases.join('')}</div>
+    <p class="pil-cal-leg"><span class="b pris"></span>pris <span class="b tard"></span>en retard <span class="v prevu"></span>vert <span class="debut"></span>nouvelle plaquette${achat ? ' <span class="achat"></span>achat' : ''}</p></div>`;
+}
+// Les réglages (et la première fois) : elle règle tout elle-même.
+function pilForm(c, premiere) {
+  const P = c.options.pilule;
+  const n = P.n || 1;
+  return `<form class="form pil-form" data-form="pilule" data-id="${c.id}">
+    ${premiere ? `<p class="ticket-title">Pilule</p><p class="hint">Un rappel rien que pour toi : personne d’autre ne voit cette carte. Règle-la comme tu veux, tout se change plus tard.</p>` : '<p class="ticket-title">Réglages de la pilule</p>'}
+    <label class="chip-label" for="pil-h">Ton heure habituelle</label><input class="field" id="pil-h" name="heure" type="time" value="${esc(P.heure || '21:00')}" required>
+    ${premiere ? `<label class="chip-label" for="pil-n">Le comprimé d’aujourd’hui, c’est le numéro</label>
+    <select class="field" id="pil-n" name="n">${Array.from({ length: PIL_TOTAL }, (_, i) => `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1}${i + 1 > PIL_BLANCS ? ' (vert)' : ''}</option>`).join('')}</select>
+    ${chipGroup('pil-auj', [['non', 'Pas encore pris'], ['oui', 'Déjà pris']], 'non', 'Celui d’aujourd’hui')}` : `<label class="chip-label" for="pil-n">Prochain comprimé (numéro dans la plaquette)</label>
+    <select class="field" id="pil-n" name="n">${Array.from({ length: PIL_TOTAL }, (_, i) => `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1}${i + 1 > PIL_BLANCS ? ' (vert)' : ''}</option>`).join('')}</select>`}
+    <label class="chip-label" for="pil-s">Plaquettes qu’il te reste, celle en cours comprise</label><input class="field" id="pil-s" name="stock" type="number" min="0" max="12" inputmode="numeric" value="${Number(P.stock) || PIL_BOITE}">
+    <label class="chip-label" for="pil-o">Ordonnance valable jusqu’au</label><input class="field" id="pil-o" name="ordo" type="date" value="${esc(P.ordo_fin || '')}">
+    <label class="pil-check"><input type="checkbox" name="discret" ${P.discret !== false ? 'checked' : ''}> Notifications discrètes (« Petit rappel », sans le mot pilule)</label>
+    <div class="form-actions">${premiere ? `<button type="button" class="btn ghost small" data-action="pil-non" data-id="${c.id}">Je n’en veux pas</button>` : `<button type="button" class="btn ghost small" data-action="pil-regler" data-id="${c.id}">Annuler</button>`}<button class="btn" type="submit">${premiere ? 'C’est parti' : 'Enregistrer'}</button></div>
+  </form>`;
+}
+async function pilEcrire(c, P, extra = {}) {
+  c.options = { ...c.options, pilule: P }; Object.assign(c, extra);
+  await api.update('chores', { id: c.id }, { options: c.options, ...extra });
+}
+// L'achat d'une boîte : chacun son tour. La tâche va dans « À faire » et l'agenda de celui ou celle qui l'achète.
+async function pilAchat(c, P) {
+  if (P.achat_id && S.tasks.some(t => t.id === P.achat_id && !t.done)) return;
+  const qui = S.pilAchat?.prochain && S.members.some(m => m.email === S.pilAchat.prochain) ? S.pilAchat.prochain : S.me;
+  const pour = qui === S.me ? 'ma pilule' : `la pilule de ${firstName()}`;
+  const due = addJ(isoDate(new Date()), Number(P.stock) >= 1 ? 14 : 1);
+  const t = await api.insert('tasks', { title: `Acheter ${pour} (Slinda, 1 boîte)`, assignee: qui, due_on: due, icon: 't:pharmacie' });
+  if (t) S.tasks.push(t);
+  P.achat_id = t?.id || null;
+  const suivant = S.members.find(m => m.email !== qui)?.email || qui;
+  S.pilAchat = { prochain: suivant, maj: Date.now() };
+  await api.upsert('reglages', { cle: 'pilule:achat', valeur: S.pilAchat });
+}
+// À l'ouverture : la boîte achetée (la tâche cochée par l'un ou l'autre) s'ajoute à la réserve.
+async function pilSync() {
+  for (const c of S.chores.filter(x => isPil(x) && x.prive === S.me)) {
+    const P = { ...c.options.pilule }; if (!P.achat_id) continue;
+    const t = S.tasks.find(x => x.id === P.achat_id);
+    if (t && !t.done) continue;
+    if (t?.done) { P.stock = (Number(P.stock) || 0) + PIL_BOITE; toast(`Une boîte de plus : ${P.stock} plaquettes`); }
+    P.achat_id = null;
+    try { await pilEcrire(c, P); render(); } catch (e) { console.warn('pilule', e); }
+  }
+}
+async function pilAvancer(c, jeter) {
+  const e = pilEtat(c); if (e.config) return;
+  const P = { ...c.options.pilule }, maint = new Date().toISOString();
+  P.hist = [...(P.hist || []), { j: e.jour, n: e.n, t: maint, r: e.retard > 0 ? Math.round(e.retard / 60e3) : 0, ...(jeter ? { x: 1 } : {}) }].slice(-150);
+  P.jour = e.jour;
+  if (!jeter && !e.vert && e.h24) { P.prudence = addJ(isoDate(new Date()), 6); P.prudence_debut = isoDate(new Date()); if (e.n >= 15) P.saute = true; }
+  let n = e.n + 1, nouvelle = false;
+  if (n > PIL_TOTAL || (P.saute && n > PIL_BLANCS)) { n = 1; nouvelle = true; P.saute = false; P.stock = Math.max(0, (Number(P.stock) || 1) - 1); }
+  P.n = n;
+  await pilEcrire(c, P, { last_done_at: maint, last_done_by: S.me, step: 0, notified_at: null });
+  if (nouvelle && Number(P.stock) <= 1) { await pilAchat(c, P); await pilEcrire(c, P); }
+  return { nouvelle, n, P };
+}
+function pilGeste(el, jeter) {
+  const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return refresh();
+  const e = pilEtat(c); if (e.config || !e.peut) return;
+  haptic('medium'); el.disabled = true;
+  const avant = { options: c.options, last_done_at: c.last_done_at || null, last_done_by: c.last_done_by || null, step: c.step || 0, notified_at: c.notified_at || null };
+  let r = null;
+  undoable(jeter ? 'Comprimé vert jeté' : `Comprimé ${e.n}`, [{ t: 'chores', id: c.id, row: avant }], async () => { r = await pilAvancer(c, jeter); }, null, c.id).then(ok => {
+    if (!ok || !r) return;
+    const sub = r.nouvelle ? (Number(r.P.stock) ? `Demain : nouvelle plaquette. ${r.P.stock <= 1 ? 'C’est la dernière, l’achat est noté.' : ''}` : 'Demain : nouvelle plaquette. Il n’y en a plus en réserve, l’achat est noté.')
+      : r.n > PIL_BLANCS ? `Demain : comprimé vert ${r.n}, sans hormone` : `Demain : comprimé ${r.n}`;
+    celebrate({ title: jeter ? 'C’est noté' : 'Prise', sub, level: 'small', reaction: 'pilule' });
+  });
+}
 // Pour moi : les tâches perso, que l'autre ne voit pas (la base ne les lui envoie même pas).
 function persoCard() {
-  const rows = S.chores.filter(c => c.prive === S.me).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
+  const rows = S.chores.filter(c => c.prive === S.me).sort((p, q) => (isPil(q) - isPil(p)) || choreStatus(p).d - choreStatus(q).d);
   if (!rows.length) return '';
-  const n = rows.filter(isDue).length;
-  return groupCard({ id: 'perso', icon: 'lotion_cheveux', title: 'Pour moi', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${dueDot(c)}"></span>`).join(''), rows: rows.map(plainRow) });
+  const du = c => isPil(c) ? pilEtat(c).aFaire : isDue(c);
+  const n = rows.filter(du).length;
+  const icon = rows.some(isPil) ? 'pilule' : 'lotion_cheveux';
+  return groupCard({ id: 'perso', icon, title: 'Pour moi', summary: n ? (n === 1 ? '1 à faire' : `${n} à faire`) : 'Tout est fait', dots: rows.map(c => `<span class="dot ${isPil(c) ? (du(c) ? 'dot-non' : 'dot-ok') : dueDot(c)}"></span>`).join(''), rows: rows.map(c => isPil(c) ? pilRow(c) : plainRow(c)) });
 }
 function azamiCard() {
   const rows = S.chores.filter(c => !c.sorte && !c.prive && isAzami(c)).sort((p, q) => choreStatus(p).d - choreStatus(q).d);
@@ -7509,6 +7671,20 @@ const actions = {
       await win('chore', c.title, c.weight || 2, c.icon);
     }, null, c.id).then(ok => { if (!ok) return; const prevenue = c.options?.annonce && c.turn && c.turn !== S.me; if (prevenue) pingAnnonce(c.id); azamiJump(); if (isAzami(c)) jumelleMerci(); celebrate({ title: praise('chore'), sub: prevenue ? `Message envoyé à ${nameOf(c.turn)}` : c.options?.annonce?.libre ? 'C’est noté' : !next ? `Prochaine fois dans ${c.every_days} jours` : c.fixed ? `Toujours ${next === S.me ? 'toi' : nameOf(next)}` : `Prochain tour : ${nameOf(next)}`, level: 'small', badge: variantBadge('chores', c, S.me), reaction: c.sorte ? 'dechets_descendus' : 'corvee_terminee' }); if (first) streakCheer(2600); });
   },
+  'pil-prise': el => pilGeste(el, false),
+  'pil-jeter': el => pilGeste(el, true),
+  'pil-ouvrir': el => { const k = 'pil-' + el.dataset.id; S.open = S.open === k ? null : k; S.pilMois = 0; haptic(1); render(); },
+  'pil-mois': el => { S.pilMois = (S.pilMois || 0) + Number(el.dataset.d || 0); render(); },
+  'pil-regler': el => { S.pilReglage = S.pilReglage === el.dataset.id ? null : el.dataset.id; render(); },
+  'pil-boite': el => {
+    const c = S.chores.find(x => x.id === el.dataset.id); if (!c) return refresh();
+    const P = { ...c.options.pilule, stock: (Number(c.options.pilule.stock) || 0) + PIL_BOITE };
+    undoable('Une boîte de plus', [{ t: 'chores', id: c.id, row: { options: c.options } }], () => pilEcrire(c, P), `${P.stock} plaquettes en réserve`);
+  },
+  'pil-non': async el => {
+    if (!(await uiAsk('La carte disparaît, et plus aucun rappel. Tu pourras demander à la remettre.', { title: 'Enlever la pilule ?', ok: 'Enlever', danger: true }))) return;
+    run(() => api.remove('chores', { id: el.dataset.id }), 'Enlevée');
+  },
   'chore-swap': el => {
     const c = S.chores.find(x => x.id === el.dataset.id);
     if (!c) return refresh();
@@ -7671,6 +7847,30 @@ const forms = {
     const row = { body: f.body.value.trim(), important: f.important.checked };
     f.reset();
     run(() => api.insert('board', row), 'Affiché sur le tableau');
+  },
+  pilule(f) {
+    const c = S.chores.find(x => x.id === f.dataset.id); if (!c) return refresh();
+    const avant = c.options;
+    const P = { ...c.options.pilule }, premiere = !P.heure;
+    P.heure = /^\d{2}:\d{2}$/.test(f.heure.value) ? f.heure.value : '21:00';
+    const n = Math.min(PIL_TOTAL, Math.max(1, Number(f.n.value) || 1));
+    if (premiere) {
+      const pris = chipVal('pil-auj', 'non') === 'oui', auj = isoDate(new Date());
+      P.jour = pris ? auj : addJ(auj, -1);
+      P.n = pris ? (n >= PIL_TOTAL ? 1 : n + 1) : n;
+    } else if (n !== P.n) {
+      P.n = n;
+      // le prochain comprimé change : on repart d'aujourd'hui si celui d'aujourd'hui n'est pas encore pris
+      const e = pilEtat(c); if (e.jour < isoDate(new Date())) P.jour = addJ(isoDate(new Date()), -1);
+    }
+    P.stock = Math.min(12, Math.max(0, Number(f.stock.value) || 0));
+    if (f.ordo.value !== (P.ordo_fin || '')) { P.ordo_fin = f.ordo.value || null; P.ordo_vu = false; }
+    P.discret = f.discret.checked;
+    S.pilReglage = null;
+    undoable(premiere ? 'Pilule réglée' : 'Réglages de la pilule', [{ t: 'chores', id: c.id, row: { options: avant } }], async () => {
+      await pilEcrire(c, P, { notified_at: null, step: 0 });
+      if (P.stock <= 1) { await pilAchat(c, P); await pilEcrire(c, P); }
+    }, premiere ? `C’est réglé : rappel à ${P.heure}` : 'Enregistré');
   },
   pieces(f) {
     const v = Number(String(f.solde.value).replace(',', '.').replace(/[^\d.]/g, ''));

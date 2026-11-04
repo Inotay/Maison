@@ -2342,3 +2342,44 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 .ami-partage input { width: 20px; height: 20px; accent-color: var(--accent); }
 .amis-sheet .hint { color: #E0CFB8; }
 .amis-sheet .ami-inviter .field::placeholder { color: #B9A99A; }
+
+/* La pilule : la plaquette (24 blancs, 4 verts), les consignes d'oubli, le calendrier à nous */
+.pil-row { align-items: center; }
+.pil-row > .pil-plaq, .pil-row > .pil-alerte, .pil-row > .pil-note, .pil-row > .pil-plus { flex: 1 0 100%; }
+.pil-plaq { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; padding: 10px; border-radius: var(--r-in); background: linear-gradient(160deg, #EEF2F6, #DCE3EA); box-shadow: inset 0 1px 0 #fff, 0 2px 0 rgba(30, 47, 63, .12); max-width: 300px; }
+.pil-plaq i { aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: inset 0 -2px 0 rgba(30, 47, 63, .14), 0 0 0 1.5px rgba(30, 47, 63, .18); }
+.pil-plaq i.v { background: #9BD8A6; }
+.pil-plaq i.pris { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(30, 47, 63, .22); opacity: .55; }
+.pil-plaq i.jour { box-shadow: 0 0 0 3px var(--jaune), inset 0 -2px 0 rgba(30, 47, 63, .14); }
+.pil-plaq i.saute { opacity: .25; }
+.pil-alerte { background: #FFF1E8; border: 2px solid #F0B49A; border-radius: var(--r-in); padding: 10px 12px; color: #4A2A1F; font-size: 15px; }
+.pil-alerte p { margin: 0 0 6px; } .pil-alerte ul { margin: 0 0 6px; padding-left: 18px; } .pil-alerte li { margin: 3px 0; }
+.pil-note { margin: 0; padding: 8px 12px; border-radius: var(--r-in); background: #FFF6D8; color: #4A3A10; font-size: 14px; font-weight: 700; }
+.pil-plus { display: grid; gap: 10px; }
+.pil-ligne { margin: 0; font-size: 14px; color: var(--muted); } .pil-ligne.late { color: var(--rouge); font-weight: 700; }
+.pil-info summary { font-weight: 800; cursor: pointer; } .pil-info p { font-size: 14px; margin: 6px 0; }
+.pil-acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.pil-check { display: flex; gap: 8px; align-items: center; margin-top: 10px; font-size: 15px; }
+.pil-cal { background: var(--surface-2); border-radius: var(--r-in); padding: 10px; border: 1px solid var(--line); }
+.pil-cal-tete { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.pil-cal-tete .link { font-size: 24px; line-height: 1; padding: 2px 12px; text-decoration: none; }
+.pil-cal-sem, .pil-cal-grille { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.pil-cal-sem i { font-style: normal; font-size: 11px; font-weight: 800; color: var(--muted); }
+.pil-cal-grille span { position: relative; min-height: 40px; border-radius: 10px; display: grid; place-items: center; align-content: center; gap: 1px; font-size: 13px; }
+.pil-cal-grille span b { font-weight: 800; } .pil-cal-grille span small { font-size: 10px; color: var(--muted); }
+.pil-cal-grille span.b { background: #F4F6F8; } .pil-cal-grille span.v { background: #DDF2E1; }
+.pil-cal-grille span.pris::after, .pil-cal-grille span.tard::after { content: ''; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: #58C06A; }
+.pil-cal-grille span.tard::after { background: #F2A33A; }
+.pil-cal-grille span.jete { opacity: .55; }
+.pil-cal-grille span.prevu { opacity: .8; }
+.pil-cal-grille span.debut { box-shadow: inset 3px 0 0 var(--bleu-2); }
+.pil-cal-grille span.achat { box-shadow: inset 0 -3px 0 var(--jaune); }
+.pil-cal-grille span.prud { background-image: repeating-linear-gradient(135deg, transparent 0 5px, rgba(242, 193, 78, .35) 5px 8px); }
+.pil-cal-grille span.auj { outline: 2.5px solid var(--jaune); outline-offset: -2px; }
+.pil-cal-leg { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.pil-cal-leg span { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: -8px; background: #F4F6F8; vertical-align: -2px; }
+.pil-cal-leg span.pris { background: #58C06A; } .pil-cal-leg span.tard { background: #F2A33A; } .pil-cal-leg span.v { background: #DDF2E1; }
+.pil-cal-leg span.debut { box-shadow: inset 3px 0 0 var(--bleu-2); } .pil-cal-leg span.achat { box-shadow: inset 0 -3px 0 var(--jaune); }
+.pil-form select.field { appearance: auto; }
+html[data-theme="brun"] .pil-cal-grille span.b { background: rgba(243, 235, 223, .08); } html[data-theme="brun"] .pil-cal-grille span.v { background: rgba(155, 216, 166, .18); }
+html[data-theme="brun"] .pil-plaq { background: linear-gradient(160deg, #4A3A30, #3A2A20); box-shadow: none; }

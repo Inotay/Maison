@@ -155,8 +155,10 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   });
   // Tâches perso (« Pour moi ») : 24 h après la dernière fois sans l'avoir refaite, une notification à cette
   // seule personne ; puis une par 24 h tant que ce n'est pas fait.
-  const { data: perso } = await db.from("chores").select("id, title, every_days, prive, last_done_at, created_at, notified_at").not("prive", "is", null);
-  const persoDues = (perso ?? []).filter((c: { every_days: number; last_done_at: string | null; created_at: string; notified_at: string | null }) => {
+  const { data: perso } = await db.from("chores").select("id, title, every_days, prive, last_done_at, created_at, notified_at, step, options").not("prive", "is", null);
+  const pilules = (perso ?? []).filter((c: { options: { pilule?: unknown } | null }) => c.options?.pilule);
+  const persoDues = (perso ?? []).filter((c: { every_days: number; last_done_at: string | null; created_at: string; notified_at: string | null; options: { pilule?: unknown } | null }) => {
+    if (c.options?.pilule) return false;
     const depuis = new Date(c.last_done_at ?? c.created_at).getTime(), ecart = (Number(c.every_days) || 1) * DAY;
     if (now < depuis + ecart) return false;
     const n = c.notified_at ? new Date(c.notified_at).getTime() : 0;
@@ -166,7 +168,8 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   const nowIso = new Date(now).toISOString();
   const { data: kt } = await db.from("kitchen_timers").select("id, owner, label, ends_at").is("notified_at", null).lte("ends_at", nowIso);
   await db.from("kitchen_timers").delete().lt("ends_at", new Date(now - DAY).toISOString());
-  if (!due.length && !(kt ?? []).length && !persoDues.length) return { sent: 0, items: 0 };
+  const pil = pilulesDues(pilules, now);
+  if (!due.length && !(kt ?? []).length && !persoDues.length && !pil.length) return { sent: 0, items: 0 };
   const keys = await vapid(db);
   webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
   let sent = 0; const dead: string[] = [];
@@ -195,8 +198,61 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     }
     await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
   }
+  for (const p of pil) {
+    const payload = JSON.stringify({ title: p.title, body: p.body, tag: `maison-pil-${p.c.id}`, url: "./?v=menage" });
+    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === p.c.prive)) {
+      try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600, urgency: "high" }); sent++; }
+      catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
+    }
+    if (p.ordo) await db.from("chores").update({ options: { ...p.c.options, pilule: { ...p.c.options.pilule, ordo_vu: true } } }).eq("id", p.c.id);
+    else await db.from("chores").update({ step: p.step, notified_at: new Date().toISOString() }).eq("id", p.c.id);
+  }
   if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
-  return { sent, items: due.length + (kt ?? []).length + persoDues.length };
+  return { sent, items: due.length + (kt ?? []).length + persoDues.length + pil.length };
+}
+
+// La pilule (carte perso) : le prochain comprimé est dû le lendemain du dernier jour pris (P.jour), à l'heure choisie
+// (heure de Zurich). Rappels à l'heure, 2 h après, 20 h après (il reste 4 h dans la fenêtre de 24 h de la notice),
+// puis à 24 h (« ouvre l'app » : les consignes dépendent du jour de la plaquette). Pour un vert, seulement le premier.
+// step = combien de ces rappels sont partis pour ce comprimé ; l'app le remet à 0 quand elle coche.
+// L'ordonnance : un rappel, 30 jours avant sa fin.
+type Pil = { heure?: string; jour?: string; n?: number; discret?: boolean; ordo_fin?: string | null; ordo_vu?: boolean };
+type PilChore = { id: string; prive: string; step: number | null; options: { pilule: Pil } & Record<string, unknown> };
+function zurichMs(iso: string, hhmm: string): number {
+  const [y, m, d] = iso.split("-").map(Number), [h, mi] = hhmm.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, mi);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Zurich", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(guess)).map(p => [p.type, p.value]));
+  const vu = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
+  return guess - (vu - guess);
+}
+const PIL_PALIERS = [0, 2 * 3600e3, 20 * 3600e3, DAY];
+function pilulesDues(rows: PilChore[], now: number) {
+  const out: { c: PilChore; title: string; body: string; step: number; ordo?: boolean }[] = [];
+  for (const c of rows) {
+    const P = c.options.pilule;
+    if (P.ordo_fin && !P.ordo_vu && /^\d{4}-\d{2}-\d{2}$/.test(P.ordo_fin) && now >= zurichMs(P.ordo_fin, "12:00") - 30 * DAY) {
+      const fin = P.ordo_fin.split("-").reverse().join(".");
+      out.push({ c, step: c.step ?? 0, ordo: true, title: P.discret === false ? "Ordonnance de la pilule" : "Petit rappel", body: P.discret === false ? `Elle se termine le ${fin} : pense à la faire renouveler.` : `Un renouvellement approche (${fin}).` });
+      continue;
+    }
+    if (!P.heure || !P.jour || !P.n || !/^\d{2}:\d{2}$/.test(P.heure)) continue;
+    const [jy, jm, jd] = P.jour.split("-").map(Number);
+    const j = new Date(Date.UTC(jy, jm - 1, jd) + DAY).toISOString().slice(0, 10);
+    const due = zurichMs(j, P.heure), retard = now - due;
+    if (retard < 0) continue;
+    const vert = P.n > 24;
+    const paliers = vert ? [0] : PIL_PALIERS;
+    const passes = paliers.filter(x => retard >= x).length, deja = Number(c.step) || 0;
+    if (passes <= deja) continue;
+    const k = passes - 1, d = P.discret !== false;
+    const limite = new Date(due + DAY).toLocaleTimeString("fr-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit" });
+    const t = d
+      ? [["Petit rappel", "C'est l'heure."], ["Petit rappel", "Pas encore coché."], ["Petit rappel", `Encore jusqu'à ${limite}.`], ["Petit rappel", "Ouvre l'app quand tu peux."]][k]
+      : vert ? ["Pilule", `Comprimé vert ${P.n}, sans hormone.`]
+      : [["Pilule", `C'est l'heure (comprimé ${P.n}).`], ["Pilule", "Pas encore cochée. Moins de 24 h de retard : la protection reste complète."], ["Pilule : il reste 4 h", `Prends-la avant ${limite} pour rester dans les 24 h.`], ["Pilule : plus de 24 h", "Ouvre l'app : elle te dit quoi faire selon le jour de la plaquette."]][k];
+    out.push({ c, title: t[0], body: t[1], step: passes });
+  }
+  return out;
 }
 
 // Frais : ce qui périme dans les deux jours (une seule notification par aliment, jamais le jour de l'achat).
