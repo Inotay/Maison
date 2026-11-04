@@ -81,14 +81,14 @@ async function run(db: ReturnType<typeof admin>) {
   const now = new Date(), today = zurich(now);
   const [{ data: members }, { data: chores }, { data: tasks }, { data: subs }] = await Promise.all([
     db.from("members").select("email, name"),
-    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at, snooze_until, prive"),
+    db.from("chores").select("id, title, every_days, turn, last_done_at, sorte, notified_at, snooze_until, prive, options"),
     db.from("tasks").select("id, title, assignee, due_on, done, notified_at, snooze_until"),
     db.from("push_subscriptions").select("endpoint, email, sub"),
   ]);
   const emails = (members ?? []).map((m: { email: string }) => m.email);
   const items: Item[] = [];
   for (const c of chores ?? []) {
-    if (c.prive) continue;   // les tâches perso ont leur propre rappel (minuteurs), à leur seule personne
+    if (c.prive || c.options?.pilule) continue;   // perso et pilule : leurs propres rappels (minuteurs)
     if (c.notified_at && zurich(new Date(c.notified_at)) === today) continue;
     if (c.snooze_until && c.snooze_until >= today) continue;   // repoussée en mode calme
     // Jamais faite : on compte depuis sa création n'est pas possible ici, on la considère due aujourd'hui (pas de rappel avant 2 jours de retard réel).
@@ -156,7 +156,11 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   // Tâches perso (« Pour moi ») : 24 h après la dernière fois sans l'avoir refaite, une notification à cette
   // seule personne ; puis une par 24 h tant que ce n'est pas fait.
   const { data: perso } = await db.from("chores").select("id, title, every_days, prive, last_done_at, created_at, notified_at, step, options").not("prive", "is", null);
-  const pilules = (perso ?? []).filter((c: { options: { pilule?: unknown } | null }) => c.options?.pilule);
+  const [{ data: pilules }, { data: membres }, { data: notifs }] = await Promise.all([
+    db.from("chores").select("id, prive, turn, options").not("options->pilule", "is", null),
+    db.from("members").select("email, name"),
+    db.from("reglages").select("cle, valeur").like("cle", "pilnotif:%"),
+  ]);
   const persoDues = (perso ?? []).filter((c: { every_days: number; last_done_at: string | null; created_at: string; notified_at: string | null; options: { pilule?: unknown } | null }) => {
     if (c.options?.pilule) return false;
     const depuis = new Date(c.last_done_at ?? c.created_at).getTime(), ecart = (Number(c.every_days) || 1) * DAY;
@@ -168,7 +172,8 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   const nowIso = new Date(now).toISOString();
   const { data: kt } = await db.from("kitchen_timers").select("id, owner, label, ends_at").is("notified_at", null).lte("ends_at", nowIso);
   await db.from("kitchen_timers").delete().lt("ends_at", new Date(now - DAY).toISOString());
-  const pil = pilulesDues(pilules, now);
+  const pilNotifs = new Map<string, Record<string, { j: string; k: number }>>((notifs ?? []).map((r: { cle: string; valeur: Record<string, { j: string; k: number }> }) => [r.cle.slice(9), r.valeur || {}] as [string, Record<string, { j: string; k: number }>]));
+  const pil = pilulesDues((pilules ?? []) as PilChore[], (membres ?? []) as { email: string; name: string }[], pilNotifs, now);
   if (!due.length && !(kt ?? []).length && !persoDues.length && !pil.length) return { sent: 0, items: 0 };
   const keys = await vapid(db);
   webpush.setVapidDetails(keys.subject, keys.publicKey, keys.privateKey);
@@ -200,24 +205,33 @@ async function minuteurs(db: ReturnType<typeof admin>) {
   }
   for (const p of pil) {
     const payload = JSON.stringify({ title: p.title, body: p.body, tag: `maison-pil-${p.c.id}`, url: "./?v=menage" });
-    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === p.c.prive)) {
+    for (const s of (subs ?? []).filter((s: { email: string }) => s.email === p.to)) {
       try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600, urgency: "high" }); sent++; }
       catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }
     }
-    if (p.ordo) await db.from("chores").update({ options: { ...p.c.options, pilule: { ...p.c.options.pilule, ordo_vu: true } } }).eq("id", p.c.id);
-    else await db.from("chores").update({ step: p.step, notified_at: new Date().toISOString() }).eq("id", p.c.id);
+  }
+  // ce qui est parti : par carte et par personne (le jour du comprimé et le nombre de rappels envoyés)
+  const parCarte = new Map<string, PilChore>(); for (const p of pil) parCarte.set(p.c.id, p.c);
+  for (const [id, c] of parCarte) {
+    const ordo = pil.some(p => p.c.id === id && p.ordo);
+    if (ordo) await db.from("chores").update({ options: { ...c.options, pilule: { ...c.options.pilule, ordo_vu: true } } }).eq("id", id);
+    const v = { ...(pilNotifs.get(id) ?? {}) };
+    for (const p of pil.filter(p => p.c.id === id && !p.ordo)) v[p.to] = { j: p.j, k: p.k };
+    if (pil.some(p => p.c.id === id && !p.ordo)) await db.from("reglages").upsert({ cle: `pilnotif:${id}`, valeur: v });
   }
   if (dead.length) await db.from("push_subscriptions").delete().in("endpoint", dead);
   return { sent, items: due.length + (kt ?? []).length + persoDues.length + pil.length };
 }
 
-// La pilule (carte perso) : le prochain comprimé est dû le lendemain du dernier jour pris (P.jour), à l'heure choisie
-// (heure de Zurich). Rappels à l'heure, 2 h après, 20 h après (il reste 4 h dans la fenêtre de 24 h de la notice),
-// puis à 24 h (« ouvre l'app » : les consignes dépendent du jour de la plaquette). Pour un vert, seulement le premier.
-// step = combien de ces rappels sont partis pour ce comprimé ; l'app le remet à 0 quand elle coche.
-// L'ordonnance : un rappel, 30 jours avant sa fin.
-type Pil = { heure?: string; jour?: string; n?: number; discret?: boolean; ordo_fin?: string | null; ordo_vu?: boolean };
-type PilChore = { id: string; prive: string; step: number | null; options: { pilule: Pil } & Record<string, unknown> };
+// La pilule : le prochain comprimé est dû le lendemain du dernier jour pris (P.jour), à l'heure choisie (heure de
+// Zurich). Carte perso (prive) : seule sa personne est rappelée ; carte en commun : les deux, chacun selon ses
+// réglages (P.rappels[email] : premier rappel = décalage en minutes après l'heure, -1 = aucun ; relances = 2 h après
+// le premier, puis quand il reste 4 h dans la fenêtre de 24 h de la notice, puis à 24 h). Pour un vert, seulement le
+// premier. Ce qui est parti est noté dans reglages « pilnotif:<id> » ({ email: { j, k } }), à part de la carte.
+// L'ordonnance : un rappel à sa personne, 30 jours avant sa fin.
+type PilRap = { premier?: number; relances?: boolean };
+type Pil = { heure?: string; jour?: string; n?: number; discret?: boolean; ordo_fin?: string | null; ordo_vu?: boolean; pour?: string; rappels?: Record<string, PilRap> };
+type PilChore = { id: string; prive: string | null; turn: string | null; options: { pilule: Pil } & Record<string, unknown> };
 function zurichMs(iso: string, hhmm: string): number {
   const [y, m, d] = iso.split("-").map(Number), [h, mi] = hhmm.split(":").map(Number);
   const guess = Date.UTC(y, m - 1, d, h, mi);
@@ -225,15 +239,17 @@ function zurichMs(iso: string, hhmm: string): number {
   const vu = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), Number(parts.hour), Number(parts.minute));
   return guess - (vu - guess);
 }
-const PIL_PALIERS = [0, 2 * 3600e3, 20 * 3600e3, DAY];
-function pilulesDues(rows: PilChore[], now: number) {
-  const out: { c: PilChore; title: string; body: string; step: number; ordo?: boolean }[] = [];
+function pilulesDues(rows: PilChore[], membres: { email: string; name: string }[], deja: Map<string, Record<string, { j: string; k: number }>>, now: number) {
+  const out: { c: PilChore; to: string; title: string; body: string; j: string; k: number; ordo?: boolean }[] = [];
   for (const c of rows) {
-    const P = c.options.pilule;
+    const P = c.options.pilule, elle = P.pour || c.prive || c.turn || "";
+    if (!elle) continue;
+    const nom = membres.find(m => m.email === elle)?.name || "elle";
+    const qui = c.prive ? [elle] : membres.map(m => m.email);
+    const d = P.discret !== false;
     if (P.ordo_fin && !P.ordo_vu && /^\d{4}-\d{2}-\d{2}$/.test(P.ordo_fin) && now >= zurichMs(P.ordo_fin, "12:00") - 30 * DAY) {
       const fin = P.ordo_fin.split("-").reverse().join(".");
-      out.push({ c, step: c.step ?? 0, ordo: true, title: P.discret === false ? "Ordonnance de la pilule" : "Petit rappel", body: P.discret === false ? `Elle se termine le ${fin} : pense à la faire renouveler.` : `Un renouvellement approche (${fin}).` });
-      continue;
+      out.push({ c, to: elle, j: "", k: 0, ordo: true, title: d ? "Petit rappel" : "Ordonnance de la pilule", body: d ? `Un renouvellement approche (${fin}).` : `Elle se termine le ${fin} : pense à la faire renouveler.` });
     }
     if (!P.heure || !P.jour || !P.n || !/^\d{2}:\d{2}$/.test(P.heure)) continue;
     const [jy, jm, jd] = P.jour.split("-").map(Number);
@@ -241,16 +257,27 @@ function pilulesDues(rows: PilChore[], now: number) {
     const due = zurichMs(j, P.heure), retard = now - due;
     if (retard < 0) continue;
     const vert = P.n > 24;
-    const paliers = vert ? [0] : PIL_PALIERS;
-    const passes = paliers.filter(x => retard >= x).length, deja = Number(c.step) || 0;
-    if (passes <= deja) continue;
-    const k = passes - 1, d = P.discret !== false;
     const limite = new Date(due + DAY).toLocaleTimeString("fr-CH", { timeZone: "Europe/Zurich", hour: "2-digit", minute: "2-digit" });
-    const t = d
-      ? [["Petit rappel", "C'est l'heure."], ["Petit rappel", "Pas encore coché."], ["Petit rappel", `Encore jusqu'à ${limite}.`], ["Petit rappel", "Ouvre l'app quand tu peux."]][k]
-      : vert ? ["Pilule", `Comprimé vert ${P.n}, sans hormone.`]
-      : [["Pilule", `C'est l'heure (comprimé ${P.n}).`], ["Pilule", "Pas encore cochée. Moins de 24 h de retard : la protection reste complète."], ["Pilule : il reste 4 h", `Prends-la avant ${limite} pour rester dans les 24 h.`], ["Pilule : plus de 24 h", "Ouvre l'app : elle te dit quoi faire selon le jour de la plaquette."]][k];
-    out.push({ c, title: t[0], body: t[1], step: passes });
+    for (const to of qui) {
+      const moi = to === elle;
+      const r = { premier: moi ? 0 : 30, relances: true, ...(P.rappels?.[to] ?? {}) };
+      if (Number(r.premier) < 0) continue;
+      const p0 = Math.max(0, Number(r.premier) || 0) * 60e3;
+      const paliers = vert || !r.relances ? [p0] : [p0, p0 + 2 * 3600e3, 20 * 3600e3, DAY].filter((x, i, a) => i === 0 || x > a[i - 1]);
+      const passes = paliers.filter(x => retard >= x).length;
+      const avant = deja.get(c.id)?.[to];
+      const dejaK = avant && avant.j === j ? avant.k : 0;
+      if (passes <= dejaK) continue;
+      const k = passes - 1, palier = paliers[k];
+      const etape = palier === DAY ? 3 : palier === 20 * 3600e3 ? 2 : k === 0 ? 0 : 1;
+      const t: [string, string] = d
+        ? (moi ? [["Petit rappel", "C'est l'heure."], ["Petit rappel", "Pas encore coché."], ["Petit rappel", `Encore jusqu'à ${limite}.`], ["Petit rappel", "Ouvre l'app quand tu peux."]][etape] as [string, string]
+               : [["Petit rappel", `Pour ${nom} : c'est l'heure.`], ["Petit rappel", `${nom} : pas encore coché.`], ["Petit rappel", `${nom} : encore jusqu'à ${limite}.`], ["Petit rappel", `${nom} : ouvrez l'app.`]][etape] as [string, string])
+        : vert ? [moi ? "Pilule" : `Pilule de ${nom}`, `Comprimé vert ${P.n}, sans hormone.`]
+        : moi ? [["Pilule", `C'est l'heure (comprimé ${P.n}).`], ["Pilule", "Pas encore cochée. Moins de 24 h de retard : la protection reste complète."], ["Pilule : il reste 4 h", `Prends-la avant ${limite} pour rester dans les 24 h.`], ["Pilule : plus de 24 h", "Ouvre l'app : elle te dit quoi faire selon le jour de la plaquette."]][etape] as [string, string]
+        : [[`Pilule de ${nom}`, `C'est l'heure (comprimé ${P.n}).`], [`Pilule de ${nom}`, "Pas encore cochée. Moins de 24 h de retard : la protection reste complète."], [`Pilule de ${nom} : il reste 4 h`, `À prendre avant ${limite} pour rester dans les 24 h.`], [`Pilule de ${nom} : plus de 24 h`, "Ouvrez l'app : elle dit quoi faire selon le jour de la plaquette."]][etape] as [string, string];
+      out.push({ c, to, title: t[0], body: t[1], j, k: passes });
+    }
   }
   return out;
 }

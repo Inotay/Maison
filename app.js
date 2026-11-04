@@ -2797,7 +2797,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v280</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v281</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3176,6 +3176,9 @@ function aspiCard() {
 // les verts et commencer la plaquette suivante. Un vert oublié ne compte pas. Une boîte = 3 plaquettes.
 // L'achat d'une boîte alterne entre les deux (une tâche partagée, dans l'agenda) ; le reste ne quitte pas la carte.
 const isPil = c => !!c.options?.pilule;
+// à qui elle est ; partagée (prive vide) : la carte « Pilule » est commune, les deux la voient, cochent et sont rappelés
+const pilOwner = c => c.options?.pilule?.pour || c.prive || c.turn;
+const pilMien = c => pilOwner(c) === S.me;
 const PIL_BLANCS = 24, PIL_TOTAL = 28, PIL_BOITE = 3;
 const addJ = (iso, n) => isoDate(new Date(new Date(iso + 'T12:00').getTime() + n * DAY));
 const pilDate = iso => new Date(iso + 'T12:00').toLocaleDateString('fr-CH', { day: 'numeric', month: 'long' });
@@ -3197,7 +3200,7 @@ function pilConsignes(e) {
   return `<p><b>Plus de 24 h de retard.</b> D’après la notice :</p><ul>${l.join('')}</ul><p class="hint">En cas de doute, ton pharmacien ou ton médecin peut te dire quoi faire.</p>`;
 }
 function pilRow(c) {
-  const e = pilEtat(c), P = c.options.pilule, ouvert = S.open === 'pil-' + c.id;
+  const e = pilEtat(c), P = c.options.pilule, ouvert = S.open === 'pil-' + c.id, mien = pilMien(c), elle = nameOf(pilOwner(c));
   if (e.config || S.pilReglage === c.id) return `<li class="dech-row pil-row editing">${pilForm(c, e.config)}</li>`;
   const today = isoDate(new Date());
   const prise = (P.hist || []).filter(h => !h.x).slice(-1)[0];
@@ -3215,9 +3218,9 @@ function pilRow(c) {
   const stock = Number(P.stock) || 0;
   const achat = P.achat_id ? S.tasks.find(t => t.id === P.achat_id && !t.done) : null;
   const ordoJ = P.ordo_fin ? dayDiff(new Date(P.ordo_fin + 'T12:00'), new Date()) : null;
-  return `<li class="dech-row pil-row"><img class="ticon" src="icons/themes/pilule.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">Pilule · ${e.vert ? 'comprimé vert' : 'comprimé'} ${e.n} sur ${PIL_TOTAL}</div><div class="item-meta ${e.h24 && !e.vert ? 'late' : ''}"><span class="dots-inline"><span class="dot ${e.aFaire ? 'dot-non' : 'dot-ok'}"></span></span>${esc(meta)}</div></div>
+  return `<li class="dech-row pil-row"><img class="ticon" src="icons/themes/pilule.webp" alt="" width="34" height="34"><div class="item-main"><div class="item-title">${c.prive ? 'Pilule · ' : ''}${e.vert ? 'Comprimé vert' : 'Comprimé'} ${e.n} sur ${PIL_TOTAL}</div><div class="item-meta ${e.h24 && !e.vert ? 'late' : ''}"><span class="dots-inline"><span class="dot ${e.aFaire ? 'dot-non' : 'dot-ok'}"></span></span>${esc(meta)}</div></div>
     <div class="item-trail">${btn}<button class="more" aria-label="Plaquette, calendrier et réglages" aria-expanded="${ouvert}" data-action="pil-ouvrir" data-id="${c.id}">⋯</button></div>
-    ${e.h24 && e.aFaire ? `<div class="pil-alerte">${pilConsignes(e)}</div>` : ''}
+    ${e.h24 && e.aFaire ? `<div class="pil-alerte">${mien ? '' : `<p class="hint">Pour ${esc(elle)} :</p>`}${pilConsignes(e)}</div>` : ''}
     ${prudence}
     <div class="pil-plaq" aria-label="Plaquette : ${e.n - 1} comprimés pris sur ${PIL_TOTAL}">${Array.from({ length: PIL_TOTAL }, (_, i) => cell(i + 1)).join('')}</div>
     ${ouvert ? `<div class="pil-plus">
@@ -3254,21 +3257,33 @@ function pilCal(c, e) {
     <div class="pil-cal-grille">${cases.join('')}</div>
     <p class="pil-cal-leg"><span class="b pris"></span>pris <span class="b tard"></span>en retard <span class="v prevu"></span>vert <span class="debut"></span>nouvelle plaquette${achat ? ' <span class="achat"></span>achat' : ''}</p></div>`;
 }
-// Les réglages (et la première fois) : elle règle tout elle-même.
+// Chacun règle ses propres rappels : le premier (à l'heure de la pilule ou un peu après), puis des relances si
+// ce n'est toujours pas coché (2 h après le premier, puis quand il reste 4 h, puis à 24 h).
+const PIL_PREMIER = [['0', 'À l’heure'], ['15', '+15 min'], ['30', '+30 min'], ['60', '+1 h'], ['120', '+2 h'], ['-1', 'Aucun']];
+const pilMesRappels = c => ({ premier: pilMien(c) ? 0 : 30, relances: true, ...(c.options.pilule.rappels?.[S.me] || {}) });
+function pilRappelsForm(c) {
+  if (c.prive && !pilMien(c)) return '';
+  const r = pilMesRappels(c);
+  return `${chipGroup('pil-r1', PIL_PREMIER, String(r.premier), pilMien(c) ? 'Mon rappel' : `Mon rappel pour ${nameOf(pilOwner(c))}`)}
+    <label class="pil-check"><input type="checkbox" name="relances" ${r.relances ? 'checked' : ''}> Me relancer si ce n’est toujours pas coché</label>`;
+}
+// Les réglages (et la première fois).
 function pilForm(c, premiere) {
   const P = c.options.pilule;
   const n = P.n || 1;
   return `<form class="form pil-form" data-form="pilule" data-id="${c.id}">
-    ${premiere ? `<p class="ticket-title">Pilule</p><p class="hint">Un rappel rien que pour toi : personne d’autre ne voit cette carte. Règle-la comme tu veux, tout se change plus tard.</p>` : '<p class="ticket-title">Réglages de la pilule</p>'}
-    <label class="chip-label" for="pil-h">Ton heure habituelle</label><input class="field" id="pil-h" name="heure" type="time" value="${esc(P.heure || '21:00')}" required>
+    ${premiere ? `<p class="ticket-title">Pilule${pilMien(c) ? '' : ` de ${esc(nameOf(pilOwner(c)))}`}</p><p class="hint">${c.prive ? 'Un rappel rien que pour toi : personne d’autre ne voit cette carte.' : `Une carte en commun : vous la voyez tous les deux, chacun peut cocher, et les rappels arrivent à vous deux.`} Tout se change plus tard.</p>` : '<p class="ticket-title">Réglages de la pilule</p>'}
+    <label class="chip-label" for="pil-h">${pilMien(c) ? 'Ton heure habituelle' : `Heure de ${esc(nameOf(pilOwner(c)))}`}</label><input class="field" id="pil-h" name="heure" type="time" value="${esc(P.heure || '21:00')}" required>
     ${premiere ? `<label class="chip-label" for="pil-n">Le comprimé d’aujourd’hui, c’est le numéro</label>
     <select class="field" id="pil-n" name="n">${Array.from({ length: PIL_TOTAL }, (_, i) => `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1}${i + 1 > PIL_BLANCS ? ' (vert)' : ''}</option>`).join('')}</select>
     ${chipGroup('pil-auj', [['non', 'Pas encore pris'], ['oui', 'Déjà pris']], 'non', 'Celui d’aujourd’hui')}` : `<label class="chip-label" for="pil-n">Prochain comprimé (numéro dans la plaquette)</label>
     <select class="field" id="pil-n" name="n">${Array.from({ length: PIL_TOTAL }, (_, i) => `<option value="${i + 1}" ${i + 1 === n ? 'selected' : ''}>${i + 1}${i + 1 > PIL_BLANCS ? ' (vert)' : ''}</option>`).join('')}</select>`}
-    <label class="chip-label" for="pil-s">Plaquettes qu’il te reste, celle en cours comprise</label><input class="field" id="pil-s" name="stock" type="number" min="0" max="12" inputmode="numeric" value="${Number(P.stock) || PIL_BOITE}">
+    <label class="chip-label" for="pil-s">Plaquettes qu’il reste, celle en cours comprise</label><input class="field" id="pil-s" name="stock" type="number" min="0" max="12" inputmode="numeric" value="${Number(P.stock) || PIL_BOITE}">
     <label class="chip-label" for="pil-o">Ordonnance valable jusqu’au</label><input class="field" id="pil-o" name="ordo" type="date" value="${esc(P.ordo_fin || '')}">
     <label class="pil-check"><input type="checkbox" name="discret" ${P.discret !== false ? 'checked' : ''}> Notifications discrètes (« Petit rappel », sans le mot pilule)</label>
-    <div class="form-actions">${premiere ? `<button type="button" class="btn ghost small" data-action="pil-non" data-id="${c.id}">Je n’en veux pas</button>` : `<button type="button" class="btn ghost small" data-action="pil-regler" data-id="${c.id}">Annuler</button>`}<button class="btn" type="submit">${premiere ? 'C’est parti' : 'Enregistrer'}</button></div>
+    ${pilRappelsForm(c)}
+    ${pilMien(c) && other() ? `<label class="pil-check"><input type="checkbox" name="partage" ${!c.prive ? 'checked' : ''}> En commun avec ${esc(nameOf(other()))} : il voit la carte, peut cocher et reçoit aussi les rappels</label>` : ''}
+    <div class="form-actions">${premiere && pilMien(c) ? `<button type="button" class="btn ghost small" data-action="pil-non" data-id="${c.id}">Je n’en veux pas</button>` : `<button type="button" class="btn ghost small" data-action="pil-regler" data-id="${c.id}">Annuler</button>`}<button class="btn" type="submit">${premiere ? 'C’est parti' : 'Enregistrer'}</button></div>
   </form>`;
 }
 async function pilEcrire(c, P, extra = {}) {
@@ -3279,9 +3294,9 @@ async function pilEcrire(c, P, extra = {}) {
 async function pilAchat(c, P) {
   if (P.achat_id && S.tasks.some(t => t.id === P.achat_id && !t.done)) return;
   const qui = S.pilAchat?.prochain && S.members.some(m => m.email === S.pilAchat.prochain) ? S.pilAchat.prochain : S.me;
-  const pour = qui === S.me ? 'ma pilule' : `la pilule de ${firstName()}`;
+  const elle = pilOwner(c);
   const due = addJ(isoDate(new Date()), Number(P.stock) >= 1 ? 14 : 1);
-  const t = await api.insert('tasks', { title: `Acheter ${pour} (Slinda, 1 boîte)`, assignee: qui, due_on: due, icon: 't:pharmacie' });
+  const t = await api.insert('tasks', { title: `Pilule de ${nameOf(elle)} : acheter une boîte (Slinda)`, assignee: qui, due_on: due, icon: 't:pharmacie' });
   if (t) S.tasks.push(t);
   P.achat_id = t?.id || null;
   const suivant = S.members.find(m => m.email !== qui)?.email || qui;
@@ -3290,7 +3305,7 @@ async function pilAchat(c, P) {
 }
 // À l'ouverture : la boîte achetée (la tâche cochée par l'un ou l'autre) s'ajoute à la réserve.
 async function pilSync() {
-  for (const c of S.chores.filter(x => isPil(x) && x.prive === S.me)) {
+  for (const c of S.chores.filter(x => isPil(x) && pilOwner(x) === S.me)) {
     const P = { ...c.options.pilule }; if (!P.achat_id) continue;
     const t = S.tasks.find(x => x.id === P.achat_id);
     if (t && !t.done) continue;
@@ -3326,6 +3341,13 @@ function pilGeste(el, jeter) {
   });
 }
 // Pour moi : les tâches perso, que l'autre ne voit pas (la base ne les lui envoie même pas).
+function pilCard() {
+  const rows = S.chores.filter(c => isPil(c) && !c.prive);
+  if (!rows.length) return '';
+  const c = rows[0], e = pilEtat(c), mien = pilMien(c);
+  const summary = e.config ? (mien ? 'À régler' : `${nameOf(pilOwner(c))} doit encore la régler`) : e.aFaire ? (e.h24 ? 'Plus de 24 h de retard' : 'À prendre') : e.jour === isoDate(new Date()) ? `Aujourd’hui à ${e.P.heure}` : 'Prise aujourd’hui';
+  return groupCard({ id: 'pilule', icon: 'pilule', title: mien ? 'Pilule' : `Pilule de ${nameOf(pilOwner(c))}`, summary, dots: `<span class="dot ${e.aFaire ? 'dot-non' : 'dot-ok'}"></span>`, rows: [pilRow(c)] });
+}
 function persoCard() {
   const rows = S.chores.filter(c => c.prive === S.me).sort((p, q) => (isPil(q) - isPil(p)) || choreStatus(p).d - choreStatus(q).d);
   if (!rows.length) return '';
@@ -3372,11 +3394,11 @@ function viewMenage() {
   // Ordre : ce qu'on peut descendre maintenant, puis ce qui attend le ramassage, puis ce qui est fait (prochaine échéance la plus proche d'abord).
   const rank = c => { const st = choreStatus(c); const d = descente(SORTES.find(x => x.id === c.sorte), c); return st.due ? (d.possible ? 0 : 1) : 2; };
   const waste = SORTES.map(s => S.chores.find(c => c.sorte === s.id)).filter(Boolean).sort((a, b) => rank(a) - rank(b) || choreStatus(a).d - choreStatus(b).d);
-  const chores = S.chores.filter(c => !c.sorte && !c.prive && !/vaisselle/i.test(c.title) && !isAspi(c) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
+  const chores = S.chores.filter(c => !c.sorte && !c.prive && !isPil(c) && !/vaisselle/i.test(c.title) && !isAspi(c) && !isAzami(c)).sort((a, b) => rankOf(a) - rankOf(b) || choreStatus(a).d - choreStatus(b).d);
   const who = S.members.map(m => [m.email, m.email === S.me ? 'Moi' : m.name]);
 
   return `<header class="hd row"><div><p class="hd-kicker">Corvées et tournus</p><h1>Ménage</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_menage', 'Azami passe le balai')}</button></header>
-    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${aspiCard()}${persoCard()}${lessiveCard()}${azamiCard()}</div>
+    <div class="groups">${dechetsCard(waste)}${vaisselleCard()}${aspiCard()}${pilCard()}${persoCard()}${lessiveCard()}${azamiCard()}</div>
     <h2 class="list-head">Corvées</h2>
     ${chores.length ? `<div class="chores" data-sort="chores">${chores.map(c => {
       const st = choreStatus(c);
@@ -5795,7 +5817,7 @@ function comptesNote(dit, net = true) { const v = comptesVu(); safeSet('maison-a
 function azamiContexte(txt = '') {
   const l = [], nom = e => e === S.me ? firstName() : nameOf(e);
   // le ménage, corvée par corvée : à qui le tour, quand et par qui, ce qui est dû, les machines en route
-  const men = S.chores.filter(c => !c.prive).slice(0, 30).map(c => {
+  const men = S.chores.filter(c => !c.prive && !isPil(c)).slice(0, 30).map(c => {
     const st = choreStatus(c), q = seqOf(c), quand = c.last_done_at ? `faite ${ago(c.last_done_at)}${c.last_done_by ? ` par ${nom(c.last_done_by)}` : ''}` : 'jamais faite';
     let machine = '';
     if (q && c.started_at) { const e = q.steps[Math.min(c.step || 0, q.steps.length - 1)]; const fin = new Date(c.started_at).getTime() + seqMinutes(c, e) * 60e3; machine = Date.now() < fin ? `, ${e.doing || 'en route'} (fini dans ${Math.ceil((fin - Date.now()) / 60e3)} min)` : `, à l'étape suivante : ${q.steps[Math.min((c.step || 0) + 1, q.steps.length - 1)].meta || ''}`; }
@@ -6023,7 +6045,7 @@ async function azamiAgir(a) {
       await api.upsert('reglages', { cle: `azami:anniv:${qui}`, valeur: { date: mmjj, par: S.me } });
       S.anniv = { ...(S.anniv || {}), [qui]: mmjj };
     } else if (a.type === 'corvee') {
-      const c = azTrouve(S.chores.filter(x => !x.prive), texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
+      const c = azTrouve(S.chores.filter(x => !x.prive && !isPil(x)), texte, 'title'); if (!c) { azamiPose(`Je ne trouve pas « ${texte} » dans le ménage. Tu peux me redire son nom ?`, 'curieuse'); render(); return false; }
       const par = a.pour === 'autre' && other() ? other() : S.me;
       if (c.last_done_at && Date.now() - new Date(c.last_done_at).getTime() < 10 * 60e3) { azamiPose(`« ${c.title} » vient déjà d’être cochée. Bien joué, deux fois même.`, 'contente'); render(); return false; }
       const next = c.fixed ? c.turn : (S.members.find(m => m.email !== par)?.email || par);   // le tour passe à l'autre que celui qui l'a faite
@@ -7866,9 +7888,12 @@ const forms = {
     P.stock = Math.min(12, Math.max(0, Number(f.stock.value) || 0));
     if (f.ordo.value !== (P.ordo_fin || '')) { P.ordo_fin = f.ordo.value || null; P.ordo_vu = false; }
     P.discret = f.discret.checked;
+    P.pour = pilOwner(c);
+    if (f.relances) { const premier = Number(chipVal('pil-r1', String(pilMesRappels(c).premier))); P.rappels = { ...(P.rappels || {}), [S.me]: { premier: Number.isFinite(premier) ? premier : 0, relances: f.relances.checked } }; }
+    const prive = f.partage ? (f.partage.checked ? null : S.me) : c.prive;
     S.pilReglage = null;
-    undoable(premiere ? 'Pilule réglée' : 'Réglages de la pilule', [{ t: 'chores', id: c.id, row: { options: avant } }], async () => {
-      await pilEcrire(c, P, { notified_at: null, step: 0 });
+    undoable(premiere ? 'Pilule réglée' : 'Réglages de la pilule', [{ t: 'chores', id: c.id, row: { options: avant, prive: c.prive ?? null } }], async () => {
+      await pilEcrire(c, P, { notified_at: null, step: 0, prive });
       if (P.stock <= 1) { await pilAchat(c, P); await pilEcrire(c, P); }
     }, premiere ? `C’est réglé : rappel à ${P.heure}` : 'Enregistré');
   },
