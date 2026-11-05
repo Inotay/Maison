@@ -92,3 +92,7 @@ html.cine-seul .login .link { color: #fff; text-decoration-color: rgba(255, 255,
 html.cine-seul .login .btn:not(.ghost) { background: var(--vert); color: #0D3B22; box-shadow: 0 5px 0 var(--vert-l); }
 html.cine-seul .ami-entree { display: block; margin-top: 20px; padding: 14px; border-radius: 16px; text-align: center; text-decoration: none; font-weight: 900; background: rgba(255, 255, 255, .2); color: #fff; box-shadow: 0 4px 0 var(--lip); border: 0; }
 html.cine-seul .login h1 { color: #fff; text-shadow: 0 3px 0 var(--lip); }
+/* les bulles d'Azami (réseau, messages) se posent sous l'en-tête, sans casser sa grille */
+html.cine-seul .hd.cine-tete { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: none; }
+html.cine-seul .hd.cine-tete > * { grid-area: auto !important; min-width: 0; }
+html.cine-seul .hd.cine-tete > .az-bulles { padding: 0; }
