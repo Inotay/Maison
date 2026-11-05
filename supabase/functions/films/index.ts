@@ -320,6 +320,23 @@ async function deck(seeds: { tmdb_id: number; media: string }[], exclude: Set<st
   return rich.map((x, i) => x ?? out[i]);
 }
 
+// Les sagas (Alien, Hellraiser, Harry Potter…) : la liste des films d'une collection TMDB, dans l'ordre de sortie.
+const SAGA = new Map<number, Promise<Item[]>>();
+function sagaParts(id: number) {
+  if (!SAGA.has(id)) SAGA.set(id, tmdb(`/collection/${id}`).then(d => ((d.parts ?? []) as Record<string, unknown>[])
+    .filter(p => p.release_date && String(p.release_date) <= new Date().toISOString().slice(0, 10))
+    .sort((a, b) => String(a.release_date).localeCompare(String(b.release_date)))
+    .map(p => fromTmdb(p, "movie")).filter(Boolean) as Item[]).catch(() => []));
+  return SAGA.get(id)!;
+}
+async function sagas(items: Record<string, any>[]) {
+  await pool(items.filter(x => x.media === "movie" && x.traits?.col?.id), 6, async (x: Record<string, any>) => {
+    const parts = await sagaParts(Number(x.traits.col.id));
+    const i = parts.findIndex(p => p.tmdb_id === x.tmdb_id);
+    if (i > 0) x.saga = { name: x.traits.col.name, i: i + 1, n: parts.length, avant: parts.slice(0, i) };
+  });
+}
+
 // Les alertes (lancées chaque jour par le planificateur) : un film de vos listes passe en salle à Lausanne,
 // arrive sur un de vos abonnements, ou une série en cours a une nouvelle saison. Chaque alerte part une seule fois.
 const wantsV = (v: unknown) => v === "oui" || v === "super";
@@ -515,6 +532,9 @@ Deno.serve(async (req) => {
       const exclude = new Set(((body.exclude ?? []) as string[]).map(String));
       const np = KEY ? await nowPlaying() : new Set<number>();
       const res = (await deck(seeds, exclude, String(body.mood ?? ""), ((body.subs ?? []) as string[]).map(String), (body.prefs ?? {}) as Prefs)).map(x => ({ ...x, cinema: x.cinema || (x.media === "movie" && np.has(x.tmdb_id!)) }));
+      // les sagas : pour une suite, les épisodes d'avant (dans l'ordre de sortie) ; l'app ne propose pas Hellraiser 2
+      // tant qu'on ne sait pas si tu as vu (ou veux voir) le premier, et te propose plutôt le premier
+      await sagas(res as Record<string, any>[]);
       // notes presse et public : celles déjà en cache pour tous, et jusqu'à 12 nouvelles par pioche
       let fresh = 0;
       await pool(res, 8, async (x: Record<string, any>) => { const p = await presseOf(db, x.media, x.tmdb_id, () => fresh++ < 8).catch(() => null); if (p) x.presse = p; });

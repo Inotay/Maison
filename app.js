@@ -2797,7 +2797,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v284</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v285</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4129,6 +4129,9 @@ const fMatch = f => S.members.length >= 2 && S.members.every(m => T.wants(fVotes
 const fMeta = f => [f.year, f.media === 'tv' ? (f.seasons ? pl(f.seasons, 'saison', 'saisons') : 'Série') : (f.runtime ? rDur(f.runtime) : 'Film'), (f.genres || []).slice(0, 2).join(', ')].filter(Boolean).join(' · ');
 const POSTER_W = { fposter: 'w185', sposter: 'w92', iposter: 'w185', tposter: 'w342' };
 const posterSrc = (u, cls) => POSTER_W[cls] ? String(u).replace('/t/p/w342/', `/t/p/${POSTER_W[cls]}/`) : u;
+// Quand quelqu'un a dit son envie (noté par la base à chaque changement d'avis), sinon l'entrée du film dans la collection.
+const fAjout = (f, who) => String(f.votes_at?.[who] || f.created_at || '');
+const fAjoutNous = f => Object.values(f.votes_at || {}).map(String).sort().pop() || String(f.created_at || '');
 const fPoster = (f, cls = 'fposter') => f.poster ? `<img class="${cls}" src="${esc(posterSrc(f.poster, cls))}" alt="" ${cls === 'fposter' || cls === 'iposter' ? 'loading="lazy"' : ''} decoding="async" referrerpolicy="no-referrer" data-poster>` : `<span class="${cls} noposter" aria-hidden="true">${icn(f.media === 'tv' ? 'tele' : 'film')}</span>`;
 const fProv = f => (f.providers || []).filter(p => p.kind !== 'location').slice(0, 3).map(p => p.name);
 // Vos abonnements et les salles de Lausanne : où on peut le voir, nous, ce soir.
@@ -4173,12 +4176,12 @@ function cineSeeds(n = 4) {
   return all.sort(() => Math.random() - .5).slice(0, n);
 }
 function cineLists() {
-  const o = other(), recent = (a, b) => String(b.created_at).localeCompare(String(a.created_at));
+  const o = other(), recentPar = who => (a, b) => fAjout(b, who).localeCompare(fAjout(a, who)), recent = recentPar(S.me);
   const open = S.films.filter(f => f.status === 'a_voir');
   // tes envies, et les films déjà vus que tu veux revoir (même ceux du journal à deux)
   const mine = S.films.filter(f => (f.status === 'a_voir' && T.wants(fVotes(f)[S.me])) || (f.status !== 'en_cours' && fVotes(f)[S.me] === 'revoir')).sort((a, b) => (fMatch(b) - fMatch(a)) || recent(a, b));
-  const theirs = o ? open.filter(f => T.wants(fVotes(f)[o])).sort((a, b) => (fMatch(b) - fMatch(a)) || recent(a, b)) : [];
-  const nous = open.filter(fMatch).sort(recent);
+  const theirs = o ? open.filter(f => T.wants(fVotes(f)[o])).sort((a, b) => (fMatch(b) - fMatch(a)) || recentPar(o)(a, b)) : [];
+  const nous = open.filter(fMatch).sort((a, b) => fAjoutNous(b).localeCompare(fAjoutNous(a)));
   const enCours = S.films.filter(f => f.status === 'en_cours');
   const vus = S.films.filter(f => f.status === 'vu').sort((a, b) => String(b.seen_at || '').localeCompare(String(a.seen_at || '')));
   return { mine, theirs, nous, enCours, vus, aVoir: nous };
@@ -4239,7 +4242,7 @@ function cineFilter(list, who) {
   const md = S.cineM || '';
   let l = list.filter(f => (!fl || (fl === 'chez' ? fDispo(f) : f.media === 'movie' && (f.traits?.rt || f.runtime || 999) <= 120)) && (!md || (md === 'film' ? f.media === 'movie' : f.media === 'tv')));
   const sc = f => (S.members.some(m => fVotes(f)[m.email] === 'super') ? 5 : 0) + (p ? T.score(p, f, .2) : t.other ? T.scoreBoth(t.me, t.other, f, t.couple, .2) : 0);   // dans vos listes : « vais-je l’aimer ? » compte le plus
-  const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => String(b.created_at).localeCompare(String(a.created_at)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
+  const by = { envie: (a, b) => sc(b) - sc(a), recent: (a, b) => fAjout(b, S.me).localeCompare(fAjout(a, S.me)), note: (a, b) => (b.note || 0) - (a.note || 0), duree: (a, b) => (a.traits?.rt || a.runtime || 999) - (b.traits?.rt || b.runtime || 999) };
   l = [...l].sort(by[so] || by.envie);
   return l;
 }
@@ -4582,7 +4585,7 @@ async function amisSheet() {
           ${op ? `<div class="ami-corps">
             ${a.aTrois?.length ? `<p class="chip-label">${icn('deux')} Envie tous les trois</p>${amiRangee(a.aTrois)}` : ''}
             <p class="chip-label">${icn('envie')} Envie tous les deux${c.nMatches ? ` · ${c.nMatches}` : ''}</p>${c.matches?.length ? amiRangee(c.matches) : '<p class="hint">Pas encore d’envie en commun.</p>'}
-            ${c.pourMoi?.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur, pas encore vus par toi</p>${amiRangee(c.pourMoi, true)}<p class="hint">Touche une affiche pour l’ajouter à tes envies.</p>` : ''}
+            ${c.pourMoi?.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur, pas encore vus par toi</p>${amiRangee(c.pourMoi, true)}<p class="hint">Touche une affiche pour voir sa fiche.</p>` : ''}
             ${c.adores?.length ? `<p class="chip-label">Adorés tous les deux</p>${amiRangee(c.adores)}` : ''}
             ${c.desaccords?.length ? `<p class="chip-label">Vos grands désaccords</p><ul class="ami-desac">${c.desaccords.map(f => `<li><span>${esc(f.title)}</span><b>toi ${String(f.moi).replace('.', ',')} · ${esc(a.nom || 'lui')} ${String(f.lui).replace('.', ',')}</b></li>`).join('')}</ul>` : ''}
             <div class="soiree-acts">${liens[a.id] ? `<button class="btn ghost" data-a="relien" data-id="${a.id}">Son lien</button>` : ''}<button class="btn ghost" data-a="renouveler" data-id="${a.id}">Nouveau lien</button><button class="btn ghost danger-t" data-a="couper" data-id="${a.id}">Couper</button>${D?.peutSupprimer ? `<button class="btn ghost danger-t" data-a="supprimer" data-id="${a.id}">Supprimer</button>` : ''}</div></div>` : ''}</li>`; }).join('')}</ul>` : '<p class="hint">Pas encore d’ami invité.</p>'}
@@ -4625,10 +4628,10 @@ async function amisSheet() {
       try { await amisCall({ action: 'supprimer', id: a.id }); amisLien(a.id, null); if (nouveau?.id === a.id) nouveau = null; if (ouvert === a.id) ouvert = null; await load(); render(); toast('Ami supprimé'); } catch (err) { toast(err.message); }
       return;
     }
-    if (k === 'film' && b.dataset.plus) {
+    if (k === 'film') {
+      // toucher une affiche ouvre sa fiche (et l'ajoute à la collection, sans avis, si elle n'y est pas encore)
       const [media, id] = b.dataset.k.split(':');
-      try { await filmVote({ tmdb_id: Number(id), media, title: b.dataset.t, year: Number(b.dataset.y) || null, poster: b.dataset.p || null }, 'oui'); toast(`${b.dataset.t} : dans ta liste`); haptic('medium'); b.disabled = true; b.classList.add('pris'); }
-      catch { toast('Pas réussi à l’ajouter.'); }
+      closeTicket(); filmOuvrir({ tmdb_id: Number(id), media, title: b.dataset.t, year: Number(b.dataset.y) || null, poster: b.dataset.p || null });
     }
   });
   await load();
@@ -4987,6 +4990,7 @@ async function filmVote(item, vote, enrich = true, seenNote = 0, meta = null) {
     if (!ex.traits && item.traits) Object.assign(patch, { traits: item.traits, gids: item.gids || ex.gids || [], lang: item.lang || ex.lang, note: item.note || ex.note });
     if (!ex.presse && item.presse) patch.presse = item.presse;
     Object.assign(ex, patch); await api.update('films', { id: ex.id }, patch);
+    if (vote) ex.votes_at = { ...(ex.votes_at || {}), [S.me]: new Date().toISOString() };
     filmVote.undo = [label, [back], []]; (filmVote.undoFor ||= new Map()).set(k, filmVote.undo);
     return ex;
   }
@@ -5076,6 +5080,33 @@ async function deckOpen(mood = '') {
 }
 // Remplir la pile : d’abord ce que l’autre a envie de voir (sans le dire), puis les propositions, classées
 // par le goût (le tien, et celui de l’autre pour viser les matchs), avec un peu de hasard pour apprendre.
+// Les sagas : une suite n'est proposée que si tu as vu (ou veux voir) les films d'avant. Sinon, c'est le premier
+// qu'on ne connaît pas encore qui vient à sa place ; et si tu as dit non à un film d'avant, la suite ne vient pas.
+const sagaAvant = f => f.saga?.avant?.length ? f.saga.avant
+  : f.traits?.col?.id ? S.films.filter(x => x !== f && x.media === 'movie' && x.traits?.col?.id === f.traits.col.id && x.year && f.year && x.year < f.year).sort((a, b) => a.year - b.year) : [];
+function sagaEtat(p, who = S.me) {
+  const x = S.films.find(y => fkey(y) === fkey(p)) || p, v = fVotes(x)[who], n = x.ratings?.[who]?.note || 0;
+  if (n && n <= 2) return 'non';
+  if (fSeen(x, who) || n || T.wants(v) || v === 'revoir') return 'oui';
+  if (v === 'non' || v === 'beurk') return 'non';
+  return '?';
+}
+function sagaTri(list, shown = {}) {
+  const out = [], pris = new Set(list.map(fkey));
+  for (const f of list) {
+    const avant = sagaAvant(f); if (!avant.length) { out.push(f); continue; }
+    const etats = avant.map(p => sagaEtat(p));
+    if (etats.includes('non')) continue;
+    const i = etats.indexOf('?');
+    if (i < 0) { out.push(f); continue; }
+    const p = avant[i], k = fkey(p);
+    if (pris.has(k) || deck?.keys?.has(k)) continue;
+    const x = S.films.find(y => fkey(y) === k) || p;
+    if (shown[k] && !fVotes(x)[S.me]) continue;   // déjà montré sans réponse : on n'insiste pas, et la suite attend
+    pris.add(k); out.push(x);
+  }
+  return out;
+}
 async function deckMore(first = false) {
   if (!deck || deck.loading) return; deck.loading = true;
   if (deck.mood === 'test' || deck.mood === 'deja') {
@@ -5093,7 +5124,7 @@ async function deckMore(first = false) {
   // ce que l’autre veut voir (surtout « très envie ») ou a vu et aimé, et que tu n’as pas encore jugé : prioritaire, mais
   // pas systématique, et sans le dire (la surprise du match)
   if (!deck.prio) { const vus = shownGet(); deck.prio = o ? S.films.filter(f => !judged(f) && !vus[fkey(f)] && !deck.keys.has(fkey(f)) && (T.wants(fVotes(f)[o]) && f.status === 'a_voir' || (f.ratings?.[o]?.note || 0) >= 4 || (f.coeur || []).includes(o))) : []; }
-  const pending = deck.prio.filter(f => !deck.keys.has(fkey(f)) && !judged(f));
+  const pending = deck.prio.filter(f => !deck.keys.has(fkey(f)) && !judged(f) && sagaAvant(f).every(p => sagaEtat(p) === 'oui'));
   const pm = t0.me ? T.prefs(t0.me) : {}, po = t0.other ? T.prefs(t0.other) : {};
   const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws, cos: pm.cos };
   let more = [];
@@ -5101,7 +5132,8 @@ async function deckMore(first = false) {
   try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys, ...recent] })).results || []; } catch (e) { console.warn('deck', e); }
   more = more.filter(f => !shown[fkey(f)]);
   // si l’autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s’il est déjà jugé par toi, on l’écarte
-  more = more.filter(f => !deck.keys.has(fkey(f))).map(f => S.films.find(x => fkey(x) === fkey(f)) || f).filter(f => !judged(f));
+  more = more.filter(f => !deck.keys.has(fkey(f))).map(f => { const x = S.films.find(y => fkey(y) === fkey(f)); if (x && f.saga) x.saga = f.saga; return x || f; }).filter(f => !judged(f));
+  more = sagaTri(more, shown);
   const t = tastes(more, true);
   const sc = f => t.other && t.other.n >= 5 ? T.score(t.me, f) * .7 + T.score(t.other, f) * .3 : T.score(t.me, f);
   // On ne montre que le meilleur de la pioche : sur tes avis, le tiers le mieux classé contient près de 8 envies sur 10
@@ -5474,6 +5506,13 @@ function deckWhy(f, v) {
   });
 }
 // La fiche d’un film : affiche, synopsis, où regarder, bande-annonce, et ce qu’on en fait.
+// Ouvrir la fiche de n'importe quel film : celui de la collection, ou un film d'ailleurs (la page d'un ami…), qu'on
+// range d'abord dans la collection sans avis, pour que la fiche ait tout (résumé, bande-annonce, où le voir).
+async function filmOuvrir(item) {
+  const ex = S.films.find(f => fkey(f) === fkey(item));
+  if (ex) return cineOpen(ex.id);
+  try { const saved = await filmVote(item, null, true); if (saved?.id) cineOpen(saved.id); } catch (e) { console.warn('fiche', e); toast('La fiche ne s’ouvre pas. Réessaie.'); }
+}
 async function cineOpen(id) {
   const f = S.films.find(x => x.id === id); if (!f) return;
   const draw = () => {
@@ -5500,6 +5539,8 @@ async function cineOpen(id) {
         ${fMatch(f) ? `<span class="fbadge match">${icn('deux')} Vous deux</span>` : o && T.wants(v[o]) ? `<span class="fbadge">Envie de ${esc(nameOf(o))}</span>` : ''}</div></div>
       ${presseRow(f)}${palmaresRow(f)}${tonsRow(f)}
       ${f.overview ? `<p class="fsyn">${esc(f.overview)}</p>` : ''}
+      ${(() => { if (fSeen(f, S.me)) return ''; const av = sagaAvant(f).filter(p => sagaEtat(p) !== 'oui'); if (!av.length) return ''; const p = av[0], x = S.films.find(y => fkey(y) === fkey(p));
+        return `<p class="fsaga">${icn('film')} C’est une suite${f.traits?.col?.name ? ` (${esc(f.traits.col.name.replace(/\s*[-–:]?\s*(Collection|la saga|saga)\s*$/i, ''))})` : ''} : tu n’as pas encore vu <b>${esc(p.title)}</b>${p.year ? ` (${p.year})` : ''}${av.length > 1 ? ` ni ${av.length - 1 > 1 ? `${av.length - 1} autres films d’avant` : 'un autre film d’avant'}` : ''}.${x ? ` <button type="button" class="link" data-action="cine-open" data-id="${x.id}">Voir sa fiche</button>` : ''}</p>`; })()}
       ${critiquesRow(f)}
       ${(() => { const tr = f.traits || {}, ppl = [...(tr.dir || []).map(p => [p, f.media === 'tv' ? 'création' : 'réalisation']), ...(tr.wri || []).slice(0, 1).map(p => [p, 'scénario']), ...(tr.comp || []).map(p => [p, 'musique']), ...(tr.dop || []).map(p => [p, 'image']), ...(tr.cast || []).slice(0, 3).map(p => [p, ''])];
         const seen = new Set(); const l = ppl.filter(([p]) => !seen.has(p.id) && seen.add(p.id));

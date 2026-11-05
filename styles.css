@@ -2384,3 +2384,5 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 .pil-form select.field { appearance: auto; }
 html[data-theme="brun"] .pil-cal-grille span.b { background: rgba(243, 235, 223, .08); } html[data-theme="brun"] .pil-cal-grille span.v { background: rgba(155, 216, 166, .18); }
 html[data-theme="brun"] .pil-plaq { background: linear-gradient(160deg, #4A3A30, #3A2A20); box-shadow: none; }
+.fsaga { margin: 8px 0; padding: 8px 12px; border-radius: var(--r-in); background: rgba(242, 193, 78, .16); font-size: 14px; }
+.fsaga .icn { width: 16px; height: 16px; vertical-align: -3px; }
