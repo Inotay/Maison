@@ -2101,10 +2101,10 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 @media (prefers-reduced-motion: reduce) { .az-mic.on, .az-pense i, .az-b, .az-elle, .az-nuage::after { animation: none; } }
 
 /* Les crottes d'Azami et la poubelle (dessinées au feutre) */
-.crotte { all: unset; cursor: grab; position: absolute; z-index: 4; width: 34px; height: 31px; transform: translate(-50%, -50%); touch-action: none; filter: drop-shadow(0 2px 0 rgba(42, 28, 21, .18)); animation: crotte-in .5s cubic-bezier(.34, 1.5, .64, 1) both; }
+.crotte { all: unset; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; cursor: grab; position: absolute; z-index: 4; width: 34px; height: 31px; transform: translate(-50%, -50%); touch-action: none; filter: drop-shadow(0 2px 0 rgba(42, 28, 21, .18)); animation: crotte-in .5s cubic-bezier(.34, 1.5, .64, 1) both; }
 .crotte svg { display: block; width: 100%; height: 100%; }
 .crotte.prise { opacity: .25; }
-.crotte.vole { position: fixed; z-index: 95; transform: none; pointer-events: none; cursor: grabbing; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, .25)); }
+.crotte.vole { -webkit-tap-highlight-color: transparent; position: fixed; z-index: 95; transform: none; pointer-events: none; cursor: grabbing; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, .25)); }
 @keyframes crotte-in { from { transform: translate(-50%, -80%) scale(.4); opacity: 0; } }
 #poubelle { position: fixed; left: 50%; bottom: calc(var(--nav-h) + var(--safe-b) + 18px); z-index: 94; transform: translate(-50%, 40px); opacity: 0; transition: transform .3s cubic-bezier(.34, 1.4, .64, 1), opacity .25s; pointer-events: none; filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .16)); }
 #poubelle.on { transform: translate(-50%, 0); opacity: 1; }

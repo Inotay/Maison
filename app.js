@@ -2797,7 +2797,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v282</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v283</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -6217,7 +6217,7 @@ function crottePrend(e) {
     const d = crotteDrag; crotteDrag = null; if (!d) return;
     if (d.dedans) {
       // dans la poubelle : la crotte tombe, le couvercle se referme, propreté +1
-      const b = d.bin.getBoundingClientRect(); d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 20}px`; d.ghost.style.transform = 'scale(.4)'; d.ghost.style.opacity = '0';
+      const b = d.bin.getBoundingClientRect(); d.ghost.style.zIndex = '93'; d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 42}px`; d.ghost.style.transform = 'scale(.5)'; d.ghost.style.opacity = '0';
       sfx('plop'); setTimeout(() => { d.bin.classList.remove('ouverte'); sfx('couvercle'); haptic('heavy'); }, 160);
       setTimeout(() => { d.ghost.remove(); d.bin.classList.remove('on'); setTimeout(() => d.bin.remove(), 300); }, 420);
       const t = tamaEtat(); t.crottes = (t.crottes || []).filter(c => c.id !== d.id); t.ramasse = [...(t.ramasse || []), d.id].slice(-40); t.proprete = clamp100((t.proprete ?? 100) + 20); tamaSave(true); d.el.remove();
