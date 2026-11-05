@@ -4,6 +4,7 @@
 // Tout ce qui vient des autres (prénoms, titres) est écrit comme du texte, jamais comme du HTML.
 import * as JEU from './jeu-cine.js';
 import { haptic, armer as armerHaptique } from './haptique.js';
+import { CHAT, choisirPhoto } from './photo-profil.js';
 const URL_FN = (window.MAISON_CONFIG?.supabaseUrl || '') + '/functions/v1/amis';
 const $ = document.getElementById('s');
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -68,6 +69,7 @@ async function charger() {
   dessiner();
   // la deuxième visite par le lien : proposer un compte (une fois par jour au plus, si on dit « plus tard »)
   if (installAProposer()) setTimeout(installPop, 900);
+  else if (photoAProposer()) setTimeout(photoPop, 900);
   else if (!P.compte && Date.now() - Number(store.get('ami-compte-plus-tard') || 0) > 864e5) setTimeout(() => comptePop(true), 900);
 }
 
@@ -141,6 +143,7 @@ function reinit() {
 // le menu sous son prénom : prénom, compte, inviter quelqu'un, se déconnecter
 function moiPop() {
   const box = pop(`<p class="a-note-t"></p><div class="a-menu">
+    <button class="s-btn ghost" data-m="photo">${P.photo ? 'Changer ma photo' : 'Mettre une photo de profil'}</button>
     <button class="s-btn ghost" data-m="nom">Changer mon prénom</button>
     <button class="s-btn ghost" data-m="compte">${P.compte ? 'Mon compte' : 'Créer un compte'}</button>
     <button class="s-btn" data-m="inviter">Inviter quelqu’un</button>
@@ -152,6 +155,7 @@ function moiPop() {
   box.addEventListener('click', async e => {
     const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
     if (m === 'nom') { box.remove(); accueil(); }
+    if (m === 'photo') { box.remove(); await photoChanger(); }
     if (m === 'compte') comptePop(false);
     if (m === 'inviter') invitePop();
     if (m === 'azami') azamiPop();
@@ -209,7 +213,7 @@ function tuto(n) {
     <div class="a-dots">${TUTO.map((_, k) => `<i class="${k === n ? 'on' : ''}"></i>`).join('')}</div>
     <div class="a-tuto-btns">${n < TUTO.length - 1 ? '<button class="s-btn ghost" data-skip>Passer</button>' : ''}<button class="s-btn" data-next>${n < TUTO.length - 1 ? 'Suivant' : 'Commencer'}</button></div></section>`;
   $.querySelector('h1').textContent = s.t(); $.querySelector('p').textContent = s.p();
-  const finir = async () => { try { await call('profil', { tuto: true }); P.tuto = true; } catch {} await chargerMes(); onglet = 'cinder'; dessiner(); if (installAProposer()) setTimeout(installPop, 700); };
+  const finir = async () => { try { await call('profil', { tuto: true }); P.tuto = true; } catch {} await chargerMes(); onglet = 'cinder'; dessiner(); if (installAProposer()) setTimeout(installPop, 700); else if (photoAProposer()) setTimeout(photoPop, 700); };
   $.querySelector('[data-next]').addEventListener('click', () => n < TUTO.length - 1 ? tuto(n + 1) : finir());
   $.querySelector('[data-skip]')?.addEventListener('click', finir);
 }
@@ -217,7 +221,7 @@ function tuto(n) {
 // ── L'écran : quatre onglets ──
 const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Amis'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
-  document.querySelectorAll('.a-combo, .a-vol').forEach(x => x.remove());
+  document.querySelectorAll('.a-vol').forEach(x => x.remove());
   $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Mon menu"></button></header>
     <div class="a-hud">${hud()}</div>
     ${onglet === 'cinder' ? `<button class="a-scene" data-azami aria-label="Parler à Azami"><img src="azami/v44/${reduit() ? 'statiques/azami_v44_cinebleu_statique' : 'azami_v44_cinebleu_anime'}.svg" alt=""><p class="a-bulle"></p></button><div class="a-obj-h">${objectif()}</div>` : ''}
@@ -250,6 +254,21 @@ function installPop() {
   box.querySelector('.s-btn:not([data-tard])').addEventListener('click', () => store.set('ami-install', '1'));
 }
 const installAProposer = () => !AUTONOME && !store.get('ami-install') && Date.now() - Number(store.get('ami-install-plus-tard') || 0) > 3 * 864e5;
+
+// ── La photo de profil ──
+async function photoChanger() {
+  const ph = await choisirPhoto(); if (ph === null) return false;
+  if (ph === undefined) { toast('Cette image ne passe pas : essaie une autre photo.'); return false; }
+  try { await call('profil', { photo: ph }); P.photo = ph; FILA = null; CMP = null; haptic('medium'); toast('Photo de profil enregistrée'); dessiner(); return true; }
+  catch (e) { toast(e.message); return false; }
+}
+function photoPop() {
+  const box = pop(`<div class="pa-c">${avatar({ nom: P.nom }, 'big')}<p class="a-note-t">Ta photo de profil</p><p class="a-sub">Les autres te reconnaîtront dans le fil et sur ton profil. Tu pourras la changer plus tard depuis ton menu.</p>
+    <div class="a-note-btns"><button class="s-btn" data-choisir>Choisir une photo</button><button class="s-btn ghost" data-fermer data-tard>Plus tard</button></div></div>`);
+  box.querySelector('[data-tard]').addEventListener('click', () => store.set('ami-photo-plus-tard', String(Date.now())));
+  box.querySelector('[data-choisir]').addEventListener('click', async () => { if (await photoChanger()) box.remove(); });
+}
+const photoAProposer = () => !P?.photo && Date.now() - Number(store.get('ami-photo-plus-tard') || 0) > 3 * 864e5;
 
 // ── Parler à Azami : un petit crédit par ami et par jour (elle ne parle que cinéma, elle ne sait rien de la maison) ──
 let FIL = [], AZ_RESTE = null;
@@ -287,14 +306,14 @@ function hud() {
 }
 function objectif() {
   const n = JEU.aujourdhui(JE), fait = n >= JEU.OBJECTIF;
-  return `<div class="a-obj ${fait ? 'fait' : ''}"><span>${fait ? 'Objectif atteint' : 'Objectif du jour'}</span><span class="barre"><i data-w="${Math.min(100, Math.round(100 * n / JEU.OBJECTIF))}"></i></span><span>${fait ? '✓' : `${n}/${JEU.OBJECTIF}`}</span><span class="coffre"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9.5a9 4.5 0 0 1 18 0" opacity=".6"/></svg></span></div>`;
+  return `<div class="a-obj ${fait ? 'fait' : ''} ${chaudN ? `c${chaudN}` : ''}"><span>${fait ? 'Objectif atteint' : 'Objectif du jour'}</span><span class="barre"><i data-w="${Math.min(100, Math.round(100 * n / JEU.OBJECTIF))}"></i></span><span>${fait ? '✓' : `${n}/${JEU.OBJECTIF}`}</span><span class="coffre"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9.5a9 4.5 0 0 1 18 0" opacity=".6"/></svg></span></div>`;
 }
 function bulle() {
   const n = JEU.aujourdhui(JE), sr = JEU.serieDuJour(JE);
   if (n >= JEU.OBJECTIF) return 'Objectif atteint ! Tout ce que tu tries maintenant, c’est du bonus.';
   if (!n && sr) return `${sr} jour${sr > 1 ? 's' : ''} de suite : ne casse pas la série !`;
   if (!n) return `${JEU.OBJECTIF} films aujourd’hui et je t’ouvre le coffre.`;
-  return `Encore ${JEU.OBJECTIF - n} pour le coffre. Enchaîne pour les combos !`;
+  return `Encore ${JEU.OBJECTIF - n} pour le coffre. Enchaîne sans traîner : chaque avis rapporte plus.`;
 }
 function jeuSauver() {
   store.set('ami-jeu', JSON.stringify(JE));
@@ -308,10 +327,13 @@ function jeuMaj() {
   const b = $.querySelector('.a-bulle'); if (b) b.textContent = bulle();
   styler($);
 }
-function flotte(txt, cls = '') { const el = document.createElement('div'); el.className = `a-vol ${cls}`; el.textContent = txt; document.body.appendChild(el); setTimeout(() => el.remove(), 1100); }
+function flotte(txt, cls = '', mot = '') { const el = document.createElement('div'); el.className = `a-vol ${cls}`; el.textContent = txt; if (mot) { const m = document.createElement('small'); m.textContent = mot; el.appendChild(m); } document.body.appendChild(el); setTimeout(() => el.remove(), mot ? 1500 : 1100); }
+// la barre du jour chauffe tant que l'élan tient, puis refroidit doucement
+let chaudT = 0, chaudN = 0;
+function chauffer(n) { chaudN = n; clearTimeout(chaudT); const o = $.querySelector('.a-obj'); if (o) { o.classList.remove('c1', 'c2', 'c3'); if (n) o.classList.add(`c${n}`); } if (n) chaudT = setTimeout(() => chauffer(0), JEU.COMBO_S * 1000); }
 function confettis(n = 40) {
   if (reduit()) return;
-  const C = ['#FFC93C', '#48D98A', '#B98CFF', '#62D8FF', '#FFFFFF'];
+  const C = ['#FFC83D', '#3CD38A', '#FFC83D', '#A8D8FF', '#FFFFFF'];
   for (let i = 0; i < n; i++) { const c = document.createElement('i'); c.className = 'conf'; c.style.left = `${Math.random() * 100}vw`; c.style.background = C[i % C.length]; c.style.setProperty('--dx', `${(Math.random() - .5) * 120}px`); c.style.setProperty('--r', `${(Math.random() - .5) * 900}deg`); c.style.animationDelay = `${Math.random() * .35}s`; document.body.appendChild(c); setTimeout(() => c.remove(), 2400); }
 }
 // une fête plein écran : un match, le coffre, un niveau
@@ -331,8 +353,11 @@ function jeuAvis(f, v) {
   // un match : tu as envie d'un film dont un hôte a envie aussi
   const avec = (v === 'oui' || v === 'super') ? (f.hotes || []).filter(h => h.envie).map(h => h.nom) : [];
   const { e, f: r } = JEU.avis(JE, v === 'vu' ? 'vu' : v, { match: avec.length > 0 }); JE = e; jeuSauver(); jeuMaj();
-  flotte(`+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`);
-  if (r.combo >= 3) { document.querySelector('.a-combo')?.remove(); const c = document.createElement('div'); c.className = 'a-combo'; c.textContent = `Combo ×${r.combo}`; document.body.appendChild(c); setTimeout(() => c.remove(), 2600); }
+  // l'élan : des avis qui s'enchaînent rapportent plus, et ça se voit dans les points eux-mêmes (plus chauds, plus gros)
+  const ch = JEU.chaleur(r.combo);
+  flotte(`+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`, ch ? `c${ch}` : '', JEU.elanMot(r.combo));
+  if (JEU.elanMot(r.combo)) haptic('medium');
+  chauffer(ch);
   if (r.serie > 1) toast(`${r.serie} jours de suite !`);
   if (r.match) setTimeout(() => fete({ titre: 'C’est un match !', html: `<p>${esc(avec.join(' et '))} et toi voulez voir<br><b>${esc(f.title)}</b></p>`, gain: JEU.MATCH, film: f }), 350);
   if (r.coffre) setTimeout(() => fete({ titre: 'Objectif du jour !', html: `<p>${JEU.OBJECTIF} films triés : le coffre s’ouvre.</p>`, gain: JEU.COFFRE }), 360);
@@ -453,8 +478,10 @@ function demanderNote(f, actuelle = 4) {
 // ── Matchs : moi et chacun d'eux ──
 const rangee = (l, vide) => l.length ? `<div class="a-row">${l.map(f => `<button class="a-mini" data-film="${esc(f.k)}">${poster(f, 'a-mini-img')}<span>${esc(f.title)}</span>${f.note ? `<small>${note(f.note)}/5</small>` : f.super ? '<small>★ très envie</small>' : ''}</button>`).join('')}</div>` : `<p class="a-vide">${vide}</p>`;
 let FILA = null;   // le fil et les gens, vus par cet ami
-const teinte = nom => { let h = 7; for (const c of String(nom || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 58% 46%)`; };
-const avatar = (p, cls = '') => `<span class="av ${cls} ${p.hote ? 'hote' : ''}" data-teinte="${teinte(p.nom)}">${esc((p.nom || '?').trim().charAt(0).toUpperCase() || '?')}</span>`;
+// l'avatar : sa photo s'il en a mis une, sinon une silhouette de chat (la même pour tout le monde)
+// (Yatoni et Mariana sans photo : leur portrait dessiné)
+const portraitHote = q => { const e = String(q || '').replace(/^hote:/, '').toLowerCase(); return e.startsWith('yatoni') ? 'yatoni' : e.startsWith('mariana') ? 'mariana' : ''; };
+const avatar = (p, cls = '') => { const k = !p.photo && p.hote && portraitHote(p.qui); const src = p.photo || (k ? `icons/people/${k}/portrait.webp` : ''); return src ? `<span class="av ${cls} ${p.hote ? 'hote' : ''}"><img src="${esc(src)}" alt=""></span>` : `<span class="av chat ${cls} ${p.hote ? 'hote' : ''}">${CHAT}</span>`; };
 const avisMot2 = a => a.note ? `a vu <i></i> · ${note(a.note)}/5` : a.vote === 'vu' ? 'a vu <i></i>' : a.vote === 'super' ? 'a très envie de voir <i></i>' : a.vote === 'oui' ? 'a envie de voir <i></i>' : 'n’est pas tenté par <i></i>';
 async function matchs() {
   const b = $.querySelector('.s-body');
@@ -466,18 +493,18 @@ async function matchs() {
   matchs.films = filmsDe;
   const peu = C.nAvis < 15;
   const demande = (LIENS || []).some(x => x.etat === 'recu');
-  const gens = [...(FILA?.gens || []), { qui: 'moi', nom: P.nom, moi: true }];
+  const gens = [...(FILA?.gens || []), { qui: 'moi', nom: P.nom, moi: true, photo: P.photo }];
+  const phDe = new Map(gens.map(g => [g.qui, g.photo]));
   const fil = (FILA?.fil || []), max = matchs.plus ? 60 : 12;
   b.innerHTML = `<div class="gens" role="list">${gens.map(p => `<button type="button" role="listitem" class="gen" data-profil="${esc(p.qui)}" aria-label="${esc(p.nom)}">${avatar(p)}<span></span></button>`).join('')}<button type="button" class="gen" data-inviter aria-label="Inviter quelqu’un"><span class="av plus">+</span><span>Inviter</span></button></div>
     ${demande ? lienBloc() : ''}${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
     ${C.ensemble.length ? `<section class="a-bloc a-ens"><h2>${icn('deux')} Une soirée tous ensemble</h2><p class="a-sub">Ce que vous avez tous envie de voir : toi, ${esc(hotes())}.</p>${rangee(C.ensemble, '')}<button class="s-btn a-hasard" data-hasard>${icn('de')} Un film au hasard pour ce soir</button></section>` : ''}
-    ${fil.length ? `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${fil.slice(0, max).map((x, i) => `<li class="fil-i"><button type="button" class="fil-av" data-profil="${esc(x.qui)}">${avatar(x)}</button><div class="fil-c"><p><b></b> ${avisMot2(x)}</p><small>${esc(ago(x.at))}</small></div><button type="button" class="fil-aff" data-film="${esc(x.k)}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="nop">${icn('film')}</span>`}</button></li>`).join('')}</ul>${fil.length > max ? '<button class="s-btn ghost" data-fil-plus>Voir plus</button>' : ''}</section>` : ''}
+    ${fil.length ? `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${fil.slice(0, max).map((x, i) => `<li class="fil-i"><button type="button" class="fil-av" data-profil="${esc(x.qui)}">${avatar({ ...x, photo: phDe.get(x.qui) })}</button><div class="fil-c"><p><b></b> ${avisMot2(x)}</p><small>${esc(ago(x.at))}</small></div><button type="button" class="fil-aff" data-film="${esc(x.k)}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="nop">${icn('film')}</span>`}</button></li>`).join('')}</ul>${fil.length > max ? '<button class="s-btn ghost" data-fil-plus>Voir plus</button>' : ''}</section>` : ''}
     ${C.cachés?.length ? `<p class="a-vide">${esc(C.cachés.join(' et '))} ne partage${C.cachés.length > 1 ? 'nt' : ''} pas ses goûts pour l’instant.</p>` : ''}
     ${demande ? '' : lienBloc()}`;
   b.querySelectorAll('.gen[data-profil] span:last-child').forEach((x, i) => { x.textContent = gens[i].moi ? 'Toi' : gens[i].nom; });
   b.querySelectorAll('.fil-i').forEach((li, i) => { const x = fil[i]; li.querySelector('.fil-c b').textContent = x.nom; li.querySelector('.fil-c i').textContent = x.title; });
   b.querySelectorAll('.a-lien b[data-i]').forEach(x => { x.textContent = LIENS[Number(x.dataset.i)]?.nom || ''; });
-  b.querySelectorAll('[data-teinte]').forEach(x => { x.style.setProperty('--c', x.dataset.teinte); });
 }
 const ago = iso => { const d = (Date.now() - Date.parse(iso)) / 60e3; if (!(d >= 0)) return ''; if (d < 60) return 'à l’instant'; if (d < 1440) return `il y a ${Math.round(d / 60)} h`; const j = Math.round(d / 1440); return j === 1 ? 'hier' : j < 30 ? `il y a ${j} jours` : j < 365 ? `il y a ${Math.round(j / 30)} mois` : 'il y a longtemps'; };
 // le profil de quelqu'un (un hôte, un ami lié, ou soi) : ses chiffres, ce que vous avez en commun, ses films
@@ -486,7 +513,7 @@ async function profilPop(qui) {
   const moi = qui === 'moi';
   const box = pop(`<p class="s-wait">Un instant…</p>`);
   let r;
-  if (moi) r = { nom: P.nom, hote: false, avis: [...MES.values()].sort((x, y) => String(y.at || '').localeCompare(String(x.at || ''))) };
+  if (moi) r = { nom: P.nom, hote: false, photo: P.photo, avis: [...MES.values()].sort((x, y) => String(y.at || '').localeCompare(String(x.at || ''))) };
   else try { r = PROFILS[qui] ||= await call('profil_de', { qui }); } catch (e) { box.querySelector('.a-note-c').innerHTML = `<p class="a-sub">${esc(e.message)}</p><div class="a-note-btns"><button class="s-btn ghost" data-fermer>Fermer</button></div>`; return; }
   const avis = r.avis || [], vus = avis.filter(a => a.vote === 'vu' || a.note), envies = avis.filter(a => !a.note && (a.vote === 'oui' || a.vote === 'super')), notes = vus.filter(a => a.note);
   const moy = notes.length ? notes.reduce((s, a) => s + a.note, 0) / notes.length : 0;
@@ -497,7 +524,8 @@ async function profilPop(qui) {
   for (const a of avis) matchs.films?.set(a.k, a);
   const draw = () => {
     const [gl, sel] = grilles[F];
-    box.querySelector('.a-note-c').innerHTML = `<header class="pf-tete">${avatar({ nom: r.nom, hote: r.hote }, 'big')}<div><p class="a-note-t"></p><p class="a-sub pf-sub">${moi ? 'Toi' : r.hote ? 'De la maison' : 'Ami lié'}</p></div></header>
+    box.querySelector('.a-note-c').innerHTML = `<header class="pf-tete">${avatar({ nom: r.nom, hote: r.hote, qui, photo: moi ? P.photo : r.photo }, 'big')}<div><p class="a-note-t"></p><p class="a-sub pf-sub">${moi ? 'Toi' : r.hote ? 'De la maison' : 'Ami lié'}</p></div></header>
+      ${moi ? `<div class="a-note-btns"><button class="s-btn ghost" data-photo>${P.photo ? 'Changer ma photo' : 'Mettre une photo de profil'}</button></div>` : ''}
       <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? note(moy) : '–'}</b><span>note moy.</span></li>${cmp ? `<li class="${cmp.compat != null ? 'ok' : ''}"><b>${cmp.compat != null ? cmp.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
       ${cmp?.matches?.length ? `<h3>${icn('envie')} Envie tous les deux · ${cmp.nMatches || cmp.matches.length}</h3>${rangee(cmp.matches, '')}` : ''}
       ${cmp?.pourMoi?.length ? `<h3>${icn('tres')} Ses coups de cœur, pas encore vus par toi</h3>${rangee(cmp.pourMoi, '')}` : ''}
@@ -509,10 +537,9 @@ async function profilPop(qui) {
     box.querySelector('.a-note-t').textContent = moi ? `${r.nom} (toi)` : r.nom;
     box.querySelectorAll('.a-grille .a-mini').forEach((x, i) => { x.querySelector('span:not(.a-mini-img)').textContent = sel[i].title; });
     box.querySelectorAll('.pf-fil .fil-c i').forEach((x, i) => { x.textContent = avis.filter(a => a.at)[i].title; });
-    box.querySelectorAll('[data-teinte]').forEach(x => { x.style.setProperty('--c', x.dataset.teinte); });
   };
   draw();
-  box.addEventListener('click', e => { const f = e.target.closest('[data-pf]'); if (f) { F = f.dataset.pf; haptic('light'); draw(); } const fm = e.target.closest('[data-film]'); if (fm) { const x = matchs.films?.get(fm.dataset.film) || MES.get(fm.dataset.film); if (x) { box.remove(); fichePop(x); } } });
+  box.addEventListener('click', async e => { if (e.target.closest('[data-photo]')) { if (await photoChanger()) { r.photo = P.photo; draw(); } return; } const f = e.target.closest('[data-pf]'); if (f) { F = f.dataset.pf; haptic('light'); draw(); } const fm = e.target.closest('[data-film]'); if (fm) { const x = matchs.films?.get(fm.dataset.film) || MES.get(fm.dataset.film); if (x) { box.remove(); fichePop(x); } } });
 }
 
 // Les autres amis : se lier, comme une demande d'ami. Une fois que l'autre accepte, vous voyez vos films en commun.

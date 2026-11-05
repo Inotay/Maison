@@ -5,7 +5,7 @@
 export const OBJECTIF = 10;           // films triés par jour pour ouvrir le coffre
 export const COFFRE = 100;            // points du coffre
 export const MATCH = 50;              // points d'un match
-const COMBO_S = 9;                    // secondes max entre deux avis pour garder le combo
+export const COMBO_S = 9;             // secondes max entre deux avis pour garder l'élan
 const jourDe = (t = Date.now()) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const veille = j => { const d = new Date(j + 'T12:00'); d.setDate(d.getDate() - 1); return jourDe(d.getTime()); };
 
@@ -47,6 +47,9 @@ export function avis(e0, vote, { match = false, t = Date.now() } = {}) {
   e.maj = t;
   return { e, f };
 }
+// l'élan, en trois chaleurs (0 : rien, 1 : ça chauffe, 2 : chaud, 3 : en feu) et un mot aux paliers seulement
+export const chaleur = c => c >= 8 ? 3 : c >= 5 ? 2 : c >= 3 ? 1 : 0;
+export const elanMot = c => c === 5 ? 'Ça s’enchaîne !' : c === 10 ? 'En feu !' : c > 10 && c % 10 === 0 ? 'Inarrêtable !' : '';
 // deux appareils : on garde le plus avancé (et le plus récent pour la série du jour)
 export function fusion(a, b) {
   const x = propre(a), y = propre(b);

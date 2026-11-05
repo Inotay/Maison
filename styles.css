@@ -2459,9 +2459,9 @@ html, body { touch-action: manipulation; }
 /* L'annonce de Ciné Azami (une fois, pour Mariana) */
 #cine-annonce { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(20, 12, 8, .6); opacity: 0; transition: opacity .25s; overflow-y: auto; }
 #cine-annonce.on { opacity: 1; }
-.ca-c { width: 100%; max-width: 420px; margin: auto; padding: 20px 18px 16px; border-radius: 26px; background: linear-gradient(180deg, #3D86DD, #2563B8); color: #fff; box-shadow: 0 7px 0 #1B4F9E, 0 24px 60px rgba(0,0,0,.4); text-align: center; display: grid; gap: 10px; transform: translateY(14px) scale(.97); transition: transform .35s cubic-bezier(.34, 1.4, .64, 1); }
+.ca-c { width: 100%; max-width: 420px; margin: auto; padding: 20px 18px 16px; border-radius: 26px; background: linear-gradient(180deg, #4FAEF7, #3398EC); color: #fff; box-shadow: 0 7px 0 #1F72C8, 0 24px 60px rgba(0,0,0,.4); text-align: center; display: grid; gap: 10px; transform: translateY(14px) scale(.97); transition: transform .35s cubic-bezier(.34, 1.4, .64, 1); }
 #cine-annonce.on .ca-c { transform: none; }
-.ca-ic { width: 72px; height: 72px; margin: 0 auto; border-radius: 18px; box-shadow: 0 4px 0 #1B4F9E; }
+.ca-ic { width: 72px; height: 72px; margin: 0 auto; border-radius: 18px; box-shadow: 0 4px 0 #1F72C8; }
 .ca-t { margin: 2px 0 0; font-size: 24px; font-weight: 900; line-height: 1.15; }
 .ca-s { margin: 0; font-size: 14.5px; line-height: 1.4; color: #E3ECFF; }
 .ca-l { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 9px; text-align: left; }
@@ -2470,6 +2470,16 @@ html, body { touch-action: manipulation; }
 .ca-lien input { width: 100%; padding: 11px 12px; border-radius: 12px; border: 0; background: #fff; color: #17306B; font: inherit; font-size: 14px; font-weight: 800; text-align: center; box-shadow: inset 0 -3px 0 #C9D9FF; }
 .ca-b { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
 .ca-b .btn { flex: 1; min-width: 130px; background: #48D98A; color: #0D3B22; box-shadow: 0 5px 0 #22A862; }
-.ca-b .btn.ghost { background: #2766C0; color: #fff; box-shadow: 0 4px 0 #1B4F9E; }
+.ca-b .btn.ghost { background: #2766C0; color: #fff; box-shadow: 0 4px 0 #1F72C8; }
 .ca-b .btn.small { flex: none; min-width: 0; }
 .ca-b .link { color: #fff; text-decoration: underline; padding: 8px; }
+/* l'avatar par défaut : une silhouette de chat, la même pour tous */
+.av.chat { background: linear-gradient(160deg, #F3E7D6, #E0CFB8); }
+.av-chat { width: 78%; height: 78%; margin-top: 18%; fill: #A893A6; }
+/* proposer une photo de profil (Ciné Azami, une fois) */
+#photo-annonce { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: end center; padding: 16px; padding-bottom: calc(var(--safe-b) + 16px); background: rgba(15, 53, 112, .45); }
+.pa-c { width: 100%; max-width: 420px; padding: 20px 18px 16px; border-radius: 26px; background: #fff; color: #0F3570; box-shadow: 0 6px 0 #D3EAFF; display: grid; gap: 8px; justify-items: center; text-align: center; animation: ct-in .35s cubic-bezier(.34, 1.45, .64, 1) both; }
+.pa-t { margin: 4px 0 0; font-size: 21px; font-weight: 900; }
+.pa-s { margin: 0; font-weight: 700; color: #3B79BD; line-height: 1.4; }
+.pa-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
+.pa-b .btn { background: #3CD38A; color: #0B3D24; box-shadow: 0 4px 0 #1FA466; } .pa-b .btn.ghost { background: #EAF4FF; color: #0F3570; box-shadow: 0 4px 0 #D3EAFF; }

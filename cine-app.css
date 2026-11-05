@@ -1,87 +1,83 @@
 /* Ciné Azami, l'app à part (cine.html) : le bleu de Maison en plus profond, des formes dodues, et le jeu
    (série, points, niveau, objectif du jour, combos). Les couleurs du ciné viennent de cine-theme.css. */
-html.cine-seul { --bg: #2F80DD; --text: #FFFFFF; --muted: #BBD3FF; --lip: #1B4F9E; --vert: #48D98A; --vert-l: #22A862; --pop: #FFC93C; --pop-l: #D99A0E; --violet: #B98CFF; --cyan: #62D8FF; --nav-h: 0px; }
-html.cine-seul body { background: linear-gradient(180deg, #4AA3F2 0, #2F80DD 520px, #2B76D2 100%) fixed; color: #fff; }
+html.cine-seul { --bg: #45ABF7; --text: #FFFFFF; --muted: #E4F2FF; --lip: #1F72C8; --vert: #3CD38A; --vert-l: #1FA466; --pop: #FFC83D; --pop-l: #E0A21A; --violet: #FFC83D; --cyan: #A8D8FF; --nav-h: 0px; }
+html.cine-seul body { background: linear-gradient(180deg, #6CC4FF 0, #45ABF7 520px, #3BA0F0 100%) fixed; color: #fff; }
 html.cine-seul .cine-marquee { display: none; }
 html.cine-seul .cine { background: transparent; border: 0; box-shadow: none; padding: 0; }
 html.cine-seul main#app { padding-bottom: calc(var(--safe-b) + 28px); }
 
 /* l'en-tête */
-.cine-tete { display: grid; gap: 14px; padding-top: calc(var(--safe-t) + 10px); margin-bottom: 14px; }
+.cine-tete { display: grid; gap: 14px; padding-top: 0; margin-bottom: 14px; }
 .jeu-hud { display: flex; align-items: center; gap: 8px; }
-.jeu-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; background: rgba(20, 72, 160, .42); font-weight: 900; font-size: 16px; }
+.jeu-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; background: rgba(25, 110, 200, .42); font-weight: 900; font-size: 16px; }
 .jeu-pill .icn { width: 20px; height: 20px; color: var(--pop); }
-.jeu-pill.off .icn { color: #7F95C8; }
+.jeu-pill.off .icn { color: #94C0EA; }
 .jeu-pill.gemme svg { width: 20px; height: 20px; fill: var(--cyan); }
 .jeu-lvl { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; color: var(--muted); }
 .jeu-ring, .jeu-niv span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--pop) 0 var(--p), rgba(255, 255, 255, .16) 0); }
-.jeu-ring b, .jeu-niv b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #4AA3F2; color: #fff; font-size: 14px; font-weight: 900; }
+.jeu-ring b, .jeu-niv b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #6CC4FF; color: #fff; font-size: 14px; font-weight: 900; }
 .ct-scene { position: relative; min-height: 168px; }
 .ct-scene h1 { margin: 0; font-size: 36px; font-weight: 900; line-height: 1; color: #fff; text-shadow: 0 3px 0 var(--lip); }
-.ct-bulle { position: relative; z-index: 1; margin: 12px 0 0; width: min(54%, 220px); padding: 10px 13px; border-radius: 16px; background: #fff; color: #17306B; font-weight: 800; font-size: 15px; line-height: 1.3; box-shadow: 0 4px 0 #C9D9FF; }
+.ct-bulle { position: relative; z-index: 1; margin: 12px 0 0; width: min(54%, 220px); padding: 10px 13px; border-radius: 16px; background: #fff; color: #0F3570; font-weight: 800; font-size: 15px; line-height: 1.3; box-shadow: 0 4px 0 #D3EAFF; }
 .ct-bulle::after { content: ''; position: absolute; right: -14px; top: 18px; border: 8px solid transparent; border-left-color: #fff; }
 .ct-scene .azami-btn { position: absolute; right: -10px; top: -16px; width: min(56%, 240px); }
 .ct-scene .azami-btn img, .ct-scene .azami-btn .azami-slot { width: 100%; height: auto; }
 
 /* l'objectif du jour et son coffre */
-.jeu-objectif { all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: #2766C0; box-shadow: 0 5px 0 var(--lip); }
+.jeu-objectif { all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: #2E8EE6; box-shadow: 0 5px 0 var(--lip); }
 .jeu-objectif:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--lip); }
 .jo-t { flex: 1; display: grid; gap: 2px; font-weight: 800; font-size: 14px; color: var(--muted); }
 .jo-t b { color: #fff; font-size: 16px; font-weight: 900; }
 .jo-barre, .jeu-obj { display: block; height: 14px; border-radius: 7px; background: rgba(0, 0, 0, .25); overflow: hidden; margin-top: 6px; }
-.jo-barre i, .jeu-obj i { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--pop), #FFE27A); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12); transition: width .45s cubic-bezier(.34, 1.4, .64, 1); }
+.jo-barre i, .jeu-obj i { display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--pop), #FFE07A); box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .12); transition: width .45s cubic-bezier(.34, 1.4, .64, 1); }
 .jo-coffre { width: 46px; height: 46px; flex: none; border-radius: 13px; display: grid; place-items: center; background: var(--pop); box-shadow: 0 4px 0 var(--pop-l); }
-.jo-coffre svg { width: 28px; height: 28px; fill: #3D2A00; } .jo-coffre .cv { fill: #7A5300; } .jo-coffre .cl { fill: var(--pop); }
+.jo-coffre svg { width: 28px; height: 28px; fill: #4A3200; } .jo-coffre .cv { fill: #7A5300; } .jo-coffre .cl { fill: var(--pop); }
 .jeu-objectif.fait .jo-coffre { background: var(--vert); box-shadow: 0 4px 0 var(--vert-l); }
 .jeu-objectif.fait .jo-coffre .cv { transform: translateY(-3px) rotate(-12deg); transform-origin: 3px 9px; }
-.jeu-objectif.fait .jo-barre i { background: linear-gradient(90deg, var(--vert), #9BF0C2); }
+.jeu-objectif.fait .jo-barre i { background: linear-gradient(90deg, var(--vert), #9EEBC6); }
 
 /* les gros boutons, façon Duolingo */
-html.cine-seul .cta-match { background: var(--vert) !important; color: #0D3B22 !important; box-shadow: 0 5px 0 var(--vert-l) !important; border: 0 !important; }
-html.cine-seul .cta-soir { background: var(--pop) !important; color: #3D2A00 !important; box-shadow: 0 5px 0 var(--pop-l) !important; border: 0 !important; }
+html.cine-seul .cta-match { background: var(--vert) !important; color: #0B3D24 !important; box-shadow: 0 5px 0 var(--vert-l) !important; border: 0 !important; }
+html.cine-seul .cta-soir { background: var(--pop) !important; color: #4A3200 !important; box-shadow: 0 5px 0 var(--pop-l) !important; border: 0 !important; }
 html.cine-seul .cine-cta .btn { font-size: 19px; font-weight: 900; border-radius: 18px; padding: 15px 10px; }
-html.cine-seul .cine-inv { background: #2766C0; border: 0; box-shadow: 0 4px 0 var(--lip); color: #fff; border-radius: 16px; }
+html.cine-seul .cine-inv { background: #2E8EE6; border: 0; box-shadow: 0 4px 0 var(--lip); color: #fff; border-radius: 16px; }
 html.cine-seul .cine-spaces button { border-radius: 16px; box-shadow: 0 4px 0 var(--lip); border: 0; }
-html.cine-seul .cine-spaces button[aria-selected="true"] { background: #fff !important; color: #17306B !important; box-shadow: 0 4px 0 #C9D9FF; }
-html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #4AA3F2; }
+html.cine-seul .cine-spaces button[aria-selected="true"] { background: #fff !important; color: #0F3570 !important; box-shadow: 0 4px 0 #D3EAFF; }
+html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #6CC4FF; }
 
-/* Cinder : la barre du jour, les points qui volent, le combo */
+/* Cinder : la barre du jour, les points qui volent, l'élan */
 .deck-jeu { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-weight: 900; color: #fff; }
 .deck-jeu .jeu-serie { display: inline-flex; align-items: center; gap: 4px; font-size: 15px; } .deck-jeu .jeu-serie .icn { color: var(--pop); width: 20px; height: 20px; }
-.deck-jeu .jeu-serie.off .icn { color: #7F95C8; }
+.deck-jeu .jeu-serie.off .icn { color: #94C0EA; }
 .deck-jeu .jeu-obj { flex: 1; margin: 0; height: 16px; }
 .deck-jeu .jeu-n { font-size: 14px; min-width: 38px; text-align: right; } .deck-jeu .jeu-n.fait { color: var(--vert); }
-.deck-jeu .jeu-niv span { width: 32px; height: 32px; } .deck-jeu .jeu-niv b { width: 24px; height: 24px; font-size: 12px; background: #2F80DD; }
+.deck-jeu .jeu-niv span { width: 32px; height: 32px; } .deck-jeu .jeu-niv b { width: 24px; height: 24px; font-size: 12px; background: #45ABF7; }
 .jeu-pop { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 150px); z-index: 120; transform: translateX(-50%); font-size: 30px; font-weight: 900; color: var(--pop); text-shadow: 0 3px 0 var(--lip); pointer-events: none; animation: jeu-pop 1s cubic-bezier(.2, .8, .3, 1) forwards; }
 .jeu-pop.match { color: var(--vert); font-size: 40px; }
 @keyframes jeu-pop { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.6); } 25% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -70px) scale(1); } }
-.jeu-combo { position: fixed; left: 16px; bottom: calc(var(--safe-b) + 150px); z-index: 120; padding: 7px 13px; border-radius: 12px; background: var(--pop); color: #3D2A00; font-weight: 900; font-size: 18px; box-shadow: 0 4px 0 var(--pop-l); transform: rotate(-4deg); pointer-events: none; }
-.jeu-combo.pop { animation: jeu-combo .4s cubic-bezier(.34, 1.8, .64, 1); }
-@keyframes jeu-combo { 0% { transform: rotate(-4deg) scale(.6); } 100% { transform: rotate(-4deg) scale(1); } }
-@media (prefers-reduced-motion: reduce) { .jeu-pop, .jeu-combo.pop { animation: none; opacity: 1; } .jo-barre i, .jeu-obj i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .jeu-pop { animation: none; opacity: 1; } .deck-jeu.c3 .jeu-obj i { animation: none; } .jo-barre i, .jeu-obj i { transition: none; } }
 
 /* retouches */
-html.cine-seul { background: #2B76D2; }
+html.cine-seul { background: #3BA0F0; }
 html.cine-seul .guide-q { display: none; }
-html.cine-seul .cine-tabs { background: #2260B5; border: 0; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
-html.cine-seul .cine-tabs button { color: #BBD3FF; }
-html.cine-seul .cine-tabs button[aria-pressed="true"], html.cine-seul .cine-tabs button[aria-selected="true"] { background: var(--pop); color: #3D2A00; box-shadow: 0 3px 0 var(--pop-l); }
-html.cine-seul .cine-tabs button[aria-pressed="true"] .icn { color: #3D2A00; }
-html.cine-seul .deck-btns .deck-no, html.cine-seul .deck-no { color: #9FB4E0 !important; border-color: #9FB4E0 !important; }
-html.cine-seul .deck-btns .deck-no .icn { color: #9FB4E0 !important; }
+html.cine-seul .cine-tabs { background: #2885DB; border: 0; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
+html.cine-seul .cine-tabs button { color: #E4F2FF; }
+html.cine-seul .cine-tabs button[aria-pressed="true"], html.cine-seul .cine-tabs button[aria-selected="true"] { background: var(--pop); color: #4A3200; box-shadow: 0 3px 0 var(--pop-l); }
+html.cine-seul .cine-tabs button[aria-pressed="true"] .icn { color: #4A3200; }
+html.cine-seul .deck-btns .deck-no, html.cine-seul .deck-no { color: #B9DAF6 !important; border-color: #B9DAF6 !important; }
+html.cine-seul .deck-btns .deck-no .icn { color: #B9DAF6 !important; }
 html.cine-seul .cinder-logo { color: #fff !important; } html.cine-seul .cinder-logo .icn { color: var(--pop) !important; }
 html.cine-seul .jeu-pop { z-index: 300; bottom: calc(var(--safe-b) + 210px); -webkit-text-stroke: 1px var(--lip); }
-html.cine-seul #deck .jeu-combo { z-index: 300; bottom: auto; left: auto; right: 22px; top: calc(var(--safe-t) + 168px); }
 /* la première fois : mettre l'app sur l'écran d'accueil */
-.inst-cine { position: fixed; inset: 0; z-index: 400; display: grid; place-items: end center; padding: 16px; padding-bottom: calc(var(--safe-b) + 16px); background: rgba(10, 24, 60, .6); }
-.ic-c { width: 100%; max-width: 440px; background: #fff; color: #17306B; border-radius: 26px; padding: 20px 18px 16px; box-shadow: 0 6px 0 #C9D9FF; display: grid; gap: 8px; justify-items: center; text-align: center; }
-.ic-c img { border-radius: 18px; box-shadow: 0 4px 0 #C9D9FF; }
-.ic-t { margin: 4px 0 0; font-size: 20px; font-weight: 900; } .ic-s { margin: 0; font-weight: 700; color: #4A6296; }
+.inst-cine { position: fixed; inset: 0; z-index: 400; display: grid; place-items: end center; padding: 16px; padding-bottom: calc(var(--safe-b) + 16px); background: rgba(15, 53, 112, .6); }
+.ic-c { width: 100%; max-width: 440px; background: #fff; color: #0F3570; border-radius: 26px; padding: 20px 18px 16px; box-shadow: 0 6px 0 #D3EAFF; display: grid; gap: 8px; justify-items: center; text-align: center; }
+.ic-c img { border-radius: 18px; box-shadow: 0 4px 0 #D3EAFF; }
+.ic-t { margin: 4px 0 0; font-size: 20px; font-weight: 900; } .ic-s { margin: 0; font-weight: 700; color: #3B79BD; }
 .ic-c ol { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 8px; text-align: left; width: 100%; }
 .ic-c li { display: flex; gap: 10px; align-items: flex-start; font-weight: 700; line-height: 1.35; }
-.ic-c li b { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--pop); color: #3D2A00; box-shadow: 0 3px 0 var(--pop-l); }
+.ic-c li b { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--pop); color: #4A3200; box-shadow: 0 3px 0 var(--pop-l); }
 .ic-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
-.ic-b .btn { background: var(--vert); color: #0D3B22; box-shadow: 0 4px 0 var(--vert-l); } .ic-b .btn.ghost { background: #E3ECFF; color: #17306B; box-shadow: 0 4px 0 #C9D9FF; }
+.ic-b .btn { background: var(--vert); color: #0B3D24; box-shadow: 0 4px 0 var(--vert-l); } .ic-b .btn.ghost { background: #EAF4FF; color: #0F3570; box-shadow: 0 4px 0 #D3EAFF; }
 
 /* la connexion dans Ciné Azami : texte lisible, liens visibles, l'entrée des amis */
 html.cine-seul .login { color: #fff; }
@@ -89,7 +85,7 @@ html.cine-seul .login p { color: #EAF3FF; }
 html.cine-seul .login .field { background: #fff; color: #1E2F3F; border-color: #C9DEFF; box-shadow: inset 0 -3px 0 #DCE8FF; }
 html.cine-seul .login .field::placeholder { color: #7D93B8; }
 html.cine-seul .login .link { color: #fff; text-decoration-color: rgba(255, 255, 255, .6); }
-html.cine-seul .login .btn:not(.ghost) { background: var(--vert); color: #0D3B22; box-shadow: 0 5px 0 var(--vert-l); }
+html.cine-seul .login .btn:not(.ghost) { background: var(--vert); color: #0B3D24; box-shadow: 0 5px 0 var(--vert-l); }
 html.cine-seul .ami-entree { display: block; margin-top: 20px; padding: 14px; border-radius: 16px; text-align: center; text-decoration: none; font-weight: 900; background: rgba(255, 255, 255, .2); color: #fff; box-shadow: 0 4px 0 var(--lip); border: 0; }
 html.cine-seul .login h1 { color: #fff; text-shadow: 0 3px 0 var(--lip); }
 /* les bulles d'Azami (réseau, messages) se posent sous l'en-tête, sans casser sa grille */
@@ -97,6 +93,32 @@ html.cine-seul .hd.cine-tete { display: grid; grid-template-columns: minmax(0, 1
 html.cine-seul .hd.cine-tete > * { grid-area: auto !important; min-width: 0; }
 html.cine-seul .hd.cine-tete > .az-bulles { padding: 0; }
 /* les feuilles et boîtes (ce soir ?, fiches, questions) : toutes dans le bleu nuit lisible, comme la fiche d'un film */
-html.cine-seul :is(.ticket-card, .ui-card, .ui-menu, .picker) { --text: #FFFFFF; --muted: #BBD3FF; --surface: #17306B; --surface-2: #2766C0; --line: #2F6FC9; --ink: #FFFFFF; background: #17306B; color: #fff; border-color: #1D58AB; }
+html.cine-seul :is(.ticket-card, .ui-card, .ui-menu, .picker) { --text: #FFFFFF; --muted: #E4F2FF; --surface: #2479D3; --surface-2: #2E8EE6; --line: #2F6FC9; --ink: #FFFFFF; background: #2479D3; color: #fff; border-color: #1F72C8; }
 html.cine-seul :is(.ticket-card, .ui-card) .chips button, html.cine-seul :is(.ticket-card, .ui-card) .seg button { color: #fff; }
-html.cine-seul :is(.ticket-card, .ui-card) .chips button[aria-pressed="true"], html.cine-seul :is(.ticket-card, .ui-card) .seg button[aria-pressed="true"], html.cine-seul :is(.ticket-card, .ui-card) .seg button[aria-selected="true"] { color: #17306B; }
+html.cine-seul :is(.ticket-card, .ui-card) .chips button[aria-pressed="true"], html.cine-seul :is(.ticket-card, .ui-card) .seg button[aria-pressed="true"], html.cine-seul :is(.ticket-card, .ui-card) .seg button[aria-selected="true"] { color: #0F3570; }
+/* l'élan : les points chauffent quand on enchaîne, la barre du jour rougeoie, un mot aux paliers seulement */
+.jeu-pop { text-align: center; }
+.jeu-pop small { display: block; margin-top: 2px; font-size: 17px; color: #fff; -webkit-text-stroke: 0; text-shadow: 0 2px 0 var(--lip); white-space: nowrap; }
+.jeu-pop.c1 { font-size: 34px; color: #FFC83D; }
+.jeu-pop.c2 { font-size: 39px; color: #FFB12B; }
+.jeu-pop.c3 { font-size: 45px; color: #FF9A1F; filter: drop-shadow(0 0 10px rgba(255, 176, 43, .7)); }
+.deck-jeu .jeu-obj i { transition: width .45s cubic-bezier(.34, 1.4, .64, 1), box-shadow .4s, filter .4s; }
+.deck-jeu.c1 .jeu-obj i { box-shadow: 0 0 8px rgba(255, 200, 61, .7); }
+.deck-jeu.c2 .jeu-obj i { box-shadow: 0 0 12px rgba(255, 177, 43, .85); filter: saturate(1.2); }
+.deck-jeu.c3 .jeu-obj i { background: linear-gradient(90deg, #FFC83D, #FF9A1F); box-shadow: 0 0 16px rgba(255, 154, 31, .95); animation: jeu-chaud 1s ease-in-out infinite alternate; }
+@keyframes jeu-chaud { to { filter: brightness(1.18); } }
+/* le haut de l'app : la place de la barre d'état suffit (#app la compte déjà), pas de vide en plus */
+html.cine-seul #app { padding-top: calc(var(--safe-t) + 8px); }
+/* quand Azami parle dans Ciné Azami : sa bulle à elle, à côté d'elle, la queue tournée vers elle */
+.ct-scene.parle { min-height: 0; }
+.ct-scene.parle .ct-bulle { width: min(60%, 250px); }
+.ct-bulle.parle { cursor: pointer; padding-right: 26px; max-height: 46vh; overflow-y: auto; white-space: pre-wrap; animation: ct-in .35s cubic-bezier(.34, 1.45, .64, 1) both; }
+.ct-bulle .az-choix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ct-bulle .az-choix button { all: unset; cursor: pointer; padding: 6px 11px; border-radius: 999px; background: #EAF4FF; color: #0F3570; font-size: 13px; font-weight: 900; box-shadow: 0 2px 0 #D3EAFF; }
+.ct-x { all: unset; cursor: pointer; position: absolute; top: 4px; right: 6px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; color: #6C9FD6; font-size: 18px; font-weight: 900; }
+.ct-bulle.pense { display: inline-flex; gap: 6px; width: auto !important; padding: 14px 18px; }
+.ct-bulle.pense i { width: 9px; height: 9px; border-radius: 50%; background: #6C9FD6; animation: ct-pense 1s ease-in-out infinite; }
+.ct-bulle.pense i:nth-child(2) { animation-delay: .15s; } .ct-bulle.pense i:nth-child(3) { animation-delay: .3s; }
+@keyframes ct-pense { 50% { transform: translateY(-4px); opacity: .5; } }
+@keyframes ct-in { from { opacity: 0; transform: scale(.9); transform-origin: 100% 40%; } }
+@media (prefers-reduced-motion: reduce) { .ct-bulle.parle, .ct-bulle.pense i { animation: none; } }

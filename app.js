@@ -18,6 +18,7 @@ import { schedule as scheduleBruits, ENTREE, CUES, DUREE, parle } from './bruits
 import * as JEU from './jeu-cine.js';
 import * as T from './taste.js';
 import * as LB from './lbx.js';
+import { CHAT, choisirPhoto } from './photo-profil.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
 
 // Azami V4.4 (azami/v44/*.svg) : un seul dessin, mouvement continu, yeux jamais mi-clos.
@@ -737,6 +738,7 @@ async function loadAll() {
   { const j = (reglages || []).find(r => r.cle === `cine:jeu:${S.me}`)?.valeur; S.jeu = JEU.fusion(S.jeu || JEU.propre(JSON.parse(safeGet('maison-jeu') || 'null')), j); }
   setTimeout(pilSync, 0);
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
+  S.photos = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('profil:photo:') && /^data:image\/jpeg;base64,/.test(r.valeur?.photo || '')).map(r => [r.cle.slice(13), r.valeur.photo]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
   algoApplique();
@@ -2608,7 +2610,7 @@ function render() {
 
   const views = { maison: viewMaison, menage: viewMenage, courses: viewCourses, recettes: viewRecettes, argent: viewArgent, nuit: viewNuit };
   if (render.view !== S.view || !$app.querySelector('.nav')) { $app.innerHTML = ''; render.view = S.view; }
-  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' ? '' : azamiBulle()}</header>${azamiSuite()}${azamiBarre()}${guideHint()}`);
+  const page = (views[S.view] || viewMaison)().replace('</header>', `${guideBtn()}${S.view === 'maison' || CINE_SEUL ? '' : azamiBulle()}</header>${CINE_SEUL ? azamiMienne() : azamiSuite()}${azamiBarre()}${guideHint()}`);
   morph($app, deNative(demoBar() + page + timersBar() + nav()));
   placeAzami();
   azamiType(); azamiNuage(); crottesPlace(); tamaScene(); annivFete(); agendaRappel();
@@ -2622,7 +2624,7 @@ function render() {
   popCheck();
   if (S.me && S.ready && visitState().pending && !document.getElementById('visite-invite') && !document.getElementById('tour')) visitInvite();
   visitTestHook();
-  cineAnnonce();
+  cineAnnonce(); if (CINE_SEUL) setTimeout(photoAnnonce, 1200);
   if (!CINE_SEUL && !tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app); armHaptics(document.getElementById('ticket') || $app); armHaptics(document.getElementById('deck') || $app);
 
@@ -2855,7 +2857,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v296</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v298</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4078,8 +4080,13 @@ function viewArgent() {
 function cineSeulTete() {
   const L = cineLists(), n = L.nous.length;
   const mot = n ? `${n} film${n > 1 ? 's' : ''} vous attend${n > 1 ? 'ent' : ''} tous les deux. On regarde quoi ?` : 'Lance Cinder : quand vous dites oui tous les deux, c’est un match.';
+  // quand Azami parle (réponse, réflexion), c'est dans cette bulle-là, la queue tournée vers elle
+  const parle = S.me && !S.recovery && (AZ.busy || AZ.bulle);
+  const bulle = AZ.busy ? '<p class="ct-bulle pense" aria-label="Azami réfléchit"><i></i><i></i><i></i></p>'
+    : parle ? `<div class="ct-bulle parle" data-k="${AZ.k}" role="button" tabindex="0" data-action="azami-ecrire" aria-label="Répondre à Azami"><span class="az-txt">${esc(AZ.bulle)}</span>${azamiPied()}<button type="button" class="ct-x" data-action="azami-fermer" aria-label="Fermer">×</button></div>`
+    : `<p class="ct-bulle">${esc(mot)}</p>`;
   return `<header class="hd cine-tete"><div class="jeu-hud">${jeuHud()}</div>
-    <div class="ct-scene"><h1>Ciné Azami</h1><p class="ct-bulle">${esc(mot)}</p><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cinebleu', 'Azami en lunettes 3D avec son pop-corn')}</button></div>
+    <div class="ct-scene ${parle ? 'parle' : ''}"><h1>Ciné Azami</h1>${bulle}<button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cinebleu', 'Azami en lunettes 3D avec son pop-corn')}</button></div>
     ${jeuObjectif()}</header>`;
 }
 function viewNuit() {
@@ -4736,11 +4743,15 @@ async function amisSheet() {
 // Chaque personne a un profil : ses coups de cœur, ses envies, ses derniers avis, vos films en commun et votre
 // accord. « À deux » se fait avec Mariana par défaut, mais on peut choisir n'importe quel ami à la place.
 const GENS = { amis: null, at: 0, fil: null, filAt: 0, avis: {} };
-const gensTeinte = nom => { let h = 7; for (const c of String(nom || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 58% 46%)`; };
-const persoKey = e => String(e || '').split('@')[0].toLowerCase();
+const persoKey = e => { const l = String(e || '').toLowerCase(); return l.startsWith('yatoni') ? 'yatoni' : l.startsWith('mariana') ? 'mariana' : ''; };
+// l'avatar : sa photo s'il en a mis une, sinon le portrait dessiné (Yatoni, Mariana), sinon une silhouette de chat
+const photoDe = p => p.type === 'membre' ? S.photos?.[p.email] : p.ami?.photo || p.photo || (GENS.amis || []).find(a => a.id === p.id)?.photo;
 function avatarHtml(p, cls = '') {
-  if (p.type === 'membre' && ['yatoni', 'mariana'].includes(persoKey(p.email))) return `<span class="av ${cls}"><img src="icons/people/${persoKey(p.email)}/portrait.webp" alt="" width="48" height="48"></span>`;
-  return `<span class="av ${cls}" style="--c:${gensTeinte(p.nom)}">${esc((p.nom || '?').trim().charAt(0).toUpperCase() || '?')}</span>`;
+  const ph = photoDe(p);
+  if (ph) return `<span class="av ${cls}"><img src="${esc(ph)}" alt="" width="48" height="48"></span>`;
+  const k = p.type === 'membre' && persoKey(p.email);
+  if (k) return `<span class="av ${cls}"><img src="icons/people/${k}/portrait.webp" alt="" width="48" height="48"></span>`;
+  return `<span class="av chat ${cls}">${CHAT}</span>`;
 }
 // la liste des gens : vous deux d'abord (l'autre, puis moi), puis les amis
 function gens() {
@@ -4796,6 +4807,20 @@ function accordDe(moi, lui) {
 const avisMot = (a, nom) => a.note ? `a vu <i>${esc(a.title)}</i> · ${noteTxt(a.note)}/5` : a.vote === 'vu' ? `a vu <i>${esc(a.title)}</i>` : a.vote === 'super' ? `a très envie de voir <i>${esc(a.title)}</i>` : a.vote === 'oui' ? `a envie de voir <i>${esc(a.title)}</i>` : `n’est pas tenté${nom && /a$/i.test(nom) ? 'e' : ''} par <i>${esc(a.title)}</i>`;
 const affB = (a, cls = 'ami-mini') => `<button type="button" class="${cls}" data-action="gens-film" data-k="${esc(a.k)}" data-t="${esc(a.title)}" data-y="${a.year || ''}" data-p="${esc(a.poster || '')}" data-m="${esc(a.media || 'movie')}">${a.poster ? `<img src="${esc(a.poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : `<span class="noposter">${icn('film')}</span>`}<span>${esc(a.title)}</span>${a.note ? `<small>${noteTxt(a.note)}/5</small>` : a.super ? '<small>★</small>' : ''}</button>`;
 const rangee = l => `<div class="ami-row">${l.map(a => affB(a)).join('')}</div>`;
+async function photoPoser(ph) {
+  S.photos = { ...(S.photos || {}) }; if (ph) S.photos[S.me] = ph; else delete S.photos[S.me];
+  render(); haptic('medium'); toast(ph ? 'Photo de profil enregistrée' : 'Photo retirée');
+  if (!DEMO) try { await api.upsert('reglages', { cle: `profil:photo:${S.me}`, valeur: ph ? { photo: ph } : {} }); } catch (e) { console.warn('photo', e); toast('La photo n’a pas pu être enregistrée.'); }
+}
+// À la connexion dans Ciné Azami, une fois : proposer une photo de profil si on n'en a pas
+function photoAnnonce() {
+  if (!CINE_SEUL || DEMO || !S.me || !S.ready || S.photos?.[S.me] || tipSeen('photo-profil') || document.getElementById('photo-annonce')) return;
+  if (document.getElementById('tour') || document.getElementById('ticket') || document.querySelector('.inst-cine') || document.getElementById('cine-annonce')) return;
+  const box = document.createElement('div'); box.id = 'photo-annonce'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'Ta photo de profil');
+  box.innerHTML = `<div class="pa-c">${avatarHtml({ type: 'membre', email: S.me, nom: nameOf(S.me) }, 'big')}<p class="pa-t">Ta photo de profil</p><p class="pa-s">Les amis te reconnaîtront dans le fil et sur ton profil. Sans photo, c’est ton portrait dessiné qui s’affiche.</p>
+    <div class="pa-b"><button class="btn" data-action="photo-annonce" data-k="choisir">Choisir une photo</button><button class="btn ghost" data-action="photo-annonce" data-k="plus-tard">Garder le dessin</button></div></div>`;
+  document.body.appendChild(box); armHaptics(box);
+}
 // la rangée des gens (en haut du ciné) : touche quelqu'un pour visiter son profil
 function gensStrip() {
   if (!GENS.at && !GENS.p) gensCharger();
@@ -4812,7 +4837,7 @@ function filItems() {
 function filHtml() {
   const l = filItems(), max = S.filPlus ? 60 : 12;
   if (!l.length) return '';
-  return `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${l.slice(0, max).map(x => `<li class="fil-i"><button type="button" class="fil-av" data-action="gens-profil" data-id="${esc(x.id)}" aria-label="${esc(x.nom)}">${avatarHtml(x.moi ? { type: 'membre', email: x.id, nom: x.nom } : x.id.includes('@') ? { type: 'membre', email: x.id, nom: x.nom } : { nom: x.nom })}</button>
+  return `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${l.slice(0, max).map(x => `<li class="fil-i"><button type="button" class="fil-av" data-action="gens-profil" data-id="${esc(x.id)}" aria-label="${esc(x.nom)}">${avatarHtml(x.id.includes('@') ? { type: 'membre', email: x.id, nom: x.nom } : { type: 'ami', id: x.id, nom: x.nom })}</button>
       <div class="fil-c"><p><b>${esc(x.moi ? 'Toi' : x.nom)}</b> ${x.moi ? avisMot(x).replace(/^a /, 'as ').replace(/^n’est pas tenté/, 'n’es pas tenté') : avisMot(x, x.nom)}</p><small>${esc(ago(x.at))}</small></div>
       ${affB(x, 'fil-aff')}</li>`).join('')}</ul>${l.length > max ? `<button class="btn ghost small wide" data-action="fil-plus">Voir plus</button>` : ''}</section>`;
 }
@@ -4838,7 +4863,7 @@ async function profilSheet(id) {
       <header class="pf-tete">${avatarHtml(p, 'big')}<div><p class="pf-nom">${esc(p.nom)}${p.moi ? ' <small>(toi)</small>' : ''}</p>
         <p class="pf-sub">${p.type === 'membre' ? 'De la maison' : [a?.compte ? 'Compte' : 'Par lien', a?.vu_at ? `passé ${esc(ago(a.vu_at))}` : 'pas encore venu', a?.par && !S.members.some(m => m.name === a.par) ? `invité par ${esc(a.par)}` : ''].filter(Boolean).join(' · ')}</p></div></header>
       <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? noteTxt(moy) : '–'}</b><span>note moy.</span></li>${c ? `<li class="${c.compat != null ? 'ok' : ''}"><b>${c.compat != null ? c.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
-      ${p.moi ? '' : `<div class="pf-acts">${avec ? `<button class="btn ghost" data-action="gens-avec" data-id="">${icn('deux')} C’est avec ${esc(p.nom)} · revenir à ${esc(nameOf(other()) || 'nous deux')}</button>` : autreDefaut ? '' : `<button class="btn" data-action="gens-avec" data-id="${esc(p.id)}">${icn('deux')} À deux avec ${esc(p.nom)}</button>`}${p.type === 'ami' ? `<button class="btn ghost small" data-action="gens-gerer" data-id="${esc(p.id)}">Son lien…</button>` : ''}</div>`}
+      ${p.moi ? `<div class="pf-acts"><button class="btn ghost" data-action="photo-moi">${S.photos?.[S.me] ? 'Changer ma photo' : 'Mettre une photo de profil'}</button>${S.photos?.[S.me] ? '<button class="btn ghost small" data-action="photo-moi" data-x="1">Retirer</button>' : ''}</div>` : ''}${p.moi ? '' : `<div class="pf-acts">${avec ? `<button class="btn ghost" data-action="gens-avec" data-id="">${icn('deux')} C’est avec ${esc(p.nom)} · revenir à ${esc(nameOf(other()) || 'nous deux')}</button>` : autreDefaut ? '' : `<button class="btn" data-action="gens-avec" data-id="${esc(p.id)}">${icn('deux')} À deux avec ${esc(p.nom)}</button>`}${p.type === 'ami' ? `<button class="btn ghost small" data-action="gens-gerer" data-id="${esc(p.id)}">Son lien…</button>` : ''}</div>`}
       ${c?.matches.length ? `<p class="chip-label">${icn('envie')} Vous voulez tous les deux · ${c.matches.length}</p>${rangee(c.matches.slice(0, 24))}` : ''}
       ${c?.pourMoi.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur que tu n’as pas vus</p>${rangee(c.pourMoi.slice(0, 16))}` : ''}
       ${c?.adores.length ? `<p class="chip-label">Adorés tous les deux</p>${rangee(c.adores.slice(0, 16))}` : ''}
@@ -5698,19 +5723,21 @@ function jeuAvis(v, opts = {}) {
   if (CINE_SEUL) jeuFete(f);
 }
 function jeuMatch() { const e = JEU.propre(S.jeu); e.xp += JEU.MATCH; e.matchs++; e.maj = Date.now(); S.jeu = e; jeuSave(); if (CINE_SEUL) jeuFlotte(`+${JEU.MATCH}`, 'match'); }
-function jeuFlotte(txt, cls = '') {
+function jeuFlotte(txt, cls = '', mot = '') {
   const host = deck?.box || document.body, el = document.createElement('div'); el.className = `jeu-pop ${cls}`; el.textContent = txt;
-  host.appendChild(el); setTimeout(() => el.remove(), 1100);
+  if (mot) { const m = document.createElement('small'); m.textContent = mot; el.appendChild(m); }
+  host.appendChild(el); setTimeout(() => el.remove(), mot ? 1500 : 1100);
 }
+// la barre du jour chauffe tant que l'élan tient, puis refroidit doucement
+let jeuChaudT = 0, jeuChaudN = 0;
+function jeuChauffe(n) { jeuChaudN = n; clearTimeout(jeuChaudT); document.querySelectorAll('.deck-jeu').forEach(x => { x.classList.remove('c1', 'c2', 'c3'); if (n) x.classList.add(`c${n}`); }); if (n) jeuChaudT = setTimeout(() => jeuChauffe(0), JEU.COMBO_S * 1000); }
 function jeuFete(f) {
   jeuMaj();
-  jeuFlotte(`+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`);
-  if (f.combo >= 3 && deck?.box) {
-    let c = deck.box.querySelector('.jeu-combo'); if (!c) { c = document.createElement('div'); c.className = 'jeu-combo'; deck.box.appendChild(c); }
-    c.textContent = `Combo ×${f.combo}`; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
-    clearTimeout(c._t); c._t = setTimeout(() => c.remove(), 9000);
-    if (f.combo % 5 === 0) { sfx('done'); burst('sparkle', c, 10); }
-  }
+  // l'élan : des avis qui s'enchaînent rapportent plus, et ça se voit dans les points eux-mêmes (plus chauds, plus gros)
+  const ch = JEU.chaleur(f.combo), mot = JEU.elanMot(f.combo);
+  jeuFlotte(`+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, ch ? `c${ch}` : '', mot);
+  if (mot) { haptic('medium'); sfx('done'); }
+  jeuChauffe(ch);
   if (f.serie > 1) setTimeout(() => toast(`${f.serie} jours de suite !`), 300);
   if (f.coffre) setTimeout(() => { haptic('heavy'); celebrate({ title: 'Objectif du jour !', sub: `${JEU.OBJECTIF} films triés : le coffre s’ouvre, +${JEU.COFFRE} points`, level: 'big', reaction: 'fete_reussites' }); }, 450);
   else if (f.niveau) setTimeout(() => { haptic('heavy'); celebrate({ title: `Niveau ${f.niveau}`, sub: `${JEU.titre(f.niveau)}. Azami est fière de toi.`, level: 'big', reaction: 'fete_reussites' }); }, 450);
@@ -7694,6 +7721,8 @@ const actions = {
   'taste-rule': el => tasteRule(el.dataset.k, el.dataset.l),
   'taste-rule-del': el => setRule(el.dataset.k, null),
   'gens-profil': el => { haptic(1); profilSheet(el.dataset.id); },
+  'photo-moi': async el => { const r = el.dataset.x ? null : await choisirPhoto(); if (r === undefined) { toast('Cette image ne passe pas : essaie une autre photo.'); return; } if (r === null && !el.dataset.x) return; await photoPoser(r); if (document.querySelector('#ticket .profil')) profilSheet(S.me); },
+  'photo-annonce': async el => { if (el.dataset.k === 'plus-tard') { tipSave('photo-profil'); document.getElementById('photo-annonce')?.remove(); return; } const r = await choisirPhoto(); if (r === undefined) { toast('Cette image ne passe pas : essaie une autre photo.'); return; } if (!r) return; await photoPoser(r); tipSave('photo-profil'); document.getElementById('photo-annonce')?.remove(); },
   'gens-film': el => { const [media, id] = el.dataset.k.split(':'); closeTicket(); filmOuvrir({ tmdb_id: Number(id), media: media || el.dataset.m || 'movie', title: el.dataset.t, year: Number(el.dataset.y) || null, poster: el.dataset.p || null }); },
   'gens-avec': el => { S.cineAvec = el.dataset.id || null; safeSet(AVEC_KEY, S.cineAvec || ''); S.cineSpace = 'nous'; safeSet(SPACE_KEY, 'nous'); closeTicket(); haptic('medium'); toast(S.cineAvec ? `Ciné avec ${gensTrouve(S.cineAvec)?.nom || 'cet ami'}` : `Retour à ${nameOf(other())}`); render(); },
   'gens-gerer': () => { closeTicket(); amisSheet(); },
