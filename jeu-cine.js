@@ -98,7 +98,7 @@ export function afficherCri(host, { mot, genre, points = '', chaleur = 0, palier
   [...mot].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; sp.style.setProperty('--d', `${(-Math.random() * .4).toFixed(2)}s`); sp.style.setProperty('--i', i); w.appendChild(sp); });
   el.appendChild(w);
   if (points || palier) { const p = document.createElement('div'); p.className = 'cri-pts'; p.textContent = [points, palier].filter(Boolean).join('  '); el.appendChild(p); }
-  host.appendChild(el); setTimeout(() => el.remove(), 1300);
+  host.appendChild(el); setTimeout(() => el.remove(), 450);
   return el;
 }
 // deux appareils : on garde le plus avancé (et le plus récent pour la série du jour)

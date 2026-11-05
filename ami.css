@@ -260,7 +260,7 @@ input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; 
 .av.chat { position: relative; background: linear-gradient(160deg, #EAF4FF, #C4E1FB); }
 .av-ombre { position: absolute; inset: 0; background: #3398EC; -webkit-mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; }
 /* Les cris du jeu, façon Trombone Champ : gros mot, contour épais, chaque lettre tremble ; plus fort avec l'élan */
-.cri { position: fixed; left: 50%; top: 40%; max-width: 94vw; z-index: 320; transform: translate(-50%, -50%) rotate(var(--r, 0deg)); pointer-events: none; text-align: center; white-space: nowrap; animation: cri-vie 1.25s cubic-bezier(.2, .8, .3, 1) both; --t: 2px; --tr: 4deg; }
+.cri { position: fixed; left: 50%; top: 40%; max-width: 94vw; z-index: 320; transform: translate(-50%, -50%) rotate(var(--r, 0deg)); pointer-events: none; text-align: center; white-space: nowrap; animation: cri-vie .42s cubic-bezier(.2, .8, .3, 1) both; --t: 2px; --tr: 4deg; }
 .cri-mot { font-family: 'Nunito', system-ui, sans-serif; font-weight: 900; font-size: min(46px, calc(88vw / (var(--n, 6) * .6))); line-height: 1; letter-spacing: -.01em; color: var(--f, #fff); -webkit-text-stroke: 7px var(--s, #0F3570); paint-order: stroke fill; text-shadow: 0 6px 0 var(--s, #0F3570); }
 .cri-mot span { display: inline-block; white-space: pre; animation: cri-tremble .11s steps(2, jump-none) var(--d, 0s) infinite alternate; }
 .cri-pts { margin-top: 4px; font-family: 'Nunito', system-ui, sans-serif; font-weight: 900; font-size: 20px; color: #fff; -webkit-text-stroke: 4px var(--s, #0F3570); paint-order: stroke fill; }
@@ -284,7 +284,7 @@ input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; 
   100% { opacity: 0; transform: translate(-50%, -78%) rotate(var(--r)) scale(.9); }
 }
 @keyframes cri-tremble { from { transform: translate(calc(var(--t) * -1), var(--t)) rotate(calc(var(--tr) * -1)); } to { transform: translate(var(--t), calc(var(--t) * -1)) rotate(var(--tr)); } }
-@media (prefers-reduced-motion: reduce) { .cri { animation: cri-calme 1.2s ease both; } .cri-mot span { animation: none; } @keyframes cri-calme { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
+@media (prefers-reduced-motion: reduce) { .cri { animation: cri-calme .42s ease both; } .cri-mot span { animation: none; } @keyframes cri-calme { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
 /* le cri posé en haut à droite de l'affiche, comme un autocollant */
 .cri.coin { left: auto; top: 0; max-width: 72vw; text-align: right; transform-origin: 100% 0; animation-name: cri-coin; }
 .cri.coin .cri-mot { font-size: min(40px, calc(66vw / (var(--n, 6) * .6))); }
