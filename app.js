@@ -2797,7 +2797,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v283</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v284</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -6178,7 +6178,8 @@ function crotteSvg(v) {
   const g = v === 0 ? '#7A4A2A' : v === 1 ? '#6E4226' : '#86573A';
   return `<svg viewBox="0 0 40 36" width="34" height="31" aria-hidden="true"><g fill="${g}" stroke="#22170F" stroke-width="2" stroke-linejoin="round"><ellipse cx="20" cy="29" rx="${r(14, 16)}" ry="${r(5.5, 6.5)}"/><ellipse cx="${r(19, 21)}" cy="21" rx="${r(10, 11.5)}" ry="${r(5, 6)}"/><ellipse cx="${r(19.5, 21.5)}" cy="14" rx="${r(6.5, 7.5)}" ry="${r(4, 5)}"/><path d="M${r(19, 22)},11 c1,-3 -1,-5 ${r(1, 3)},-7" fill="none" stroke-linecap="round"/></g><g fill="none" stroke="#22170F" stroke-width="1.3" stroke-linecap="round" opacity=".55"><path d="M6,12 c-1,-3 1,-4 0,-7"/><path d="M34,10 c1,-3 -1,-4 0,-7"/></g></svg>`;
 }
-const POUBELLE_SVG = `<svg viewBox="0 0 90 100" width="90" height="100" aria-hidden="true"><g class="pb-corps" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M16,30 l5,62 c0,3 2,5 5,5 h38 c3,0 5,-2 5,-5 l5,-62 z"/><path d="M30,42 l2,44 M45,42 v44 M60,42 l-2,44" opacity=".5" stroke-width="2.5"/></g><g class="pb-couvercle" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M10,30 c0,-5 4,-8 9,-8 h52 c5,0 9,3 9,8 z"/><path d="M38,22 c0,-4 3,-6 7,-6 c4,0 7,2 7,6" fill="none"/></g></svg>`;
+// 40 unités de ciel au-dessus : le couvercle ouvert reste dans le dessin (Safari coupe ce qui dépasse, même avec overflow visible)
+const POUBELLE_SVG = `<svg viewBox="0 0 90 140" width="90" height="140" aria-hidden="true"><g class="pb-corps" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M16,70 l5,62 c0,3 2,5 5,5 h38 c3,0 5,-2 5,-5 l5,-62 z"/><path d="M30,82 l2,44 M45,82 v44 M60,82 l-2,44" opacity=".5" stroke-width="2.5"/></g><g class="pb-couvercle" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M10,70 c0,-5 4,-8 9,-8 h52 c5,0 9,3 9,8 z"/><path d="M38,62 c0,-4 3,-6 7,-6 c4,0 7,2 7,6" fill="none"/></g></svg>`;
 let crotteDrag = null;
 function crottesPlace() {
   const hd = document.querySelector('.hd'); if (!hd || !S.me) return;
@@ -6209,7 +6210,7 @@ function crottePrend(e) {
   const move = ev => {
     const d = crotteDrag; if (!d) return;
     d.ghost.style.left = `${ev.clientX - d.ox}px`; d.ghost.style.top = `${ev.clientY - d.oy}px`;
-    const b = d.bin.getBoundingClientRect(), dedans = ev.clientX > b.left - 20 && ev.clientX < b.right + 20 && ev.clientY > b.top - 30 && ev.clientY < b.bottom + 10;
+    const b = d.bin.getBoundingClientRect(), dedans = ev.clientX > b.left - 20 && ev.clientX < b.right + 20 && ev.clientY > b.top + 10 && ev.clientY < b.bottom + 10;
     if (dedans !== d.dedans) { d.dedans = dedans; d.bin.classList.toggle('ouverte', dedans); sfx('couvercle'); if (dedans) haptic(1); }
   };
   const fin = ev => {
@@ -6217,7 +6218,7 @@ function crottePrend(e) {
     const d = crotteDrag; crotteDrag = null; if (!d) return;
     if (d.dedans) {
       // dans la poubelle : la crotte tombe, le couvercle se referme, propreté +1
-      const b = d.bin.getBoundingClientRect(); d.ghost.style.zIndex = '93'; d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 42}px`; d.ghost.style.transform = 'scale(.5)'; d.ghost.style.opacity = '0';
+      const b = d.bin.getBoundingClientRect(); d.ghost.style.zIndex = '93'; d.ghost.style.transition = 'left .18s, top .18s, transform .18s, opacity .18s'; d.ghost.style.left = `${b.left + b.width / 2 - 17}px`; d.ghost.style.top = `${b.top + 82}px`; d.ghost.style.transform = 'scale(.5)'; d.ghost.style.opacity = '0';
       sfx('plop'); setTimeout(() => { d.bin.classList.remove('ouverte'); sfx('couvercle'); haptic('heavy'); }, 160);
       setTimeout(() => { d.ghost.remove(); d.bin.classList.remove('on'); setTimeout(() => d.bin.remove(), 300); }, 420);
       const t = tamaEtat(); t.crottes = (t.crottes || []).filter(c => c.id !== d.id); t.ramasse = [...(t.ramasse || []), d.id].slice(-40); t.proprete = clamp100((t.proprete ?? 100) + 20); tamaSave(true); d.el.remove();

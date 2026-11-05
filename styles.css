@@ -2109,7 +2109,7 @@ svg.az-nuage .nz.fin { fill: none; stroke-width: 1.6; opacity: .55; }
 #poubelle { position: fixed; left: 50%; bottom: calc(var(--nav-h) + var(--safe-b) + 18px); z-index: 94; transform: translate(-50%, 40px); opacity: 0; transition: transform .3s cubic-bezier(.34, 1.4, .64, 1), opacity .25s; pointer-events: none; filter: drop-shadow(0 4px 0 rgba(42, 28, 21, .16)); }
 #poubelle.on { transform: translate(-50%, 0); opacity: 1; }
 #poubelle svg { display: block; overflow: visible; }
-#poubelle .pb-couvercle { transform-origin: 14px 30px; transition: transform .22s cubic-bezier(.34, 1.4, .64, 1); }
+#poubelle .pb-couvercle { transform-origin: 14px 70px; transition: transform .22s cubic-bezier(.34, 1.4, .64, 1); }
 #poubelle.ouverte .pb-couvercle { transform: rotate(-58deg); }
 #poubelle.ouverte { transform: translate(-50%, 0) scale(1.08); }
 
