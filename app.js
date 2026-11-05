@@ -1799,6 +1799,12 @@ function morphAttrs(a, b) {
   }
   for (const { name, value } of [...b.attributes]) {
     if (name === 'open' && a.nodeName === 'DETAILS') continue;
+    // une affiche qui change dans une ligne gardée : l'ancienne reste jusqu'à ce que la nouvelle soit prête (sinon une image noire, le temps d'une frame)
+    if (name === 'src' && a.nodeName === 'IMG' && a.hasAttribute('data-poster') && a.getAttribute('src') && a.getAttribute('src') !== value) {
+      a.dataset.vers = value; const im = new Image(); im.referrerPolicy = 'no-referrer'; im.src = value;
+      const pose = () => { if (a.dataset.vers === value) { a.setAttribute('src', value); delete a.dataset.vers; } };
+      (im.decode ? im.decode() : Promise.reject()).then(pose, pose); continue;
+    }
     if (a.getAttribute(name) !== value) a.setAttribute(name, value);
   }
   if (a.nodeName === 'INPUT' || a.nodeName === 'TEXTAREA' || a.nodeName === 'SELECT') {
@@ -2797,7 +2803,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v285</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v286</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5189,7 +5195,10 @@ function deckDrawNext() {
   if (cur?.dataset.k === fkey(nxt)) return;
   cur?.remove();
   const n = deckFrag(deckDraw.card(nxt, 'next')); n.classList.add('enter'); st.insertBefore(n, top);
-  requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('enter')));
+  // elle n'apparaît qu'une fois son affiche décodée : jamais de carte noire derrière celle qu'on fait glisser
+  const im = n.querySelector('img.dposter'); let vu = false;
+  const montre = () => { if (vu) return; vu = true; requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('enter'))); };
+  if (im?.decode) { im.decode().then(montre, montre); setTimeout(montre, 1500); } else montre();
 }
 function deckDraw() {
   const st = deck?.box.querySelector('.deck-stack'); if (!st) return;
@@ -5225,7 +5234,7 @@ function deckDraw() {
   live.forEach(c => { if (c !== up) c.remove(); });
   let el;
   if (up) { el = up; el.style.transform = el.style.opacity = ''; el.classList.replace('next', 'top'); const d = deckFrag(card(cur, 'top')); el.querySelector('.dinfo').replaceWith(d.querySelector('.dinfo')); }
-  else { el = deckFrag(card(cur, 'top')); st.appendChild(el); }
+  else { el = deckFrag(card(cur, 'top')); const im = el.querySelector('img.dposter'); if (im) im.decoding = 'sync'; st.appendChild(el); }
   const gone = st.querySelector('.dcard.gone'); if (gone) st.appendChild(gone);   // elle finit de s’envoler par-dessus
   deckDrawNext();
   if (cur._relance && !deck.asking) st.insertAdjacentHTML('beforeend', `<p class="dtheirs relance">Seconde chance : tu avais hésité${ago >= 1 ? ` il y a ${ago} mois` : ''}</p>`);

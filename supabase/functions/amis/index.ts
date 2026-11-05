@@ -114,8 +114,19 @@ Deno.serve(async (req) => {
     return par;
   };
 
+  // les liens entre amis : demandes (de → a) et liens acceptés (ok_at), vus depuis un ami
+  const liensDe = async (id: string) => {
+    const { data } = await db.from("ami_liens").select("de, a, ok_at").or(`de.eq.${id},a.eq.${id}`);
+    const etat = new Map<string, "lie" | "envoye" | "recu">();
+    for (const l of (data ?? []) as { de: string; a: string; ok_at: string | null }[]) {
+      const autre = l.de === id ? l.a : l.de;
+      etat.set(autre, l.ok_at ? "lie" : l.de === id ? "envoye" : "recu");
+    }
+    return etat;
+  };
+
   // ── Côté ami : seulement avec un lien valide ──
-  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer"].includes(action)) {
+  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier"].includes(action)) {
     const jeton = String(body.jeton ?? "");
     if (!RE_JETON.test(jeton)) return json({ error: "Lien invalide." }, 404);
     const { data: ami } = await db.from("amis").select("id, nom, revoked_at, tuto_at").eq("jeton_hash", await sha(jeton)).maybeSingle();
@@ -125,7 +136,8 @@ Deno.serve(async (req) => {
     if (action === "moi") {
       await db.from("amis").update({ vu_at: new Date().toISOString() }).eq("id", ami.id);
       const [ms, { data: autres }, { count }] = await Promise.all([membres(), db.from("amis").select("nom").is("revoked_at", null).neq("id", ami.id).not("nom", "is", null), db.from("ami_avis").select("k", { count: "exact", head: true }).eq("ami_id", ami.id)]);
-      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0 });
+      const { count: demandes } = await db.from("ami_liens").select("de", { count: "exact", head: true }).eq("a", ami.id).is("ok_at", null);
+      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0 });
     }
     if (action === "profil") {
       const patch: Record<string, unknown> = {};
@@ -178,13 +190,35 @@ Deno.serve(async (req) => {
         return json({ films });
       } catch (e) { console.warn(e); return json({ error: "La recherche ne répond pas." }, 502); }
     }
+    if (action === "liens") {
+      const [{ data: tousAmis }, liens] = await Promise.all([db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null).neq("id", ami.id).order("nom"), liensDe(ami.id)]);
+      return json({ amis: (tousAmis ?? []).map(a => ({ id: a.id, nom: a.nom, etat: liens.get(a.id) ?? "rien" })) });
+    }
+    if (action === "lier" || action === "delier") {
+      const id = String(body.id ?? ""); if (!RE_ID.test(id) || id === ami.id) return json({ error: "Ami inconnu." }, 400);
+      const { data: autre } = await db.from("amis").select("id").eq("id", id).is("revoked_at", null).not("nom", "is", null).maybeSingle();
+      if (!autre) return json({ error: "Ami inconnu." }, 404);
+      if (action === "delier") {   // refuser, annuler sa demande ou défaire le lien : plus rien entre les deux
+        await db.from("ami_liens").delete().or(`and(de.eq.${ami.id},a.eq.${id}),and(de.eq.${id},a.eq.${ami.id})`);
+        return json({ ok: true, etat: "rien" });
+      }
+      const { data: recue } = await db.from("ami_liens").select("de, ok_at").eq("de", id).eq("a", ami.id).maybeSingle();
+      if (recue) { if (!recue.ok_at) await db.from("ami_liens").update({ ok_at: new Date().toISOString() }).eq("de", id).eq("a", ami.id); return json({ ok: true, etat: "lie" }); }
+      const { count } = await db.from("ami_liens").select("a", { count: "exact", head: true }).eq("de", ami.id).is("ok_at", null);
+      if ((count ?? 0) >= 30) return json({ error: "Beaucoup de demandes en attente déjà." }, 429);
+      const { error } = await db.from("ami_liens").upsert({ de: ami.id, a: id }, { onConflict: "de,a", ignoreDuplicates: true });
+      if (error) { console.error(error); return json({ error: "La demande n’est pas partie." }, 500); }
+      return json({ ok: true, etat: "envoye" });
+    }
     if (action === "comparer") {
-      const [g, cachés, ms, { data: autres }] = await Promise.all([goutsMembres(), discrets(), membres(), db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null)]);
-      const tous = await avisAmis((autres ?? []).map(a => a.id).concat(ami.id));
+      const [g, cachés, ms, { data: tousAmis }, liens] = await Promise.all([goutsMembres(), discrets(), membres(), db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null), liensDe(ami.id)]);
+      // les autres amis : seulement ceux avec qui le lien est accepté des deux côtés
+      const autres = (tousAmis ?? []).filter(a => a.id !== ami.id && liens.get(a.id) === "lie");
+      const tous = await avisAmis(autres.map(a => a.id).concat(ami.id));
       const moi = tous.get(ami.id) ?? new Map<string, Avis>();
       const personnes = [
         ...ms.filter(m => !cachés.has(m.email)).map(m => ({ nom: m.name, hote: true, ...comparer(moi, g.get(m.email) ?? new Map()) })),
-        ...(autres ?? []).filter(a => a.id !== ami.id).map(a => ({ nom: a.nom, hote: false, ...comparer(moi, tous.get(a.id) ?? new Map()) })),
+        ...autres.map(a => ({ nom: a.nom, hote: false, ...comparer(moi, tous.get(a.id) ?? new Map()) })),
       ];
       // tous ensemble : ce que moi ET chaque hôte (qui partage) voulons voir
       const hotes = ms.filter(m => !cachés.has(m.email)).map(m => g.get(m.email) ?? new Map<string, Avis>());

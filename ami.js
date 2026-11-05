@@ -11,7 +11,7 @@ const jeton = deHash || store.get('ami-jeton') || '';
 // le lien reste dans l'adresse : l'ajouter à l'écran d'accueil ou en favori garde l'accès
 if (!deHash && jeton) try { history.replaceState(null, '', `#${jeton}`); } catch {}
 
-let P = null, onglet = store.get('ami-onglet') || 'cinder', pileF = [], vusK = new Set(), MES = new Map(), CMP = null, filtre = 'oui', enCharge = false, recherche = [];
+let LIENS = null, P = null, onglet = store.get('ami-onglet') || 'cinder', pileF = [], vusK = new Set(), MES = new Map(), CMP = null, filtre = 'oui', enCharge = false, recherche = [];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IC = {
@@ -96,7 +96,7 @@ const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Matchs'], ['mes', 'Mes films'
 function dessiner() {
   $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Changer mon prénom"></button></header>
     <p class="s-sous">Chez <b class="s-hotes"></b></p>
-    <div class="s-tabs a-tabs" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${onglet === k}">${l}</button>`).join('')}</div>
+    <div class="s-tabs a-tabs" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${onglet === k}">${l}${k === 'matchs' && P.demandes ? ` <span class="a-badge" aria-label="${P.demandes} demande${P.demandes > 1 ? 's' : ''}">${P.demandes}</span>` : ''}</button>`).join('')}</div>
     <section class="s-body"></section>`;
   $.querySelector('.a-qui').textContent = P.nom; $.querySelector('.s-hotes').textContent = hotes();
   ({ cinder: pile, matchs, mes, chercher })[onglet]?.();
@@ -189,7 +189,7 @@ function demanderNote(f, actuelle = 4) {
 const rangee = (l, vide) => l.length ? `<div class="a-row">${l.map(f => `<button class="a-mini" data-film="${esc(f.k)}">${poster(f, 'a-mini-img')}<span>${esc(f.title)}</span>${f.note ? `<small>${note(f.note)}/5</small>` : f.super ? '<small>★ très envie</small>' : ''}</button>`).join('')}</div>` : `<p class="a-vide">${vide}</p>`;
 async function matchs() {
   const b = $.querySelector('.s-body');
-  if (!CMP) { b.innerHTML = '<p class="s-wait">Comparaison en cours…</p>'; try { CMP = await call('comparer'); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">La comparaison ne répond pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
+  if (!CMP) { b.innerHTML = '<p class="s-wait">Comparaison en cours…</p>'; try { [CMP, LIENS] = await Promise.all([call('comparer'), call('liens').then(r => r.amis).catch(() => [])]); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">La comparaison ne répond pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
   const C = CMP, filmsDe = new Map();
   for (const p of C.personnes) for (const l of [p.matches, p.pourMoi, p.adores, p.desaccords]) for (const f of l) filmsDe.set(f.k, f);
   for (const f of C.ensemble) filmsDe.set(f.k, f);
@@ -197,14 +197,39 @@ async function matchs() {
   const peu = C.nAvis < 15;
   b.innerHTML = `${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
     ${C.ensemble.length ? `<section class="a-bloc a-ens"><h2>${icn('deux')} Une soirée tous ensemble</h2><p class="a-sub">Ce que vous avez tous envie de voir : toi, ${esc(hotes())}.</p>${rangee(C.ensemble, '')}<button class="s-btn a-hasard" data-hasard>${icn('de')} Un film au hasard pour ce soir</button></section>` : ''}
-    ${C.personnes.map((p, i) => `${!p.hote && (i === 0 || C.personnes[i - 1].hote) ? '<p class="a-sep">Les autres amis</p>' : ''}<section class="a-bloc ${p.hote ? 'hote' : ''}"><div class="a-p-top"><h2></h2><span class="a-compat">${p.compat == null ? `<small>${p.communs ? `${p.communs} film${p.communs > 1 ? 's' : ''} en commun` : 'pas encore de film en commun'}</small>` : `<b>${p.compat} %</b><small>d’accord sur ${p.communs} films</small>`}</span></div>
+    ${C.personnes.map((p, i) => `${!p.hote && (i === 0 || C.personnes[i - 1].hote) ? '<p class="a-sep">Tes amis liés</p>' : ''}<section class="a-bloc ${p.hote ? 'hote' : ''}"><div class="a-p-top"><h2></h2><span class="a-compat">${p.compat == null ? `<small>${p.communs ? `${p.communs} film${p.communs > 1 ? 's' : ''} en commun` : 'pas encore de film en commun'}</small>` : `<b>${p.compat} %</b><small>d’accord sur ${p.communs} films</small>`}</span></div>
       <h3>${icn('envie')} Envie tous les deux${p.nMatches ? ` · ${p.nMatches}` : ''}</h3>${rangee(p.matches, 'Pas encore d’envie en commun.')}
       ${p.pourMoi.length ? `<h3>${icn('tres')} Ses coups de cœur, pas encore vus par toi</h3>${rangee(p.pourMoi, '')}` : ''}
       ${p.adores.length ? `<h3>${icn('coupe')} Adorés tous les deux</h3>${rangee(p.adores, '')}` : ''}
       ${p.desaccords.length ? `<h3>${icn('bof')} Vos grands désaccords</h3><ul class="a-desac">${p.desaccords.map(f => `<li><span></span><b>toi ${note(f.moi)} · <i></i> ${note(f.lui)}</b></li>`).join('')}</ul>` : ''}</section>`).join('')}
-    ${C.cachés?.length ? `<p class="a-vide">${esc(C.cachés.join(' et '))} ne partage${C.cachés.length > 1 ? 'nt' : ''} pas ses goûts pour l’instant.</p>` : ''}`;
+    ${C.cachés?.length ? `<p class="a-vide">${esc(C.cachés.join(' et '))} ne partage${C.cachés.length > 1 ? 'nt' : ''} pas ses goûts pour l’instant.</p>` : ''}
+    ${lienBloc()}`;
+  b.querySelectorAll('.a-lien b[data-i]').forEach(x => { x.textContent = LIENS[Number(x.dataset.i)]?.nom || ''; });
   b.querySelectorAll('.a-bloc:not(.a-ens)').forEach((s, i) => { s.querySelector('h2').textContent = C.personnes[i].nom; s.querySelectorAll('.a-desac i').forEach(x => { x.textContent = C.personnes[i].nom; }); });
   b.querySelectorAll('.a-desac li').forEach((li, i) => { const all = C.personnes.flatMap(p => p.desaccords); li.querySelector('span').textContent = all[i]?.title || ''; });
+}
+
+// Les autres amis : se lier, comme une demande d'ami. Une fois que l'autre accepte, vous voyez vos films en commun.
+const LIEN_MOT = { rien: '', envoye: 'Demande envoyée', recu: 'veut se lier avec toi', lie: 'Liés' };
+function lienBloc() {
+  const l = LIENS || []; if (!l.length) return '';
+  const recus = l.filter(a => a.etat === 'recu').length;
+  return `<section class="a-bloc a-liens"><h2>${icn('deux')} Les autres amis</h2><p class="a-sub">Liez-vous pour voir vos films en commun. Il faut que vous acceptiez tous les deux ; chacun peut défaire le lien quand il veut.</p>
+    <ul class="a-lien-l">${l.map((a, i) => `<li class="a-lien ${a.etat}"><div><b data-i="${i}"></b>${LIEN_MOT[a.etat] ? `<small>${LIEN_MOT[a.etat]}</small>` : ''}</div><div class="a-lien-b">${
+      a.etat === 'rien' ? `<button class="s-btn" data-lier="${a.id}">Se lier</button>`
+      : a.etat === 'recu' ? `<button class="s-btn" data-lier="${a.id}">Accepter</button><button class="s-btn ghost" data-delier="${a.id}">Refuser</button>`
+      : a.etat === 'envoye' ? `<button class="s-btn ghost" data-delier="${a.id}">Annuler</button>`
+      : `<button class="s-btn ghost" data-delier="${a.id}" data-defaire>Défaire</button>`}</div></li>`).join('')}</ul>${recus ? '' : ''}</section>`;
+}
+async function lienAgir(id, action, btn) {
+  btn.disabled = true;
+  try {
+    const r = await call(action, { id });
+    const a = LIENS.find(x => x.id === id); const avant = a?.etat; if (a) a.etat = r.etat;
+    if (avant === 'recu') P.demandes = Math.max(0, (P.demandes || 1) - 1);
+    toast(r.etat === 'lie' ? `Lié avec ${a?.nom || 'ton ami'}` : r.etat === 'envoye' ? 'Demande envoyée' : avant === 'lie' ? 'Lien défait' : avant === 'recu' ? 'Demande refusée' : 'Demande annulée');
+    CMP = null; dessiner();
+  } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); toast(e.message || 'Pas réussi.'); btn.disabled = false; }
 }
 
 // ── Une fiche : changer d'avis ──
@@ -255,6 +280,8 @@ $.addEventListener('click', async e => {
   const v = e.target.closest('.s-btns [data-v]'); if (v) { glisser(v.dataset.v); return; }
   const fl = e.target.closest('[data-f]'); if (fl) { filtre = fl.dataset.f; mes(); return; }
   if (e.target.closest('[data-nom]')) { accueil(); return; }
+  const li = e.target.closest('[data-lier]'); if (li) { lienAgir(li.dataset.lier, 'lier', li); return; }
+  const de = e.target.closest('[data-delier]'); if (de) { if (de.hasAttribute('data-defaire') && !confirm('Défaire le lien ? Vous ne verrez plus vos films en commun.')) return; lienAgir(de.dataset.delier, 'delier', de); return; }
   if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`À voir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }
   const fm = e.target.closest('[data-film]');
   if (fm) { const k = fm.dataset.film; const f = MES.get(k) || recherche.find(x => x.k === k) || matchs.films?.get(k); if (f) fichePop(f); }
