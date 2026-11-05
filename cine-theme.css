@@ -288,3 +288,6 @@ html.cine-seul .pf-nom small { color: #8FAEE8; }
 html.cine-seul .pf-sub { color: #8FAEE8; }
 html.cine-seul .pf-stats li.ok b { color: #FFC93C; }
 html.cine-seul .pf-stats span { color: #8FAEE8; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+html.cine-seul #portrait { background: var(--bg, #FFFFFF); color: var(--text, #17306B); }
+}

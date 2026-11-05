@@ -94,5 +94,6 @@
       "text": "text",
       "url": "url"
     }
-  }
+  },
+  "orientation": "portrait"
 }

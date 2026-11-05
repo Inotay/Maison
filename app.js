@@ -2540,6 +2540,8 @@ function glisseApres(m) {
 // reste de la maison ni la barre du bas. Installable à côté de Maison sur l'écran d'accueil.
 const CINE_SEUL = /\/cine(\.html)?$/.test(location.pathname);
 if (CINE_SEUL) document.documentElement.classList.add('cine-seul');
+// l'app se tient en portrait (là où le navigateur le permet : app sur l'écran d'accueil)
+try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch {}
 // la première fois dans Safari : comment mettre Ciné Azami sur l'écran d'accueil
 function cineInstall() {
   const autonome = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
@@ -2554,6 +2556,32 @@ function cineInstall() {
   box.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { safeSet('cine-install', '1'); box.remove(); } else if (e.target.closest('[data-tard]') || e.target === box) { safeSet('cine-install-plus-tard', String(Date.now())); box.remove(); } });
 }
 if (CINE_SEUL) setTimeout(() => { if (S.me && S.ready) cineInstall(); else setTimeout(cineInstall, 4000); }, 2500);
+// Une fois, pour Mariana, dans Maison : l'app de cinéma existe, comment l'installer et s'y connecter
+const CINE_LIEN = 'https://maison.yatoni.ch/cine.html';
+function cineAnnonce() {
+  if (CINE_SEUL || DEMO || !S.me || !S.ready || !/^mariana/i.test(S.me) || tipSeen('cine-app') || document.getElementById('cine-annonce')) return;
+  if (document.getElementById('tour') || document.getElementById('visite') || document.getElementById('ticket')) return;
+  if (Date.now() - Number(safeGet('cine-annonce-plus-tard') || 0) < 864e5) return;
+  const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const box = document.createElement('div'); box.id = 'cine-annonce'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Ciné Azami, ton app de cinéma');
+  box.innerHTML = `<div class="ca-c"><img class="ca-ic" src="icons/cine-180.png" alt="" width="72" height="72"><p class="ca-t">Ciné Azami est arrivée</p>
+    <p class="ca-s">Le ciné a maintenant sa propre app, à côté de Maison : Cinder, tes films et tes goûts, les amis avec leurs profils et leur fil, et Azami en lunettes 3D.</p>
+    <ol class="ca-l"><li><b>1</b><span>Ouvre le lien ci-dessous <strong>dans Safari</strong>.</span></li>
+      ${ios ? `<li><b>2</b><span>Touche <strong>Partager</strong> (le carré avec une flèche vers le haut), puis <strong>Sur l’écran d’accueil</strong>, puis <strong>Ajouter</strong>.</span></li>` : `<li><b>2</b><span>Ouvre le menu du navigateur (⋮), puis <strong>Installer l’application</strong> ou <strong>Ajouter à l’écran d’accueil</strong>.</span></li>`}
+      <li><b>3</b><span>Ouvre-la depuis ton écran d’accueil et connecte-toi avec <strong>ton adresse et ton mot de passe de Maison</strong>. Tes films, tes envies et tes notes y sont déjà.</span></li></ol>
+    <div class="ca-lien"><input readonly value="${CINE_LIEN}" aria-label="Lien de Ciné Azami"></div>
+    <div class="ca-b"><button class="btn" data-ca="ouvrir">Ouvrir l’app</button><button class="btn ghost" data-ca="copier">Copier le lien</button></div>
+    <div class="ca-b"><button class="btn ghost small" data-ca="fait">C’est fait</button><button class="link" data-ca="tard">Plus tard</button></div></div>`;
+  document.body.appendChild(box); armHaptics(box); haptic(1);
+  requestAnimationFrame(() => box.classList.add('on'));
+  box.addEventListener('click', async e => {
+    const k = e.target.closest('[data-ca]')?.dataset.ca; if (!k) return;
+    if (k === 'copier') { try { await navigator.clipboard.writeText(CINE_LIEN); toast('Lien copié'); haptic(1); } catch { box.querySelector('input')?.select(); } return; }
+    if (k === 'ouvrir') { window.open(CINE_LIEN, '_blank', 'noopener'); return; }
+    if (k === 'fait') tipSave('cine-app'); else safeSet('cine-annonce-plus-tard', String(Date.now()));
+    box.classList.remove('on'); setTimeout(() => box.remove(), 250);
+  });
+}
 function render() {
   if (CINE_SEUL) { S.view = 'nuit'; S.loisirTab = 'cine'; }
   S.cineAvec = safeGet(AVEC_KEY) || null;
@@ -2594,6 +2622,7 @@ function render() {
   popCheck();
   if (S.me && S.ready && visitState().pending && !document.getElementById('visite-invite') && !document.getElementById('tour')) visitInvite();
   visitTestHook();
+  cineAnnonce();
   if (!CINE_SEUL && !tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app); armHaptics(document.getElementById('ticket') || $app); armHaptics(document.getElementById('deck') || $app);
 
@@ -2826,7 +2855,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v294</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v296</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

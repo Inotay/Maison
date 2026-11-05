@@ -2446,3 +2446,30 @@ body:has(#deck) #undo { top: calc(env(safe-area-inset-top, 0px) + 54px); }
 .pf-fil .fil-i { background: transparent; border-color: rgba(250,243,232,.08); }
 .profil .chip-label { text-align: left; }
 .profil .ami-pf { margin-top: 14px; }
+
+/* Pas de zoom au double-toucher, et pas de pincement : l'app se tient comme une app */
+html, body { touch-action: manipulation; }
+/* Téléphone tourné : l'app est faite pour le portrait, on le dit gentiment au lieu de tout casser */
+#portrait { display: none; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  #portrait { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; text-align: center; padding: 24px; background: var(--bg, #FBF3E9); color: var(--text, #2A1C15); font-weight: 800; font-size: 18px; }
+  #portrait img { width: 120px; display: block; margin: 0 auto 10px; transform: rotate(90deg); }
+}
+
+/* L'annonce de Ciné Azami (une fois, pour Mariana) */
+#cine-annonce { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: 16px; background: rgba(20, 12, 8, .6); opacity: 0; transition: opacity .25s; overflow-y: auto; }
+#cine-annonce.on { opacity: 1; }
+.ca-c { width: 100%; max-width: 420px; margin: auto; padding: 20px 18px 16px; border-radius: 26px; background: linear-gradient(180deg, #3D86DD, #2563B8); color: #fff; box-shadow: 0 7px 0 #1B4F9E, 0 24px 60px rgba(0,0,0,.4); text-align: center; display: grid; gap: 10px; transform: translateY(14px) scale(.97); transition: transform .35s cubic-bezier(.34, 1.4, .64, 1); }
+#cine-annonce.on .ca-c { transform: none; }
+.ca-ic { width: 72px; height: 72px; margin: 0 auto; border-radius: 18px; box-shadow: 0 4px 0 #1B4F9E; }
+.ca-t { margin: 2px 0 0; font-size: 24px; font-weight: 900; line-height: 1.15; }
+.ca-s { margin: 0; font-size: 14.5px; line-height: 1.4; color: #E3ECFF; }
+.ca-l { list-style: none; margin: 4px 0; padding: 0; display: grid; gap: 9px; text-align: left; }
+.ca-l li { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; line-height: 1.4; }
+.ca-l b { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #FFC93C; color: #3D2A00; font-weight: 900; box-shadow: 0 3px 0 #D99A0E; }
+.ca-lien input { width: 100%; padding: 11px 12px; border-radius: 12px; border: 0; background: #fff; color: #17306B; font: inherit; font-size: 14px; font-weight: 800; text-align: center; box-shadow: inset 0 -3px 0 #C9D9FF; }
+.ca-b { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.ca-b .btn { flex: 1; min-width: 130px; background: #48D98A; color: #0D3B22; box-shadow: 0 5px 0 #22A862; }
+.ca-b .btn.ghost { background: #2766C0; color: #fff; box-shadow: 0 4px 0 #1B4F9E; }
+.ca-b .btn.small { flex: none; min-width: 0; }
+.ca-b .link { color: #fff; text-decoration: underline; padding: 8px; }

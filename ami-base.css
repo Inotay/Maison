@@ -96,3 +96,9 @@ button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-c
 #s-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px); transform: translate(-50%, 20px); padding: 10px 16px; border-radius: 14px; background: var(--ink); color: #17306B; font-weight: 800; opacity: 0; transition: .25s; pointer-events: none; max-width: 90vw; }
 #s-toast.on { opacity: 1; transform: translate(-50%, 0); }
 @media (prefers-reduced-motion: reduce) { .c { transition: none; } }
+html, body { touch-action: manipulation; }
+#portrait { display: none; }
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  #portrait { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; text-align: center; padding: 24px; background: #2F80DD; color: #fff; font-weight: 800; font-size: 18px; }
+  #portrait img { width: 120px; display: block; margin: 0 auto 10px; transform: rotate(90deg); }
+}

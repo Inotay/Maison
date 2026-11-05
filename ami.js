@@ -604,4 +604,5 @@ $.addEventListener('click', async e => {
 });
 document.addEventListener('keydown', e => { if (onglet !== 'cinder' || e.target.closest?.('input') || document.querySelector('.a-note')) return; const v = { ArrowRight: 'oui', ArrowLeft: 'non', ArrowUp: 'vu' }[e.key]; if (v) { e.preventDefault(); glisser(v); } });
 addEventListener('hashchange', () => location.reload());
+try { screen.orientation?.lock?.('portrait').catch(() => {}); } catch {}
 charger();
