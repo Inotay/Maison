@@ -63,6 +63,21 @@ export const CRIS = {
   vuBas: ['Eurk!', 'OuLala!', 'Aïe!', 'Ouch!', 'Oof!', 'AieAieAie!', 'KaKa!', 'Pouet!', 'PooPoo!', 'Navet!', 'Oups!', 'Bouh!', 'Plouf!', 'Snif!', 'Yikes!', 'Ugh!', 'Flop!'],
   vu: ['Hehe!', 'KnowDat!', 'DéjàVu!', 'Check!', 'Done!', 'Yep!', 'Seen!', 'Gotcha!', 'Coché!'],
 };
+// Selon le film : de temps en temps, un cri qui va avec son genre (envie, très envie, et vu avec une bonne note)
+const CRIS_GENRE = [
+  [/horreur|épouvante/i, ['Spooky!', 'Boo!', 'Creepy!', 'Brrr!', 'Gloups!']],
+  [/comédie/i, ['LOL!', 'Hihi!', 'MDR!', 'Haha!', 'Hoho!']],
+  [/animation|familial/i, ['Kawaii!', 'Cute!', 'Toon!', 'Mimi!']],
+  [/romance/i, ['Awww!', 'Smooch!', 'Lovey!', 'Cute!']],
+  [/science|sf/i, ['Pew!', 'Zap!', 'Beep!', 'Warp!']],
+  [/action|aventure|guerre/i, ['Pow!', 'Bang!', 'Wham!', 'Kapow!']],
+  [/thriller|crime|mystère|policier/i, ['Sus!', 'Gasp!', 'Ooh!', 'Hmm!']],
+  [/drame/i, ['Sniff!', 'Feels!', 'Snif!']],
+  [/documentaire|histoire/i, ['Smart!', 'Nerd!', 'Brainy!']],
+  [/western/i, ['Yeehaw!', 'Howdy!']],
+  [/musique|musical/i, ['LaLa!', 'Tralala!', 'Groovy!']],
+  [/fantastique|fantasy/i, ['Magic!', 'Poof!', 'Sparkle!']],
+];
 const derniers = [];
 // Les bof qui s'enchaînent : de temps en temps (pas toujours), ça part en « NoNo! », « NiNi! », « NaNa! »…
 // une voyelle différente à chaque fois, tant que les bof continuent.
@@ -73,29 +88,35 @@ function nonoSuivant() {
   return `N${voyelle}N${voyelle}!`;
 }
 // le cri d'un avis, et son genre (pour la couleur) : oui, super, non, beurk, vu-top, vu-moyen, vu-bas
-export function cri(vote, note) {
+export function cri(vote, note, genres = []) {
   const bof = vote === 'non' || vote === 'beurk';
   bofs = bof ? bofs + 1 : 0;
   if (!bof) nono = false;
   else if (!nono && bofs >= 3 && Math.random() < .35) { nono = true; voyelle = 'o'; return { mot: 'NoNo!', genre: vote }; }
   if (nono) return { mot: nonoSuivant(), genre: vote };
   const g = vote === 'vu' ? (note >= 4 ? 'vuTop' : note >= 2.5 ? 'vuMoyen' : note > 0 ? 'vuBas' : 'vu') : CRIS[vote] ? vote : 'oui';
-  const l = CRIS[g].filter(m => !derniers.includes(m));
+  const envie = g === 'oui' || g === 'super' || g === 'vuTop';
+  const duGenre = envie && Math.random() < .4 ? CRIS_GENRE.filter(([re]) => (genres || []).some(x => re.test(String(x)))).flatMap(([, l]) => l) : [];
+  const l = (duGenre.length ? duGenre : CRIS[g]).filter(m => !derniers.includes(m));
   const m = l[Math.floor(Math.random() * l.length)] || CRIS[g][0];
   derniers.push(m); if (derniers.length > 8) derniers.shift();
   return { mot: m, genre: g };
 }
+const ENTREES = { oui: ['coup', 'tourne', 'glisse', 'saut', 'zoom'], super: ['gros', 'tourne', 'zoom'], non: ['mou', 'glisse', 'saut'], beurk: ['ecrase', 'coup'], vuTop: ['zoom', 'tourne', 'coup'], vuMoyen: ['glisse', 'mou', 'saut'], vuBas: ['affaisse', 'mou'], vu: ['glisse', 'zoom', 'saut'] };
+let derniereEntree = '';
 // Le montrer : le mot en gros en haut à droite de l'affiche (ou au milieu de l'écran), chaque lettre tremble à sa façon (plus fort quand l'élan monte),
 // les points en petit dessous. Même dessin dans l'app et sur la page des amis (styles .cri dans leurs feuilles).
 export function afficherCri(host, { mot, genre, points = '', chaleur = 0, palier = '', coin = null }) {
   host.querySelectorAll(':scope > .cri').forEach(x => x.remove());
-  const el = document.createElement('div'); el.className = `cri g-${genre} c${chaleur}`; el.setAttribute('aria-hidden', 'true');
+  // une entrée tirée au hasard parmi celles qui vont avec l'avis (jamais deux fois la même de suite)
+  const pool = ENTREES[genre] || ENTREES.oui, l = pool.filter(x => x !== derniereEntree), ent = l[Math.floor(Math.random() * l.length)] || pool[0]; derniereEntree = ent;
+  const el = document.createElement('div'); el.className = `cri g-${genre} c${chaleur} e-${ent}`; el.setAttribute('aria-hidden', 'true');
   // posé en haut à droite de l'affiche (coin = l'élément de la pile), penché comme un autocollant
   const r = coin?.getBoundingClientRect?.();
   if (r && r.width) { el.classList.add('coin'); el.style.top = `${Math.round(r.top + 18)}px`; el.style.right = `${Math.max(14, Math.round(innerWidth - r.right + 10))}px`; el.style.setProperty('--r', `${(-3 - Math.random() * 7).toFixed(1)}deg`); }
   else el.style.setProperty('--r', `${(Math.random() * 16 - 8).toFixed(1)}deg`); el.style.setProperty('--n', String(Math.max(6, [...mot].length)));
   const w = document.createElement('div'); w.className = 'cri-mot';
-  [...mot].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; sp.style.setProperty('--d', `${(-Math.random() * .4).toFixed(2)}s`); sp.style.setProperty('--i', i); w.appendChild(sp); });
+  [...mot].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; sp.style.setProperty('--d', `${(-Math.random() * .4).toFixed(2)}s`); sp.style.setProperty('--du', `${(.13 + Math.random() * .09).toFixed(2)}s`); sp.style.setProperty('--i', i); w.appendChild(sp); });
   el.appendChild(w);
   if (points || palier) { const p = document.createElement('div'); p.className = 'cri-pts'; p.textContent = [points, palier].filter(Boolean).join('  '); el.appendChild(p); }
   host.appendChild(el); setTimeout(() => el.remove(), 450);

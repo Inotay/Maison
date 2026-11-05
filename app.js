@@ -2857,7 +2857,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v304</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v306</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5731,11 +5731,13 @@ function jeuFlotte(txt, cls = '', mot = '') {
 // la barre du jour chauffe tant que l'élan tient, puis refroidit doucement
 let jeuChaudT = 0, jeuChaudN = 0;
 function jeuChauffe(n) { jeuChaudN = n; clearTimeout(jeuChaudT); document.querySelectorAll('.deck-jeu').forEach(x => { x.classList.remove('c1', 'c2', 'c3'); if (n) x.classList.add(`c${n}`); }); if (n) jeuChaudT = setTimeout(() => jeuChauffe(0), JEU.COMBO_S * 1000); }
+// les genres du film qu'on vient de juger (celui du dessus de la pile, avant qu'il parte)
+const jeuGenres = () => { const f = deck?.cards?.[deck.i]; return f ? (Array.isArray(f.genres) && typeof f.genres[0] === 'string' ? f.genres : (f.gids || []).map(g => TMDB_G[g]).filter(Boolean)) : []; };
 function jeuFete(f, v, note) {
   jeuMaj();
   // le cri, façon jeu de combat : un mot qui claque selon l'avis, qui tremble plus fort quand l'élan monte
   const ch = JEU.chaleur(f.combo), palier = JEU.elanMot(f.combo);
-  JEU.afficherCri(deck?.box || document.body, { coin: deck?.box?.querySelector('.deck-stack'), ...JEU.cri(v, note), points: `+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, chaleur: ch, palier });
+  JEU.afficherCri(deck?.box || document.body, { coin: deck?.box?.querySelector('.deck-stack'), ...JEU.cri(v, note, jeuGenres()), points: `+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, chaleur: ch, palier });
   if (palier) { haptic('heavy'); sfx('done'); }
   jeuChauffe(ch);
   if (f.serie > 1) setTimeout(() => toast(`${f.serie} jours de suite !`), 300);

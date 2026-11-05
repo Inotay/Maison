@@ -153,11 +153,11 @@ html.cine-seul .av-ombre { background: #3398EC; }
 @media (prefers-reduced-motion: reduce) { .cri { animation: cri-calme .42s ease both; } .cri-mot span { animation: none; } @keyframes cri-calme { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
 /* le cri posé en haut à droite de l'affiche, comme un autocollant */
 .cri.coin { left: auto; top: 0; max-width: 72vw; text-align: right; transform-origin: 100% 0; animation-name: cri-coin; }
-.cri.coin .cri-mot { font-size: min(40px, calc(66vw / (var(--n, 6) * .6))); }
-.cri.coin.c1 .cri-mot { font-size: min(44px, calc(66vw / (var(--n, 6) * .6))); }
-.cri.coin.c2 .cri-mot { font-size: min(49px, calc(66vw / (var(--n, 6) * .6))); }
-.cri.coin.c3 .cri-mot { font-size: min(54px, calc(66vw / (var(--n, 6) * .6))); }
-.cri.coin.g-super .cri-mot { font-size: min(48px, calc(66vw / (var(--n, 6) * .6))); }
+.cri.coin .cri-mot { font-size: min(28px, calc(60vw / (var(--n, 6) * .6))); }
+.cri.coin.c1 .cri-mot { font-size: min(31px, calc(60vw / (var(--n, 6) * .6))); }
+.cri.coin.c2 .cri-mot { font-size: min(34px, calc(60vw / (var(--n, 6) * .6))); }
+.cri.coin.c3 .cri-mot { font-size: min(37px, calc(60vw / (var(--n, 6) * .6))); }
+.cri.coin.g-super .cri-mot { font-size: min(33px, calc(60vw / (var(--n, 6) * .6))); }
 @keyframes cri-coin {
   0% { opacity: 0; transform: rotate(calc(var(--r) - 8deg)) scale(2.1); }
   12% { opacity: 1; transform: rotate(var(--r)) scale(.86); }
@@ -166,3 +166,33 @@ html.cine-seul .av-ombre { background: #3398EC; }
   86% { opacity: 1; transform: rotate(var(--r)) scale(1); }
   100% { opacity: 0; transform: rotate(var(--r)) scale(1.12); }
 }
+.cri.coin .cri-mot { -webkit-text-stroke-width: 5px; text-shadow: 0 4px 0 var(--s, #0F3570); }
+.cri.coin .cri-pts { font-size: 14px; -webkit-text-stroke-width: 3px; margin-top: 2px; }
+.cri.coin { --t: 1.5px; } .cri.coin.c1 { --t: 2px; } .cri.coin.c2 { --t: 2.6px; } .cri.coin.c3 { --t: 3.2px; }
+/* selon l'avis, une entrée différente : très envie claque, bof tombe mollement, non tremble de dégoût, mauvaise note s'affaisse */
+.cri.coin.g-super .cri-mot { filter: drop-shadow(0 0 8px rgba(255, 200, 61, .8)); }
+.cri.coin.g-beurk { --t: 3px; --tr: 10deg; }
+.cri.coin.g-vuTop .cri-mot { filter: drop-shadow(0 0 7px rgba(255, 200, 61, .75)); }
+@keyframes cri-coin-super { 0% { opacity: 0; transform: rotate(calc(var(--r) - 14deg)) scale(2.8); } 10% { opacity: 1; transform: rotate(var(--r)) scale(.8); } 20% { transform: rotate(calc(var(--r) + 4deg)) scale(1.14); } 30% { transform: rotate(var(--r)) scale(1); } 86% { opacity: 1; transform: rotate(var(--r)) scale(1); } 100% { opacity: 0; transform: rotate(var(--r)) scale(1.2); } }
+@keyframes cri-coin-mou { 0% { opacity: 0; transform: translateY(-22px) rotate(calc(var(--r) + 10deg)) scale(.9); } 24% { opacity: 1; transform: translateY(3px) rotate(calc(var(--r) - 3deg)) scale(1); } 40% { transform: translateY(0) rotate(var(--r)); } 82% { opacity: 1; transform: translateY(0) rotate(var(--r)); } 100% { opacity: 0; transform: translateY(10px) rotate(calc(var(--r) - 6deg)) scale(.95); } }
+@keyframes cri-coin-beurk { 0% { opacity: 0; transform: rotate(var(--r)) scale(.4, 1.6); } 14% { opacity: 1; transform: rotate(var(--r)) scale(1.3, .75); } 26% { transform: rotate(var(--r)) scale(.92, 1.08); } 36% { transform: rotate(var(--r)) scale(1); } 86% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--r)) scale(.85); } }
+@keyframes cri-coin-affaisse { 0% { opacity: 0; transform: rotate(var(--r)) scale(1.5); } 14% { opacity: 1; transform: rotate(var(--r)) scale(1); } 60% { transform: rotate(var(--r)) translateY(0); } 86% { opacity: 1; transform: rotate(calc(var(--r) + 14deg)) translateY(8px) scale(.95); } 100% { opacity: 0; transform: rotate(calc(var(--r) + 20deg)) translateY(16px) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .cri.coin { animation-name: cri-calme !important; } }
+/* les entrées des cris (tirées au hasard selon l'avis) et un frémissement fluide des lettres */
+.cri-mot span { animation: cri-tremble var(--du, .16s) ease-in-out var(--d, 0s) infinite alternate !important; }
+.cri.coin { animation-timing-function: cubic-bezier(.22, .9, .32, 1) !important; }
+.cri.coin.e-coup { animation-name: cri-coin !important; }
+.cri.coin.e-gros { animation-name: cri-coin-super !important; }
+.cri.coin.e-mou { animation-name: cri-coin-mou !important; }
+.cri.coin.e-ecrase { animation-name: cri-coin-beurk !important; }
+.cri.coin.e-affaisse { animation-name: cri-coin-affaisse !important; }
+.cri.coin.e-tourne { animation-name: cri-coin-tourne !important; }
+.cri.coin.e-glisse { animation-name: cri-coin-glisse !important; }
+.cri.coin.e-saut { animation-name: cri-coin-saut !important; }
+.cri.coin.e-zoom { animation-name: cri-coin-zoom !important; }
+@keyframes cri-coin-tourne { 0% { opacity: 0; transform: rotate(calc(var(--r) - 200deg)) scale(.2); } 30% { opacity: 1; transform: rotate(calc(var(--r) + 8deg)) scale(1.12); } 42% { transform: rotate(var(--r)) scale(1); } 86% { opacity: 1; transform: rotate(var(--r)) scale(1); } 100% { opacity: 0; transform: rotate(var(--r)) scale(.9); } }
+@keyframes cri-coin-glisse { 0% { opacity: 0; transform: translateX(60px) rotate(var(--r)) skewX(-18deg); } 24% { opacity: 1; transform: translateX(-6px) rotate(var(--r)) skewX(8deg); } 38% { transform: translateX(0) rotate(var(--r)) skewX(0); } 86% { opacity: 1; transform: translateX(0) rotate(var(--r)); } 100% { opacity: 0; transform: translateX(-14px) rotate(var(--r)); } }
+@keyframes cri-coin-saut { 0% { opacity: 0; transform: translateY(34px) rotate(var(--r)) scale(.7, 1.2); } 22% { opacity: 1; transform: translateY(-10px) rotate(var(--r)) scale(1.06, .95); } 36% { transform: translateY(2px) rotate(var(--r)) scale(.98, 1.02); } 46% { transform: translateY(0) rotate(var(--r)) scale(1); } 86% { opacity: 1; transform: translateY(0) rotate(var(--r)); } 100% { opacity: 0; transform: translateY(-10px) rotate(var(--r)); } }
+@keyframes cri-coin-zoom { 0% { opacity: 0; transform: rotate(var(--r)) scale(0); } 18% { opacity: 1; transform: rotate(var(--r)) scale(1.3); } 28% { transform: rotate(var(--r)) scale(.88); } 38% { transform: rotate(var(--r)) scale(1.07); } 48% { transform: rotate(var(--r)) scale(1); } 86% { opacity: 1; transform: rotate(var(--r)) scale(1); } 100% { opacity: 0; transform: rotate(var(--r)) scale(1.1); } }
+@keyframes cri-tremble { from { transform: translate(calc(var(--t) * -.8), calc(var(--t) * .6)) rotate(calc(var(--tr) * -.7)); } to { transform: translate(calc(var(--t) * .8), calc(var(--t) * -.6)) rotate(calc(var(--tr) * .7)); } }
+@media (prefers-reduced-motion: reduce) { .cri-mot span { animation: none !important; } .cri.coin { animation-name: cri-calme !important; } }
