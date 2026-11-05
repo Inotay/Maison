@@ -13,7 +13,7 @@ const cors = (req: Request) => {
 };
 const MODELE = "claude-sonnet-5-5";
 const PRIX = { in: 2, out: 10, cacheW: 2.5, cacheR: 0.2 };          // dollars par million de tokens
-const PLAFOND_JOUR_USD = 2, PLAFOND_APPELS = 120;                    // pour toute la maison / par personne
+const PLAFOND_JOUR_USD = 2, PLAFOND_APPELS = 120;                    // pour Yatoni et Mariana ensemble / par personne (les amis : 0,50 $ et 15 messages chacun, à part)
 const MAX_TEXTE = 1500, MAX_CONTEXTE = 14000, FIL = 24, MEMOIRE = 80;
 
 const str = (v: unknown, n: number) => String(v ?? "").replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, " ").trim().slice(0, n);
@@ -246,7 +246,8 @@ Deno.serve(async (req) => {
   // ── Le plafond du jour ──
   const jour = new Date().toISOString().slice(0, 10);
   const { data: usage } = await db.from("azami_usage").select("qui, appels, cout_usd").eq("jour", jour);
-  const depense = (usage ?? []).reduce((a, u) => a + Number(u.cout_usd), 0);
+  // les amis ont leur propre petit crédit (fonction « amis ») : il ne compte pas dans celui de la maison
+  const depense = (usage ?? []).filter(u => !String(u.qui).startsWith("ami:")).reduce((a, u) => a + Number(u.cout_usd), 0);
   const mesAppels = (usage ?? []).find(u => u.qui === me)?.appels ?? 0;
   if (depense >= PLAFOND_JOUR_USD || mesAppels >= PLAFOND_APPELS) return json(CORS, { error: "j’ai assez parlé pour aujourd’hui. Sieste jusqu’à demain.", code: "plafond" }, 429);
 

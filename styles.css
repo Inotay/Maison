@@ -2398,3 +2398,5 @@ html[data-theme="brun"] .pil-plaq { background: linear-gradient(160deg, #4A3A30,
 /* Ciné Azami à part : seulement le ciné */
 html.cine-seul .nav, html.cine-seul .loisirs-tabs, html.cine-seul .mot-attend { display: none !important; }
 html.cine-seul body { --nav-h: 0px; }
+/* Cinder ouvert : le bouton « Annuler » descend sous la ligne de titre au lieu de la recouvrir */
+body:has(#deck) #undo { top: calc(env(safe-area-inset-top, 0px) + 54px); }

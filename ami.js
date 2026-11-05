@@ -142,6 +142,7 @@ function moiPop() {
     <button class="s-btn ghost" data-m="nom">Changer mon prénom</button>
     <button class="s-btn ghost" data-m="compte">${P.compte ? 'Mon compte' : 'Créer un compte'}</button>
     <button class="s-btn" data-m="inviter">Inviter quelqu’un</button>
+    <button class="s-btn ghost" data-m="azami">Parler à Azami</button>
     ${AUTONOME ? '' : '<button class="s-btn ghost" data-m="installer">Mettre sur l’écran d’accueil</button>'}
     ${session && !deHash ? '<button class="s-btn ghost" data-m="sortir">Se déconnecter</button>' : ''}
     <button class="s-btn ghost" data-fermer>Fermer</button></div>`);
@@ -151,6 +152,7 @@ function moiPop() {
     if (m === 'nom') { box.remove(); accueil(); }
     if (m === 'compte') comptePop(false);
     if (m === 'inviter') invitePop();
+    if (m === 'azami') azamiPop();
     if (m === 'installer') installPop();
     if (m === 'sortir') { try { await call('deconnexion'); } catch {} session = ''; del('ami-session'); box.remove(); connexion('À bientôt.'); }
   });
@@ -213,9 +215,10 @@ function tuto(n) {
 // ── L'écran : quatre onglets ──
 const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Matchs'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
+  document.querySelectorAll('.a-combo, .a-vol').forEach(x => x.remove());
   $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Mon menu"></button></header>
     <div class="a-hud">${hud()}</div>
-    ${onglet === 'cinder' ? `<div class="a-scene"><img src="azami/v44/${reduit() ? 'statiques/azami_v44_cinebleu_statique' : 'azami_v44_cinebleu_anime'}.svg" alt=""><p class="a-bulle"></p></div><div class="a-obj-h">${objectif()}</div>` : ''}
+    ${onglet === 'cinder' ? `<button class="a-scene" data-azami aria-label="Parler à Azami"><img src="azami/v44/${reduit() ? 'statiques/azami_v44_cinebleu_statique' : 'azami_v44_cinebleu_anime'}.svg" alt=""><p class="a-bulle"></p></button><div class="a-obj-h">${objectif()}</div>` : ''}
     ${onglet === 'cinder' ? '' : '<p class="s-sous">Chez <b class="s-hotes"></b></p>'}
     <div class="s-tabs a-tabs" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${onglet === k}">${l}${k === 'matchs' && P.demandes ? ` <span class="a-badge" aria-label="${P.demandes} demande${P.demandes > 1 ? 's' : ''}">${P.demandes}</span>` : ''}</button>`).join('')}</div>
     <section class="s-body"></section>`;
@@ -245,6 +248,33 @@ function installPop() {
   box.querySelector('.s-btn:not([data-tard])').addEventListener('click', () => store.set('ami-install', '1'));
 }
 const installAProposer = () => !AUTONOME && !store.get('ami-install') && Date.now() - Number(store.get('ami-install-plus-tard') || 0) > 3 * 864e5;
+
+// ── Parler à Azami : un petit crédit par ami et par jour (elle ne parle que cinéma, elle ne sait rien de la maison) ──
+let FIL = [], AZ_RESTE = null;
+function azamiPop() {
+  const box = pop(`<div class="a-az"><img class="a-az-img" src="azami/v44/statiques/azami_v44_cinebleu_statique.svg" alt=""><div><p class="a-note-t">Azami</p><p class="a-sub">Elle parle ciné : un conseil, une idée pour ce soir, un avis sur un film.</p></div></div>
+    <div class="a-fil" aria-live="polite"></div>
+    <form class="a-az-form"><input name="texte" maxlength="500" autocomplete="off" placeholder="Dis-lui…" aria-label="Ton message"><button class="s-btn" aria-label="Envoyer">${icn('flamme')}</button></form>
+    <p class="a-az-reste"></p><div class="a-note-btns"><button type="button" class="s-btn ghost" data-fermer>Fermer</button></div>`);
+  const fil = box.querySelector('.a-fil'), f = box.querySelector('form'), reste = box.querySelector('.a-az-reste');
+  const peindre = () => {
+    fil.innerHTML = FIL.length ? FIL.map(m => `<p class="a-msg ${m.role}"></p>`).join('') : '<p class="a-msg assistant"></p>';
+    const ps = fil.querySelectorAll('.a-msg'); if (!FIL.length) ps[0].textContent = `Miaou ${P.nom || ''}. Tu cherches quoi à regarder ?`; else FIL.forEach((m, i) => { ps[i].textContent = m.texte; });
+    reste.textContent = AZ_RESTE == null ? '' : AZ_RESTE > 0 ? `Encore ${AZ_RESTE} message${AZ_RESTE > 1 ? 's' : ''} aujourd’hui.` : 'Azami fait la sieste : à demain !';
+    fil.scrollTop = fil.scrollHeight;
+  };
+  peindre();
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const texte = f.texte.value.trim(); if (!texte) return;
+    const film = pileF[0] ? { title: pileF[0].title, year: pileF[0].year } : null;
+    const avant = FIL.slice(-6); FIL.push({ role: 'user', texte }); f.texte.value = ''; f.querySelector('button').disabled = true;
+    const att = document.createElement('p'); att.className = 'a-msg assistant att'; att.textContent = '…'; peindre(); fil.appendChild(att); fil.scrollTop = fil.scrollHeight;
+    try { const r = await call('azami', { texte, fil: avant, film }); FIL.push({ role: 'assistant', texte: r.reponse }); AZ_RESTE = r.reste; }
+    catch (err) { if (!err.gere) { FIL.push({ role: 'assistant', texte: err.message }); if (/sieste|plafond/i.test(err.message)) AZ_RESTE = 0; } }
+    f.querySelector('button').disabled = false; peindre(); if (AZ_RESTE !== 0) f.texte.focus();
+  });
+  if (AZ_RESTE !== 0) setTimeout(() => f.texte.focus(), 300);
+}
 
 // ── Le jeu : série, points, niveau, objectif du jour, combos, fêtes (jeu-cine.js) ──
 const reduit = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -514,6 +544,7 @@ $.addEventListener('click', async e => {
   const v = e.target.closest('.s-btns [data-v]'); if (v) { glisser(v.dataset.v); return; }
   const fl = e.target.closest('[data-f]'); if (fl) { filtre = fl.dataset.f; mes(); return; }
   if (e.target.closest('[data-nom]')) { moiPop(); return; }
+  if (e.target.closest('[data-azami]')) { azamiPop(); return; }
   const li = e.target.closest('[data-lier]'); if (li) { lienAgir(li.dataset.lier, 'lier', li); return; }
   const de = e.target.closest('[data-delier]'); if (de) { if (de.hasAttribute('data-defaire') && !confirm('Défaire le lien ? Vous ne verrez plus vos films en commun.')) return; lienAgir(de.dataset.delier, 'delier', de); return; }
   if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`À voir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }

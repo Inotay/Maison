@@ -2411,7 +2411,7 @@ function openGuidePage(k = guideKey()) {
 function guideHint() {
   const k = guideKey();
   // (« Non merci » une fois suffit pour toutes les pages : la bulle ne revenait sur chacune des six)
-  if (!GUIDE[k] || tipSeen('page:' + k) || !tipSeen('tour') || tipSeen('guide-hints-off')) return '';
+  if (CINE_SEUL || !GUIDE[k] || tipSeen('page:' + k) || !tipSeen('tour') || tipSeen('guide-hints-off')) return '';
   return `<div class="guide-hint"><span>Première fois ici ? Le <b>?</b> t’explique tout ce qu’on peut faire sur cette page.</span><button class="btn small" data-action="guide-page">Voir</button><button class="link" data-action="guide-hint-off" aria-label="Fermer">Non merci</button></div>`;
 }
 
@@ -2593,7 +2593,7 @@ function render() {
   popCheck();
   if (S.me && S.ready && visitState().pending && !document.getElementById('visite-invite') && !document.getElementById('tour')) visitInvite();
   visitTestHook();
-  if (!tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
+  if (!CINE_SEUL && !tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
   armHaptics($app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
@@ -2825,7 +2825,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v292</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v293</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

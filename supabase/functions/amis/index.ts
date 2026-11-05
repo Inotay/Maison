@@ -49,6 +49,15 @@ async function envoyerMail(to: string, sujet: string, texte: string) {
   } catch (e) { console.warn("mail", e); return false; }
 }
 const PAGE = "https://maison.yatoni.ch/ami.html";
+// Azami pour les amis : un petit crédit à part, plafonné, pour ne jamais entamer celui de Yatoni et Mariana
+// (la fonction « azami » leur garde 2 dollars par jour rien qu'à eux). Modèle léger, réponses courtes.
+const AZ_MODELE = "claude-haiku-5-5", AZ_PRIX = { in: 2, out: 10 };   // prix comptés large (dollars par million de tokens)
+const AZ_PAR_AMI = 15, AZ_POT_AMIS_USD = 0.5;                        // messages par ami et par jour ; budget du jour pour tous les amis
+const AZ_SYSTEME = `Tu es Azami, une chatte siamoise seal point, la mascotte de Ciné Azami : l'espace cinéma que Yatoni et Mariana partagent avec leurs amis. Tu parles à un ami de la maison, en français, en le tutoyant.
+Ton rôle : parler de cinéma et de séries avec lui, l'aider à trouver quoi regarder d'après ses goûts, expliquer Cinder (glisser à droite = envie, à gauche = bof, vers le haut = déjà vu), le motiver pour son objectif du jour.
+Règles : réponses courtes (trois phrases au plus), chaleureuses et un peu chat (une remarque féline de temps en temps, sans en faire trop). Jamais d'émoji. Tu ne parles QUE de cinéma, de séries et de l'app : pour le reste, tu ramènes gentiment la conversation au cinéma.
+Tu ne sais rien de la vie privée de Yatoni et Mariana ni de leur maison, et tu ne l'inventes jamais. Si on te le demande, tu dis que tu ne t'occupes que du ciné.
+Quand tu proposes un film, donne son titre exact et son année. N'invente jamais de faits sur un film : si tu n'es pas sûre, dis-le.`;
 
 // Un frein simple contre les rafales (par adresse, dans cette instance de la fonction) : 120 appels par minute.
 const vus = new Map<string, number[]>();
@@ -194,7 +203,7 @@ Deno.serve(async (req) => {
   }
 
   // ── Côté ami : avec son lien ou sa session ──
-  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter", "jeu"].includes(action)) {
+  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter", "jeu", "azami"].includes(action)) {
     const jeton = String(body.jeton ?? ""), session = String(body.session ?? "");
     let amiId: string | null = null;
     if (RE_JETON.test(session)) {
@@ -228,6 +237,35 @@ Deno.serve(async (req) => {
       const jeu = { xp: n("xp"), serie: Math.min(n("serie"), 100000), jour: d("jour"), n: Math.min(n("n"), 100000), coffre: d("coffre"), dernier: n("dernier"), combo: Math.min(n("combo"), 100000), record: Math.min(n("record"), 100000), matchs: n("matchs"), maj: n("maj") };
       await db.from("amis").update({ jeu }).eq("id", ami.id);
       return json({ ok: true });
+    }
+    // Azami, pour les amis : son crédit à elle (petit, plafonné par ami et pour tous les amis ensemble)
+    if (action === "azami") {
+      const key = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+      if (!key) return json({ error: "Azami dort pour le moment.", code: "cle" }, 503);
+      const texte = str(body.texte, 500); if (!texte) return json({ error: "Rien à dire ?" }, 400);
+      const jour = new Date().toISOString().slice(0, 10), qui = `ami:${ami.id}`;
+      const { data: usage } = await db.from("azami_usage").select("qui, appels, cout_usd").eq("jour", jour).like("qui", "ami:%");
+      const pot = (usage ?? []).reduce((a, u) => a + Number(u.cout_usd), 0), miens = (usage ?? []).find(u => u.qui === qui)?.appels ?? 0;
+      if (miens >= AZ_PAR_AMI) return json({ error: "On a beaucoup parlé aujourd’hui. Je fais la sieste, reviens demain !", code: "plafond", reste: 0 }, 429);
+      if (pot >= AZ_POT_AMIS_USD) return json({ error: "Je fais la sieste pour aujourd’hui. Reviens demain !", code: "plafond", reste: 0 }, 429);
+      // ce qu'elle sait : ses goûts à lui (ses derniers avis), le film à l'écran, et la conversation récente
+      const { data: avis } = await db.from("ami_avis").select("title, year, vote, note").eq("ami_id", ami.id).order("at", { ascending: false }).limit(40);
+      const gouts = (avis ?? []).map(a => `${a.title}${a.year ? ` (${a.year})` : ""} : ${a.note ? `vu, ${a.note}/5` : a.vote === "super" ? "très envie" : a.vote === "oui" ? "envie" : a.vote === "non" ? "bof" : "vu"}`).join("\n");
+      const film = body.film && typeof body.film === "object" ? `${str((body.film as Record<string, unknown>).title, 120)} (${str((body.film as Record<string, unknown>).year, 4)})` : "";
+      const fil = (Array.isArray(body.fil) ? body.fil : []).slice(-6).map((m: Record<string, unknown>) => ({ role: m.role === "assistant" ? "assistant" : "user", content: str(m.texte, 600) })).filter((m: { content: string }) => m.content);
+      while (fil.length && fil[0].role !== "user") fil.shift();
+      const contexte = `L'ami s'appelle ${ami.nom || "un ami"}.${film ? ` À l'écran dans Cinder : ${film}.` : ""}\nSes derniers avis :\n${gouts || "(pas encore d'avis)"}`;
+      const convo = [...fil, { role: "user", content: texte }];
+      try {
+        const r = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({ model: AZ_MODELE, max_tokens: 350, system: `${AZ_SYSTEME}\n\n${contexte}`, messages: convo }) });
+        const j = await r.json();
+        if (!r.ok) { console.warn("azami ami", r.status, JSON.stringify(j).slice(0, 300)); return json({ error: "Azami ne répond pas, réessaie dans un moment." }, 502); }
+        const u = j.usage ?? {}, cout = ((u.input_tokens ?? 0) * AZ_PRIX.in + (u.output_tokens ?? 0) * AZ_PRIX.out) / 1e6;
+        await db.rpc("azami_compte", { p_jour: jour, p_qui: qui, p_in: u.input_tokens ?? 0, p_out: u.output_tokens ?? 0, p_cout: cout });
+        const reponse = str((j.content ?? []).filter((c: Record<string, unknown>) => c.type === "text").map((c: Record<string, unknown>) => c.text).join(" "), 900);
+        return json({ reponse: reponse || "Mrrr… je n’ai rien trouvé à dire.", reste: Math.max(0, AZ_PAR_AMI - miens - 1) });
+      } catch (e) { console.warn("azami ami", e); return json({ error: "Azami ne répond pas, réessaie dans un moment." }, 502); }
     }
     if (action === "deconnexion") {
       if (amiId) await db.from("ami_sessions").delete().eq("token_hash", await sha(session));
