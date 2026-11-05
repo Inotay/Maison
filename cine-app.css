@@ -122,3 +122,6 @@ html.cine-seul #app { padding-top: calc(var(--safe-t) + 8px); }
 @keyframes ct-pense { 50% { transform: translateY(-4px); opacity: .5; } }
 @keyframes ct-in { from { opacity: 0; transform: scale(.9); transform-origin: 100% 40%; } }
 @media (prefers-reduced-motion: reduce) { .ct-bulle.parle, .ct-bulle.pense i { animation: none; } }
+/* sans photo : l'ombre d'Azami, dans les bleus de l'app */
+html.cine-seul .av.chat { background: linear-gradient(160deg, #EAF4FF, #C4E1FB); }
+html.cine-seul .av-ombre { background: #3398EC; }

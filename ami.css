@@ -254,6 +254,8 @@ input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; 
 .av { overflow: hidden; }
 .av img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .av.chat { background: linear-gradient(160deg, #D3EAFF, #ADD3F5); }
-.av-chat { width: 78%; height: 78%; margin-top: 18%; fill: #2E8EE6; }
 .pa-c { display: grid; gap: 10px; justify-items: center; text-align: center; }
 .pa-c .a-note-btns { width: 100%; }
+/* sans photo : l'ombre d'Azami assise, la même pour tous */
+.av.chat { position: relative; background: linear-gradient(160deg, #EAF4FF, #C4E1FB); }
+.av-ombre { position: absolute; inset: 0; background: #3398EC; -webkit-mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; }

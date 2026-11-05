@@ -292,4 +292,5 @@ html.cine-seul .pf-stats span { color: #ADD3F5; }
 html.cine-seul #portrait { background: var(--bg, #FFFFFF); color: var(--text, #0F3570); }
 }
 html.cine-seul .av.chat { background: linear-gradient(160deg, #F3E7D6, #E4F2FF); }
-html.cine-seul .av-chat { fill: #ADD3F5; }
+html.cine-seul .av.chat { background: linear-gradient(160deg, #F3E7D6, #E4F2FF); }
+html.cine-seul .av-ombre { background: #ADD3F5; }

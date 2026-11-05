@@ -1,7 +1,7 @@
 // La photo de profil : on choisit une image sur son téléphone, elle est recadrée au carré (le centre), réduite
 // à 256 px et réenregistrée en JPEG (quelques dizaines de Ko), puis rendue en data URL. Rien ne part ailleurs.
-// Sans photo : une silhouette de chat, la même pour tout le monde, dans les bleus de l'app.
-export const CHAT = '<svg class="av-chat" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 41c-12.5 0-22 7.5-22 23h44c0-15.5-9.5-23-22-23z"/><path d="M19.6 30.2c0-2 .4-3.9 1.1-5.6L19.4 9.8l10.1 7.4a14 14 0 0 1 5 0l10.1-7.4-1.3 14.8c.7 1.7 1.1 3.6 1.1 5.6 0 8.2-5.6 13.8-12.4 13.8S19.6 38.4 19.6 30.2z"/></svg>';
+// Sans photo : l'ombre d'Azami, la même pour tout le monde, dans les couleurs de l'app.
+export const CHAT = '<i class="av-ombre" aria-hidden="true"></i>';   // l'ombre d'Azami assise (masque CSS sur son dessin)
 const MAX = 70000;
 export function choisirPhoto() {
   return new Promise(resolve => {
