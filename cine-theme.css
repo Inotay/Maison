@@ -274,3 +274,17 @@ html.cine-seul .amis-sheet .hint { color: #BBD3FF; }
 html.cine-seul[data-theme="brun"] .pil-plaq { background: linear-gradient(160deg, #4A3A30, #2260B5); }
 html.cine-seul .ami-mini .ami-nop { background: linear-gradient(160deg, #3C86DC, #2F80DD); }
 html.cine-seul .ami-mini small { color: #FFC93C; }
+html.cine-seul .gen { color: #BBD3FF; }
+html.cine-seul .av { --c: #5498E6; box-shadow: 0 0 0 3px #17306B, 0 0 0 5px rgba(250,243,232,.22); }
+html.cine-seul .av.plus { color: #BBD3FF; }
+html.cine-seul .gen.neuf .av { box-shadow: 0 0 0 3px #17306B, 0 0 0 5.5px #FFC93C; }
+html.cine-seul .gen.avec .av { box-shadow: 0 0 0 3px #17306B, 0 0 0 5.5px #48D98A; }
+html.cine-seul .gen.avec span:last-child { color: #7BE3A9; }
+html.cine-seul .cine-avec .link { color: #FFC93C; }
+html.cine-seul .fil-t .icn { color: #FFC93C; }
+html.cine-seul .fil-c small { color: #8FAEE8; }
+html.cine-seul .fil-aff img, html.cine-seul .fil-aff .noposter { background: linear-gradient(160deg, #3C86DC, #2F80DD); }
+html.cine-seul .pf-nom small { color: #8FAEE8; }
+html.cine-seul .pf-sub { color: #8FAEE8; }
+html.cine-seul .pf-stats li.ok b { color: #FFC93C; }
+html.cine-seul .pf-stats span { color: #8FAEE8; }

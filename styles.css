@@ -2330,7 +2330,7 @@ h1.long { font-size: clamp(24px, 7vw, 32px); line-height: 1.1; }
 .ami-compat small { font-size: 12px; color: #E0CFB8; }
 .ami-corps { padding: 0 12px 12px; display: grid; gap: 4px; }
 .ami-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.ami-mini { all: unset; cursor: pointer; flex: none; width: 76px; display: grid; gap: 2px; font-size: 12px; line-height: 1.2; }
+.ami-mini { all: unset; position: relative; cursor: pointer; flex: none; width: 76px; display: grid; gap: 2px; font-size: 12px; line-height: 1.2; }
 .ami-mini img, .ami-mini .noposter { width: 76px; height: 114px; border-radius: 9px; object-fit: cover; }
 .ami-mini .noposter { display: grid; place-items: center; background: linear-gradient(160deg, #4A3350, #241828); color: rgba(255,236,240,.45); }
 .ami-mini span:not(.noposter) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -2400,3 +2400,49 @@ html.cine-seul .nav, html.cine-seul .loisirs-tabs, html.cine-seul .mot-attend { 
 html.cine-seul body { --nav-h: 0px; }
 /* Cinder ouvert : le bouton « Annuler » descend sous la ligne de titre au lieu de la recouvrir */
 body:has(#deck) #undo { top: calc(env(safe-area-inset-top, 0px) + 54px); }
+.deck-btns button, .cine-inv, .cine-spaces button { position: relative; }
+
+/* ── Le réseau du ciné : les gens, leurs profils, le fil ── */
+.gens { display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 6px; margin: 4px -2px 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.gens::-webkit-scrollbar { display: none; }
+.gen { all: unset; position: relative; cursor: pointer; flex: none; width: 66px; display: grid; justify-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: #E0CFB8; text-align: center; -webkit-tap-highlight-color: transparent; }
+.gen span:last-child { max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gen:active .av { transform: scale(.92); }
+.av { --c: #54395B; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #fff; font-weight: 900; font-size: 22px; overflow: hidden; box-shadow: 0 0 0 3px #2A1C15, 0 0 0 5px rgba(250,243,232,.22); transition: transform .15s; }
+.av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.av.big { width: 72px; height: 72px; font-size: 30px; flex: none; }
+.av.plus { background: transparent; color: #E0CFB8; border: 2px dashed rgba(250,243,232,.4); box-shadow: none; font-size: 28px; }
+.gen.neuf .av { box-shadow: 0 0 0 3px #2A1C15, 0 0 0 5.5px #F7C948; }
+.gen.avec .av { box-shadow: 0 0 0 3px #2A1C15, 0 0 0 5.5px #E7505A; }
+.gen.avec span:last-child { color: #FF8C97; }
+.cine-avec { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cine-avec .link { color: #F7C948; }
+.fil { margin-top: 18px; }
+.fil-t { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 17px; font-weight: 900; }
+.fil-t .icn { width: 20px; height: 20px; color: #F7C948; }
+.fil-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fil-i { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 6px; border-radius: 14px; background: rgba(250,243,232,.05); border: 2px solid rgba(250,243,232,.1); }
+.fil-av { all: unset; position: relative; cursor: pointer; flex: none; }
+.fil-av .av { width: 38px; height: 38px; font-size: 17px; box-shadow: none; }
+.fil-c { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.fil-c p { margin: 0; font-size: 14px; line-height: 1.3; }
+.fil-c p i { font-style: normal; font-weight: 900; }
+.fil-c small { font-size: 12px; color: #A893A6; }
+.fil-aff { all: unset; position: relative; cursor: pointer; flex: none; width: 40px; }
+.fil-aff img, .fil-aff .noposter { width: 40px; height: 60px; border-radius: 7px; object-fit: cover; display: grid; place-items: center; background: linear-gradient(160deg, #4A3350, #241828); color: rgba(255,236,240,.45); }
+.fil-aff > span:not(.noposter), .fil-aff small { display: none; }
+.fil .wide { margin-top: 8px; }
+.profil .pf-tete { display: flex; align-items: center; gap: 14px; text-align: left; margin: 4px 0 10px; }
+.pf-nom { margin: 0; font-size: 24px; font-weight: 900; line-height: 1.1; }
+.pf-nom small { font-size: 14px; font-weight: 700; color: #A893A6; }
+.pf-sub { margin: 3px 0 0; font-size: 13px; color: #A893A6; }
+.pf-stats { list-style: none; margin: 0 0 10px; padding: 10px 6px; display: grid; grid-template-columns: repeat(auto-fit, minmax(58px, 1fr)); gap: 4px; border-radius: 16px; background: rgba(250,243,232,.06); border: 2px solid rgba(250,243,232,.12); }
+.pf-stats li { display: grid; gap: 1px; text-align: center; }
+.pf-stats b { font-size: 20px; font-weight: 900; line-height: 1.05; }
+.pf-stats li.ok b { color: #F7C948; }
+.pf-stats span { font-size: 11px; color: #A893A6; text-transform: uppercase; letter-spacing: .04em; font-weight: 800; }
+.pf-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.pf-acts .btn { flex: 1; }
+.pf-fil .fil-i { background: transparent; border-color: rgba(250,243,232,.08); }
+.profil .chip-label { text-align: left; }
+.profil .ami-pf { margin-top: 14px; }

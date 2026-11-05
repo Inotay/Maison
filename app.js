@@ -2556,6 +2556,7 @@ function cineInstall() {
 if (CINE_SEUL) setTimeout(() => { if (S.me && S.ready) cineInstall(); else setTimeout(cineInstall, 4000); }, 2500);
 function render() {
   if (CINE_SEUL) { S.view = 'nuit'; S.loisirTab = 'cine'; }
+  S.cineAvec = safeGet(AVEC_KEY) || null;
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
   if (document.getElementById('deck') && S.me && S.ready) { render.later = true; return; }   // Cinder couvre l'écran : on redessinera en sortant
@@ -2594,7 +2595,7 @@ function render() {
   if (S.me && S.ready && visitState().pending && !document.getElementById('visite-invite') && !document.getElementById('tour')) visitInvite();
   visitTestHook();
   if (!CINE_SEUL && !tipSeen('tour') && !document.getElementById('tour')) setTimeout(() => { if (!tipSeen('tour') && !document.getElementById('tour')) openTour(0); }, 700);
-  armHaptics($app);
+  armHaptics($app); armHaptics(document.getElementById('ticket') || $app); armHaptics(document.getElementById('deck') || $app);
 
   folds.forEach(k => { const d = $app.querySelector(`details[data-fold="${k}"]`); if (d) d.open = true; });
   $app.querySelectorAll('details.dech-card[data-fold]').forEach(d => FOLD_ON.has(d) || (FOLD_ON.add(d), d.addEventListener('toggle', e => { S.folds[d.dataset.fold] = e.target.open; safeSet('maison-folds', JSON.stringify(S.folds)); })));
@@ -2825,7 +2826,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v293</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v294</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4269,7 +4270,7 @@ function cineCard(f) {
     ${f.status === 'vu' ? `<span class="fstub">${f.seen_at ? `Vu le ${esc(fmtDay(f.seen_at))}` : 'Déjà vu'}</span>${rate ? `<span class="frates">${rate}</span>` : `<span class="fmeta">Pas encore noté</span>`}${S.members.filter(m => f.ratings?.[m.email]?.mot).slice(0, 1).map(m => `<i class="fmot">« ${esc(f.ratings[m.email].mot)} »</i>`).join('')}` : ''}
     ${fProg(f) ? `<span class="fprog"><b>${fProg(f)}</b><button type="button" class="btn small" data-action="cine-ep" data-id="${f.id}">+1 épisode</button></span>` : ''}</div></div></li>`;
 }
-const SPACE_KEY = 'maison-cine-space';
+const SPACE_KEY = 'maison-cine-space', AVEC_KEY = 'maison-cine-avec';
 // Filtrer et trier une grille d’affiches ; on n’en montre que 30 à la fois.
 const CF = [['', 'Tout'], ['chez', 'Chez vous'], ['court', 'Moins de 2 h']];
 const CM = [['', 'Films et séries'], ['film', 'Films'], ['serie', 'Séries']];
@@ -4303,9 +4304,14 @@ function cineSection() {
   const res = S.cineRes;
   if (!S.cineIdeasAsked) { cineIdeas(); filmsResolve(); }
   if (!S.salles && !loadSalles.p) loadSalles();
-  const pills = [['moi', 'Ma liste', L.mine.length], ['nous', 'À deux', L.nous.length], ['autre', `${on}`, L.theirs.length]];
+  // « À deux » avec un ami à la place de l'autre (choisi depuis son profil)
+  const avec = S.cineAvec ? gensTrouve(S.cineAvec) : null;
+  if (S.cineAvec && !avec && GENS.at) { S.cineAvec = null; safeSet(AVEC_KEY, ''); }
+  const pills = avec && avec.type === 'ami' ? [['moi', 'Ma liste', L.mine.length], ['nous', `Avec ${avec.nom}`, null], ['autre', `${avec.nom}`, null]] : [['moi', 'Ma liste', L.mine.length], ['nous', 'À deux', L.nous.length], ['autre', `${on}`, L.theirs.length]];
   let body = '';
-  if (space === 'moi') {
+  if (avec && avec.type === 'ami' && space !== 'moi') {
+    body = `<p class="hint cine-avec">${icn('deux')} Ciné avec <b>${esc(avec.nom)}</b> pour le moment. <button type="button" class="link" data-action="gens-avec" data-id="">Revenir à ${esc(on)}</button></p>${avecAmiSection(avec, space)}`;
+  } else if (space === 'moi') {
     const mt = S.cineMoi || 'envies', vus = mesVus();
     const tabs = `<div class="seg cine-tabs" role="group" aria-label="Ma liste"><button data-action="moi-tab" data-t="envies" aria-pressed="${mt === 'envies'}">Envies${L.mine.length ? ` · ${L.mine.length}` : ''}</button><button data-action="moi-tab" data-t="vus" aria-pressed="${mt === 'vus'}">Mes vus${vus.length ? ` · ${vus.length}` : ''}</button></div>`;
     body = mt === 'vus' ? tabs + mesVusHtml(vus) : `${tabs}${menageBanner()}${L.mine.length ? cineGrid(L.mine, 'moi') : '<p class="hint cine-empty">Ta liste est vide. Cherche un film plus haut, ou lance Cinder : chaque ♥ l’ajoute ici.</p>'}
@@ -4325,14 +4331,16 @@ function cineSection() {
       ${t === 'a_voir' ? compromisHtml() + cineIdeasHtml('nous') : ''}`;
   }
   return `<section class="cine" id="cine">
-    <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>Ciné à deux</h2>
+    <header class="cine-marquee"><span class="bulbs" aria-hidden="true"></span><h2>${avec && avec.type === 'ami' ? `Ciné avec ${esc(avec.nom)}` : 'Ciné à deux'}</h2>
       <p>${[L.nous.length ? `${L.nous.length} ${icn('deux')} en commun` : '', L.vus.length ? `${L.vus.length} vus ensemble` : ''].filter(Boolean).join(' · ') || 'Votre salle à vous deux'}</p></header>
     <div class="cine-cta"><button class="btn cta-match" data-action="cine-deck">${icn('flamme')} Cinder</button><button class="btn cta-soir" data-action="cine-soir">${icn('de')} Ce soir ?</button></div>
     <div class="cine-invs"><button class="cine-inv" data-action="soiree">${icn('groupe')} Soirée avec des invités${S.soireeOn ? ' <b>en cours</b>' : ''}</button><button class="cine-inv" data-action="amis">${icn('deux')} Ciné Azami${S.amisN ? ` <b>${S.amisN}</b>` : ''}</button></div>
+    ${gensStrip()}
     <div class="cine-add"><span class="cine-loupe" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.6"/><path d="M15.5 15.5 L20 20" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></span><label class="sr" for="cine-q">Ajouter un film ou une série à ta liste</label><input class="field" id="cine-q" type="search" data-keep value="${esc(S.cineQ || '')}" placeholder="Un film, une série…" autocomplete="off" enterkeyhint="search">
       <div id="cine-res" class="cine-res">${res ? cineResHtml(res) : ''}</div></div>
-    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span>${k === 'autre' ? '' : `<b>${n}</b>`}</button>`).join('')}</div>
+    <div class="cine-spaces" role="tablist" aria-label="Listes">${pills.map(([k, l, n]) => `<button role="tab" data-action="cine-space" data-s="${k}" aria-selected="${space === k}" class="${k}"><span>${k === 'nous' ? icn('deux') + ' ' : ''}${esc(l)}</span>${k === 'autre' || n == null ? '' : `<b>${n}</b>`}</button>`).join('')}</div>
     ${body}
+    ${filHtml()}
   </section>`;
 }
 // Importer Letterboxd : vus, notes, cœurs et watchlist arrivent d’un coup. Les titres sont retrouvés sur TMDB
@@ -4587,6 +4595,7 @@ async function amisCall(body) {
       avecMoi: { compat: 81, communs: 31, nMatches: 3, matches: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', super: true }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }], pourMoi: [{ k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', note: 5 }], adores: [{ k: 'movie:129', title: 'Le Voyage de Chihiro', year: 2001, poster: null, media: 'movie' }], desaccords: [] },
       avecAutre: { nom: nameOf(other()) || 'Mariana', compat: 74, nMatches: 2 }, aTrois: [{ k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }] }];
     if (body.action === 'liste') return { amis: amisDemo, partage: true, peutSupprimer: true };
+    if (body.action === 'fil') return { fil: [{ id: amisDemo[0].id, nom: 'Léa', k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', vote: 'vu', note: 5, at: new Date(Date.now() - 2 * 3600e3).toISOString() }, { id: amisDemo[0].id, nom: 'Léa', k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie', vote: 'super', note: null, at: new Date(Date.now() - 26 * 3600e3).toISOString() }] };
     if (body.action === 'profil_ami') return { avis: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', vote: 'vu', note: 5 }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie', vote: 'super', note: null }, { k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', vote: 'oui', note: null }, { k: 'movie:155', title: 'The Dark Knight', year: 2008, poster: null, media: 'movie', vote: 'vu', note: 3.5 }] };
     if (body.action === 'supprimer') { amisDemo = amisDemo.filter(x => x.id !== body.id); return { ok: true }; }
     if (body.action === 'creer' || body.action === 'renouveler') { const j = [...crypto.getRandomValues(new Uint8Array(43))].map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join(""); const id = body.id || crypto.randomUUID(); if (!body.id) amisDemo.push({ id, nom: body.nom || null, created_at: new Date().toISOString(), nAvis: 0, avecMoi: { compat: null, communs: 0, nMatches: 0, matches: [], pourMoi: [], adores: [], desaccords: [] }, avecAutre: null, aTrois: [] }); return { id, jeton: j }; }
@@ -4693,6 +4702,139 @@ async function amisSheet() {
     }
   });
   await load();
+}
+// ── Le réseau : les gens du ciné (vous deux et les amis), leurs profils qu'on visite, et le fil ──
+// Chaque personne a un profil : ses coups de cœur, ses envies, ses derniers avis, vos films en commun et votre
+// accord. « À deux » se fait avec Mariana par défaut, mais on peut choisir n'importe quel ami à la place.
+const GENS = { amis: null, at: 0, fil: null, filAt: 0, avis: {} };
+const gensTeinte = nom => { let h = 7; for (const c of String(nom || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 58% 46%)`; };
+const persoKey = e => String(e || '').split('@')[0].toLowerCase();
+function avatarHtml(p, cls = '') {
+  if (p.type === 'membre' && ['yatoni', 'mariana'].includes(persoKey(p.email))) return `<span class="av ${cls}"><img src="icons/people/${persoKey(p.email)}/portrait.webp" alt="" width="48" height="48"></span>`;
+  return `<span class="av ${cls}" style="--c:${gensTeinte(p.nom)}">${esc((p.nom || '?').trim().charAt(0).toUpperCase() || '?')}</span>`;
+}
+// la liste des gens : vous deux d'abord (l'autre, puis moi), puis les amis
+function gens() {
+  const l = S.members.filter(m => m.email !== S.me).map(m => ({ type: 'membre', id: m.email, email: m.email, nom: m.name }));
+  l.push({ type: 'membre', id: S.me, email: S.me, nom: nameOf(S.me), moi: true });
+  for (const a of GENS.amis || []) if (!a.coupe) l.push({ type: 'ami', id: a.id, nom: a.nom || 'Ami sans prénom', ami: a });
+  return l;
+}
+const gensTrouve = id => gens().find(p => p.id === id);
+async function gensCharger(force) {
+  if (DEMO && !S.me) return;
+  const vieux = Date.now() - GENS.at > 4 * 60e3;
+  if ((force || vieux) && !GENS.p) {
+    GENS.p = (async () => { try { const [l, f] = await Promise.all([amisCall({ action: 'liste' }), amisCall({ action: 'fil', n: 80 }).catch(() => ({ fil: [] }))]); GENS.amis = (l.amis || []).filter(a => !a.coupe); GENS.partage = l.partage; GENS.peutSupprimer = l.peutSupprimer; GENS.fil = f.fil || []; GENS.at = Date.now(); S.amisN = GENS.amis.length; render(); } catch (e) { console.warn('gens', e); GENS.at = Date.now() - 3 * 60e3; } finally { GENS.p = null; } })();
+  }
+  return GENS.p;
+}
+// les avis d'une personne, tous dans la même forme : { k, title, year, poster, media, vote, note, at, f (la fiche de la maison si elle existe) }
+function avisMembre(email) {
+  const out = [];
+  for (const f of S.films) {
+    const v = fVotes(f)[email], r = f.ratings?.[email], vu = fSeen(f, email) || !!r?.note || (f.status === 'vu' && !!f.seen?.[email]);
+    const coeur = (f.coeur || []).includes(email);
+    let vote = null;
+    if (r?.note || vu) vote = 'vu'; else if (v === 'super' || v === 'oui') vote = f.status === 'a_voir' || f.status === 'en_cours' ? v : null; else if (v === 'revoir') vote = 'super'; else if (v === 'non') vote = 'non';
+    if (!vote) continue;
+    const at = r?.at || f.votes_at?.[email] || (vote === 'vu' ? f.seen_at : '') || f.created_at || '';
+    out.push({ k: fkey(f), title: f.title, year: f.year, poster: f.poster, media: f.media, vote, note: r?.note || null, at, coeur, f });
+  }
+  return out.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+async function avisDe(p) {
+  if (p.type === 'membre') return avisMembre(p.email);
+  if (!GENS.avis[p.id]) { try { GENS.avis[p.id] = ((await amisCall({ action: 'profil_ami', id: p.id })).avis || []).map(a => ({ ...a, f: S.films.find(f => fkey(f) === a.k) })); } catch (e) { toast(e.message); GENS.avis[p.id] = []; } }
+  return GENS.avis[p.id];
+}
+const aEnvie = a => a && !a.note && (a.vote === 'oui' || a.vote === 'super');
+// ce que deux listes d'avis ont en commun : accord, films voulus à deux, adorés à deux, désaccords, ses coups de cœur pour moi
+function accordDe(moi, lui) {
+  const M = new Map(moi.map(a => [a.k, a])), L = new Map(lui.map(a => [a.k, a]));
+  let s = 0, w = 0, n = 0; const matches = [], adores = [], desaccords = [];
+  for (const [k, a] of M) {
+    const b = L.get(k); if (!b) continue; n++;
+    if (a.note && b.note) { s += (1 - Math.abs(a.note - b.note) / 4) * 1.5; w += 1.5; }
+    else if (aEnvie(a) && aEnvie(b)) { s += 1; w += 1; } else if ((aEnvie(a) && b.vote === 'non') || (aEnvie(b) && a.vote === 'non')) { w += 1; } else if (a.vote === 'non' && b.vote === 'non') { s += .8; w += .8; }
+    if (aEnvie(a) && aEnvie(b)) matches.push({ ...b, super: a.vote === 'super' || b.vote === 'super' });
+    if (a.note && b.note && a.note >= 4.2 && b.note >= 4.2) adores.push(b);
+    if (a.note && b.note && Math.abs(a.note - b.note) >= 2.5) desaccords.push({ ...b, moi: a.note, lui: b.note });
+  }
+  const pourMoi = lui.filter(b => b.note && b.note >= 4.5 && !M.has(b.k)).sort((x, y) => y.note - x.note);
+  return { compat: w >= 3 && n >= 5 ? Math.round(100 * s / w) : null, communs: n, matches: matches.sort((x, y) => Number(y.super) - Number(x.super)), adores, desaccords: desaccords.sort((x, y) => Math.abs(y.moi - y.lui) - Math.abs(x.moi - x.lui)).slice(0, 5), pourMoi: pourMoi.slice(0, 24) };
+}
+const avisMot = (a, nom) => a.note ? `a vu <i>${esc(a.title)}</i> · ${noteTxt(a.note)}/5` : a.vote === 'vu' ? `a vu <i>${esc(a.title)}</i>` : a.vote === 'super' ? `a très envie de voir <i>${esc(a.title)}</i>` : a.vote === 'oui' ? `a envie de voir <i>${esc(a.title)}</i>` : `n’est pas tenté${nom && /a$/i.test(nom) ? 'e' : ''} par <i>${esc(a.title)}</i>`;
+const affB = (a, cls = 'ami-mini') => `<button type="button" class="${cls}" data-action="gens-film" data-k="${esc(a.k)}" data-t="${esc(a.title)}" data-y="${a.year || ''}" data-p="${esc(a.poster || '')}" data-m="${esc(a.media || 'movie')}">${a.poster ? `<img src="${esc(a.poster)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : `<span class="noposter">${icn('film')}</span>`}<span>${esc(a.title)}</span>${a.note ? `<small>${noteTxt(a.note)}/5</small>` : a.super ? '<small>★</small>' : ''}</button>`;
+const rangee = l => `<div class="ami-row">${l.map(a => affB(a)).join('')}</div>`;
+// la rangée des gens (en haut du ciné) : touche quelqu'un pour visiter son profil
+function gensStrip() {
+  if (!GENS.at && !GENS.p) gensCharger();
+  const avec = S.cineAvec, recents = new Set((GENS.fil || []).filter(x => Date.now() - Date.parse(x.at) < 36e5 * 36).map(x => x.id));
+  return `<div class="gens" role="list" aria-label="Les gens du ciné">${gens().map(p => `<button type="button" role="listitem" class="gen ${avec === p.id ? 'avec' : ''} ${recents.has(p.id) ? 'neuf' : ''}" data-action="gens-profil" data-id="${esc(p.id)}" aria-label="${esc(p.nom)}${p.moi ? ' (toi)' : ''}">${avatarHtml(p)}<span>${esc(p.moi ? 'Toi' : p.nom)}</span></button>`).join('')}<button type="button" class="gen plus" data-action="amis" aria-label="Inviter un ami">${avatarHtml({ nom: '+' }, 'plus')}<span>Inviter</span></button></div>`;
+}
+// le fil : ce que tout le monde a fait récemment (vous deux et les amis), affiches comprises
+function filItems() {
+  const l = [];
+  for (const m of S.members) for (const a of avisMembre(m.email).slice(0, 40)) l.push({ ...a, id: m.email, nom: m.name, moi: m.email === S.me });
+  for (const x of GENS.fil || []) l.push({ ...x, f: S.films.find(f => fkey(f) === x.k) });
+  return l.filter(x => x.at && x.vote !== 'non').sort((a, b) => String(b.at).localeCompare(String(a.at)));
+}
+function filHtml() {
+  const l = filItems(), max = S.filPlus ? 60 : 12;
+  if (!l.length) return '';
+  return `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${l.slice(0, max).map(x => `<li class="fil-i"><button type="button" class="fil-av" data-action="gens-profil" data-id="${esc(x.id)}" aria-label="${esc(x.nom)}">${avatarHtml(x.moi ? { type: 'membre', email: x.id, nom: x.nom } : x.id.includes('@') ? { type: 'membre', email: x.id, nom: x.nom } : { nom: x.nom })}</button>
+      <div class="fil-c"><p><b>${esc(x.moi ? 'Toi' : x.nom)}</b> ${x.moi ? avisMot(x).replace(/^a /, 'as ').replace(/^n’est pas tenté/, 'n’es pas tenté') : avisMot(x, x.nom)}</p><small>${esc(ago(x.at))}</small></div>
+      ${affB(x, 'fil-aff')}</li>`).join('')}</ul>${l.length > max ? `<button class="btn ghost small wide" data-action="fil-plus">Voir plus</button>` : ''}</section>`;
+}
+// le profil d'une personne, en grand : qui c'est, vos accords, ses films
+async function profilSheet(id) {
+  const p = gensTrouve(id); if (!p) return;
+  document.getElementById('ticket')?.remove();
+  const box = document.createElement('div'); box.id = 'ticket';
+  box.innerHTML = `<div class="ticket-card fsheet profil" role="dialog" aria-label="${esc(p.nom)}"><p class="ticket-sub">Un instant…</p></div>`;
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  const card = box.firstElementChild;
+  let F = 'coeurs';
+  const [avis, moi] = await Promise.all([avisDe(p), Promise.resolve(avisMembre(S.me))]);
+  const draw = () => {
+    const vus = avis.filter(a => a.vote === 'vu' || a.note), envies = avis.filter(aEnvie), notes = vus.filter(a => a.note);
+    const moy = notes.length ? notes.reduce((s, a) => s + a.note, 0) / notes.length : 0;
+    const coeurs = [...vus].filter(a => a.coeur || (a.note && a.note >= 4.5)).sort((x, y) => (y.note || 0) - (x.note || 0) || Number(!!y.coeur) - Number(!!x.coeur));
+    const c = p.moi ? null : accordDe(moi, avis);
+    const a = p.ami, avec = S.cineAvec === p.id, autreDefaut = !S.cineAvec && p.type === 'membre' && !p.moi;
+    const grilles = { coeurs: ['Coups de cœur', coeurs], super: ['Très envie', avis.filter(a => aEnvie(a) && a.vote === 'super')], envies: ['Envies', envies], vus: ['Vus', [...vus].sort((x, y) => (y.note || 0) - (x.note || 0))] };
+    const [gl, gsel] = grilles[F] || grilles.coeurs;
+    card.innerHTML = `<button type="button" class="ticket-x" data-action="sheet-close" aria-label="Fermer">×</button>
+      <header class="pf-tete">${avatarHtml(p, 'big')}<div><p class="pf-nom">${esc(p.nom)}${p.moi ? ' <small>(toi)</small>' : ''}</p>
+        <p class="pf-sub">${p.type === 'membre' ? 'De la maison' : [a?.compte ? 'Compte' : 'Par lien', a?.vu_at ? `passé ${esc(ago(a.vu_at))}` : 'pas encore venu', a?.par && !S.members.some(m => m.name === a.par) ? `invité par ${esc(a.par)}` : ''].filter(Boolean).join(' · ')}</p></div></header>
+      <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? noteTxt(moy) : '–'}</b><span>note moy.</span></li>${c ? `<li class="${c.compat != null ? 'ok' : ''}"><b>${c.compat != null ? c.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
+      ${p.moi ? '' : `<div class="pf-acts">${avec ? `<button class="btn ghost" data-action="gens-avec" data-id="">${icn('deux')} C’est avec ${esc(p.nom)} · revenir à ${esc(nameOf(other()) || 'nous deux')}</button>` : autreDefaut ? '' : `<button class="btn" data-action="gens-avec" data-id="${esc(p.id)}">${icn('deux')} À deux avec ${esc(p.nom)}</button>`}${p.type === 'ami' ? `<button class="btn ghost small" data-action="gens-gerer" data-id="${esc(p.id)}">Son lien…</button>` : ''}</div>`}
+      ${c?.matches.length ? `<p class="chip-label">${icn('envie')} Vous voulez tous les deux · ${c.matches.length}</p>${rangee(c.matches.slice(0, 24))}` : ''}
+      ${c?.pourMoi.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur que tu n’as pas vus</p>${rangee(c.pourMoi.slice(0, 16))}` : ''}
+      ${c?.adores.length ? `<p class="chip-label">Adorés tous les deux</p>${rangee(c.adores.slice(0, 16))}` : ''}
+      ${c?.desaccords.length ? `<p class="chip-label">Vos grands désaccords</p><ul class="ami-desac">${c.desaccords.map(f => `<li><span>${esc(f.title)}</span><b>toi ${noteTxt(f.moi)} · ${esc(p.nom)} ${noteTxt(f.lui)}</b></li>`).join('')}</ul>` : ''}
+      ${avis.length ? `<p class="chip-label">Ses derniers avis</p><ul class="fil-l pf-fil">${avis.filter(x => x.at).slice(0, 8).map(x => `<li class="fil-i">${affB(x, 'fil-aff')}<div class="fil-c"><p>${p.moi ? avisMot(x).replace(/^a /, 'Tu as ').replace(/^n’est pas tenté/, 'Tu n’es pas tenté') : esc(p.nom) + ' ' + avisMot(x, p.nom)}</p><small>${esc(ago(x.at))}</small></div></li>`).join('')}</ul>` : '<p class="hint">Pas encore d’avis.</p>'}
+      <div class="chips ami-pf">${Object.entries(grilles).map(([k, [lb, l]]) => `<button type="button" data-action="gens-f" data-f="${k}" aria-pressed="${k === F}">${lb} · ${l.length}</button>`).join('')}</div>
+      ${gsel.length ? `<div class="ami-grille">${gsel.slice(0, 120).map(x => affB(x)).join('')}</div>` : `<p class="hint">Rien ici pour l’instant.</p>`}
+      <div class="form-actions"><button class="btn ghost" data-action="sheet-close">Fermer</button></div>`;
+  };
+  draw(); armHaptics(card);
+  box.addEventListener('click', e => {
+    if (e.target === box) { closeTicket(); return; }
+    const b = e.target.closest('[data-action]'); if (!b) return;
+    if (b.dataset.action === 'gens-f') { F = b.dataset.f; haptic(1); draw(); card.querySelector('.ami-pf')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); e.stopPropagation(); }
+  });
+}
+// « À deux » avec un ami à la place de l'autre : ce que vous voulez voir tous les deux, et sa liste
+function avecAmiSection(p, space) {
+  const avis = GENS.avis[p.id];
+  if (!avis) { avisDe(p).then(render); return '<p class="hint">Un instant…</p>'; }
+  const c = accordDe(avisMembre(S.me), avis), envies = avis.filter(aEnvie), vus = avis.filter(a => a.vote === 'vu' || a.note).sort((x, y) => (y.note || 0) - (x.note || 0));
+  if (space === 'autre') return `${envies.length ? `<p class="hint">Les envies de ${esc(p.nom)}. Touche une affiche : « Je veux le voir » et c’est un film pour vous deux.</p><div class="ami-grille">${envies.slice(0, 120).map(a => affB(a)).join('')}</div>` : `<p class="hint cine-empty">${esc(p.nom)} n’a pas encore d’envie.</p>`}
+    ${vus.length ? `<p class="chip-label">Ce que ${esc(p.nom)} a vu</p>${rangee(vus.slice(0, 24))}` : ''}`;
+  return `${c.matches.length ? `<p class="hint">Vous avez envie de les voir tous les deux${c.compat != null ? ` · ${c.compat} % d’accord` : ''}.</p><div class="ami-grille">${c.matches.map(a => affB(a)).join('')}</div>` : `<p class="hint cine-empty">Pas encore de film en commun avec ${esc(p.nom)}. Quand vous dites oui tous les deux, il arrive ici.</p>`}
+    ${c.pourMoi.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur que tu n’as pas vus</p>${rangee(c.pourMoi.slice(0, 16))}` : ''}`;
 }
 // ── Le réglage personnel de l’algorithme ──
 // Chacun joue à Cinder à sa façon (plus ou moins de bofs, de notes, de curiosité) : les valeurs de l’algorithme
@@ -5091,6 +5233,7 @@ async function deckOpen(mood = '') {
     <div class="deck-stack"><p class="hint">Azami mélange les cartes…</p></div>
     <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas">${icn('non')}<small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé">${icn('bof')}<small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J’ai envie">${icn('envie')}<small>Envie</small></button></div>
     <p class="deck-hint">→ envie · ← bof · ↓ non, j’aime pas · ↑ déjà vu</p>`;
+  armHaptics(box);
   document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on')); haptic(1);
   box.addEventListener('click', e => {
     const n = e.target.closest('[data-seen-ok]'); if (n) { if (!n.disabled) deckSeen(Number(n.dataset.note)); return; }
@@ -7521,6 +7664,11 @@ const actions = {
   'lb-import': () => lbPick(),
   'taste-rule': el => tasteRule(el.dataset.k, el.dataset.l),
   'taste-rule-del': el => setRule(el.dataset.k, null),
+  'gens-profil': el => { haptic(1); profilSheet(el.dataset.id); },
+  'gens-film': el => { const [media, id] = el.dataset.k.split(':'); closeTicket(); filmOuvrir({ tmdb_id: Number(id), media: media || el.dataset.m || 'movie', title: el.dataset.t, year: Number(el.dataset.y) || null, poster: el.dataset.p || null }); },
+  'gens-avec': el => { S.cineAvec = el.dataset.id || null; safeSet(AVEC_KEY, S.cineAvec || ''); S.cineSpace = 'nous'; safeSet(SPACE_KEY, 'nous'); closeTicket(); haptic('medium'); toast(S.cineAvec ? `Ciné avec ${gensTrouve(S.cineAvec)?.nom || 'cet ami'}` : `Retour à ${nameOf(other())}`); render(); },
+  'gens-gerer': () => { closeTicket(); amisSheet(); },
+  'fil-plus': () => { S.filPlus = true; render(); },
   'cine-space': el => { S.cineSpace = el.dataset.s; safeSet(SPACE_KEY, S.cineSpace); haptic(1); render(); },
   'cine-nope': el => { const f = S.films.find(x => x.id === el.dataset.id); if (!f) return; closeTicket(); filmVote(f, 'non', false).then(() => { toast('Noté : pas pour toi.'); render(); cineUndo(...(filmVote.undo || ['bof', [], []])); }); },
   'cine-iseen': el => cineRate(el.dataset.id, true),

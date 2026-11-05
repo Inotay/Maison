@@ -3,6 +3,7 @@
 // la maison, ses films (envies, vus et notés), et la comparaison avec Yatoni, Mariana et les autres amis.
 // Tout ce qui vient des autres (prénoms, titres) est écrit comme du texte, jamais comme du HTML.
 import * as JEU from './jeu-cine.js';
+import { haptic, armer as armerHaptique } from './haptique.js';
 const URL_FN = (window.MAISON_CONFIG?.supabaseUrl || '') + '/functions/v1/amis';
 const $ = document.getElementById('s');
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -28,6 +29,7 @@ const IC = {
   film: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.8"/><path d="M7.8 4.6v14.8M16.2 4.6v14.8M3.6 9.6h4.2M3.6 14.4h4.2M16.2 9.6h4.2M16.2 14.4h4.2"/>',
   deux: '<circle cx="8.5" cy="8.6" r="3"/><circle cx="16" cy="9.6" r="2.5"/><path d="M3.4 19c.6-3.3 2.6-5.1 5.1-5.1s4.5 1.8 5.1 5.1M13.6 14.6c.8-.5 1.6-.7 2.4-.7 2 0 3.6 1.5 4.1 4.3"/>',
   loupe: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 20 20"/>',
+  groupe: '<circle cx="9" cy="8.6" r="3.2"/><path d="M3.4 19.4c.5-3.3 2.8-5.2 5.6-5.2s5.1 1.9 5.6 5.2"/><circle cx="16.6" cy="9.4" r="2.6"/><path d="M15.4 14.4c.4-.1.8-.2 1.2-.2 2.3 0 4.2 1.6 4.6 4.4"/>',
   de: '<rect x="4" y="4" width="16" height="16" rx="3.4"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/><circle cx="15" cy="15" r="1.2" fill="currentColor"/><circle cx="15" cy="9" r="1.2" fill="currentColor"/><circle cx="9" cy="15" r="1.2" fill="currentColor"/>',
   coupe: '<path d="M8 4h8v5.2a4 4 0 0 1-8 0z"/><path d="M8 6H5.2v1.2A2.8 2.8 0 0 0 8 10M16 6h2.8v1.2A2.8 2.8 0 0 1 16 10M12 13.2V17M8.6 20.2h6.8M9.8 17h4.4"/>',
 };
@@ -213,7 +215,7 @@ function tuto(n) {
 }
 
 // ── L'écran : quatre onglets ──
-const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Matchs'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
+const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Amis'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
   document.querySelectorAll('.a-combo, .a-vol').forEach(x => x.remove());
   $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Mon menu"></button></header>
@@ -322,7 +324,7 @@ function feteSuivante() {
   box.innerHTML = `<div><h2></h2>${html || ''}${film?.poster ? `<img class="aff" src="${esc(film.poster)}" alt="" referrerpolicy="no-referrer">` : ''}<img class="az" src="azami/v44/reactions/${reduit() ? 'statiques/fete_reussites_statique' : 'fete_reussites_anime'}.svg" alt="">${gain ? `<span class="gain">+${gain}</span><br>` : ''}<button class="s-btn">Trop bien</button></div>`;
   box.querySelector('h2').textContent = titre;
   document.body.appendChild(box); confettis();
-  try { navigator.vibrate?.([20, 40, 30]); } catch {}
+  haptic('heavy');
   box.addEventListener('click', e => { if (e.target.closest('button') || e.target === box) { box.remove(); setTimeout(feteSuivante, 250); } });
 }
 function jeuAvis(f, v) {
@@ -411,7 +413,7 @@ function partir(f, el, v, n, from) {
     requestAnimationFrame(() => { el.style.transform = v === 'vu' || v === 'super' ? `translate3d(${x * .6}px, ${-innerHeight}px, 0)` : `translate3d(${v === 'oui' ? W : -W}px, ${y * 1.6 + 40}px, 0) rotate(${v === 'oui' ? 28 : -28}deg)`; el.style.opacity = '0'; });
     el.style.pointerEvents = 'none'; setTimeout(() => el.remove(), 360);
   }
-  try { navigator.vibrate?.(v === 'oui' || v === 'super' ? 12 : 6); } catch {}
+  haptic(v === 'super' ? 'medium' : v === 'oui' ? 'medium' : 'light');
   pileF.shift();
   jeuAvis(f, v);
   donner(f, v, n).then(aide);
@@ -450,27 +452,67 @@ function demanderNote(f, actuelle = 4) {
 
 // ── Matchs : moi et chacun d'eux ──
 const rangee = (l, vide) => l.length ? `<div class="a-row">${l.map(f => `<button class="a-mini" data-film="${esc(f.k)}">${poster(f, 'a-mini-img')}<span>${esc(f.title)}</span>${f.note ? `<small>${note(f.note)}/5</small>` : f.super ? '<small>★ très envie</small>' : ''}</button>`).join('')}</div>` : `<p class="a-vide">${vide}</p>`;
+let FILA = null;   // le fil et les gens, vus par cet ami
+const teinte = nom => { let h = 7; for (const c of String(nom || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0; return `hsl(${h % 360} 58% 46%)`; };
+const avatar = (p, cls = '') => `<span class="av ${cls} ${p.hote ? 'hote' : ''}" data-teinte="${teinte(p.nom)}">${esc((p.nom || '?').trim().charAt(0).toUpperCase() || '?')}</span>`;
+const avisMot2 = a => a.note ? `a vu <i></i> · ${note(a.note)}/5` : a.vote === 'vu' ? 'a vu <i></i>' : a.vote === 'super' ? 'a très envie de voir <i></i>' : a.vote === 'oui' ? 'a envie de voir <i></i>' : 'n’est pas tenté par <i></i>';
 async function matchs() {
   const b = $.querySelector('.s-body');
-  if (!CMP) { b.innerHTML = '<p class="s-wait">Comparaison en cours…</p>'; try { [CMP, LIENS] = await Promise.all([call('comparer'), call('liens').then(r => r.amis).catch(() => [])]); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">La comparaison ne répond pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
+  if (!CMP) { b.innerHTML = '<p class="s-wait">Un instant…</p>'; try { [CMP, LIENS, FILA] = await Promise.all([call('comparer'), call('liens').then(r => r.amis).catch(() => []), call('fil_ami').catch(() => ({ fil: [], gens: [] }))]); } catch (e) { if (e.fini) return fin('Ce lien n’est plus valable.'); b.innerHTML = '<p class="a-vide">Les amis ne répondent pas. Réessaie.</p>'; return; } if (onglet !== 'matchs') return; }
   const C = CMP, filmsDe = new Map();
   for (const p of C.personnes) for (const l of [p.matches, p.pourMoi, p.adores, p.desaccords]) for (const f of l) filmsDe.set(f.k, f);
   for (const f of C.ensemble) filmsDe.set(f.k, f);
+  for (const f of FILA?.fil || []) filmsDe.set(f.k, f);
   matchs.films = filmsDe;
   const peu = C.nAvis < 15;
   const demande = (LIENS || []).some(x => x.etat === 'recu');
-  b.innerHTML = `${demande ? lienBloc() : ''}${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
+  const gens = [...(FILA?.gens || []), { qui: 'moi', nom: P.nom, moi: true }];
+  const fil = (FILA?.fil || []), max = matchs.plus ? 60 : 12;
+  b.innerHTML = `<div class="gens" role="list">${gens.map(p => `<button type="button" role="listitem" class="gen" data-profil="${esc(p.qui)}" aria-label="${esc(p.nom)}">${avatar(p)}<span></span></button>`).join('')}<button type="button" class="gen" data-inviter aria-label="Inviter quelqu’un"><span class="av plus">+</span><span>Inviter</span></button></div>
+    ${demande ? lienBloc() : ''}${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
     ${C.ensemble.length ? `<section class="a-bloc a-ens"><h2>${icn('deux')} Une soirée tous ensemble</h2><p class="a-sub">Ce que vous avez tous envie de voir : toi, ${esc(hotes())}.</p>${rangee(C.ensemble, '')}<button class="s-btn a-hasard" data-hasard>${icn('de')} Un film au hasard pour ce soir</button></section>` : ''}
-    ${C.personnes.map((p, i) => `${!p.hote && (i === 0 || C.personnes[i - 1].hote) ? '<p class="a-sep">Tes amis liés</p>' : ''}<section class="a-bloc ${p.hote ? 'hote' : ''}"><div class="a-p-top"><h2></h2><span class="a-compat">${p.compat == null ? `<small>${p.communs ? `${p.communs} film${p.communs > 1 ? 's' : ''} en commun` : 'pas encore de film en commun'}</small>` : `<b>${p.compat} %</b><small>d’accord sur ${p.communs} films</small>`}</span></div>
-      <h3>${icn('envie')} Envie tous les deux${p.nMatches ? ` · ${p.nMatches}` : ''}</h3>${rangee(p.matches, 'Pas encore d’envie en commun.')}
-      ${p.pourMoi.length ? `<h3>${icn('tres')} Ses coups de cœur, pas encore vus par toi</h3>${rangee(p.pourMoi, '')}` : ''}
-      ${p.adores.length ? `<h3>${icn('coupe')} Adorés tous les deux</h3>${rangee(p.adores, '')}` : ''}
-      ${p.desaccords.length ? `<h3>${icn('bof')} Vos grands désaccords</h3><ul class="a-desac">${p.desaccords.map(f => `<li><span></span><b>toi ${note(f.moi)} · <i></i> ${note(f.lui)}</b></li>`).join('')}</ul>` : ''}</section>`).join('')}
+    ${fil.length ? `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${fil.slice(0, max).map((x, i) => `<li class="fil-i"><button type="button" class="fil-av" data-profil="${esc(x.qui)}">${avatar(x)}</button><div class="fil-c"><p><b></b> ${avisMot2(x)}</p><small>${esc(ago(x.at))}</small></div><button type="button" class="fil-aff" data-film="${esc(x.k)}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="nop">${icn('film')}</span>`}</button></li>`).join('')}</ul>${fil.length > max ? '<button class="s-btn ghost" data-fil-plus>Voir plus</button>' : ''}</section>` : ''}
     ${C.cachés?.length ? `<p class="a-vide">${esc(C.cachés.join(' et '))} ne partage${C.cachés.length > 1 ? 'nt' : ''} pas ses goûts pour l’instant.</p>` : ''}
     ${demande ? '' : lienBloc()}`;
+  b.querySelectorAll('.gen[data-profil] span:last-child').forEach((x, i) => { x.textContent = gens[i].moi ? 'Toi' : gens[i].nom; });
+  b.querySelectorAll('.fil-i').forEach((li, i) => { const x = fil[i]; li.querySelector('.fil-c b').textContent = x.nom; li.querySelector('.fil-c i').textContent = x.title; });
   b.querySelectorAll('.a-lien b[data-i]').forEach(x => { x.textContent = LIENS[Number(x.dataset.i)]?.nom || ''; });
-  b.querySelectorAll('.a-bloc:not(.a-ens):not(.a-liens)').forEach((s, i) => { s.querySelector('h2').textContent = C.personnes[i].nom; s.querySelectorAll('.a-desac i').forEach(x => { x.textContent = C.personnes[i].nom; }); });
-  b.querySelectorAll('.a-desac li').forEach((li, i) => { const all = C.personnes.flatMap(p => p.desaccords); li.querySelector('span').textContent = all[i]?.title || ''; });
+  b.querySelectorAll('[data-teinte]').forEach(x => { x.style.setProperty('--c', x.dataset.teinte); });
+}
+const ago = iso => { const d = (Date.now() - Date.parse(iso)) / 60e3; if (!(d >= 0)) return ''; if (d < 60) return 'à l’instant'; if (d < 1440) return `il y a ${Math.round(d / 60)} h`; const j = Math.round(d / 1440); return j === 1 ? 'hier' : j < 30 ? `il y a ${j} jours` : j < 365 ? `il y a ${Math.round(j / 30)} mois` : 'il y a longtemps'; };
+// le profil de quelqu'un (un hôte, un ami lié, ou soi) : ses chiffres, ce que vous avez en commun, ses films
+const PROFILS = {};
+async function profilPop(qui) {
+  const moi = qui === 'moi';
+  const box = pop(`<p class="s-wait">Un instant…</p>`);
+  let r;
+  if (moi) r = { nom: P.nom, hote: false, avis: [...MES.values()].sort((x, y) => String(y.at || '').localeCompare(String(x.at || ''))) };
+  else try { r = PROFILS[qui] ||= await call('profil_de', { qui }); } catch (e) { box.querySelector('.a-note-c').innerHTML = `<p class="a-sub">${esc(e.message)}</p><div class="a-note-btns"><button class="s-btn ghost" data-fermer>Fermer</button></div>`; return; }
+  const avis = r.avis || [], vus = avis.filter(a => a.vote === 'vu' || a.note), envies = avis.filter(a => !a.note && (a.vote === 'oui' || a.vote === 'super')), notes = vus.filter(a => a.note);
+  const moy = notes.length ? notes.reduce((s, a) => s + a.note, 0) / notes.length : 0;
+  const cmp = moi ? null : (CMP?.personnes || []).find(p => p.nom === r.nom);
+  const coeurs = [...vus].filter(a => a.note >= 4.5).sort((x, y) => y.note - x.note);
+  const grilles = { coeurs: ['Coups de cœur', coeurs], super: ['Très envie', envies.filter(a => a.vote === 'super')], envies: ['Envies', envies], vus: ['Vus', [...vus].sort((x, y) => (y.note || 0) - (x.note || 0))] };
+  let F = 'coeurs';
+  for (const a of avis) matchs.films?.set(a.k, a);
+  const draw = () => {
+    const [gl, sel] = grilles[F];
+    box.querySelector('.a-note-c').innerHTML = `<header class="pf-tete">${avatar({ nom: r.nom, hote: r.hote }, 'big')}<div><p class="a-note-t"></p><p class="a-sub pf-sub">${moi ? 'Toi' : r.hote ? 'De la maison' : 'Ami lié'}</p></div></header>
+      <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? note(moy) : '–'}</b><span>note moy.</span></li>${cmp ? `<li class="${cmp.compat != null ? 'ok' : ''}"><b>${cmp.compat != null ? cmp.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
+      ${cmp?.matches?.length ? `<h3>${icn('envie')} Envie tous les deux · ${cmp.nMatches || cmp.matches.length}</h3>${rangee(cmp.matches, '')}` : ''}
+      ${cmp?.pourMoi?.length ? `<h3>${icn('tres')} Ses coups de cœur, pas encore vus par toi</h3>${rangee(cmp.pourMoi, '')}` : ''}
+      ${cmp?.adores?.length ? `<h3>${icn('coupe')} Adorés tous les deux</h3>${rangee(cmp.adores, '')}` : ''}
+      ${avis.filter(a => a.at).length ? `<h3>Ses derniers avis</h3><ul class="fil-l pf-fil">${avis.filter(a => a.at).slice(0, 8).map(x => `<li class="fil-i"><button type="button" class="fil-aff" data-film="${esc(x.k)}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="nop">${icn('film')}</span>`}</button><div class="fil-c"><p>${avisMot2(x).replace(/^a /, moi ? 'Tu as ' : 'A ').replace(/^n’est/, moi ? 'Tu n’es' : 'N’est')}</p><small>${esc(ago(x.at))}</small></div></li>`).join('')}</ul>` : '<p class="a-vide">Pas encore d’avis.</p>'}
+      <div class="a-filtres pf-chips">${Object.entries(grilles).map(([k, [lb, l]]) => `<button type="button" data-pf="${k}" aria-pressed="${k === F}">${lb} · ${l.length}</button>`).join('')}</div>
+      ${sel.length ? `<div class="a-grille">${sel.slice(0, 120).map(a => `<button class="a-mini" data-film="${esc(a.k)}">${poster(a, 'a-mini-img')}<span></span>${a.note ? `<small>${note(a.note)}/5</small>` : ''}</button>`).join('')}</div>` : '<p class="a-vide">Rien ici pour l’instant.</p>'}
+      <div class="a-note-btns"><button class="s-btn ghost" data-fermer>Fermer</button></div>`;
+    box.querySelector('.a-note-t').textContent = moi ? `${r.nom} (toi)` : r.nom;
+    box.querySelectorAll('.a-grille .a-mini').forEach((x, i) => { x.querySelector('span:not(.a-mini-img)').textContent = sel[i].title; });
+    box.querySelectorAll('.pf-fil .fil-c i').forEach((x, i) => { x.textContent = avis.filter(a => a.at)[i].title; });
+    box.querySelectorAll('[data-teinte]').forEach(x => { x.style.setProperty('--c', x.dataset.teinte); });
+  };
+  draw();
+  box.addEventListener('click', e => { const f = e.target.closest('[data-pf]'); if (f) { F = f.dataset.pf; haptic('light'); draw(); } const fm = e.target.closest('[data-film]'); if (fm) { const x = matchs.films?.get(fm.dataset.film) || MES.get(fm.dataset.film); if (x) { box.remove(); fichePop(x); } } });
 }
 
 // Les autres amis : se lier, comme une demande d'ami. Une fois que l'autre accepte, vous voyez vos films en commun.
@@ -539,8 +581,14 @@ function chercher() {
   dessinerRes(); q.focus();
 }
 
+// l'haptique au toucher : un interrupteur natif posé sur chaque bouton, à chaque nouveau rendu
+new MutationObserver(() => armerHaptique(document)).observe(document.body, { childList: true, subtree: true });
+document.addEventListener('click', e => {
+  // un interrupteur haptique dans un bouton « envoyer » : il faut soumettre le formulaire à sa place
+  if (e.target.matches?.('input.hap')) { const host = e.target.parentElement; if (host?.tagName === 'BUTTON' && host.type === 'submit' && host.form) { e.preventDefault(); host.form.requestSubmit(host); } }
+}, true);
 $.addEventListener('click', async e => {
-  const t = e.target.closest('[data-t]'); if (t) { onglet = t.dataset.t; store.set('ami-onglet', onglet); dessiner(); return; }
+  const t = e.target.closest('[data-t]'); if (t) { haptic('light'); onglet = t.dataset.t; store.set('ami-onglet', onglet); dessiner(); return; }
   const v = e.target.closest('.s-btns [data-v]'); if (v) { glisser(v.dataset.v); return; }
   const fl = e.target.closest('[data-f]'); if (fl) { filtre = fl.dataset.f; mes(); return; }
   if (e.target.closest('[data-nom]')) { moiPop(); return; }
@@ -548,6 +596,9 @@ $.addEventListener('click', async e => {
   const li = e.target.closest('[data-lier]'); if (li) { lienAgir(li.dataset.lier, 'lier', li); return; }
   const de = e.target.closest('[data-delier]'); if (de) { if (de.hasAttribute('data-defaire') && !confirm('Défaire le lien ? Vous ne verrez plus vos films en commun.')) return; lienAgir(de.dataset.delier, 'delier', de); return; }
   if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`À voir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }
+  const pr = e.target.closest('[data-profil]'); if (pr) { haptic('light'); profilPop(pr.dataset.profil); return; }
+  if (e.target.closest('[data-inviter]')) { invitePop(); return; }
+  if (e.target.closest('[data-fil-plus]')) { matchs.plus = true; matchs(); return; }
   const fm = e.target.closest('[data-film]');
   if (fm) { const k = fm.dataset.film; const f = MES.get(k) || recherche.find(x => x.k === k) || matchs.films?.get(k); if (f) fichePop(f); }
 });

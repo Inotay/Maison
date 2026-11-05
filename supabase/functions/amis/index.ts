@@ -70,7 +70,7 @@ function trop(req: Request) {
 
 // ── Les goûts ──
 // Un avis : une note (vu) ou un vote (envie, très envie, bof).
-type Avis = { k: string; title: string; year: number | null; poster: string | null; media: string; vote: string; note: number | null };
+type Avis = { k: string; title: string; year: number | null; poster: string | null; media: string; vote: string; note: number | null; at?: string | null };
 const envie = (a?: Avis) => !!a && !a.note && (a.vote === "oui" || a.vote === "super");
 const bof = (a?: Avis) => !!a && !a.note && a.vote === "non";
 // À quel point deux avis sur le même film vont dans le même sens (0 à 1), et le poids de cette comparaison.
@@ -128,16 +128,16 @@ Deno.serve(async (req) => {
   // qui ne partage pas ses goûts avec les amis (réglage de chacun, partagé par défaut)
   const discrets = async () => { const { data } = await db.from("reglages").select("cle, valeur").like("cle", "amis:partage:%"); return new Set((data ?? []).filter(r => r.valeur?.non).map(r => r.cle.slice(13))); };
   const goutsMembres = async () => {
-    const { data } = await db.rpc("ami_gouts_membres");
+    const { data } = await db.rpc("ami_gouts_membres_dates");
     const par = new Map<string, Map<string, Avis>>();
     for (const r of (data ?? []) as Record<string, any>[]) {
       const m = par.get(r.email) ?? new Map(); par.set(r.email, m);
-      m.set(r.k, { k: r.k, title: r.title, year: r.year, poster: r.poster, media: r.media, vote: r.note ? "vu" : r.vote, note: r.note ? Math.round(Number(r.note) * 10) / 10 : null });
+      m.set(r.k, { k: r.k, title: r.title, year: r.year, poster: r.poster, media: r.media, vote: r.note ? "vu" : r.vote, note: r.note ? Math.round(Number(r.note) * 10) / 10 : null, at: r.at ?? null });
     }
     return par;
   };
   const avisAmis = async (ids?: string[]) => {
-    let q = db.from("ami_avis").select("ami_id, k, title, year, poster, media, vote, note");
+    let q = db.from("ami_avis").select("ami_id, k, title, year, poster, media, vote, note, at");
     if (ids) q = q.in("ami_id", ids);
     const { data } = await q.limit(20000);
     const par = new Map<string, Map<string, Avis>>();
@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
   }
 
   // ── Côté ami : avec son lien ou sa session ──
-  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter", "jeu", "azami"].includes(action)) {
+  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter", "jeu", "azami", "fil_ami", "profil_de"].includes(action)) {
     const jeton = String(body.jeton ?? ""), session = String(body.session ?? "");
     let amiId: string | null = null;
     if (RE_JETON.test(session)) {
@@ -362,6 +362,25 @@ Deno.serve(async (req) => {
       if (error) { console.error(error); return json({ error: "La demande n’est pas partie." }, 500); }
       return json({ ok: true, etat: "envoye" });
     }
+    // le fil, vu par un ami : les derniers avis des hôtes (s'ils partagent) et des amis liés à lui
+    if (action === "fil_ami" || action === "profil_de") {
+      const [g, cachés, ms, { data: tousAmis }, liens] = await Promise.all([goutsMembres(), discrets(), membres(), db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null), liensDe(ami.id)]);
+      const lies = (tousAmis ?? []).filter(a => a.id !== ami.id && liens.get(a.id) === "lie");
+      const hotes = ms.filter(m => !cachés.has(m.email));
+      if (action === "profil_de") {
+        const qui = str(body.qui, 80);
+        const h = hotes.find(m => `hote:${m.email}` === qui);
+        if (h) return json({ nom: h.name, hote: true, avis: [...(g.get(h.email) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
+        const l = lies.find(a => a.id === qui) ?? (qui === ami.id ? { id: ami.id, nom: ami.nom } : null);
+        if (!l) return json({ error: "Vous n’êtes pas liés." }, 403);
+        const av = await avisAmis([l.id]);
+        return json({ nom: l.nom, hote: false, avis: [...(av.get(l.id) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
+      }
+      const fil: Record<string, unknown>[] = [];
+      for (const h of hotes) for (const a of [...(g.get(h.email) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))).slice(0, 40)) fil.push({ qui: `hote:${h.email}`, nom: h.name, hote: true, ...a });
+      if (lies.length) { const { data } = await db.from("ami_avis").select("ami_id, k, title, year, poster, media, vote, note, at").in("ami_id", lies.map(a => a.id)).order("at", { ascending: false }).limit(80); for (const a of data ?? []) fil.push({ qui: a.ami_id, nom: lies.find(l => l.id === a.ami_id)?.nom, hote: false, ...a }); }
+      return json({ fil: fil.filter(x => x.at && x.vote !== "non").sort((x, y) => String(y.at).localeCompare(String(x.at))).slice(0, 80), gens: [...hotes.map(h => ({ qui: `hote:${h.email}`, nom: h.name, hote: true })), ...lies.map(l => ({ qui: l.id, nom: l.nom, hote: false }))] });
+    }
     if (action === "comparer") {
       const [g, cachés, ms, { data: tousAmis }, liens] = await Promise.all([goutsMembres(), discrets(), membres(), db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null), liensDe(ami.id)]);
       // les autres amis : seulement ceux avec qui le lien est accepté des deux côtés
@@ -418,6 +437,14 @@ Deno.serve(async (req) => {
     const id = String(body.id ?? ""); if (!RE_ID.test(id)) return json({ error: "Ami inconnu." }, 400);
     const { data } = await db.from("ami_avis").select("k, title, year, poster, media, vote, note, at").eq("ami_id", id).order("at", { ascending: false }).limit(3000);
     return json({ avis: data ?? [] });
+  }
+  // le fil : ce que les amis ont fait récemment (leurs derniers avis, du plus récent au plus ancien)
+  if (action === "fil") {
+    const { data: amis } = await db.from("amis").select("id, nom").is("revoked_at", null).not("nom", "is", null);
+    const noms = new Map((amis ?? []).map(a => [a.id, a.nom as string]));
+    if (!noms.size) return json({ fil: [] });
+    const { data } = await db.from("ami_avis").select("ami_id, k, title, year, poster, media, vote, note, at").in("ami_id", [...noms.keys()]).order("at", { ascending: false }).limit(Math.min(200, Math.max(20, Number(body.n) || 80)));
+    return json({ fil: (data ?? []).map(a => ({ id: a.ami_id, nom: noms.get(a.ami_id), k: a.k, title: a.title, year: a.year, poster: a.poster, media: a.media, vote: a.vote, note: a.note, at: a.at })) });
   }
   if (action === "liste") {
     const [{ data: amis }, g, cachés] = await Promise.all([db.from("amis").select("id, nom, created_at, vu_at, revoked_at, cree_par, invite_par, pass_hash").order("created_at", { ascending: false }), goutsMembres(), discrets()]);

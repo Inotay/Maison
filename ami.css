@@ -199,3 +199,45 @@ button.a-scene:active .a-bulle { transform: translateY(2px); box-shadow: 0 2px 0
 .a-az-form input { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 14px; border: 0; background: #fff; color: #17306B; font: inherit; font-size: 16px; outline: none; box-shadow: inset 0 -3px 0 #C9D9FF; }
 .a-az-form .s-btn { padding: 0 16px; display: grid; place-items: center; } .a-az-form .s-btn .icn { width: 22px; height: 22px; }
 .a-az-reste { margin: 0; font-size: 13px; color: var(--soft); text-align: center; }
+/* l'haptique : l'interrupteur caché, et ceux posés sur les boutons */
+.hap-lab { position: fixed; left: -100px; top: -100px; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none; }
+input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; clip-path: inset(0 round 999px); touch-action: manipulation; -webkit-tap-highlight-color: transparent; z-index: 1; }
+.s-btn, .s-btns button, .s-tabs button, .a-filtres button, .a-choix button, .a-li, .ami-mini, .a-mini, .a-qui, .a-scene { position: relative; }
+/* les gens, le fil, les profils */
+.gens { display: flex; gap: 6px; overflow-x: auto; padding: 6px 2px 8px; margin: 0 -2px 6px; scrollbar-width: none; }
+.gens::-webkit-scrollbar { display: none; }
+.gen { all: unset; position: relative; cursor: pointer; flex: none; width: 66px; display: grid; justify-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: var(--soft); text-align: center; -webkit-tap-highlight-color: transparent; }
+.gen span:last-child { max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gen:active .av { transform: scale(.92); }
+.av { --c: #2766C0; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--c); color: #fff; font-weight: 900; font-size: 22px; box-shadow: 0 4px 0 var(--lip); transition: transform .15s; }
+.av.hote { box-shadow: 0 4px 0 var(--lip), 0 0 0 3px var(--pop); }
+.av.big { width: 72px; height: 72px; font-size: 30px; flex: none; }
+.av.plus { background: transparent; color: #fff; border: 2px dashed rgba(255,255,255,.5); box-shadow: none; font-size: 28px; }
+.fil { margin: 4px 0 12px; }
+.fil-t { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: 18px; font-weight: 900; }
+.fil-t .icn { width: 20px; height: 20px; color: var(--pop); }
+.fil-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fil-i { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 6px; border-radius: 16px; background: #2766C0; box-shadow: 0 3px 0 var(--lip); }
+.fil-av { all: unset; position: relative; cursor: pointer; flex: none; }
+.fil-av .av { width: 38px; height: 38px; font-size: 17px; box-shadow: none; }
+.fil-c { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.fil-c p { margin: 0; font-size: 14px; line-height: 1.3; }
+.fil-c p i { font-style: normal; font-weight: 900; }
+.fil-c small { font-size: 12px; color: var(--soft); }
+.fil-aff { all: unset; position: relative; cursor: pointer; flex: none; width: 40px; }
+.fil-aff img, .fil-aff .nop { width: 40px; height: 60px; border-radius: 7px; object-fit: cover; display: grid; place-items: center; font-size: 16px; }
+.fil .s-btn.ghost { width: 100%; margin-top: 8px; font-size: 15px; padding: 12px; }
+.pf-tete { display: flex; align-items: center; gap: 14px; text-align: left; margin: 0 0 10px; }
+.pf-tete .a-note-t { text-align: left; font-size: 24px; }
+.pf-sub { margin: 2px 0 0 !important; }
+.pf-stats { list-style: none; margin: 0 0 10px; padding: 10px 6px; display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 4px; border-radius: 16px; background: #2766C0; box-shadow: 0 3px 0 var(--lip); }
+.pf-stats li { display: grid; gap: 1px; text-align: center; }
+.pf-stats b { font-size: 20px; font-weight: 900; line-height: 1.05; }
+.pf-stats li.ok b { color: var(--pop); }
+.pf-stats span { font-size: 10.5px; color: var(--soft); text-transform: uppercase; letter-spacing: .04em; font-weight: 800; }
+.a-pop h3 { margin: 10px 0 4px; font-size: 14px; color: var(--soft); display: flex; align-items: center; gap: 6px; font-weight: 900; }
+.pf-fil .fil-i { background: rgba(255,255,255,.08); box-shadow: none; }
+.pf-chips { margin-top: 12px; }
+.a-pop .a-grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; }
+.a-pop .a-grille .a-mini { width: auto; } .a-pop .a-grille .a-mini-img { width: 100%; height: auto; aspect-ratio: 2 / 3; }
+.a-pop .a-note-c, .a-note-c { max-height: 88dvh; overflow-y: auto; }

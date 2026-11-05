@@ -280,7 +280,7 @@ export function countUp(el, to, ms = 700) {
 // bouton reçoit le doigt lui-même ; iOS joue alors sa vibration. Le clic remonte au bouton comme
 // d'habitude. Apple a fermé cette porte à partir d'iOS 26.5 : là, il ne se passe simplement rien.
 export function armHaptics(root = document) {
-  root.querySelectorAll('.tick, .btn, .nav button, .chips button, .icon-btn, .seg button').forEach(el => {
+  root.querySelectorAll('.tick, .btn, .nav button, .chips button, .icon-btn, .seg button, .cine-spaces button, .gen, .cine-inv, .ami-mini, .fil-aff, .deck-btns button, .deck-f button').forEach(el => {
     if (el.querySelector(':scope > input.hap')) return;
     const t = document.createElement('input');
     t.type = 'checkbox'; t.setAttribute('switch', ''); t.className = 'hap'; t.tabIndex = -1;
