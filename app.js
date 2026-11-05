@@ -2857,7 +2857,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v299</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v300</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5672,7 +5672,7 @@ function deckAskSeen(redraw = false) {
   jaugeBind(box.querySelector('.jauge'), (v, fin) => { if (!fin || box.dataset.fait) return; box.dataset.fait = '1'; setTimeout(() => { if (deck?.asking) deckSeen(v); }, 260); });
 }
 async function deckSeen(note) {
-  jeuAvis('vu');
+  jeuAvis('vu', { note });
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');
   deck.asking = false; haptic(note >= 4 ? 'medium' : 1); sfx('tick');
   deckFly(deck.box.querySelector('.dcard.top:not(.gone)'), 'vu');
@@ -5720,7 +5720,7 @@ function jeuBarre() {
 function jeuMaj() { document.querySelectorAll('.deck-jeu, .jeu-hud').forEach(x => { x.innerHTML = x.classList.contains('jeu-hud') ? jeuHud() : jeuBarre(); }); document.querySelectorAll('.jeu-objectif').forEach(x => { x.outerHTML = jeuObjectif(); }); }
 function jeuAvis(v, opts = {}) {
   const { e, f } = JEU.avis(S.jeu || JEU.neuf(), v === 'beurk' ? 'non' : v, opts); S.jeu = e; jeuSave();
-  if (CINE_SEUL) jeuFete(f);
+  if (CINE_SEUL) jeuFete(f, v, opts.note);
 }
 function jeuMatch() { const e = JEU.propre(S.jeu); e.xp += JEU.MATCH; e.matchs++; e.maj = Date.now(); S.jeu = e; jeuSave(); if (CINE_SEUL) jeuFlotte(`+${JEU.MATCH}`, 'match'); }
 function jeuFlotte(txt, cls = '', mot = '') {
@@ -5731,12 +5731,12 @@ function jeuFlotte(txt, cls = '', mot = '') {
 // la barre du jour chauffe tant que l'élan tient, puis refroidit doucement
 let jeuChaudT = 0, jeuChaudN = 0;
 function jeuChauffe(n) { jeuChaudN = n; clearTimeout(jeuChaudT); document.querySelectorAll('.deck-jeu').forEach(x => { x.classList.remove('c1', 'c2', 'c3'); if (n) x.classList.add(`c${n}`); }); if (n) jeuChaudT = setTimeout(() => jeuChauffe(0), JEU.COMBO_S * 1000); }
-function jeuFete(f) {
+function jeuFete(f, v, note) {
   jeuMaj();
-  // l'élan : des avis qui s'enchaînent rapportent plus, et ça se voit dans les points eux-mêmes (plus chauds, plus gros)
-  const ch = JEU.chaleur(f.combo), mot = JEU.elanMot(f.combo);
-  jeuFlotte(`+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, ch ? `c${ch}` : '', mot);
-  if (mot) { haptic('medium'); sfx('done'); }
+  // le cri, façon jeu de combat : un mot qui claque selon l'avis, qui tremble plus fort quand l'élan monte
+  const ch = JEU.chaleur(f.combo), palier = JEU.elanMot(f.combo);
+  JEU.afficherCri(deck?.box || document.body, { ...JEU.cri(v, note), points: `+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, chaleur: ch, palier });
+  if (palier) { haptic('heavy'); sfx('done'); }
   jeuChauffe(ch);
   if (f.serie > 1) setTimeout(() => toast(`${f.serie} jours de suite !`), 300);
   if (f.coffre) setTimeout(() => { haptic('heavy'); celebrate({ title: 'Objectif du jour !', sub: `${JEU.OBJECTIF} films triés : le coffre s’ouvre, +${JEU.COFFRE} points`, level: 'big', reaction: 'fete_reussites' }); }, 450);

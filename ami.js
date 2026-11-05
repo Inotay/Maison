@@ -221,7 +221,7 @@ function tuto(n) {
 // ── L'écran : quatre onglets ──
 const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Amis'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
-  document.querySelectorAll('.a-vol').forEach(x => x.remove());
+  document.querySelectorAll('.a-vol, .cri').forEach(x => x.remove());
   $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Mon menu"></button></header>
     <div class="a-hud">${hud()}</div>
     ${onglet === 'cinder' ? `<button class="a-scene" data-azami aria-label="Parler à Azami"><img src="azami/v44/${reduit() ? 'statiques/azami_v44_cinebleu_statique' : 'azami_v44_cinebleu_anime'}.svg" alt=""><p class="a-bulle"></p></button><div class="a-obj-h">${objectif()}</div>` : ''}
@@ -349,14 +349,14 @@ function feteSuivante() {
   haptic('heavy');
   box.addEventListener('click', e => { if (e.target.closest('button') || e.target === box) { box.remove(); setTimeout(feteSuivante, 250); } });
 }
-function jeuAvis(f, v) {
+function jeuAvis(f, v, n) {
   // un match : tu as envie d'un film dont un hôte a envie aussi
   const avec = (v === 'oui' || v === 'super') ? (f.hotes || []).filter(h => h.envie).map(h => h.nom) : [];
   const { e, f: r } = JEU.avis(JE, v === 'vu' ? 'vu' : v, { match: avec.length > 0 }); JE = e; jeuSauver(); jeuMaj();
   // l'élan : des avis qui s'enchaînent rapportent plus, et ça se voit dans les points eux-mêmes (plus chauds, plus gros)
-  const ch = JEU.chaleur(r.combo);
-  flotte(`+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`, ch ? `c${ch}` : '', JEU.elanMot(r.combo));
-  if (JEU.elanMot(r.combo)) haptic('medium');
+  const ch = JEU.chaleur(r.combo), palier = JEU.elanMot(r.combo);
+  JEU.afficherCri(document.body, { ...JEU.cri(v, n), points: `+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`, chaleur: ch, palier });
+  if (palier) haptic('heavy');
   chauffer(ch);
   if (r.serie > 1) toast(`${r.serie} jours de suite !`);
   if (r.match) setTimeout(() => fete({ titre: 'C’est un match !', html: `<p>${esc(avec.join(' et '))} et toi voulez voir<br><b>${esc(f.title)}</b></p>`, gain: JEU.MATCH, film: f }), 350);
@@ -440,7 +440,7 @@ function partir(f, el, v, n, from) {
   }
   haptic(v === 'super' ? 'medium' : v === 'oui' ? 'medium' : 'light');
   pileF.shift();
-  jeuAvis(f, v);
+  jeuAvis(f, v, n);
   donner(f, v, n).then(aide);
   // la carte de dessous monte tout de suite
   const st = $.querySelector('.s-stack'), up = st?.querySelector('.c.next');

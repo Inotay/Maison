@@ -49,7 +49,42 @@ export function avis(e0, vote, { match = false, t = Date.now() } = {}) {
 }
 // l'élan, en trois chaleurs (0 : rien, 1 : ça chauffe, 2 : chaud, 3 : en feu) et un mot aux paliers seulement
 export const chaleur = c => c >= 8 ? 3 : c >= 5 ? 2 : c >= 3 ? 1 : 0;
-export const elanMot = c => c === 5 ? 'Ça s’enchaîne !' : c === 10 ? 'En feu !' : c > 10 && c % 10 === 0 ? 'Inarrêtable !' : '';
+// aux paliers de l'élan, le cri est suivi d'un « ×5 », « ×10 »… (sinon rien)
+export const elanMot = c => c >= 5 && (c === 5 || c % 5 === 0) ? `×${c}` : '';
+// Les cris du jeu, façon jeu de combat (ou Trombone Champ) : un mot qui claque à chaque avis, selon ce qu'on a dit.
+// Envie, très envie, bof, non, et pour un film vu : selon la note. Jamais deux fois le même mot de suite.
+export const CRIS = {
+  oui: ['Nice !', 'Tasty !', 'Likky !', 'Netflix and chill !', 'Badaboom !', 'Kachow !', 'Miam !', 'Yummy !', 'Oh yeah !', 'Banger !', 'Pop-corn !', 'Yes yes yes !', 'Chef’s kiss !', 'Wouhou !', 'Crunch !', 'Groovy !', 'Bingo !', 'Zoom zoom !', 'Boom !', 'Dingue !', 'Yay !', 'Sweet !', 'Hop là !', 'Ça claque !', 'Wow !', 'Spicy !', 'Jackpot !', 'Okiii !', 'Miaou !', 'Slurp !', 'Youpi !', 'Vroum !', 'Chaud chaud !', 'Gimme !', 'Hmm hmm !', 'Croustillant !', 'Ding ding !', 'Paf !', 'Let’s go !', 'Tchac !'],
+  super: ['MEGA !', 'LEGENDARY !', 'SUPERSTAR !', 'KABOOM !', 'Holy moly !', 'Coup de foudre !', 'OMG !', 'Purrrfect !', 'Masterpiece !', 'HYPE !', 'Bombe !', 'Waouh waouh !', 'GOAL !', 'Feu d’artifice !', 'ULTRA !', 'Banzaï !', 'Je veux, je veux !', 'Mamma mia !', 'Ka-ching !', 'Explosion !', 'Big love !', 'Turbo !', 'Ooooh yes !', 'Kawaii !', 'Wahou !'],
+  non: ['Nop !', 'UhUh !', 'Ikky !', 'NoNo !', 'Yok !', 'Bof bof !', 'Nan !', 'Pfff !', 'Bye bye !', 'Next !', 'Meh !', 'Nein !', 'Hmm non !', 'Skip !', 'Zut !', 'Nope nope !', 'Sniff !', 'Pas pour moi !', 'Ciao !', 'Pschitt !', 'Oof !', 'Zzz !', 'Mouif !', 'Au suivant !', 'Pas ce soir !', 'Niet !', 'Plop !', 'Hop, à la poubelle !', 'Pouet !', 'KaKa !', 'PooPoo !'],
+  beurk: ['YUCK !', 'Jamais !', 'Burk burk !', 'Au secours !', 'Nooon !', 'Berk !', 'Horreur !', 'Pouah !', 'Fuyez !', 'Beurk !', 'Même pas en rêve !', 'Gloups !', 'Aaargh !', 'AïeAïeAïe !', 'Interdit !', 'KaKa !', 'PooPoo !', 'Pouet pouet !'],
+  vuTop: ['Hehe !', 'KnowDat !', 'Classique !', 'Culte !', 'Respect !', 'Iconique !', 'Old but gold !', 'Bien vu !', 'Ahh celui-là !', 'Légende !', 'Chef-d’œuvre !', 'Le goût !', 'Validé !', 'Tu connais !', 'Grand cru !', 'Frissons !'],
+  vuMoyen: ['WawaWiwa !', 'Ok ok !', 'Pas mal !', 'Mouais !', 'Correct !', 'Sympa !', 'Ça passe !', 'Comme ci comme ça !', 'Bof-ish !', 'Moyennement !', 'Mi-figue !', 'Tiède !', 'Pourquoi pas !'],
+  vuBas: ['Eurk !', 'OuLala !', 'Aïe !', 'Ouch !', 'Raté !', 'Rendez-moi mes 2 h !', 'Bouh !', 'Plouf !', 'Snif !', 'Oof !', 'AïeAïeAïe !', 'Ça pique !', 'Navet !', 'Oups !', 'Glagla !', 'KaKa !', 'Pouet !', 'PooPoo !'],
+  vu: ['Hehe !', 'KnowDat !', 'Déjà vu !', 'Check !', 'Coché !', 'Vu et revu !', 'Je connais !', 'Done !'],
+};
+const derniers = [];
+// le cri d'un avis, et son genre (pour la couleur) : oui, super, non, beurk, vu-top, vu-moyen, vu-bas
+export function cri(vote, note) {
+  const g = vote === 'vu' ? (note >= 4 ? 'vuTop' : note >= 2.5 ? 'vuMoyen' : note > 0 ? 'vuBas' : 'vu') : CRIS[vote] ? vote : 'oui';
+  const l = CRIS[g].filter(m => !derniers.includes(m));
+  const m = l[Math.floor(Math.random() * l.length)] || CRIS[g][0];
+  derniers.push(m); if (derniers.length > 8) derniers.shift();
+  return { mot: m, genre: g };
+}
+// Le montrer : le mot en gros au milieu de l'écran, chaque lettre tremble à sa façon (plus fort quand l'élan monte),
+// les points en petit dessous. Même dessin dans l'app et sur la page des amis (styles .cri dans leurs feuilles).
+export function afficherCri(host, { mot, genre, points = '', chaleur = 0, palier = '' }) {
+  host.querySelectorAll(':scope > .cri').forEach(x => x.remove());
+  const el = document.createElement('div'); el.className = `cri g-${genre} c${chaleur}`; el.setAttribute('aria-hidden', 'true');
+  el.style.setProperty('--r', `${(Math.random() * 16 - 8).toFixed(1)}deg`); el.style.setProperty('--n', String(Math.max(6, [...mot].length)));
+  const w = document.createElement('div'); w.className = 'cri-mot';
+  [...mot].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; sp.style.setProperty('--d', `${(-Math.random() * .4).toFixed(2)}s`); sp.style.setProperty('--i', i); w.appendChild(sp); });
+  el.appendChild(w);
+  if (points || palier) { const p = document.createElement('div'); p.className = 'cri-pts'; p.textContent = [points, palier].filter(Boolean).join('  '); el.appendChild(p); }
+  host.appendChild(el); setTimeout(() => el.remove(), 1300);
+  return el;
+}
 // deux appareils : on garde le plus avancé (et le plus récent pour la série du jour)
 export function fusion(a, b) {
   const x = propre(a), y = propre(b);
