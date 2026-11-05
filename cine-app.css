@@ -159,10 +159,10 @@ html.cine-seul .av-ombre { background: #3398EC; }
 .cri.coin.c3 .cri-mot { font-size: min(54px, calc(66vw / (var(--n, 6) * .6))); }
 .cri.coin.g-super .cri-mot { font-size: min(48px, calc(66vw / (var(--n, 6) * .6))); }
 @keyframes cri-coin {
-  0% { opacity: 0; transform: rotate(var(--r)) scale(.25); }
-  14% { opacity: 1; transform: rotate(calc(var(--r) - 6deg)) scale(1.25); }
-  24% { transform: rotate(var(--r)) scale(.94); }
-  32% { transform: rotate(var(--r)) scale(1.04); }
-  80% { opacity: 1; transform: rotate(var(--r)) scale(1); }
-  100% { opacity: 0; transform: translateY(-16px) rotate(var(--r)) scale(.92); }
+  0% { opacity: 0; transform: rotate(calc(var(--r) - 8deg)) scale(2.1); }
+  12% { opacity: 1; transform: rotate(var(--r)) scale(.86); }
+  22% { transform: rotate(calc(var(--r) + 2deg)) scale(1.08); }
+  32% { transform: rotate(var(--r)) scale(1); }
+  86% { opacity: 1; transform: rotate(var(--r)) scale(1); }
+  100% { opacity: 0; transform: rotate(var(--r)) scale(1.12); }
 }
