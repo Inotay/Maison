@@ -1,7 +1,7 @@
 /* Ciné Azami, l'app à part (cine.html) : le bleu de Maison en plus profond, des formes dodues, et le jeu
    (série, points, niveau, objectif du jour, combos). Les couleurs du ciné viennent de cine-theme.css. */
-html.cine-seul { --bg: #1A3A7A; --text: #FFFFFF; --muted: #BBD3FF; --lip: #11295C; --vert: #48D98A; --vert-l: #22A862; --pop: #FFC93C; --pop-l: #D99A0E; --violet: #B98CFF; --cyan: #62D8FF; --nav-h: 0px; }
-html.cine-seul body { background: linear-gradient(180deg, #2257B0 0, #1A3A7A 520px, #16316A 100%) fixed; color: #fff; }
+html.cine-seul { --bg: #2F80DD; --text: #FFFFFF; --muted: #BBD3FF; --lip: #1B4F9E; --vert: #48D98A; --vert-l: #22A862; --pop: #FFC93C; --pop-l: #D99A0E; --violet: #B98CFF; --cyan: #62D8FF; --nav-h: 0px; }
+html.cine-seul body { background: linear-gradient(180deg, #4AA3F2 0, #2F80DD 520px, #2B76D2 100%) fixed; color: #fff; }
 html.cine-seul .cine-marquee { display: none; }
 html.cine-seul .cine { background: transparent; border: 0; box-shadow: none; padding: 0; }
 html.cine-seul main#app { padding-bottom: calc(var(--safe-b) + 28px); }
@@ -9,13 +9,13 @@ html.cine-seul main#app { padding-bottom: calc(var(--safe-b) + 28px); }
 /* l'en-tête */
 .cine-tete { display: grid; gap: 14px; padding-top: calc(var(--safe-t) + 10px); margin-bottom: 14px; }
 .jeu-hud { display: flex; align-items: center; gap: 8px; }
-.jeu-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; background: rgba(17, 41, 92, .55); font-weight: 900; font-size: 16px; }
+.jeu-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 9px; border-radius: 999px; background: rgba(20, 72, 160, .42); font-weight: 900; font-size: 16px; }
 .jeu-pill .icn { width: 20px; height: 20px; color: var(--pop); }
 .jeu-pill.off .icn { color: #7F95C8; }
 .jeu-pill.gemme svg { width: 20px; height: 20px; fill: var(--cyan); }
 .jeu-lvl { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; color: var(--muted); }
 .jeu-ring, .jeu-niv span { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--pop) 0 var(--p), rgba(255, 255, 255, .16) 0); }
-.jeu-ring b, .jeu-niv b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #2257B0; color: #fff; font-size: 14px; font-weight: 900; }
+.jeu-ring b, .jeu-niv b { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #4AA3F2; color: #fff; font-size: 14px; font-weight: 900; }
 .ct-scene { position: relative; min-height: 168px; }
 .ct-scene h1 { margin: 0; font-size: 36px; font-weight: 900; line-height: 1; color: #fff; text-shadow: 0 3px 0 var(--lip); }
 .ct-bulle { position: relative; z-index: 1; margin: 12px 0 0; width: min(54%, 220px); padding: 10px 13px; border-radius: 16px; background: #fff; color: #17306B; font-weight: 800; font-size: 15px; line-height: 1.3; box-shadow: 0 4px 0 #C9D9FF; }
@@ -24,7 +24,7 @@ html.cine-seul main#app { padding-bottom: calc(var(--safe-b) + 28px); }
 .ct-scene .azami-btn img, .ct-scene .azami-btn .azami-slot { width: 100%; height: auto; }
 
 /* l'objectif du jour et son coffre */
-.jeu-objectif { all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: #24489A; box-shadow: 0 5px 0 var(--lip); }
+.jeu-objectif { all: unset; cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: #2766C0; box-shadow: 0 5px 0 var(--lip); }
 .jeu-objectif:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--lip); }
 .jo-t { flex: 1; display: grid; gap: 2px; font-weight: 800; font-size: 14px; color: var(--muted); }
 .jo-t b { color: #fff; font-size: 16px; font-weight: 900; }
@@ -40,10 +40,10 @@ html.cine-seul main#app { padding-bottom: calc(var(--safe-b) + 28px); }
 html.cine-seul .cta-match { background: var(--vert) !important; color: #0D3B22 !important; box-shadow: 0 5px 0 var(--vert-l) !important; border: 0 !important; }
 html.cine-seul .cta-soir { background: var(--pop) !important; color: #3D2A00 !important; box-shadow: 0 5px 0 var(--pop-l) !important; border: 0 !important; }
 html.cine-seul .cine-cta .btn { font-size: 19px; font-weight: 900; border-radius: 18px; padding: 15px 10px; }
-html.cine-seul .cine-inv { background: #24489A; border: 0; box-shadow: 0 4px 0 var(--lip); color: #fff; border-radius: 16px; }
+html.cine-seul .cine-inv { background: #2766C0; border: 0; box-shadow: 0 4px 0 var(--lip); color: #fff; border-radius: 16px; }
 html.cine-seul .cine-spaces button { border-radius: 16px; box-shadow: 0 4px 0 var(--lip); border: 0; }
 html.cine-seul .cine-spaces button[aria-selected="true"] { background: #fff !important; color: #17306B !important; box-shadow: 0 4px 0 #C9D9FF; }
-html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #2257B0; }
+html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #4AA3F2; }
 
 /* Cinder : la barre du jour, les points qui volent, le combo */
 .deck-jeu { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; font-weight: 900; color: #fff; }
@@ -51,7 +51,7 @@ html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #2257B0; }
 .deck-jeu .jeu-serie.off .icn { color: #7F95C8; }
 .deck-jeu .jeu-obj { flex: 1; margin: 0; height: 16px; }
 .deck-jeu .jeu-n { font-size: 14px; min-width: 38px; text-align: right; } .deck-jeu .jeu-n.fait { color: var(--vert); }
-.deck-jeu .jeu-niv span { width: 32px; height: 32px; } .deck-jeu .jeu-niv b { width: 24px; height: 24px; font-size: 12px; background: #1A3A7A; }
+.deck-jeu .jeu-niv span { width: 32px; height: 32px; } .deck-jeu .jeu-niv b { width: 24px; height: 24px; font-size: 12px; background: #2F80DD; }
 .jeu-pop { position: fixed; left: 50%; bottom: calc(var(--safe-b) + 150px); z-index: 120; transform: translateX(-50%); font-size: 30px; font-weight: 900; color: var(--pop); text-shadow: 0 3px 0 var(--lip); pointer-events: none; animation: jeu-pop 1s cubic-bezier(.2, .8, .3, 1) forwards; }
 .jeu-pop.match { color: var(--vert); font-size: 40px; }
 @keyframes jeu-pop { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.6); } 25% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -70px) scale(1); } }
@@ -61,9 +61,9 @@ html.cine-seul .cine-spaces button[aria-selected="true"] b { color: #2257B0; }
 @media (prefers-reduced-motion: reduce) { .jeu-pop, .jeu-combo.pop { animation: none; opacity: 1; } .jo-barre i, .jeu-obj i { transition: none; } }
 
 /* retouches */
-html.cine-seul { background: #16316A; }
+html.cine-seul { background: #2B76D2; }
 html.cine-seul .guide-q { display: none; }
-html.cine-seul .cine-tabs { background: #1E3D85; border: 0; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
+html.cine-seul .cine-tabs { background: #2260B5; border: 0; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
 html.cine-seul .cine-tabs button { color: #BBD3FF; }
 html.cine-seul .cine-tabs button[aria-pressed="true"], html.cine-seul .cine-tabs button[aria-selected="true"] { background: var(--pop); color: #3D2A00; box-shadow: 0 3px 0 var(--pop-l); }
 html.cine-seul .cine-tabs button[aria-pressed="true"] .icn { color: #3D2A00; }
@@ -82,3 +82,13 @@ html.cine-seul #deck .jeu-combo { z-index: 300; bottom: auto; left: auto; right:
 .ic-c li b { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--pop); color: #3D2A00; box-shadow: 0 3px 0 var(--pop-l); }
 .ic-b { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 6px; }
 .ic-b .btn { background: var(--vert); color: #0D3B22; box-shadow: 0 4px 0 var(--vert-l); } .ic-b .btn.ghost { background: #E3ECFF; color: #17306B; box-shadow: 0 4px 0 #C9D9FF; }
+
+/* la connexion dans Ciné Azami : texte lisible, liens visibles, l'entrée des amis */
+html.cine-seul .login { color: #fff; }
+html.cine-seul .login p { color: #EAF3FF; }
+html.cine-seul .login .field { background: #fff; color: #1E2F3F; border-color: #C9DEFF; box-shadow: inset 0 -3px 0 #DCE8FF; }
+html.cine-seul .login .field::placeholder { color: #7D93B8; }
+html.cine-seul .login .link { color: #fff; text-decoration-color: rgba(255, 255, 255, .6); }
+html.cine-seul .login .btn:not(.ghost) { background: var(--vert); color: #0D3B22; box-shadow: 0 5px 0 var(--vert-l); }
+html.cine-seul .ami-entree { display: block; margin-top: 20px; padding: 14px; border-radius: 16px; text-align: center; text-decoration: none; font-weight: 900; background: rgba(255, 255, 255, .2); color: #fff; box-shadow: 0 4px 0 var(--lip); border: 0; }
+html.cine-seul .login h1 { color: #fff; text-shadow: 0 3px 0 var(--lip); }

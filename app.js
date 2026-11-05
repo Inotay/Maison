@@ -1779,7 +1779,7 @@ function demoBar() {
 }
 
 // En-tête des écrans sans compte : Azami devant la porte (connexion) ou endormie près de la box (hors ligne).
-const loginHd = (scene = 'v44_connexion', alt = 'Azami attend devant la porte') => `<div class="login-az">${azami(scene, alt)}</div><h1>Maison</h1>`;
+const loginHd = (scene = 'v44_connexion', alt = 'Azami attend devant la porte') => CINE_SEUL ? `<div class="login-az">${azami('v44_cinebleu', 'Azami en lunettes 3D avec son pop-corn')}</div><h1>Ciné Azami</h1>` : `<div class="login-az">${azami(scene, alt)}</div><h1>Maison</h1>`;
 function viewOffline() {
   return `<section class="login">${loginHd('v44_hors_ligne', 'Azami somnole en attendant le réseau')}
     <p>Impossible de joindre la maison pour le moment. Vérifie la connexion, puis réessaie.</p>
@@ -2636,7 +2636,7 @@ function viewLogin() {
   const signup = step === 'signup';
   return `<section class="login">
     ${loginHd()}
-    <p>${signup ? 'Première fois ici : choisis ton mot de passe. Tu recevras un e-mail pour confirmer ton adresse.' : 'Connecte-toi avec ton adresse e-mail et ton mot de passe.'}</p>
+    <p>${signup ? 'Première fois ici : choisis ton mot de passe. Tu recevras un e-mail pour confirmer ton adresse.' : CINE_SEUL ? 'Yatoni et Mariana : votre adresse e-mail et votre mot de passe de Maison.' : 'Connecte-toi avec ton adresse e-mail et ton mot de passe.'}</p>
     <form data-form="${signup ? 'signup' : 'login'}">
       <label class="sr" for="email">Adresse e-mail</label>
       <input class="field" id="email" name="email" type="email" autocomplete="email" inputmode="email" placeholder="ton@adresse.ch" required value="${esc(S.login.email)}">
@@ -2648,6 +2648,7 @@ function viewLogin() {
       ? '<button class="link" data-action="login-mode" data-mode="login">J’ai déjà un compte</button>'
       : `<button class="link" data-action="login-mode" data-mode="signup">Première fois ? Créer mon compte</button>
          <button class="link" data-action="forgot">Mot de passe oublié</button>`}
+    ${CINE_SEUL ? '<a class="btn ghost ami-entree" href="ami.html">Tu es un ami ? Connecte-toi avec ton pseudo</a>' : ''}
   </section>`;
 }
 
@@ -2824,7 +2825,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v289</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v290</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.

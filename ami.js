@@ -110,7 +110,8 @@ function connexion(msg) {
       <button class="s-btn">Se connecter</button>
     </form>
     <button class="s-lien" data-oubli>Mot de passe oublié ?</button>
-    <p class="s-small">Pas encore de compte ? Ouvre le lien qu’on t’a envoyé, puis crée ton compte depuis ton prénom, en haut à droite.</p></section>`;
+    <p class="s-small">Pas encore de compte ? Ouvre le lien qu’on t’a envoyé, puis crée ton compte depuis ton prénom, en haut à droite.</p>
+    <a class="s-lien" href="cine.html">Yatoni ou Mariana ? C’est par ici</a></section>`;
   const f = $.querySelector('form');
   f.addEventListener('submit', async e => {
     e.preventDefault(); const b = f.querySelector('button'); b.disabled = true;

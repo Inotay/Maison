@@ -1,16 +1,16 @@
 
 /* ── Ciné Azami en bleu, façon Duolingo : formes dodues, boutons en relief, le jeu ── */
-:root { --lip: #11295C; --vert: #48D98A; --vert-l: #22A862; --pop: #FFC93C; --pop-l: #D99A0E; --violet: #B98CFF; --violet-l: #8A5BE0; --cyan: #62D8FF; --gold: #FFC93C; --soft: #BBD3FF; --ink: #FFFFFF; }
+:root { --lip: #1B4F9E; --vert: #48D98A; --vert-l: #22A862; --pop: #FFC93C; --pop-l: #D99A0E; --violet: #B98CFF; --violet-l: #8A5BE0; --cyan: #62D8FF; --gold: #FFC93C; --soft: #BBD3FF; --ink: #FFFFFF; }
 .s-logo { color: #fff; font-size: 22px; text-shadow: 0 2px 0 var(--lip); } .s-logo .icn { color: var(--pop); }
-.a-qui { border: 0; background: rgba(17, 41, 92, .55); color: #fff; }
-.s-tabs { background: #1E3D85; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
+.a-qui { border: 0; background: rgba(20, 72, 160, .42); color: #fff; }
+.s-tabs { background: #2260B5; box-shadow: 0 4px 0 var(--lip); border-radius: 16px; }
 .s-tabs button[aria-selected="true"] { background: #fff; color: #17306B; box-shadow: 0 3px 0 #C9D9FF; }
 .s-btn { background: var(--vert); color: #0D3B22; box-shadow: 0 5px 0 var(--vert-l); border-radius: 18px; }
 .s-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--vert-l); }
-.s-btn.ghost { background: #24489A; color: #fff; box-shadow: 0 4px 0 var(--lip); border: 0; }
-.c { border: 4px solid #fff; box-shadow: 0 7px 0 var(--lip); border-radius: 26px; background: #1E3D85; }
+.s-btn.ghost { background: #2766C0; color: #fff; box-shadow: 0 4px 0 var(--lip); border: 0; }
+.c { border: 4px solid #fff; box-shadow: 0 7px 0 var(--lip); border-radius: 26px; background: #2260B5; }
 .c-st.oui { color: var(--vert); border-color: var(--vert); background: rgba(13, 59, 34, .35); }
-.c-st.non { color: #BBD3FF; border-color: #BBD3FF; background: rgba(17, 41, 92, .4); }
+.c-st.non { color: #BBD3FF; border-color: #BBD3FF; background: rgba(20, 72, 160, .4); }
 .c-st.vu { color: var(--cyan); border-color: var(--cyan); }
 .c-tag { background: var(--violet); color: #2A0E5C; box-shadow: 0 2px 0 var(--violet-l); }
 .s-btns button { border: 0; background: #fff; box-shadow: 0 5px 0 #C9D9FF; color: #17306B; }
@@ -18,32 +18,32 @@
 .s-btns .b-non { background: #fff !important; color: #6F86B8; }
 .s-btns .b-vu { color: #1FA2D8; } .s-btns .b-super { color: var(--violet-l); }
 .s-btns .b-oui { background: var(--vert) !important; color: #fff; box-shadow: 0 6px 0 var(--vert-l); width: 74px !important; height: 74px !important; }
-.a-bloc { background: #24489A; border: 0; box-shadow: 0 5px 0 var(--lip); border-radius: 22px; }
+.a-bloc { background: #2766C0; border: 0; box-shadow: 0 5px 0 var(--lip); border-radius: 22px; }
 .a-bloc.hote { box-shadow: 0 5px 0 var(--lip), inset 0 0 0 3px var(--pop); }
-.a-ens { background: linear-gradient(135deg, #2E5BB8, #24489A); box-shadow: 0 5px 0 var(--lip), inset 0 0 0 3px var(--vert); }
+.a-ens { background: linear-gradient(135deg, #3C86DC, #2766C0); box-shadow: 0 5px 0 var(--lip), inset 0 0 0 3px var(--vert); }
 .a-compat b { color: var(--pop); text-shadow: 0 2px 0 var(--lip); }
-.a-note-c { background: #1E3D85; border: 0; box-shadow: 0 6px 0 var(--lip); border-radius: 24px; }
+.a-note-c { background: #2260B5; border: 0; box-shadow: 0 6px 0 var(--lip); border-radius: 24px; }
 .a-form input, .a-lien-in, #s-nom, #a-q { background: #fff !important; color: #17306B !important; border: 0 !important; box-shadow: inset 0 -3px 0 #C9D9FF; }
 .a-search { background: #fff; border: 0; box-shadow: 0 4px 0 var(--lip); } .a-search .icn { color: #6F86B8; }
-.a-filtres button { border: 0; background: #24489A; color: #BBD3FF; box-shadow: 0 3px 0 var(--lip); }
+.a-filtres button { border: 0; background: #2766C0; color: #BBD3FF; box-shadow: 0 3px 0 var(--lip); }
 .a-filtres button[aria-pressed="true"] { background: var(--pop); color: #3D2A00; box-shadow: 0 3px 0 var(--pop-l); }
-.a-tuto-ic { background: linear-gradient(140deg, #3D7BE0, #2257B0); box-shadow: 0 6px 0 var(--lip); }
+.a-tuto-ic { background: linear-gradient(140deg, #5AAEF5, #4AA3F2); box-shadow: 0 6px 0 var(--lip); }
 .a-dots i.on { background: var(--pop); }
 .a-badge { background: var(--pop); color: #3D2A00; }
 
 /* l'en-tête du jeu */
 .a-hud { display: flex; align-items: center; gap: 8px; margin: 10px 0 4px; }
-.a-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 8px; border-radius: 999px; background: rgba(17, 41, 92, .55); font-weight: 900; font-size: 15px; }
+.a-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 8px; border-radius: 999px; background: rgba(20, 72, 160, .42); font-weight: 900; font-size: 15px; }
 .a-pill .icn { width: 19px; height: 19px; color: var(--pop); } .a-pill.off .icn { color: #7F95C8; }
 .a-pill svg.gem { width: 19px; height: 19px; fill: var(--cyan); }
 .a-lvl { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-weight: 900; font-size: 13px; color: var(--soft); }
 .a-ring { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--pop) 0 var(--p), rgba(255, 255, 255, .16) 0); }
-.a-ring b { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; background: #2257B0; font-size: 13px; }
+.a-ring b { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; background: #4AA3F2; font-size: 13px; }
 .a-scene { position: relative; display: flex; align-items: center; gap: 4px; margin: 4px 0 8px; min-height: 92px; }
 .a-scene img { width: 130px; flex: none; margin: -14px -12px -10px -8px; }
 .a-bulle { position: relative; flex: 1; padding: 9px 12px; border-radius: 16px; background: #fff; color: #17306B; font-weight: 800; font-size: 14px; line-height: 1.3; box-shadow: 0 4px 0 #C9D9FF; }
 .a-bulle::before { content: ''; position: absolute; left: -12px; top: 18px; border: 7px solid transparent; border-right-color: #fff; }
-.a-obj { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 16px; background: #24489A; box-shadow: 0 4px 0 var(--lip); margin-bottom: 10px; font-weight: 900; font-size: 14px; }
+.a-obj { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 16px; background: #2766C0; box-shadow: 0 4px 0 var(--lip); margin-bottom: 10px; font-weight: 900; font-size: 14px; }
 .a-obj .barre { flex: 1; height: 14px; border-radius: 7px; background: rgba(0, 0, 0, .25); overflow: hidden; }
 .a-obj .barre i { width: 0; display: block; height: 100%; border-radius: 7px; background: linear-gradient(90deg, var(--pop), #FFE27A); transition: width .45s cubic-bezier(.34, 1.4, .64, 1); }
 .a-obj.fait .barre i { background: linear-gradient(90deg, var(--vert), #9BF0C2); }
@@ -61,9 +61,9 @@
 .a-fete h2 { margin: 0; font-size: 40px; font-weight: 900; line-height: 1.05; text-shadow: 0 4px 0 var(--lip); transform: rotate(-3deg); }
 .a-fete p { margin: 8px 0 0; font-size: 17px; color: var(--soft); font-weight: 800; } .a-fete p b { color: #fff; }
 .a-fete img.az { width: 210px; margin: 6px auto -8px; display: block; }
-.a-fete .gain { display: inline-block; margin-top: 10px; padding: 8px 16px; border-radius: 999px; background: rgba(17, 41, 92, .6); color: var(--pop); font-weight: 900; font-size: 20px; }
+.a-fete .gain { display: inline-block; margin-top: 10px; padding: 8px 16px; border-radius: 999px; background: rgba(20, 72, 160, .5); color: var(--pop); font-weight: 900; font-size: 20px; }
 .a-fete .s-btn { margin-top: 18px; min-width: 220px; }
-.a-fete .aff { width: 120px; aspect-ratio: 2 / 3; border-radius: 16px; border: 4px solid #fff; box-shadow: 0 6px 0 var(--lip); object-fit: cover; transform: rotate(-6deg); margin: 14px auto 0; display: block; background: #1E3D85; }
+.a-fete .aff { width: 120px; aspect-ratio: 2 / 3; border-radius: 16px; border: 4px solid #fff; box-shadow: 0 6px 0 var(--lip); object-fit: cover; transform: rotate(-6deg); margin: 14px auto 0; display: block; background: #2260B5; }
 .conf { position: fixed; top: -20px; width: 10px; height: 16px; border-radius: 3px; z-index: 81; pointer-events: none; animation: conf 1.8s cubic-bezier(.3, .6, .5, 1) forwards; }
 @keyframes conf { to { transform: translate(var(--dx), 110vh) rotate(var(--r)); } }
 @media (prefers-reduced-motion: reduce) { .a-vol, .a-combo, .conf, .a-fete { animation: none; } .conf { display: none; } }
