@@ -5,8 +5,8 @@
   "start_url": "./cine.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#2A1C22",
-  "theme_color": "#2A1C22",
+  "background_color": "#1A3A7A",
+  "theme_color": "#1A3A7A",
   "icons": [
     {
       "src": "icons/cine-192.png",

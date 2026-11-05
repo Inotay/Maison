@@ -90,6 +90,7 @@ export const ENTREE = {
   v44_courses: [['froisse', 0, .35]],
   v44_care: [['papier', 0], ['carillon', .12]],
   v44_cine: [['pop', 0], ['pop', .14]],
+  v44_cinebleu: [['pop', 0], ['pop', .14]],
   v44_collection: [['papier', 0], ['carillon', .12]],
 };
 
@@ -117,7 +118,7 @@ export const CUES = {
 // Programme une liste de bruitages à partir de l'instant t0 (temps de l'AudioContext). Renvoie le bus,
 // à déconnecter pour tout couper.
 // Durée d'un tour de chaque scène (les bruitages repartent à chaque tour, comme l'animation).
-export const DUREE = { v44_etirement: 12, v44_jeu: 12, v44_toilette: 12, v44_marche: 12, v44_miaulement: 12, v44_repos: 12, v44_calme: 12, v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12, v44_cine: 12, v44_collection: 12 };
+export const DUREE = { v44_etirement: 12, v44_jeu: 12, v44_toilette: 12, v44_marche: 12, v44_miaulement: 12, v44_repos: 12, v44_calme: 12, v44_menage: 12, v44_cuisine: 13, v44_argent: 12, v44_courses: 12.5, v44_care: 12, v44_cine: 12, v44_cinebleu: 12, v44_collection: 12 };
 
 export function schedule(c, list, t0, vol = 1, meow = null, bus = null) {
   if (!bus) { bus = c.createGain(); bus.gain.value = vol; bus.connect(c.destination); }

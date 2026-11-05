@@ -2,6 +2,7 @@
 // de la page ; il n'est transmis qu'à la fonction « amis ») ; seulement le cinéma : Cinder sur la collection de
 // la maison, ses films (envies, vus et notés), et la comparaison avec Yatoni, Mariana et les autres amis.
 // Tout ce qui vient des autres (prénoms, titres) est écrit comme du texte, jamais comme du HTML.
+import * as JEU from './jeu-cine.js';
 const URL_FN = (window.MAISON_CONFIG?.supabaseUrl || '') + '/functions/v1/amis';
 const $ = document.getElementById('s');
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -15,7 +16,7 @@ const del = k => { try { localStorage.removeItem(k); } catch {} };
 // le lien reste dans l'adresse : l'ajouter à l'écran d'accueil ou en favori garde l'accès
 if (!deHash && jeton) try { history.replaceState(null, '', `#${jeton}`); } catch {}
 
-let LIENS = null, P = null, onglet = store.get('ami-onglet') || 'cinder', pileF = [], vusK = new Set(), MES = new Map(), CMP = null, filtre = 'oui', enCharge = false, recherche = [];
+let JE = JEU.neuf(), jeuT = 0, LIENS = null, P = null, onglet = store.get('ami-onglet') || 'cinder', pileF = [], vusK = new Set(), MES = new Map(), CMP = null, filtre = 'oui', enCharge = false, recherche = [];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const IC = {
@@ -58,12 +59,14 @@ async function charger() {
   if (resetT) return reinit();
   if (!jeton && !session) return connexion();
   try { P = await call('moi'); } catch (e) { if (e.gere) return; return fin(e.fini ? (session && !jeton ? 'Ce compte a été coupé.' : 'Ce lien n’est plus valable. Demande-leur un nouveau lien.') : 'Le ciné ne répond pas pour le moment. Réessaie dans un instant.'); }
+  try { JE = JEU.fusion(JEU.propre(JSON.parse(store.get('ami-jeu') || 'null')), P.jeu); } catch { JE = JEU.propre(P.jeu); }
   if (!P.nom) return accueil();
   if (!P.tuto) return tuto(0);
   await chargerMes();
   dessiner();
   // la deuxième visite par le lien : proposer un compte (une fois par jour au plus, si on dit « plus tard »)
-  if (!P.compte && Date.now() - Number(store.get('ami-compte-plus-tard') || 0) > 864e5) setTimeout(() => comptePop(true), 900);
+  if (installAProposer()) setTimeout(installPop, 900);
+  else if (!P.compte && Date.now() - Number(store.get('ami-compte-plus-tard') || 0) > 864e5) setTimeout(() => comptePop(true), 900);
 }
 
 // ── Le compte : pseudo, e-mail (pour retrouver le mot de passe), mot de passe ──
@@ -138,6 +141,7 @@ function moiPop() {
     <button class="s-btn ghost" data-m="nom">Changer mon prénom</button>
     <button class="s-btn ghost" data-m="compte">${P.compte ? 'Mon compte' : 'Créer un compte'}</button>
     <button class="s-btn" data-m="inviter">Inviter quelqu’un</button>
+    ${AUTONOME ? '' : '<button class="s-btn ghost" data-m="installer">Mettre sur l’écran d’accueil</button>'}
     ${session && !deHash ? '<button class="s-btn ghost" data-m="sortir">Se déconnecter</button>' : ''}
     <button class="s-btn ghost" data-fermer>Fermer</button></div>`);
   box.querySelector('.a-note-t').textContent = P.nom + (P.compte ? ` · @${P.compte.pseudo}` : '');
@@ -146,6 +150,7 @@ function moiPop() {
     if (m === 'nom') { box.remove(); accueil(); }
     if (m === 'compte') comptePop(false);
     if (m === 'inviter') invitePop();
+    if (m === 'installer') installPop();
     if (m === 'sortir') { try { await call('deconnexion'); } catch {} session = ''; del('ami-session'); box.remove(); connexion('À bientôt.'); }
   });
 }
@@ -199,7 +204,7 @@ function tuto(n) {
     <div class="a-dots">${TUTO.map((_, k) => `<i class="${k === n ? 'on' : ''}"></i>`).join('')}</div>
     <div class="a-tuto-btns">${n < TUTO.length - 1 ? '<button class="s-btn ghost" data-skip>Passer</button>' : ''}<button class="s-btn" data-next>${n < TUTO.length - 1 ? 'Suivant' : 'Commencer'}</button></div></section>`;
   $.querySelector('h1').textContent = s.t(); $.querySelector('p').textContent = s.p();
-  const finir = async () => { try { await call('profil', { tuto: true }); P.tuto = true; } catch {} await chargerMes(); onglet = 'cinder'; dessiner(); };
+  const finir = async () => { try { await call('profil', { tuto: true }); P.tuto = true; } catch {} await chargerMes(); onglet = 'cinder'; dessiner(); if (installAProposer()) setTimeout(installPop, 700); };
   $.querySelector('[data-next]').addEventListener('click', () => n < TUTO.length - 1 ? tuto(n + 1) : finir());
   $.querySelector('[data-skip]')?.addEventListener('click', finir);
 }
@@ -207,12 +212,98 @@ function tuto(n) {
 // ── L'écran : quatre onglets ──
 const ONGLETS = [['cinder', 'Cinder'], ['matchs', 'Matchs'], ['mes', 'Mes films'], ['chercher', 'Chercher']];
 function dessiner() {
-  $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Changer mon prénom"></button></header>
-    <p class="s-sous">Chez <b class="s-hotes"></b></p>
+  $.innerHTML = `<header class="s-top"><b class="s-logo">${icn('flamme')} Ciné Azami</b><button class="a-qui" data-nom aria-label="Mon menu"></button></header>
+    <div class="a-hud">${hud()}</div>
+    ${onglet === 'cinder' ? `<div class="a-scene"><img src="azami/v44/${reduit() ? 'statiques/azami_v44_cinebleu_statique' : 'azami_v44_cinebleu_anime'}.svg" alt=""><p class="a-bulle"></p></div><div class="a-obj-h">${objectif()}</div>` : ''}
+    ${onglet === 'cinder' ? '' : '<p class="s-sous">Chez <b class="s-hotes"></b></p>'}
     <div class="s-tabs a-tabs" role="tablist">${ONGLETS.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${onglet === k}">${l}${k === 'matchs' && P.demandes ? ` <span class="a-badge" aria-label="${P.demandes} demande${P.demandes > 1 ? 's' : ''}">${P.demandes}</span>` : ''}</button>`).join('')}</div>
     <section class="s-body"></section>`;
-  $.querySelector('.a-qui').textContent = P.nom; $.querySelector('.s-hotes').textContent = hotes();
+  $.querySelector('.a-qui').textContent = P.nom; const sh = $.querySelector('.s-hotes'); if (sh) sh.textContent = hotes();
+  const bu = $.querySelector('.a-bulle'); if (bu) bu.textContent = bulle(); styler($);
   ({ cinder: pile, matchs, mes, chercher })[onglet]?.();
+}
+
+// ── Mettre Ciné Azami sur l'écran d'accueil (iPhone surtout) : une fois au début, puis depuis le menu ──
+const IOS = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const AUTONOME = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+const PARTAGE = '<svg class="icn" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16"/></svg>';
+const PLUSCARRE = '<svg class="icn" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>';
+function installPop() {
+  const box = pop(`<p class="a-note-t">Ciné Azami sur ton écran d’accueil</p>
+    <p class="a-sub">Il s’ouvre alors comme une app, en plein écran, en un geste.</p>
+    ${IOS ? `<ol class="a-inst">
+      <li><span class="a-inst-n">1</span><span>Dans <b>Safari</b>, touche le bouton <b>Partager</b> ${PARTAGE}, en bas de l’écran (ou en haut sur iPad).</span></li>
+      <li><span class="a-inst-n">2</span><span>Fais défiler et choisis <b>Sur l’écran d’accueil</b> ${PLUSCARRE}.</span></li>
+      <li><span class="a-inst-n">3</span><span>Touche <b>Ajouter</b>, en haut à droite. Azami t’attend sur ton écran d’accueil.</span></li></ol>`
+    : `<ol class="a-inst">
+      <li><span class="a-inst-n">1</span><span>Ouvre le menu du navigateur (les trois points ⋮).</span></li>
+      <li><span class="a-inst-n">2</span><span>Choisis <b>Ajouter à l’écran d’accueil</b> ou <b>Installer l’application</b>.</span></li></ol>`}
+    <p class="a-sub">${P?.compte ? 'Dans l’app, connecte-toi une fois avec ton pseudo et ton mot de passe.' : 'Fais-le depuis ce lien : il reste dans l’app.'}</p>
+    <div class="a-note-btns"><button class="s-btn" data-fermer>C’est fait</button><button class="s-btn ghost" data-fermer data-tard>Plus tard</button></div>`);
+  box.querySelector('[data-tard]')?.addEventListener('click', () => store.set('ami-install-plus-tard', String(Date.now())));
+  box.querySelector('.s-btn:not([data-tard])').addEventListener('click', () => store.set('ami-install', '1'));
+}
+const installAProposer = () => !AUTONOME && !store.get('ami-install') && Date.now() - Number(store.get('ami-install-plus-tard') || 0) > 3 * 864e5;
+
+// ── Le jeu : série, points, niveau, objectif du jour, combos, fêtes (jeu-cine.js) ──
+const reduit = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const GEM = '<svg class="gem" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l4 6-9 12L3 9z"/></svg>';
+function hud() {
+  const sr = JEU.serieDuJour(JE), pr = JEU.progres(JE.xp);
+  return `<span class="a-pill ${sr ? '' : 'off'}" title="Jours de suite">${icn('flamme')}${sr}</span><span class="a-pill" title="Points">${GEM}${JE.xp.toLocaleString('fr-CH')}</span><span class="a-lvl">${pr.titre}<span class="a-ring" data-p="${pr.pct}" title="Encore ${pr.reste} points pour le niveau suivant"><b>${pr.n}</b></span></span>`;
+}
+function objectif() {
+  const n = JEU.aujourdhui(JE), fait = n >= JEU.OBJECTIF;
+  return `<div class="a-obj ${fait ? 'fait' : ''}"><span>${fait ? 'Objectif atteint' : 'Objectif du jour'}</span><span class="barre"><i data-w="${Math.min(100, Math.round(100 * n / JEU.OBJECTIF))}"></i></span><span>${fait ? '✓' : `${n}/${JEU.OBJECTIF}`}</span><span class="coffre"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9.5a9 4.5 0 0 1 18 0" opacity=".6"/></svg></span></div>`;
+}
+function bulle() {
+  const n = JEU.aujourdhui(JE), sr = JEU.serieDuJour(JE);
+  if (n >= JEU.OBJECTIF) return 'Objectif atteint ! Tout ce que tu tries maintenant, c’est du bonus.';
+  if (!n && sr) return `${sr} jour${sr > 1 ? 's' : ''} de suite : ne casse pas la série !`;
+  if (!n) return `${JEU.OBJECTIF} films aujourd’hui et je t’ouvre le coffre.`;
+  return `Encore ${JEU.OBJECTIF - n} pour le coffre. Enchaîne pour les combos !`;
+}
+function jeuSauver() {
+  store.set('ami-jeu', JSON.stringify(JE));
+  clearTimeout(jeuT); jeuT = setTimeout(() => call('jeu', { jeu: JE }).catch(() => {}), 1500);
+}
+// la page interdit les styles écrits dans le HTML (sécurité) : largeurs et anneaux se posent ici
+function styler(r = document) { r.querySelectorAll('[data-w]').forEach(x => { x.style.width = `${x.dataset.w}%`; }); r.querySelectorAll('[data-p]').forEach(x => { x.style.setProperty('--p', `${x.dataset.p}%`); }); }
+function jeuMaj() {
+  const h = $.querySelector('.a-hud'); if (h) h.innerHTML = hud();
+  const o = $.querySelector('.a-obj-h'); if (o) o.innerHTML = objectif();
+  const b = $.querySelector('.a-bulle'); if (b) b.textContent = bulle();
+  styler($);
+}
+function flotte(txt, cls = '') { const el = document.createElement('div'); el.className = `a-vol ${cls}`; el.textContent = txt; document.body.appendChild(el); setTimeout(() => el.remove(), 1100); }
+function confettis(n = 40) {
+  if (reduit()) return;
+  const C = ['#FFC93C', '#48D98A', '#B98CFF', '#62D8FF', '#FFFFFF'];
+  for (let i = 0; i < n; i++) { const c = document.createElement('i'); c.className = 'conf'; c.style.left = `${Math.random() * 100}vw`; c.style.background = C[i % C.length]; c.style.setProperty('--dx', `${(Math.random() - .5) * 120}px`); c.style.setProperty('--r', `${(Math.random() - .5) * 900}deg`); c.style.animationDelay = `${Math.random() * .35}s`; document.body.appendChild(c); setTimeout(() => c.remove(), 2400); }
+}
+// une fête plein écran : un match, le coffre, un niveau
+const FETES = [];
+function fete(x) { FETES.push(x); if (!document.querySelector('.a-fete')) feteSuivante(); }
+function feteSuivante() {
+  const x = FETES.shift(); if (!x) return;
+  const { titre, html, gain, film } = x;
+  const box = document.createElement('div'); box.className = 'a-fete'; box.setAttribute('role', 'dialog');
+  box.innerHTML = `<div><h2></h2>${html || ''}${film?.poster ? `<img class="aff" src="${esc(film.poster)}" alt="" referrerpolicy="no-referrer">` : ''}<img class="az" src="azami/v44/reactions/${reduit() ? 'statiques/fete_reussites_statique' : 'fete_reussites_anime'}.svg" alt="">${gain ? `<span class="gain">+${gain}</span><br>` : ''}<button class="s-btn">Trop bien</button></div>`;
+  box.querySelector('h2').textContent = titre;
+  document.body.appendChild(box); confettis();
+  try { navigator.vibrate?.([20, 40, 30]); } catch {}
+  box.addEventListener('click', e => { if (e.target.closest('button') || e.target === box) { box.remove(); setTimeout(feteSuivante, 250); } });
+}
+function jeuAvis(f, v) {
+  // un match : tu as envie d'un film dont un hôte a envie aussi
+  const avec = (v === 'oui' || v === 'super') ? (f.hotes || []).filter(h => h.envie).map(h => h.nom) : [];
+  const { e, f: r } = JEU.avis(JE, v === 'vu' ? 'vu' : v, { match: avec.length > 0 }); JE = e; jeuSauver(); jeuMaj();
+  flotte(`+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`);
+  if (r.combo >= 3) { document.querySelector('.a-combo')?.remove(); const c = document.createElement('div'); c.className = 'a-combo'; c.textContent = `Combo ×${r.combo}`; document.body.appendChild(c); setTimeout(() => c.remove(), 2600); }
+  if (r.serie > 1) toast(`${r.serie} jours de suite !`);
+  if (r.match) setTimeout(() => fete({ titre: 'C’est un match !', html: `<p>${esc(avec.join(' et '))} et toi voulez voir<br><b>${esc(f.title)}</b></p>`, gain: JEU.MATCH, film: f }), 350);
+  if (r.coffre) setTimeout(() => fete({ titre: 'Objectif du jour !', html: `<p>${JEU.OBJECTIF} films triés : le coffre s’ouvre.</p>`, gain: JEU.COFFRE }), 360);
+  if (r.niveau) setTimeout(() => fete({ titre: `Niveau ${r.niveau}`, html: `<p>Te voilà <b>${esc(JEU.titre(r.niveau))}</b>.</p>` }), 370);
 }
 
 // ── Cinder ──
@@ -228,49 +319,77 @@ function carte(f, cls) {
   return `<article class="c ${cls}" data-k="${esc(f.k)}">${poster(f, 'c-img')}<div class="c-info">${tags.map(t => `<em class="c-tag">${t}</em>`).join('')}<b>${esc(f.title)}</b><span>${esc(sub)}</span>${f.genres?.length ? `<span class="c-g">${esc(f.genres.join(' · '))}</span>` : ''}<p>${esc(f.overview)}</p></div>
     <span class="c-st oui">ENVIE</span><span class="c-st non">BOF</span><span class="c-st vu">DÉJÀ VU</span></article>`;
 }
+// La pile se dessine une fois ; ensuite, à chaque avis, la carte de dessous (déjà affichée, affiche déjà décodée)
+// monte, et la suivante arrive derrière en fondu, une fois son affiche prête : rien ne se redessine, rien ne clignote.
+const frag = html => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; };
 async function pile() {
   const b = $.querySelector('.s-body');
   if (pileF.length < 4) { if (!pileF.length) b.innerHTML = '<p class="s-wait">La pioche arrive…</p>'; await remplir(); if (onglet !== 'cinder') return; }
-  const cur = pileF[0], nxt = pileF[1];
+  const cur = pileF[0];
   if (!cur) { b.innerHTML = `<div class="s-vide">${icn('coupe')}<p>Il n’y a plus de films à proposer pour le moment.</p></div>`; return; }
-  b.innerHTML = `<div class="s-stack">${nxt ? carte(nxt, 'next') : ''}${carte(cur, 'top')}</div>
+  b.innerHTML = `<div class="s-stack">${carte(cur, 'top')}</div>
     <div class="s-btns"><button class="b-non" data-v="non" aria-label="Bof">${icn('bof')}<small>Bof</small></button><button class="b-vu" data-v="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="b-super" data-v="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="b-oui" data-v="oui" aria-label="Envie">${icn('envie')}<small>Envie</small></button></div>
-    <p class="s-aide">${MES.size} avis donnés · → envie · ← bof · ↑ déjà vu · touche l’affiche pour lire</p>`;
-  (nxt?.poster) && (new Image().src = nxt.poster);
-  const el = b.querySelector('.c.top'), nx = b.querySelector('.c.next');
+    <p class="s-aide"></p>`;
+  aide();
+  armer(b.querySelector('.c.top'));
+  dessous();
+}
+const aide = () => { const a = $.querySelector('.s-aide'); if (a) a.textContent = `${MES.size} avis donnés · → envie · ← bof · ↑ déjà vu · touche l’affiche pour lire`; };
+// la carte suivante, derrière : elle n'apparaît qu'une fois son affiche décodée
+function dessous() {
+  const st = $.querySelector('.s-stack'), nxt = pileF[1]; if (!st) return;
+  st.querySelector('.c.next')?.remove();
+  if (!nxt) return;
+  const n = frag(carte(nxt, 'next')); n.classList.add('enter'); st.insertBefore(n, st.firstChild);
+  const im = n.querySelector('img'); let vu = false;
+  const montre = () => { if (vu) return; vu = true; requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('enter'))); };
+  if (im?.decode) { im.decode().then(montre, montre); setTimeout(montre, 1500); } else montre();
+  for (const f of pileF.slice(2, 5)) if (f?.poster) { const i = new Image(); i.decoding = 'async'; i.referrerPolicy = 'no-referrer'; i.src = f.poster; }
+}
+// le doigt sur la carte du dessus
+function armer(el) {
+  if (!el) return;
   let x0 = null, y0 = 0, dx = 0, dy = 0, t0 = 0, raf = 0;
-  const paint = () => { raf = 0; const vert = Math.abs(dy) > Math.abs(dx) * 1.1;
+  const nx = () => el.parentElement?.querySelector('.c.next:not(.enter)');
+  const paint = () => { raf = 0; const vert = Math.abs(dy) > Math.abs(dx) * 1.1, n = nx();
     el.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(${dx / 16}deg)`;
     el.classList.toggle('l-oui', !vert && dx > 40); el.classList.toggle('l-non', !vert && dx < -40); el.classList.toggle('l-vu', vert && dy < -50);
-    if (nx) { const k = Math.min(1, Math.hypot(dx, dy) / 160); nx.style.transform = `scale(${.94 + .06 * k}) translateY(${10 - 10 * k}px)`; } };
-  el.addEventListener('pointerdown', e => { if (e.button > 0) return; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); el.setPointerCapture(e.pointerId); el.style.transition = 'none'; if (nx) nx.style.transition = 'none'; });
+    if (n) { const k = Math.min(1, Math.hypot(dx, dy) / 160); n.style.transform = `scale(${.94 + .06 * k}) translateY(${10 - 10 * k}px)`; } };
+  el.addEventListener('pointerdown', e => { if (e.button > 0 || !el.classList.contains('top')) return; x0 = e.clientX; y0 = e.clientY; dx = dy = 0; t0 = performance.now(); el.setPointerCapture(e.pointerId); el.style.transition = 'none'; const n = nx(); if (n) n.style.transition = 'none'; });
   el.addEventListener('pointermove', e => { if (x0 == null) return; e.preventDefault(); dx = e.clientX - x0; dy = e.clientY - y0; if (!raf) raf = requestAnimationFrame(paint); });
   const end = () => {
-    if (x0 == null) return; x0 = null; cancelAnimationFrame(raf); el.style.transition = ''; if (nx) nx.style.transition = '';
+    if (x0 == null) return; x0 = null; cancelAnimationFrame(raf); el.style.transition = ''; const n = nx(); if (n) n.style.transition = '';
     const vert = Math.abs(dy) > Math.abs(dx) * 1.1, fast = (performance.now() - t0) < 300;
     if (Math.hypot(dx, dy) < 8) { el.style.transform = ''; el.classList.toggle('lit'); return; }
     if (!vert && (Math.abs(dx) > 90 || (fast && Math.abs(dx) > 40))) return glisser(dx > 0 ? 'oui' : 'non', { dx, dy });
     if (vert && dy < 0 && (Math.abs(dy) > 90 || (fast && Math.abs(dy) > 40))) return glisser('vu', { dx, dy });
-    el.style.transform = ''; el.classList.remove('l-oui', 'l-non', 'l-vu'); if (nx) nx.style.transform = '';
+    el.style.transform = ''; el.classList.remove('l-oui', 'l-non', 'l-vu'); if (n) n.style.transform = '';
   };
   el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
 }
 async function glisser(v, from) {
-  const f = pileF[0], el = $.querySelector('.c.top'); if (!f) return;
-  if (v === 'vu') { const n = await demanderNote(f); if (n === undefined) { if (el) { el.style.transform = ''; el.classList.remove('l-vu'); } return; } return partir(f, el, 'vu', n, from); }
+  const f = pileF[0], el = $.querySelector('.c.top'); if (!f || !el || el.classList.contains('part')) return;
+  if (v === 'vu') { const n = await demanderNote(f); if (n === undefined) { el.style.transform = ''; el.classList.remove('l-vu'); return; } return partir(f, el, 'vu', n, from); }
   partir(f, el, v, null, from);
 }
 function partir(f, el, v, n, from) {
   if (el) {
     const W = innerWidth + 260, x = from?.dx || 0, y = from?.dy || 0;
+    el.classList.add('part'); el.classList.remove('top');
     el.style.transition = 'transform .32s cubic-bezier(.25,.6,.45,1), opacity .32s ease-in';
-    el.style.transform = v === 'vu' || v === 'super' ? `translate3d(${x * .6}px, ${-innerHeight}px, 0)` : `translate3d(${v === 'oui' ? W : -W}px, ${y * 1.6 + 40}px, 0) rotate(${v === 'oui' ? 28 : -28}deg)`;
-    el.style.opacity = '0'; el.style.pointerEvents = 'none';
+    requestAnimationFrame(() => { el.style.transform = v === 'vu' || v === 'super' ? `translate3d(${x * .6}px, ${-innerHeight}px, 0)` : `translate3d(${v === 'oui' ? W : -W}px, ${y * 1.6 + 40}px, 0) rotate(${v === 'oui' ? 28 : -28}deg)`; el.style.opacity = '0'; });
+    el.style.pointerEvents = 'none'; setTimeout(() => el.remove(), 360);
   }
   try { navigator.vibrate?.(v === 'oui' || v === 'super' ? 12 : 6); } catch {}
   pileF.shift();
-  donner(f, v, n);
-  setTimeout(() => { if (onglet === 'cinder') pile(); }, 200);
+  jeuAvis(f, v);
+  donner(f, v, n).then(aide);
+  // la carte de dessous monte tout de suite
+  const st = $.querySelector('.s-stack'), up = st?.querySelector('.c.next');
+  if (st && up && pileF[0] && up.dataset.k === pileF[0].k) {
+    up.classList.remove('enter'); up.style.transform = ''; up.classList.replace('next', 'top'); st.appendChild(up); armer(up); dessous();
+    if (pileF.length < 6) remplir().then(() => { if (onglet === 'cinder' && !$.querySelector('.c.next')) dessous(); });
+  } else setTimeout(() => { if (onglet === 'cinder') pile(); }, 200);
 }
 async function donner(f, v, n = null) {
   const avant = MES.get(f.k);

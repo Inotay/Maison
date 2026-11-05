@@ -15,6 +15,7 @@ let VISITES = [], visitesP = null;
 const loadVisites = () => visitesP ||= import('./visites.js').then(m => { VISITES = m.VISITES; }).catch(e => { visitesP = null; console.warn('visites', e); });
 import { playMeow, randomMeow, MEOW_KINDS, pick } from './miaous.js';
 import { schedule as scheduleBruits, ENTREE, CUES, DUREE, parle } from './bruits.js';
+import * as JEU from './jeu-cine.js';
 import * as T from './taste.js';
 import * as LB from './lbx.js';
 import { react, clearReaction, burst, azamiJump, pop, praise, haptic, floatUp, ring, celebrate, wiggle, countUp, armHaptics } from './fx.js';
@@ -733,6 +734,7 @@ async function loadAll() {
   { const jr = (reglages || []).find(r => r.cle === `azami:jp:${S.me}`)?.valeur; const jl = JP(); if (jr && (jr.maj || 0) > (jl.maj || 0)) jpSave({ ...jl, ...jr }); else if (!jr && (jl.lecon || Object.keys(jl.srs || {}).length)) jpSync(); }
   { const pc = (reglages || []).find(r => r.cle === 'lessive:pieces')?.valeur; if (pc && typeof pc.solde === 'number' && (pc.maj || 0) >= (S.pieces?.maj || 0)) S.pieces = pc; if (S.pieces && piecesSolde() < PIECES_SEUIL && safeGet('maison-pieces-alerte') !== isoDate(new Date())) { safeSet('maison-pieces-alerte', isoDate(new Date())); setTimeout(piecesAlerte, 4000); } }
   S.pilAchat = (reglages || []).find(r => r.cle === 'pilule:achat')?.valeur || null;
+  { const j = (reglages || []).find(r => r.cle === `cine:jeu:${S.me}`)?.valeur; S.jeu = JEU.fusion(S.jeu || JEU.propre(JSON.parse(safeGet('maison-jeu') || 'null')), j); }
   setTimeout(pilSync, 0);
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
@@ -2103,7 +2105,7 @@ function tamaSrc(img, etat) {
 
 // Scènes à accessoires (balai, casserole, tirelire, sac, lettre). En arrivant sur la page, la scène repart
 // du début, on entend un petit son de son accessoire, puis les bruitages suivent l'animation pendant un tour.
-const PROP_SCENES = { v44_menage: 'menage', v44_cuisine: 'cuisine', v44_argent: 'argent', v44_courses: 'courses', v44_care: 'care', v44_cine: 'cine', v44_collection: 'collection' };
+const PROP_SCENES = { v44_menage: 'menage', v44_cuisine: 'cuisine', v44_argent: 'argent', v44_courses: 'courses', v44_care: 'care', v44_cine: 'cine', v44_cinebleu: 'cinebleu', v44_collection: 'collection' };
 const PROP_REACTIONS = ['caresse_1', 'caresse_2', 'caresse_3', 'attaque', 'crache', 'retour'];
 let propRun = null, lastHdScene = null;
 function stopPropSounds() {
@@ -2538,6 +2540,20 @@ function glisseApres(m) {
 // reste de la maison ni la barre du bas. Installable à côté de Maison sur l'écran d'accueil.
 const CINE_SEUL = /\/cine(\.html)?$/.test(location.pathname);
 if (CINE_SEUL) document.documentElement.classList.add('cine-seul');
+// la première fois dans Safari : comment mettre Ciné Azami sur l'écran d'accueil
+function cineInstall() {
+  const autonome = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  if (!CINE_SEUL || autonome || safeGet('cine-install') || Date.now() - Number(safeGet('cine-install-plus-tard') || 0) < 3 * 864e5) return;
+  const ios = /iP(hone|od|ad)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const box = document.createElement('div'); box.className = 'inst-cine'; box.setAttribute('role', 'dialog');
+  box.innerHTML = `<div class="ic-c"><img src="icons/cine-180.png" alt="" width="72" height="72"><p class="ic-t">Ciné Azami sur ton écran d’accueil</p><p class="ic-s">Il s’ouvre alors comme une app, à côté de Maison.</p>
+    <ol>${ios ? `<li><b>1</b><span>Dans <strong>Safari</strong>, touche <strong>Partager</strong> (le carré avec une flèche vers le haut).</span></li><li><b>2</b><span>Choisis <strong>Sur l’écran d’accueil</strong>.</span></li><li><b>3</b><span>Touche <strong>Ajouter</strong>.</span></li>`
+      : `<li><b>1</b><span>Ouvre le menu du navigateur (⋮).</span></li><li><b>2</b><span>Choisis <strong>Installer l’application</strong> ou <strong>Ajouter à l’écran d’accueil</strong>.</span></li>`}</ol>
+    <div class="ic-b"><button class="btn" data-ok>C’est fait</button><button class="btn ghost" data-tard>Plus tard</button></div></div>`;
+  document.body.appendChild(box);
+  box.addEventListener('click', e => { if (e.target.closest('[data-ok]')) { safeSet('cine-install', '1'); box.remove(); } else if (e.target.closest('[data-tard]') || e.target === box) { safeSet('cine-install-plus-tard', String(Date.now())); box.remove(); } });
+}
+if (CINE_SEUL) setTimeout(() => { if (S.me && S.ready) cineInstall(); else setTimeout(cineInstall, 4000); }, 2500);
 function render() {
   if (CINE_SEUL) { S.view = 'nuit'; S.loisirTab = 'cine'; }
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
@@ -2808,7 +2824,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v288</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v289</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4027,8 +4043,17 @@ function viewArgent() {
 
 // Nuit : care
 
+// L'en-tête de Ciné Azami (l'app à part) : les compteurs du jeu, le titre, Azami et sa bulle, l'objectif du jour.
+function cineSeulTete() {
+  const L = cineLists(), n = L.nous.length;
+  const mot = n ? `${n} film${n > 1 ? 's' : ''} vous attend${n > 1 ? 'ent' : ''} tous les deux. On regarde quoi ?` : 'Lance Cinder : quand vous dites oui tous les deux, c’est un match.';
+  return `<header class="hd cine-tete"><div class="jeu-hud">${jeuHud()}</div>
+    <div class="ct-scene"><h1>Ciné Azami</h1><p class="ct-bulle">${esc(mot)}</p><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${azami('v44_cinebleu', 'Azami en lunettes 3D avec son pop-corn')}</button></div>
+    ${jeuObjectif()}</header>`;
+}
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>${CINE_SEUL ? 'Ciné Azami' : 'Loisirs'}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${(S.loisirTab || 'cine') === 'cine' ? azami('v44_cine', 'Azami en lunettes 3D avec son pop-corn') : S.loisirTab === 'carnet' ? azami('v44_collection', 'Azami feuillette son album de cartes') : azami('v44_care', 'Azami tient une enveloppe')}</button></header>
+  if (CINE_SEUL) return cineSeulTete() + viewCare();
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>${CINE_SEUL ? 'Ciné Azami' : 'Loisirs'}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${(S.loisirTab || 'cine') === 'cine' ? azami(CINE_SEUL ? 'v44_cinebleu' : 'v44_cine', 'Azami en lunettes 3D avec son pop-corn') : S.loisirTab === 'carnet' ? azami('v44_collection', 'Azami feuillette son album de cartes') : azami('v44_care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
@@ -5060,6 +5085,7 @@ async function deckOpen(mood = '') {
   stopPropSounds(); lastHdScene = null;
   const box = document.createElement('div'); box.id = 'deck';
   box.innerHTML = `<div class="deck-top"><button class="link" data-d="close">Fermer</button><b class="cinder-logo">${icn('flamme')} Cinder</b><span class="deck-n"></span></div>
+    ${CINE_SEUL ? `<div class="deck-jeu">${jeuBarre()}</div>` : ''}
     <div class="deck-moods">${MOODS.map(([k, l]) => `<button data-mood="${k}" aria-pressed="${mood === k}">${l}</button>`).join('')}</div>
     <div class="deck-stack"><p class="hint">Azami mélange les cartes…</p></div>
     <div class="deck-btns"><button class="deck-no" data-d="beurk" aria-label="Non, je n’aime pas">${icn('non')}<small>Non !</small></button><button class="deck-bof" data-d="non" aria-label="Bof, pas intéressé">${icn('bof')}<small>Bof</small></button><button class="deck-seen" data-d="vu" aria-label="Déjà vu">${icn('vu')}<small>Vu</small></button><button class="deck-super" data-d="super" aria-label="Très envie">${icn('tres')}<small>Très</small></button><button class="deck-yes" data-d="oui" aria-label="J’ai envie">${icn('envie')}<small>Envie</small></button></div>
@@ -5448,6 +5474,7 @@ function deckAskSeen(redraw = false) {
   jaugeBind(box.querySelector('.jauge'), (v, fin) => { if (!fin || box.dataset.fait) return; box.dataset.fait = '1'; setTimeout(() => { if (deck?.asking) deckSeen(v); }, 260); });
 }
 async function deckSeen(note) {
+  jeuAvis('vu');
   const f = deck?.cards[deck.i]; if (!f) return; cinderLog('vu');
   deck.asking = false; haptic(note >= 4 ? 'medium' : 1); sfx('tick');
   deckFly(deck.box.querySelector('.dcard.top:not(.gone)'), 'vu');
@@ -5480,6 +5507,50 @@ function deckFly(el, v, from) {
   requestAnimationFrame(() => { el.style.transform = to; el.style.opacity = '0'; });
   setTimeout(() => el.remove(), 380);
 }
+// ── Le jeu de Ciné Azami (jeu-cine.js) : points, combos, objectif du jour, série, niveau ──
+let jeuT = 0;
+function jeuSave() {
+  safeSet('maison-jeu', JSON.stringify(S.jeu));
+  clearTimeout(jeuT); jeuT = setTimeout(() => { if (!DEMO) api.upsert('reglages', { cle: `cine:jeu:${S.me}`, valeur: S.jeu }).catch(() => {}); }, 1500);
+}
+function jeuBarre() {
+  const e = S.jeu || JEU.neuf(), n = JEU.aujourdhui(e), sr = JEU.serieDuJour(e), pr = JEU.progres(e.xp), fait = n >= JEU.OBJECTIF;
+  return `<span class="jeu-serie ${sr ? '' : 'off'}" title="Jours de suite">${icn('flamme')}<b>${sr}</b></span>
+    <span class="jeu-obj" title="Objectif du jour"><i style="width:${Math.min(100, Math.round(100 * n / JEU.OBJECTIF))}%"></i></span><span class="jeu-n ${fait ? 'fait' : ''}">${fait ? '✓' : `${n}/${JEU.OBJECTIF}`}</span>
+    <span class="jeu-niv" title="${esc(pr.titre)}, encore ${pr.reste} points"><span style="--p:${pr.pct}%"><b>${pr.n}</b></span></span>`;
+}
+function jeuMaj() { document.querySelectorAll('.deck-jeu, .jeu-hud').forEach(x => { x.innerHTML = x.classList.contains('jeu-hud') ? jeuHud() : jeuBarre(); }); document.querySelectorAll('.jeu-objectif').forEach(x => { x.outerHTML = jeuObjectif(); }); }
+function jeuAvis(v, opts = {}) {
+  const { e, f } = JEU.avis(S.jeu || JEU.neuf(), v === 'beurk' ? 'non' : v, opts); S.jeu = e; jeuSave();
+  if (CINE_SEUL) jeuFete(f);
+}
+function jeuMatch() { const e = JEU.propre(S.jeu); e.xp += JEU.MATCH; e.matchs++; e.maj = Date.now(); S.jeu = e; jeuSave(); if (CINE_SEUL) jeuFlotte(`+${JEU.MATCH}`, 'match'); }
+function jeuFlotte(txt, cls = '') {
+  const host = deck?.box || document.body, el = document.createElement('div'); el.className = `jeu-pop ${cls}`; el.textContent = txt;
+  host.appendChild(el); setTimeout(() => el.remove(), 1100);
+}
+function jeuFete(f) {
+  jeuMaj();
+  jeuFlotte(`+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`);
+  if (f.combo >= 3 && deck?.box) {
+    let c = deck.box.querySelector('.jeu-combo'); if (!c) { c = document.createElement('div'); c.className = 'jeu-combo'; deck.box.appendChild(c); }
+    c.textContent = `Combo ×${f.combo}`; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop');
+    clearTimeout(c._t); c._t = setTimeout(() => c.remove(), 9000);
+    if (f.combo % 5 === 0) { sfx('done'); burst('sparkle', c, 10); }
+  }
+  if (f.serie > 1) setTimeout(() => toast(`${f.serie} jours de suite !`), 300);
+  if (f.coffre) setTimeout(() => { haptic('heavy'); celebrate({ title: 'Objectif du jour !', sub: `${JEU.OBJECTIF} films triés : le coffre s’ouvre, +${JEU.COFFRE} points`, level: 'big', reaction: 'fete_reussites' }); }, 450);
+  else if (f.niveau) setTimeout(() => { haptic('heavy'); celebrate({ title: `Niveau ${f.niveau}`, sub: `${JEU.titre(f.niveau)}. Azami est fière de toi.`, level: 'big', reaction: 'fete_reussites' }); }, 450);
+}
+function jeuHud() {
+  const e = S.jeu || JEU.neuf(), sr = JEU.serieDuJour(e), pr = JEU.progres(e.xp);
+  return `<span class="jeu-pill ${sr ? '' : 'off'}">${icn('flamme')}<b>${sr}</b></span><span class="jeu-pill gemme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l4 6-9 12L3 9z"/></svg><b>${e.xp.toLocaleString('fr-CH')}</b></span>
+    <span class="jeu-lvl">${esc(pr.titre)}<span class="jeu-ring" style="--p:${pr.pct}%"><b>${pr.n}</b></span></span>`;
+}
+function jeuObjectif() {
+  const e = S.jeu || JEU.neuf(), n = JEU.aujourdhui(e), fait = n >= JEU.OBJECTIF;
+  return `<button class="jeu-objectif ${fait ? 'fait' : ''}" data-action="cine-deck"><span class="jo-t"><b>${fait ? 'Objectif du jour atteint' : 'Objectif du jour'}</b>${fait ? 'Le coffre est ouvert. Reviens demain pour la série !' : `${n} film${n > 1 ? 's' : ''} trié${n > 1 ? 's' : ''} sur ${JEU.OBJECTIF}`}<span class="jo-barre"><i style="width:${Math.min(100, Math.round(100 * n / JEU.OBJECTIF))}%"></i></span></span><span class="jo-coffre" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="11" rx="2"/><path d="M3 9.5a9 4.5 0 0 1 18 0" class="cv"/><rect x="10" y="11.5" width="4" height="4" rx="1" class="cl"/></svg></span></button>`;
+}
 async function deckVote(v, from) {
   const f = deck?.cards[deck.i]; if (!f) return;
   if (deck.asking) { deck.asking = false; deck.box.querySelector('.dseen')?.remove(); }
@@ -5490,6 +5561,7 @@ async function deckVote(v, from) {
   const el = deck.box.querySelector('.dcard.top:not(.gone)');
   if (v === 'super' && el) burst('sparkle', el, 14);
   deckFly(el, v, from);
+  jeuAvis(v);
   haptic(T.wants(v) ? 'medium' : v === 'beurk' ? 'heavy' : 1); if (T.wants(v)) sfx(v === 'super' ? 'done' : 'tick');
   (deck.voted ||= []).push(tv);
   // le temps de décision : immédiat, le temps de lire le titre et l’affiche, ou une vraie hésitation
@@ -5508,7 +5580,7 @@ async function deckVote(v, from) {
     if ((v === 'non' || v === 'beurk') && saved?.id && !deck.asking && T.tempo(meta, tastes([], true).me?.st?.th) === 'hesite') deckWhyOffer(saved, v);
     // l’autre a peut-être voté entre-temps : on relit juste les votes de ce film (léger), pas toute la liste
     if (T.wants(v) && saved?.id && !DEMO && sb) { try { const { data } = await sb.from('films').select('votes').eq('id', saved.id).maybeSingle(); if (data?.votes) saved.votes = { ...data.votes, ...fVotes(saved) }; } catch {} }
-    if (deck && T.wants(v) && fMatch(saved)) filmMatchParty(saved, deck.box);
+    if (deck && T.wants(v) && fMatch(saved)) { jeuMatch(); filmMatchParty(saved, deck.box); }
   } catch (e) { console.warn('vote', e); toast('Le vote n’est pas passé. Réessaie.'); }
 }
 // Pourquoi ? Rien ne s’impose : après un Bof ou un Non!, un petit lien discret remplace l’aide en bas quelques

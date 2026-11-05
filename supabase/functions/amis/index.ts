@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
   }
 
   // ── Côté ami : avec son lien ou sa session ──
-  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter"].includes(action)) {
+  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter", "jeu"].includes(action)) {
     const jeton = String(body.jeton ?? ""), session = String(body.session ?? "");
     let amiId: string | null = null;
     if (RE_JETON.test(session)) {
@@ -204,8 +204,8 @@ Deno.serve(async (req) => {
       if (Date.now() - new Date(se.vu_at).getTime() > 3600e3) await db.from("ami_sessions").update({ vu_at: new Date().toISOString() }).eq("token_hash", await sha(session));
     } else if (!RE_JETON.test(jeton)) return json({ error: "Lien invalide." }, 404);
     const { data: ami } = amiId
-      ? await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash").eq("id", amiId).maybeSingle()
-      : await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash").eq("jeton_hash", await sha(jeton)).maybeSingle();
+      ? await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash, jeu").eq("id", amiId).maybeSingle()
+      : await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash, jeu").eq("jeton_hash", await sha(jeton)).maybeSingle();
     if (!ami) return json({ error: "Lien invalide.", fini: true }, 404);
     if (ami.revoked_at) return json({ error: "Ce lien a été coupé.", fini: true }, 410);
 
@@ -220,6 +220,14 @@ Deno.serve(async (req) => {
       const { error } = await db.from("amis").update(patch).eq("id", ami.id);
       if (error) return json({ error: /pseudo/.test(error.message) ? "Ce pseudo est déjà pris." : /email/.test(error.message) ? "Cette adresse sert déjà pour un autre compte." : "Le compte n’a pas pu être créé." }, 409);
       return json({ ok: true, session: amiId ? null : await nouvelleSession(ami.id) });
+    }
+    // le jeu (points, série, niveau) : gardé avec le compte, pour le retrouver sur tous ses appareils
+    if (action === "jeu") {
+      const j = (body.jeu ?? {}) as Record<string, unknown>, n = (k: string) => Math.max(0, Math.min(k === "dernier" || k === "maj" ? 1e13 : 1e9, Math.floor(Number(j[k]) || 0)));
+      const d = (k: string) => typeof j[k] === "string" && /^\d{4}-\d{2}-\d{2}$/.test(j[k] as string) ? j[k] : "";
+      const jeu = { xp: n("xp"), serie: Math.min(n("serie"), 100000), jour: d("jour"), n: Math.min(n("n"), 100000), coffre: d("coffre"), dernier: n("dernier"), combo: Math.min(n("combo"), 100000), record: Math.min(n("record"), 100000), matchs: n("matchs"), maj: n("maj") };
+      await db.from("amis").update({ jeu }).eq("id", ami.id);
+      return json({ ok: true });
     }
     if (action === "deconnexion") {
       if (amiId) await db.from("ami_sessions").delete().eq("token_hash", await sha(session));
@@ -243,7 +251,7 @@ Deno.serve(async (req) => {
       await db.from("amis").update({ vu_at: new Date().toISOString() }).eq("id", ami.id);
       const [ms, { data: autres }, { count }] = await Promise.all([membres(), db.from("amis").select("nom").is("revoked_at", null).neq("id", ami.id).not("nom", "is", null), db.from("ami_avis").select("k", { count: "exact", head: true }).eq("ami_id", ami.id)]);
       const { count: demandes } = await db.from("ami_liens").select("de", { count: "exact", head: true }).eq("a", ami.id).is("ok_at", null);
-      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0, compte: ami.pass_hash ? { pseudo: ami.pseudo, email: ami.email } : null, mail: MAIL_OK });
+      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0, compte: ami.pass_hash ? { pseudo: ami.pseudo, email: ami.email } : null, mail: MAIL_OK, jeu: ami.jeu ?? null });
     }
     if (action === "profil") {
       const patch: Record<string, unknown> = {};
