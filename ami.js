@@ -195,7 +195,8 @@ async function matchs() {
   for (const f of C.ensemble) filmsDe.set(f.k, f);
   matchs.films = filmsDe;
   const peu = C.nAvis < 15;
-  b.innerHTML = `${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
+  const demande = (LIENS || []).some(x => x.etat === 'recu');
+  b.innerHTML = `${demande ? lienBloc() : ''}${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
     ${C.ensemble.length ? `<section class="a-bloc a-ens"><h2>${icn('deux')} Une soirée tous ensemble</h2><p class="a-sub">Ce que vous avez tous envie de voir : toi, ${esc(hotes())}.</p>${rangee(C.ensemble, '')}<button class="s-btn a-hasard" data-hasard>${icn('de')} Un film au hasard pour ce soir</button></section>` : ''}
     ${C.personnes.map((p, i) => `${!p.hote && (i === 0 || C.personnes[i - 1].hote) ? '<p class="a-sep">Tes amis liés</p>' : ''}<section class="a-bloc ${p.hote ? 'hote' : ''}"><div class="a-p-top"><h2></h2><span class="a-compat">${p.compat == null ? `<small>${p.communs ? `${p.communs} film${p.communs > 1 ? 's' : ''} en commun` : 'pas encore de film en commun'}</small>` : `<b>${p.compat} %</b><small>d’accord sur ${p.communs} films</small>`}</span></div>
       <h3>${icn('envie')} Envie tous les deux${p.nMatches ? ` · ${p.nMatches}` : ''}</h3>${rangee(p.matches, 'Pas encore d’envie en commun.')}
@@ -203,9 +204,9 @@ async function matchs() {
       ${p.adores.length ? `<h3>${icn('coupe')} Adorés tous les deux</h3>${rangee(p.adores, '')}` : ''}
       ${p.desaccords.length ? `<h3>${icn('bof')} Vos grands désaccords</h3><ul class="a-desac">${p.desaccords.map(f => `<li><span></span><b>toi ${note(f.moi)} · <i></i> ${note(f.lui)}</b></li>`).join('')}</ul>` : ''}</section>`).join('')}
     ${C.cachés?.length ? `<p class="a-vide">${esc(C.cachés.join(' et '))} ne partage${C.cachés.length > 1 ? 'nt' : ''} pas ses goûts pour l’instant.</p>` : ''}
-    ${lienBloc()}`;
+    ${demande ? '' : lienBloc()}`;
   b.querySelectorAll('.a-lien b[data-i]').forEach(x => { x.textContent = LIENS[Number(x.dataset.i)]?.nom || ''; });
-  b.querySelectorAll('.a-bloc:not(.a-ens)').forEach((s, i) => { s.querySelector('h2').textContent = C.personnes[i].nom; s.querySelectorAll('.a-desac i').forEach(x => { x.textContent = C.personnes[i].nom; }); });
+  b.querySelectorAll('.a-bloc:not(.a-ens):not(.a-liens)').forEach((s, i) => { s.querySelector('h2').textContent = C.personnes[i].nom; s.querySelectorAll('.a-desac i').forEach(x => { x.textContent = C.personnes[i].nom; }); });
   b.querySelectorAll('.a-desac li').forEach((li, i) => { const all = C.personnes.flatMap(p => p.desaccords); li.querySelector('span').textContent = all[i]?.title || ''; });
 }
 
