@@ -54,14 +54,14 @@ export const elanMot = c => c >= 5 && (c === 5 || c % 5 === 0) ? `×${c}` : '';
 // Les cris du jeu, façon jeu de combat (ou Trombone Champ) : un mot qui claque à chaque avis, selon ce qu'on a dit.
 // Envie, très envie, bof, non, et pour un film vu : selon la note. Jamais deux fois le même mot de suite.
 export const CRIS = {
-  oui: ['Nice !', 'Tasty !', 'Likky !', 'Netflix and chill !', 'Badaboom !', 'Kachow !', 'Miam !', 'Yummy !', 'Oh yeah !', 'Banger !', 'Pop-corn !', 'Yes yes yes !', 'Chef’s kiss !', 'Wouhou !', 'Crunch !', 'Groovy !', 'Bingo !', 'Zoom zoom !', 'Boom !', 'Dingue !', 'Yay !', 'Sweet !', 'Hop là !', 'Ça claque !', 'Wow !', 'Spicy !', 'Jackpot !', 'Okiii !', 'Miaou !', 'Slurp !', 'Youpi !', 'Vroum !', 'Chaud chaud !', 'Gimme !', 'Hmm hmm !', 'Croustillant !', 'Ding ding !', 'Paf !', 'Let’s go !', 'Tchac !'],
-  super: ['MEGA !', 'LEGENDARY !', 'SUPERSTAR !', 'KABOOM !', 'Holy moly !', 'Coup de foudre !', 'OMG !', 'Purrrfect !', 'Masterpiece !', 'HYPE !', 'Bombe !', 'Waouh waouh !', 'GOAL !', 'Feu d’artifice !', 'ULTRA !', 'Banzaï !', 'Je veux, je veux !', 'Mamma mia !', 'Ka-ching !', 'Explosion !', 'Big love !', 'Turbo !', 'Ooooh yes !', 'Kawaii !', 'Wahou !'],
-  non: ['Nop !', 'UhUh !', 'Ikky !', 'NoNo !', 'Yok !', 'Bof bof !', 'Nan !', 'Pfff !', 'Bye bye !', 'Next !', 'Meh !', 'Nein !', 'Hmm non !', 'Skip !', 'Zut !', 'Nope nope !', 'Sniff !', 'Pas pour moi !', 'Ciao !', 'Pschitt !', 'Oof !', 'Zzz !', 'Mouif !', 'Au suivant !', 'Pas ce soir !', 'Niet !', 'Plop !', 'Hop, à la poubelle !', 'Pouet !', 'KaKa !', 'PooPoo !'],
-  beurk: ['YUCK !', 'Jamais !', 'Burk burk !', 'Au secours !', 'Nooon !', 'Berk !', 'Horreur !', 'Pouah !', 'Fuyez !', 'Beurk !', 'Même pas en rêve !', 'Gloups !', 'Aaargh !', 'AïeAïeAïe !', 'Interdit !', 'KaKa !', 'PooPoo !', 'Pouet pouet !'],
-  vuTop: ['Hehe !', 'KnowDat !', 'Classique !', 'Culte !', 'Respect !', 'Iconique !', 'Old but gold !', 'Bien vu !', 'Ahh celui-là !', 'Légende !', 'Chef-d’œuvre !', 'Le goût !', 'Validé !', 'Tu connais !', 'Grand cru !', 'Frissons !'],
-  vuMoyen: ['WawaWiwa !', 'Ok ok !', 'Pas mal !', 'Mouais !', 'Correct !', 'Sympa !', 'Ça passe !', 'Comme ci comme ça !', 'Bof-ish !', 'Moyennement !', 'Mi-figue !', 'Tiède !', 'Pourquoi pas !'],
-  vuBas: ['Eurk !', 'OuLala !', 'Aïe !', 'Ouch !', 'Raté !', 'Rendez-moi mes 2 h !', 'Bouh !', 'Plouf !', 'Snif !', 'Oof !', 'AïeAïeAïe !', 'Ça pique !', 'Navet !', 'Oups !', 'Glagla !', 'KaKa !', 'Pouet !', 'PooPoo !'],
-  vu: ['Hehe !', 'KnowDat !', 'Déjà vu !', 'Check !', 'Coché !', 'Vu et revu !', 'Je connais !', 'Done !'],
+  oui: ['Nice!', 'Tasty!', 'Likky!', 'Yummy!', 'Badaboom!', 'Kachow!', 'Banger!', 'Groovy!', 'Bingo!', 'Boom!', 'Yay!', 'Sweet!', 'Wow!', 'Spicy!', 'Jackpot!', 'Okiii!', 'Slurp!', 'Crunch!', 'Yesss!', 'OhYeah!', 'YumYum!', 'ZoomZoom!', 'DingDing!', 'Bam!', 'Zing!', 'WooHoo!', 'Chill!', 'Netflix and chill!', 'Meow!', 'Purr!', 'Popcorn!', 'Juicy!', 'Lekker!', 'Gimme!', 'Yippee!', 'Tchac!', 'Miam!', 'Yummi!', 'Hop!', 'Bim!'],
+  super: ['MEGA!', 'ULTRA!', 'KABOOM!', 'OMG!', 'HYPE!', 'Legend!', 'Purrfect!', 'Superstar!', 'Wahou!', 'Kawaii!', 'Turbo!', 'Banzaï!', 'KaChing!', 'BigLove!', 'MammaMia!', 'Fire!', 'Godlike!', 'Epic!', 'WowWowWow!', 'Goal!', 'Bombe!', 'Ouiiii!', 'Yeehaw!', 'Woaw!'],
+  non: ['Nop!', 'UhUh!', 'Ikky!', 'NoNo!', 'Yok!', 'Meh!', 'Nah!', 'Pfff!', 'ByeBye!', 'Next!', 'Nein!', 'Skip!', 'Nope!', 'Niet!', 'Plop!', 'Pouet!', 'KaKa!', 'PooPoo!', 'Oof!', 'Zzz!', 'Ciao!', 'Bof!', 'Mouif!', 'Pschitt!', 'Snooze!', 'Nan!', 'Nopity!', 'Bye!'],
+  beurk: ['Yuck!', 'Beurk!', 'Ewww!', 'Pouah!', 'Berk!', 'Nooo!', 'Aaargh!', 'AieAieAie!', 'KaKa!', 'PooPoo!', 'Bleh!', 'Ugh!', 'Gross!', 'Ikky!', 'Never!', 'Burk!', 'Blurp!'],
+  vuTop: ['Hehe!', 'KnowDat!', 'Classic!', 'Legend!', 'Respect!', 'Iconic!', 'Gold!', 'Bravo!', 'Culte!', 'Yesss!', 'ChefKiss!', 'Masterclass!', 'Wahou!', 'Goat!', 'Banger!', 'Chapeau!'],
+  vuMoyen: ['WawaWiwa!', 'OkOk!', 'Mouais!', 'Meh!', 'Sympa!', 'SoSo!', 'BofBof!', 'Kinda!', 'Hmmm!', 'Okay!', 'Mid!', 'Tiédou!', 'Bon!', 'Ehh!'],
+  vuBas: ['Eurk!', 'OuLala!', 'Aïe!', 'Ouch!', 'Oof!', 'AieAieAie!', 'KaKa!', 'Pouet!', 'PooPoo!', 'Navet!', 'Oups!', 'Bouh!', 'Plouf!', 'Snif!', 'Yikes!', 'Ugh!', 'Flop!'],
+  vu: ['Hehe!', 'KnowDat!', 'DéjàVu!', 'Check!', 'Done!', 'Yep!', 'Seen!', 'Gotcha!', 'Coché!'],
 };
 const derniers = [];
 // le cri d'un avis, et son genre (pour la couleur) : oui, super, non, beurk, vu-top, vu-moyen, vu-bas
@@ -72,12 +72,15 @@ export function cri(vote, note) {
   derniers.push(m); if (derniers.length > 8) derniers.shift();
   return { mot: m, genre: g };
 }
-// Le montrer : le mot en gros au milieu de l'écran, chaque lettre tremble à sa façon (plus fort quand l'élan monte),
+// Le montrer : le mot en gros en haut à droite de l'affiche (ou au milieu de l'écran), chaque lettre tremble à sa façon (plus fort quand l'élan monte),
 // les points en petit dessous. Même dessin dans l'app et sur la page des amis (styles .cri dans leurs feuilles).
-export function afficherCri(host, { mot, genre, points = '', chaleur = 0, palier = '' }) {
+export function afficherCri(host, { mot, genre, points = '', chaleur = 0, palier = '', coin = null }) {
   host.querySelectorAll(':scope > .cri').forEach(x => x.remove());
   const el = document.createElement('div'); el.className = `cri g-${genre} c${chaleur}`; el.setAttribute('aria-hidden', 'true');
-  el.style.setProperty('--r', `${(Math.random() * 16 - 8).toFixed(1)}deg`); el.style.setProperty('--n', String(Math.max(6, [...mot].length)));
+  // posé en haut à droite de l'affiche (coin = l'élément de la pile), penché comme un autocollant
+  const r = coin?.getBoundingClientRect?.();
+  if (r && r.width) { el.classList.add('coin'); el.style.top = `${Math.round(r.top + 18)}px`; el.style.right = `${Math.max(14, Math.round(innerWidth - r.right + 10))}px`; el.style.setProperty('--r', `${(-3 - Math.random() * 7).toFixed(1)}deg`); }
+  else el.style.setProperty('--r', `${(Math.random() * 16 - 8).toFixed(1)}deg`); el.style.setProperty('--n', String(Math.max(6, [...mot].length)));
   const w = document.createElement('div'); w.className = 'cri-mot';
   [...mot].forEach((ch, i) => { const sp = document.createElement('span'); sp.textContent = ch; sp.style.setProperty('--d', `${(-Math.random() * .4).toFixed(2)}s`); sp.style.setProperty('--i', i); w.appendChild(sp); });
   el.appendChild(w);

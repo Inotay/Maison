@@ -355,7 +355,7 @@ function jeuAvis(f, v, n) {
   const { e, f: r } = JEU.avis(JE, v === 'vu' ? 'vu' : v, { match: avec.length > 0 }); JE = e; jeuSauver(); jeuMaj();
   // l'élan : des avis qui s'enchaînent rapportent plus, et ça se voit dans les points eux-mêmes (plus chauds, plus gros)
   const ch = JEU.chaleur(r.combo), palier = JEU.elanMot(r.combo);
-  JEU.afficherCri(document.body, { ...JEU.cri(v, n), points: `+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`, chaleur: ch, palier });
+  JEU.afficherCri(document.body, { coin: $.querySelector('.s-stack'), ...JEU.cri(v, n), points: `+${r.gain - (r.coffre ? JEU.COFFRE : 0) - (r.match ? JEU.MATCH : 0)}`, chaleur: ch, palier });
   if (palier) haptic('heavy');
   chauffer(ch);
   if (r.serie > 1) toast(`${r.serie} jours de suite !`);

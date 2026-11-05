@@ -151,3 +151,18 @@ html.cine-seul .av-ombre { background: #3398EC; }
 }
 @keyframes cri-tremble { from { transform: translate(calc(var(--t) * -1), var(--t)) rotate(calc(var(--tr) * -1)); } to { transform: translate(var(--t), calc(var(--t) * -1)) rotate(var(--tr)); } }
 @media (prefers-reduced-motion: reduce) { .cri { animation: cri-calme 1.2s ease both; } .cri-mot span { animation: none; } @keyframes cri-calme { 0%, 80% { opacity: 1; } 100% { opacity: 0; } } }
+/* le cri posé en haut à droite de l'affiche, comme un autocollant */
+.cri.coin { left: auto; top: 0; max-width: 72vw; text-align: right; transform-origin: 100% 0; animation-name: cri-coin; }
+.cri.coin .cri-mot { font-size: min(40px, calc(66vw / (var(--n, 6) * .6))); }
+.cri.coin.c1 .cri-mot { font-size: min(44px, calc(66vw / (var(--n, 6) * .6))); }
+.cri.coin.c2 .cri-mot { font-size: min(49px, calc(66vw / (var(--n, 6) * .6))); }
+.cri.coin.c3 .cri-mot { font-size: min(54px, calc(66vw / (var(--n, 6) * .6))); }
+.cri.coin.g-super .cri-mot { font-size: min(48px, calc(66vw / (var(--n, 6) * .6))); }
+@keyframes cri-coin {
+  0% { opacity: 0; transform: rotate(var(--r)) scale(.25); }
+  14% { opacity: 1; transform: rotate(calc(var(--r) - 6deg)) scale(1.25); }
+  24% { transform: rotate(var(--r)) scale(.94); }
+  32% { transform: rotate(var(--r)) scale(1.04); }
+  80% { opacity: 1; transform: rotate(var(--r)) scale(1); }
+  100% { opacity: 0; transform: translateY(-16px) rotate(var(--r)) scale(.92); }
+}

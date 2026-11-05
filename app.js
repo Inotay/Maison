@@ -2857,7 +2857,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v300</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v301</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -5735,7 +5735,7 @@ function jeuFete(f, v, note) {
   jeuMaj();
   // le cri, façon jeu de combat : un mot qui claque selon l'avis, qui tremble plus fort quand l'élan monte
   const ch = JEU.chaleur(f.combo), palier = JEU.elanMot(f.combo);
-  JEU.afficherCri(deck?.box || document.body, { ...JEU.cri(v, note), points: `+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, chaleur: ch, palier });
+  JEU.afficherCri(deck?.box || document.body, { coin: deck?.box?.querySelector('.deck-stack'), ...JEU.cri(v, note), points: `+${f.gain - (f.coffre ? JEU.COFFRE : 0)}`, chaleur: ch, palier });
   if (palier) { haptic('heavy'); sfx('done'); }
   jeuChauffe(ch);
   if (f.serie > 1) setTimeout(() => toast(`${f.serie} jours de suite !`), 300);
