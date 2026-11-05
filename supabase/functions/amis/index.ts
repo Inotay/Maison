@@ -28,6 +28,28 @@ function jetonNeuf() {
   const b = crypto.getRandomValues(new Uint8Array(32));
   return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+// Les mots de passe des comptes amis : PBKDF2-SHA-256, sel aléatoire, jamais gardés en clair.
+const RE_PSEUDO = /^[\p{L}\p{N}._-]{3,24}$/u, RE_EMAIL = /^[^\s@<>]{1,64}@[^\s@<>]{1,80}\.[a-z]{2,24}$/i;
+const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+async function hacher(mdp: string, sel: string) {
+  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(mdp), "PBKDF2", false, ["deriveBits"]);
+  return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: new TextEncoder().encode(sel), iterations: 120_000 }, k, 256));
+}
+function pareil(a: string, b: string) { if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; }
+// L'e-mail du mot de passe oublié : par Resend, seulement si la clé et l'expéditeur sont réglés dans les secrets
+// de la fonction (RESEND_API_KEY, EMAIL_FROM). Sinon, la page propose de demander un nouveau lien.
+const MAIL_OK = !!(Deno.env.get("RESEND_API_KEY") && Deno.env.get("EMAIL_FROM"));
+async function envoyerMail(to: string, sujet: string, texte: string) {
+  if (!MAIL_OK) return false;
+  try {
+    const r = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: Deno.env.get("EMAIL_FROM"), to: [to], subject: sujet, text: texte }) });
+    if (!r.ok) console.warn("mail", r.status, await r.text());
+    return r.ok;
+  } catch (e) { console.warn("mail", e); return false; }
+}
+const PAGE = "https://maison.yatoni.ch/ami.html";
+
 // Un frein simple contre les rafales (par adresse, dans cette instance de la fonction) : 120 appels par minute.
 const vus = new Map<string, number[]>();
 function trop(req: Request) {
@@ -125,19 +147,103 @@ Deno.serve(async (req) => {
     return etat;
   };
 
-  // ── Côté ami : seulement avec un lien valide ──
-  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier"].includes(action)) {
-    const jeton = String(body.jeton ?? "");
-    if (!RE_JETON.test(jeton)) return json({ error: "Lien invalide." }, 404);
-    const { data: ami } = await db.from("amis").select("id, nom, revoked_at, tuto_at").eq("jeton_hash", await sha(jeton)).maybeSingle();
+  // ── Comptes des amis : se connecter sans le lien, mot de passe oublié (sans être connecté, donc très freinés) ──
+  const nouvelleSession = async (id: string) => { const t = jetonNeuf(); await db.from("ami_sessions").insert({ token_hash: await sha(t), ami_id: id }); return t; };
+  const trouverCompte = async (qui: string) => {
+    const q = str(qui, 120).toLowerCase(); if (!q) return null;
+    const col = q.includes("@") ? "email" : "pseudo_n";
+    const { data } = await db.from("amis").select("id, nom, revoked_at, pass_hash, pass_sel, email, pseudo_n").ilike(col, q.replace(/[%_\\]/g, "\\$&")).not("pass_hash", "is", null).limit(1).maybeSingle();
+    return data;
+  };
+  if (action === "connexion") {
+    const qui = str(body.qui, 120).toLowerCase(), mdp = String(body.mdp ?? "");
+    if (!qui || mdp.length < 1 || mdp.length > 200) return json({ error: "Pseudo (ou e-mail) et mot de passe, s’il te plaît." }, 400);
+    const depuis = new Date(Date.now() - 15 * 60e3).toISOString();
+    const { count } = await db.from("ami_essais").select("at", { count: "exact", head: true }).eq("pseudo_n", qui).gte("at", depuis);
+    if ((count ?? 0) >= 8) return json({ error: "Trop d’essais : réessaie dans un quart d’heure." }, 429);
+    const a = await trouverCompte(qui);
+    const bon = a?.pass_hash && a.pass_sel && pareil(await hacher(mdp, a.pass_sel), a.pass_hash);
+    if (!a || !bon) { await db.from("ami_essais").insert({ pseudo_n: qui }); return json({ error: "Pseudo ou mot de passe incorrect." }, 401); }
+    if (a.revoked_at) return json({ error: "Ce compte a été coupé.", fini: true }, 410);
+    return json({ session: await nouvelleSession(a.id) });
+  }
+  if (action === "oubli") {
+    if (!MAIL_OK) return json({ ok: false, sansMail: true });
+    const a = await trouverCompte(String(body.qui ?? ""));
+    if (a?.email && !a.revoked_at) {
+      const { count } = await db.from("ami_resets").select("ami_id", { count: "exact", head: true }).eq("ami_id", a.id).gte("created_at", new Date(Date.now() - 3600e3).toISOString());
+      if ((count ?? 0) < 3) {
+        const t = jetonNeuf();
+        await db.from("ami_resets").insert({ token_hash: await sha(t), ami_id: a.id, expire_at: new Date(Date.now() + 30 * 60e3).toISOString() });
+        await envoyerMail(a.email, "Ciné Azami : nouveau mot de passe", `Bonjour ${a.nom || ""},\n\nPour choisir un nouveau mot de passe, ouvre ce lien (valable 30 minutes) :\n${PAGE}#reset=${t}\n\nSi tu n’as rien demandé, ignore ce message.`);
+      }
+    }
+    return json({ ok: true });   // toujours la même réponse : on ne dit pas si le compte existe
+  }
+  if (action === "reinit") {
+    const t = String(body.token ?? ""), mdp = String(body.mdp ?? "");
+    if (!RE_JETON.test(t)) return json({ error: "Lien invalide." }, 400);
+    if (mdp.length < 8 || mdp.length > 200) return json({ error: "Au moins 8 caractères." }, 400);
+    const { data: r } = await db.from("ami_resets").select("ami_id, expire_at, used_at").eq("token_hash", await sha(t)).maybeSingle();
+    if (!r || r.used_at || new Date(r.expire_at).getTime() < Date.now()) return json({ error: "Ce lien a expiré. Redemande-en un." }, 410);
+    const sel = jetonNeuf();
+    await db.from("amis").update({ pass_hash: await hacher(mdp, sel), pass_sel: sel }).eq("id", r.ami_id);
+    await db.from("ami_resets").update({ used_at: new Date().toISOString() }).eq("token_hash", await sha(t));
+    await db.from("ami_sessions").delete().eq("ami_id", r.ami_id);   // les autres appareils devront se reconnecter
+    return json({ session: await nouvelleSession(r.ami_id) });
+  }
+
+  // ── Côté ami : avec son lien ou sa session ──
+  if (["moi", "profil", "deck", "avis", "mes", "chercher", "comparer", "liens", "lier", "delier", "compte", "deconnexion", "inviter"].includes(action)) {
+    const jeton = String(body.jeton ?? ""), session = String(body.session ?? "");
+    let amiId: string | null = null;
+    if (RE_JETON.test(session)) {
+      const { data: se } = await db.from("ami_sessions").select("ami_id, vu_at").eq("token_hash", await sha(session)).maybeSingle();
+      if (!se) return json({ error: "Session terminée : reconnecte-toi.", fini: true, session: true }, 401);
+      amiId = se.ami_id;
+      if (Date.now() - new Date(se.vu_at).getTime() > 3600e3) await db.from("ami_sessions").update({ vu_at: new Date().toISOString() }).eq("token_hash", await sha(session));
+    } else if (!RE_JETON.test(jeton)) return json({ error: "Lien invalide." }, 404);
+    const { data: ami } = amiId
+      ? await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash").eq("id", amiId).maybeSingle()
+      : await db.from("amis").select("id, nom, revoked_at, tuto_at, pseudo, email, pass_hash").eq("jeton_hash", await sha(jeton)).maybeSingle();
     if (!ami) return json({ error: "Lien invalide.", fini: true }, 404);
     if (ami.revoked_at) return json({ error: "Ce lien a été coupé.", fini: true }, 410);
+
+    if (action === "compte") {
+      const pseudo = str(body.pseudo, 24), email = str(body.email, 140).toLowerCase(), mdp = String(body.mdp ?? "");
+      if (!RE_PSEUDO.test(pseudo)) return json({ error: "Pseudo : 3 à 24 lettres ou chiffres (. _ - permis), sans espace." }, 400);
+      if (!RE_EMAIL.test(email)) return json({ error: "Il faut une adresse e-mail valable (pour retrouver ton mot de passe)." }, 400);
+      if (mdp && (mdp.length < 8 || mdp.length > 200)) return json({ error: "Mot de passe : au moins 8 caractères." }, 400);
+      if (!mdp && !ami.pass_hash) return json({ error: "Choisis un mot de passe." }, 400);
+      const patch: Record<string, unknown> = { pseudo, pseudo_n: pseudo.toLowerCase(), email, compte_at: new Date().toISOString() };
+      if (mdp) { const sel = jetonNeuf(); patch.pass_sel = sel; patch.pass_hash = await hacher(mdp, sel); }
+      const { error } = await db.from("amis").update(patch).eq("id", ami.id);
+      if (error) return json({ error: /pseudo/.test(error.message) ? "Ce pseudo est déjà pris." : /email/.test(error.message) ? "Cette adresse sert déjà pour un autre compte." : "Le compte n’a pas pu être créé." }, 409);
+      return json({ ok: true, session: amiId ? null : await nouvelleSession(ami.id) });
+    }
+    if (action === "deconnexion") {
+      if (amiId) await db.from("ami_sessions").delete().eq("token_hash", await sha(session));
+      return json({ ok: true });
+    }
+    if (action === "inviter") {
+      const nom = str(body.nom, 24);
+      const [{ count: miens }, { count: tous }] = await Promise.all([
+        db.from("amis").select("id", { count: "exact", head: true }).eq("invite_par", ami.id).is("revoked_at", null),
+        db.from("amis").select("id", { count: "exact", head: true }).is("revoked_at", null)]);
+      if ((miens ?? 0) >= 10) return json({ error: "Tu as déjà invité dix personnes." }, 429);
+      if ((tous ?? 0) >= MAX_AMIS) return json({ error: "Le ciné est plein pour le moment." }, 429);
+      const j = jetonNeuf();
+      const { data: neuf, error } = await db.from("amis").insert({ jeton_hash: await sha(j), nom: nom || null, invite_par: ami.id }).select("id").single();
+      if (error || !neuf) { console.error(error); return json({ error: "Le lien n’a pas pu être créé." }, 500); }
+      await db.from("ami_liens").insert({ de: ami.id, a: neuf.id, ok_at: new Date().toISOString() });   // celui qui invite et l'invité sont liés d'office
+      return json({ jeton: j, lien: `${PAGE}#${j}` });
+    }
 
     if (action === "moi") {
       await db.from("amis").update({ vu_at: new Date().toISOString() }).eq("id", ami.id);
       const [ms, { data: autres }, { count }] = await Promise.all([membres(), db.from("amis").select("nom").is("revoked_at", null).neq("id", ami.id).not("nom", "is", null), db.from("ami_avis").select("k", { count: "exact", head: true }).eq("ami_id", ami.id)]);
       const { count: demandes } = await db.from("ami_liens").select("de", { count: "exact", head: true }).eq("a", ami.id).is("ok_at", null);
-      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0 });
+      return json({ nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0, compte: ami.pass_hash ? { pseudo: ami.pseudo, email: ami.email } : null, mail: MAIL_OK });
     }
     if (action === "profil") {
       const patch: Record<string, unknown> = {};
@@ -261,8 +367,14 @@ Deno.serve(async (req) => {
     await db.from("reglages").upsert({ cle: `amis:partage:${me}`, valeur: { non: body.on === false } });
     return json({ ok: true });
   }
+  // le profil complet d'un ami : tous ses avis, du plus récent au plus ancien
+  if (action === "profil_ami") {
+    const id = String(body.id ?? ""); if (!RE_ID.test(id)) return json({ error: "Ami inconnu." }, 400);
+    const { data } = await db.from("ami_avis").select("k, title, year, poster, media, vote, note, at").eq("ami_id", id).order("at", { ascending: false }).limit(3000);
+    return json({ avis: data ?? [] });
+  }
   if (action === "liste") {
-    const [{ data: amis }, g, cachés] = await Promise.all([db.from("amis").select("id, nom, created_at, vu_at, revoked_at, cree_par").order("created_at", { ascending: false }), goutsMembres(), discrets()]);
+    const [{ data: amis }, g, cachés] = await Promise.all([db.from("amis").select("id, nom, created_at, vu_at, revoked_at, cree_par, invite_par, pass_hash").order("created_at", { ascending: false }), goutsMembres(), discrets()]);
     const actifs = (amis ?? []).filter(a => !a.revoked_at);
     const av = await avisAmis(actifs.map(a => a.id));
     const moi = g.get(me) ?? new Map<string, Avis>(), autre = ms.find(m => m.email !== me);
@@ -282,7 +394,7 @@ Deno.serve(async (req) => {
       const avecAutre = autre && !cachés.has(autre.email) ? comparer(g.get(autre.email) ?? new Map(), sien) : null;
       const deux = autre ? g.get(autre.email) ?? new Map<string, Avis>() : null;
       const aTrois = deux ? [...sien.values()].filter(x => envie(x) && envie(moi.get(x.k)) && envie(deux.get(x.k))).slice(0, 12).map(fiche) : [];
-      return { id: a.id, nom: a.nom, created_at: a.created_at, vu_at: a.vu_at, par: ms.find(m => m.email === a.cree_par)?.name ?? "", nAvis: sien.size, avecMoi: c, avecAutre: avecAutre ? { nom: autre!.name, compat: avecAutre.compat, nMatches: avecAutre.nMatches } : null, aTrois };
+      return { id: a.id, nom: a.nom, created_at: a.created_at, vu_at: a.vu_at, par: ms.find(m => m.email === a.cree_par)?.name ?? (amis ?? []).find(x => x.id === a.invite_par)?.nom ?? "", compte: !!a.pass_hash, nAvis: sien.size, avecMoi: c, avecAutre: avecAutre ? { nom: autre!.name, compat: avecAutre.compat, nMatches: avecAutre.nMatches } : null, aTrois };
     });
     return json({ amis: liste, partage: !cachés.has(me), peutSupprimer: me === SUPPRIME_PAR });
   }

@@ -2534,7 +2534,12 @@ function glisseApres(m) {
     const a = e.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 460, easing: 'cubic-bezier(.33,0,.2,1)' }); a.id = 'glisse';
   }
 }
+// Ciné Azami à part (cine.html) : la même app, mais seulement le ciné (Cinder, vos listes, les amis), sans le
+// reste de la maison ni la barre du bas. Installable à côté de Maison sur l'écran d'accueil.
+const CINE_SEUL = /\/cine(\.html)?$/.test(location.pathname);
+if (CINE_SEUL) document.documentElement.classList.add('cine-seul');
 function render() {
+  if (CINE_SEUL) { S.view = 'nuit'; S.loisirTab = 'cine'; }
   if (!render.restored && S.me) { render.restored = true; if (S.view === 'recettes' && !S.cook && !S.recette) cookRestore(); }
   if (drag) return;   // pas pendant un déplacement au doigt
   if (document.getElementById('deck') && S.me && S.ready) { render.later = true; return; }   // Cinder couvre l'écran : on redessinera en sortant
@@ -2803,7 +2808,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v287</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v288</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4023,7 +4028,7 @@ function viewArgent() {
 // Nuit : care
 
 function viewNuit() {
-  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>Loisirs</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${(S.loisirTab || 'cine') === 'cine' ? azami('v44_cine', 'Azami en lunettes 3D avec son pop-corn') : S.loisirTab === 'carnet' ? azami('v44_collection', 'Azami feuillette son album de cartes') : azami('v44_care', 'Azami tient une enveloppe')}</button></header>
+  return `<header class="hd row"><div><p class="hd-kicker">Rien que pour vous deux</p><h1>${CINE_SEUL ? 'Ciné Azami' : 'Loisirs'}</h1></div><button class="azami-btn" data-action="meow" aria-label="Faire miauler Azami">${(S.loisirTab || 'cine') === 'cine' ? azami('v44_cine', 'Azami en lunettes 3D avec son pop-corn') : S.loisirTab === 'carnet' ? azami('v44_collection', 'Azami feuillette son album de cartes') : azami('v44_care', 'Azami tient une enveloppe')}</button></header>
     ${viewCare()}`;
 }
 
@@ -4556,6 +4561,7 @@ async function amisCall(body) {
       avecMoi: { compat: 81, communs: 31, nMatches: 3, matches: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', super: true }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }], pourMoi: [{ k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', note: 5 }], adores: [{ k: 'movie:129', title: 'Le Voyage de Chihiro', year: 2001, poster: null, media: 'movie' }], desaccords: [] },
       avecAutre: { nom: nameOf(other()) || 'Mariana', compat: 74, nMatches: 2 }, aTrois: [{ k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie' }] }];
     if (body.action === 'liste') return { amis: amisDemo, partage: true, peutSupprimer: true };
+    if (body.action === 'profil_ami') return { avis: [{ k: 'movie:496243', title: 'Parasite', year: 2019, poster: null, media: 'movie', vote: 'vu', note: 5 }, { k: 'movie:4935', title: 'Le Château ambulant', year: 2004, poster: null, media: 'movie', vote: 'super', note: null }, { k: 'movie:11423', title: 'Memories of Murder', year: 2003, poster: null, media: 'movie', vote: 'oui', note: null }, { k: 'movie:155', title: 'The Dark Knight', year: 2008, poster: null, media: 'movie', vote: 'vu', note: 3.5 }] };
     if (body.action === 'supprimer') { amisDemo = amisDemo.filter(x => x.id !== body.id); return { ok: true }; }
     if (body.action === 'creer' || body.action === 'renouveler') { const j = [...crypto.getRandomValues(new Uint8Array(43))].map(b => "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"[b % 64]).join(""); const id = body.id || crypto.randomUUID(); if (!body.id) amisDemo.push({ id, nom: body.nom || null, created_at: new Date().toISOString(), nAvis: 0, avecMoi: { compat: null, communs: 0, nMatches: 0, matches: [], pourMoi: [], adores: [], desaccords: [] }, avecAutre: null, aTrois: [] }); return { id, jeton: j }; }
     if (body.action === 'couper') { const a = amisDemo.find(x => x.id === body.id); if (a) a.coupe = true; return { ok: true }; }
@@ -4565,6 +4571,19 @@ async function amisCall(body) {
   if (error) { let msg = error.message; try { const j = await error.context?.json(); if (j?.error) msg = j.error; } catch {} throw new Error(msg); }
   if (data?.error) throw new Error(data.error);
   return data;
+}
+// Le profil complet d'un ami : tous ses avis, par catégorie (très envie, envie, vus avec sa note, bof)
+const AMI_PROFIL = { ouvert: null, f: 'super' };
+const AMI_PF = [['super', 'Très envie', a => !a.note && a.vote === 'super'], ['oui', 'Envie', a => !a.note && a.vote === 'oui'], ['vu', 'Vus', a => !!a.note || a.vote === 'vu'], ['non', 'Bof', a => !a.note && a.vote === 'non']];
+function amiProfil(a) {
+  const on = AMI_PROFIL.ouvert === a.id, l = AMI_PROFIL[a.id];
+  if (!on) return `<button class="btn ghost small ami-pbtn" data-a="profil" data-id="${a.id}">${icn('film')} Son profil complet</button>`;
+  if (!l) return `<button class="btn ghost small ami-pbtn" data-a="profil" data-id="${a.id}">Fermer son profil</button><p class="hint">Un instant…</p>`;
+  const f = AMI_PF.find(x => x[0] === AMI_PROFIL.f) || AMI_PF[0];
+  let sel = l.filter(f[2]); if (f[0] === 'vu') sel = sel.sort((x, y) => (y.note || 0) - (x.note || 0));
+  return `<button class="btn ghost small ami-pbtn" data-a="profil" data-id="${a.id}">Fermer son profil</button>
+    <div class="chips ami-pf">${AMI_PF.map(([k, lb, t]) => `<button type="button" data-a="pf" data-f="${k}" aria-pressed="${k === f[0]}">${lb} · ${l.filter(t).length}</button>`).join('')}</div>
+    ${sel.length ? `<div class="ami-grille">${sel.slice(0, 120).map(x => `<button type="button" class="ami-mini" data-a="film" data-k="${esc(x.k)}" data-t="${esc(x.title)}" data-y="${x.year || ''}" data-p="${esc(x.poster || '')}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="ami-nop">${icn('film')}</span>`}<span>${esc(x.title)}</span>${x.note ? `<small>${String(x.note).replace('.', ',')}/5</small>` : ''}</button>`).join('')}</div>` : '<p class="hint">Rien dans cette catégorie pour l’instant.</p>'}`;
 }
 const amiRangee = (l, plus) => `<div class="ami-row">${l.map(f => `<button type="button" class="ami-mini" data-a="film" data-k="${esc(f.k)}" data-t="${esc(f.title)}" data-y="${f.year || ''}" data-p="${esc(f.poster || '')}" ${plus ? 'data-plus="1"' : ''}>${f.poster ? `<img src="${esc(f.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="noposter">${icn('film')}</span>`}<span>${esc(f.title)}</span>${f.note ? `<small>${String(f.note).replace('.', ',')}/5</small>` : f.super ? '<small>★</small>' : ''}</button>`).join('')}</div>`;
 async function amisSheet() {
@@ -4586,9 +4605,10 @@ async function amisSheet() {
         : `<form class="ami-inviter" data-a="inviter"><input class="field" name="nom" maxlength="24" placeholder="Son prénom" autocomplete="off"><button class="btn">Inviter un ami</button></form>`}
       ${amis.length ? `<ul class="ami-liste">${amis.map(a => { const c = a.avecMoi || {}; const op = ouvert === a.id;
         return `<li class="ami ${op ? 'open' : ''}"><button type="button" class="ami-tete" data-a="ouvrir" data-id="${a.id}" aria-expanded="${op}"><span class="ami-nom">${esc(a.nom || 'En attente de son prénom')}</span>
-          <span class="ami-meta">${a.nAvis ? `${a.nAvis} avis` : 'pas encore d’avis'}${a.vu_at ? ` · passé ${esc(ago(a.vu_at))}` : ' · pas encore venu'}</span>
+          <span class="ami-meta">${a.nAvis ? `${a.nAvis} avis` : 'pas encore d’avis'}${a.vu_at ? ` · passé ${esc(ago(a.vu_at))}` : ' · pas encore venu'}${a.par && !S.members.some(m => m.name === a.par) ? ` · invité par ${esc(a.par)}` : ''}</span>
           <span class="ami-compat">${c.compat != null ? `<b>${c.compat} %</b><small>avec toi</small>` : `<small>${c.communs ? `${c.communs} en commun` : '—'}</small>`}${a.avecAutre?.compat != null ? `<small>${a.avecAutre.compat} % avec ${esc(a.avecAutre.nom)}</small>` : ''}</span></button>
           ${op ? `<div class="ami-corps">
+            ${amiProfil(a)}
             ${a.aTrois?.length ? `<p class="chip-label">${icn('deux')} Envie tous les trois</p>${amiRangee(a.aTrois)}` : ''}
             <p class="chip-label">${icn('envie')} Envie tous les deux${c.nMatches ? ` · ${c.nMatches}` : ''}</p>${c.matches?.length ? amiRangee(c.matches) : '<p class="hint">Pas encore d’envie en commun.</p>'}
             ${c.pourMoi?.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur, pas encore vus par toi</p>${amiRangee(c.pourMoi, true)}<p class="hint">Touche une affiche pour voir sa fiche.</p>` : ''}
@@ -4615,6 +4635,12 @@ async function amisSheet() {
     const b = e.target.closest('[data-a]'); if (!b || b.tagName === 'FORM' || b.type === 'checkbox') return;
     const k = b.dataset.a, a = (D?.amis || []).find(x => x.id === b.dataset.id);
     if (k === 'ouvrir') { ouvert = ouvert === b.dataset.id ? null : b.dataset.id; haptic(1); draw(); return; }
+    if (k === 'profil') {
+      const id = b.dataset.id; AMI_PROFIL.ouvert = AMI_PROFIL.ouvert === id ? null : id; draw();
+      if (AMI_PROFIL.ouvert && !AMI_PROFIL[id]) { try { AMI_PROFIL[id] = (await amisCall({ action: 'profil_ami', id })).avis || []; } catch (err) { AMI_PROFIL[id] = []; toast(err.message); } draw(); }
+      return;
+    }
+    if (k === 'pf') { AMI_PROFIL.f = b.dataset.f; draw(); return; }
     const lien = card.querySelector('.ami-neuf input')?.value || '';
     if (k === 'share') { try { await navigator.share({ title: 'Ciné Azami', text: `${nameOf(S.me)} t’invite sur Ciné Azami`, url: lien }); } catch {} return; }
     if (k === 'copy') { try { await navigator.clipboard.writeText(lien); toast('Lien copié'); haptic(1); } catch { card.querySelector('.ami-neuf input')?.select(); } return; }

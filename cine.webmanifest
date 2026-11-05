@@ -1,0 +1,22 @@
+{
+  "name": "Ciné Azami",
+  "short_name": "Ciné",
+  "lang": "fr",
+  "start_url": "./cine.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#2A1C22",
+  "theme_color": "#2A1C22",
+  "icons": [
+    {
+      "src": "icons/cine-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/cine-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

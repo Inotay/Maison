@@ -80,3 +80,16 @@
 .a-lien.recu small { color: var(--gold); font-weight: 800; }
 .a-lien-b { display: flex; gap: 6px; flex: none; }
 .a-lien-b .s-btn { padding: 8px 14px; font-size: 14px; }
+
+/* compte, connexion, menu, invitation */
+.a-form { display: grid; gap: 6px; text-align: left; }
+.a-form input, .a-lien-in { width: 100%; padding: 13px 14px; border-radius: 14px; border: 2px solid rgba(250,243,232,.25); background: rgba(250,243,232,.06); color: var(--ink); font: inherit; font-size: 17px; outline: none; }
+.a-form input:focus { border-color: var(--gold); }
+.a-form .s-btn { margin-top: 10px; }
+.a-form .a-note-btns .s-btn { margin-top: 6px; }
+.s-lab small { color: var(--soft); font-weight: 400; }
+.a-pop { text-align: left; }
+.a-pop .a-note-t, .a-pop > .a-sub { text-align: center; }
+.a-menu { display: grid; gap: 8px; }
+.s-lien { all: unset; cursor: pointer; color: var(--gold); font-weight: 800; text-decoration: underline; justify-self: center; padding: 6px; }
+.a-lien-in { font-size: 14px; }

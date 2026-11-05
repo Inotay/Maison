@@ -2386,3 +2386,15 @@ html[data-theme="brun"] .pil-cal-grille span.b { background: rgba(243, 235, 223,
 html[data-theme="brun"] .pil-plaq { background: linear-gradient(160deg, #4A3A30, #3A2A20); box-shadow: none; }
 .fsaga { margin: 8px 0; padding: 8px 12px; border-radius: var(--r-in); background: rgba(242, 193, 78, .16); font-size: 14px; }
 .fsaga .icn { width: 16px; height: 16px; vertical-align: -3px; }
+.ami-pbtn { margin: 4px 0 8px; }
+.ami-pf { margin-bottom: 8px; }
+.ami-grille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 8px; }
+.ami-grille .ami-mini { width: auto; }
+.ami-grille .ami-mini img { width: 100%; height: auto; aspect-ratio: 2 / 3; }
+.ami-mini .ami-nop .icn { width: 26px; height: 26px; }
+.ami-mini .ami-nop { display: grid; place-items: center; width: 100%; aspect-ratio: 2 / 3; border-radius: 9px; background: linear-gradient(160deg, #4A3350, #241828); color: rgba(255,236,240,.45); }
+.ami-mini small { color: #F2C14E; font-weight: 800; }
+.amis-sheet .chips button[aria-pressed="false"] { color: #EADFF0; }
+/* Ciné Azami à part : seulement le ciné */
+html.cine-seul .nav, html.cine-seul .loisirs-tabs, html.cine-seul .mot-attend { display: none !important; }
+html.cine-seul body { --nav-h: 0px; }

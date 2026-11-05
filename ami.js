@@ -6,8 +6,12 @@ const URL_FN = (window.MAISON_CONFIG?.supabaseUrl || '') + '/functions/v1/amis';
 const $ = document.getElementById('s');
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 const deHash = (location.hash.match(/^#([A-Za-z0-9_-]{43})/) || [])[1] || '';
+const resetT = (location.hash.match(/^#reset=([A-Za-z0-9_-]{43})/) || [])[1] || '';
 if (deHash) store.set('ami-jeton', deHash);
-const jeton = deHash || store.get('ami-jeton') || '';
+let jeton = deHash || store.get('ami-jeton') || '';
+// avec un compte : une session (gardée sur l'appareil) remplace le lien
+let session = store.get('ami-session') || '';
+const del = k => { try { localStorage.removeItem(k); } catch {} };
 // le lien reste dans l'adresse : l'ajouter à l'écran d'accueil ou en favori garde l'accès
 if (!deHash && jeton) try { history.replaceState(null, '', `#${jeton}`); } catch {}
 
@@ -34,9 +38,13 @@ const hotes = () => (P?.hotes || []).join(' et ') || 'vos hôtes';
 const avisMot = a => !a ? '' : a.note ? `vu · ${note(a.note)}/5` : a.vote === 'super' ? 'très envie' : a.vote === 'oui' ? 'envie' : a.vote === 'non' ? 'bof' : 'vu';
 
 async function call(action, body = {}) {
-  const r = await fetch(URL_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, action, jeton }), referrerPolicy: 'no-referrer', cache: 'no-store' });
+  const auth = session && !deHash ? { session } : { jeton };
+  const r = await fetch(URL_FN, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, action, ...auth }), referrerPolicy: 'no-referrer', cache: 'no-store' });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error || 'Erreur'); e.fini = j.fini || r.status === 410 || r.status === 404; throw e; }
+  if (!r.ok) {
+    if (j.session) { session = ''; del('ami-session'); if (!jeton) { connexion(j.error); throw Object.assign(new Error(j.error), { gere: true }); } }
+    const e = new Error(j.error || 'Erreur'); e.fini = j.fini || r.status === 410 || r.status === 404; throw e;
+  }
   return j;
 }
 function fin(msg) {
@@ -47,12 +55,117 @@ let toastT;
 function toast(m) { let t = document.getElementById('s-toast'); if (!t) { t = document.createElement('div'); t.id = 's-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); } t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
 
 async function charger() {
-  if (!jeton) return fin('Ce lien n’est pas complet. Demande à Yatoni ou Mariana de te le renvoyer.');
-  try { P = await call('moi'); } catch (e) { return fin(e.fini ? 'Ce lien n’est plus valable. Demande-leur un nouveau lien.' : 'Le ciné ne répond pas pour le moment. Réessaie dans un instant.'); }
+  if (resetT) return reinit();
+  if (!jeton && !session) return connexion();
+  try { P = await call('moi'); } catch (e) { if (e.gere) return; return fin(e.fini ? (session && !jeton ? 'Ce compte a été coupé.' : 'Ce lien n’est plus valable. Demande-leur un nouveau lien.') : 'Le ciné ne répond pas pour le moment. Réessaie dans un instant.'); }
   if (!P.nom) return accueil();
   if (!P.tuto) return tuto(0);
   await chargerMes();
   dessiner();
+  // la deuxième visite par le lien : proposer un compte (une fois par jour au plus, si on dit « plus tard »)
+  if (!P.compte && Date.now() - Number(store.get('ami-compte-plus-tard') || 0) > 864e5) setTimeout(() => comptePop(true), 900);
+}
+
+// ── Le compte : pseudo, e-mail (pour retrouver le mot de passe), mot de passe ──
+function pop(html) {
+  document.querySelector('.a-note')?.remove();
+  const box = document.createElement('div'); box.className = 'a-note'; box.innerHTML = `<div class="a-note-c a-pop" role="dialog">${html}</div>`;
+  document.body.appendChild(box);
+  box.addEventListener('click', e => { if (e.target === box || e.target.closest('[data-fermer]')) box.remove(); });
+  return box;
+}
+function comptePop(propose) {
+  const c = P.compte;
+  const box = pop(`<p class="a-note-t">${c ? 'Mon compte' : propose ? 'Crée ton compte' : 'Créer un compte'}</p>
+    <p class="a-sub">${c ? 'Tu te connectes avec ton pseudo (ou ton e-mail) et ton mot de passe, sur n’importe quel appareil.' : 'La prochaine fois, connecte-toi sans le lien, sur n’importe quel appareil. Ton lien continue de marcher.'}</p>
+    <form class="a-form" autocomplete="on">
+      <label class="s-lab" for="c-p">Pseudo</label><input id="c-p" name="pseudo" maxlength="24" autocomplete="username" autocapitalize="none" required>
+      <label class="s-lab" for="c-e">E-mail <small>(pour retrouver ton mot de passe)</small></label><input id="c-e" name="email" type="email" maxlength="140" autocomplete="email" required>
+      <label class="s-lab" for="c-m">${c ? 'Nouveau mot de passe <small>(laisse vide pour le garder)</small>' : 'Mot de passe <small>(8 caractères au moins)</small>'}</label><input id="c-m" name="mdp" type="password" minlength="8" maxlength="200" autocomplete="new-password" ${c ? '' : 'required'}>
+      <div class="a-note-btns"><button type="button" class="s-btn ghost" data-fermer ${propose ? 'data-plustard' : ''}>${propose ? 'Plus tard' : 'Fermer'}</button><button class="s-btn">${c ? 'Enregistrer' : 'Créer mon compte'}</button></div>
+    </form>`);
+  const f = box.querySelector('form');
+  f.pseudo.value = c?.pseudo || (P.nom || '').replace(/\s+/g, '').slice(0, 24); f.email.value = c?.email || '';
+  box.querySelector('[data-plustard]')?.addEventListener('click', () => store.set('ami-compte-plus-tard', String(Date.now())));
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const b = f.querySelector('button:not([type])'); b.disabled = true;
+    try {
+      const r = await call('compte', { pseudo: f.pseudo.value.trim(), email: f.email.value.trim(), mdp: f.mdp.value });
+      if (r.session) { session = r.session; store.set('ami-session', session); }
+      P.compte = { pseudo: f.pseudo.value.trim(), email: f.email.value.trim().toLowerCase() };
+      box.remove(); toast(c ? 'Compte mis à jour' : 'Compte créé : tu peux te connecter partout');
+    } catch (err) { if (!err.gere) toast(err.message); b.disabled = false; }
+  });
+}
+// sans lien : se connecter avec son compte
+function connexion(msg) {
+  $.innerHTML = `<section class="s-hello"><b class="s-logo big">${icn('flamme')} Ciné Azami</b>
+    <h1>Connexion</h1><p class="s-small">${esc(msg || 'Avec ton pseudo (ou ton e-mail) et ton mot de passe.')}</p>
+    <form class="a-form" autocomplete="on">
+      <label class="s-lab" for="l-q">Pseudo ou e-mail</label><input id="l-q" name="qui" maxlength="140" autocomplete="username" autocapitalize="none" required>
+      <label class="s-lab" for="l-m">Mot de passe</label><input id="l-m" name="mdp" type="password" maxlength="200" autocomplete="current-password" required>
+      <button class="s-btn">Se connecter</button>
+    </form>
+    <button class="s-lien" data-oubli>Mot de passe oublié ?</button>
+    <p class="s-small">Pas encore de compte ? Ouvre le lien qu’on t’a envoyé, puis crée ton compte depuis ton prénom, en haut à droite.</p></section>`;
+  const f = $.querySelector('form');
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const b = f.querySelector('button'); b.disabled = true;
+    try { const r = await call('connexion', { qui: f.qui.value.trim(), mdp: f.mdp.value }); session = r.session; store.set('ami-session', session); jeton = ''; await charger(); }
+    catch (err) { toast(err.message); b.disabled = false; }
+  });
+  $.querySelector('[data-oubli]').addEventListener('click', async () => {
+    const qui = f.qui.value.trim(); if (!qui) { toast('Écris d’abord ton pseudo ou ton e-mail'); f.qui.focus(); return; }
+    try { const r = await call('oubli', { qui }); toast(r.sansMail ? 'La récupération par e-mail n’est pas encore active : demande un nouveau lien à tes hôtes.' : 'Si ce compte a un e-mail, un lien vient de partir (valable 30 minutes).'); }
+    catch (err) { toast(err.message); }
+  });
+}
+// le lien reçu par e-mail : choisir un nouveau mot de passe
+function reinit() {
+  $.innerHTML = `<section class="s-hello"><b class="s-logo big">${icn('flamme')} Ciné Azami</b><h1>Nouveau mot de passe</h1>
+    <form class="a-form"><label class="s-lab" for="r-m">Nouveau mot de passe <small>(8 caractères au moins)</small></label><input id="r-m" name="mdp" type="password" minlength="8" maxlength="200" autocomplete="new-password" required>
+    <button class="s-btn">Enregistrer</button></form></section>`;
+  const f = $.querySelector('form');
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const b = f.querySelector('button'); b.disabled = true;
+    try { const r = await call('reinit', { token: resetT, mdp: f.mdp.value }); session = r.session; store.set('ami-session', session); try { history.replaceState(null, '', location.pathname); } catch {} location.reload(); }
+    catch (err) { toast(err.message); b.disabled = false; }
+  });
+}
+// le menu sous son prénom : prénom, compte, inviter quelqu'un, se déconnecter
+function moiPop() {
+  const box = pop(`<p class="a-note-t"></p><div class="a-menu">
+    <button class="s-btn ghost" data-m="nom">Changer mon prénom</button>
+    <button class="s-btn ghost" data-m="compte">${P.compte ? 'Mon compte' : 'Créer un compte'}</button>
+    <button class="s-btn" data-m="inviter">Inviter quelqu’un</button>
+    ${session && !deHash ? '<button class="s-btn ghost" data-m="sortir">Se déconnecter</button>' : ''}
+    <button class="s-btn ghost" data-fermer>Fermer</button></div>`);
+  box.querySelector('.a-note-t').textContent = P.nom + (P.compte ? ` · @${P.compte.pseudo}` : '');
+  box.addEventListener('click', async e => {
+    const m = e.target.closest('[data-m]')?.dataset.m; if (!m) return;
+    if (m === 'nom') { box.remove(); accueil(); }
+    if (m === 'compte') comptePop(false);
+    if (m === 'inviter') invitePop();
+    if (m === 'sortir') { try { await call('deconnexion'); } catch {} session = ''; del('ami-session'); box.remove(); connexion('À bientôt.'); }
+  });
+}
+function invitePop() {
+  const box = pop(`<p class="a-note-t">Inviter quelqu’un</p><p class="a-sub">Cette personne reçoit son propre lien vers le ciné, et vous êtes liés d’office (vous voyez vos films en commun).</p>
+    <form class="a-form"><label class="s-lab" for="i-n">Son prénom</label><input id="i-n" name="nom" maxlength="24" autocomplete="off"><div class="a-note-btns"><button type="button" class="s-btn ghost" data-fermer>Fermer</button><button class="s-btn">Créer son lien</button></div></form>`);
+  const f = box.querySelector('form');
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); const b = f.querySelector('button:not([type])'); b.disabled = true;
+    try {
+      const r = await call('inviter', { nom: f.nom.value.trim() });
+      const nom = f.nom.value.trim();
+      box.querySelector('.a-form').outerHTML = `<p class="a-sub">Le lien ${nom ? `de <b></b>` : ''} (il marche à vie, ne le donne qu’à cette personne) :</p><input class="a-lien-in" readonly><div class="a-note-btns">${navigator.share ? '<button class="s-btn" data-partager>Envoyer</button>' : ''}<button class="s-btn ${navigator.share ? 'ghost' : ''}" data-copier>Copier</button><button class="s-btn ghost" data-fermer>Fermer</button></div>`;
+      if (nom) box.querySelector('.a-sub b').textContent = nom;
+      const inp = box.querySelector('.a-lien-in'); inp.value = r.lien;
+      box.querySelector('[data-partager]')?.addEventListener('click', () => navigator.share({ title: 'Ciné Azami', text: `${P.nom} t’invite sur Ciné Azami`, url: r.lien }).catch(() => {}));
+      box.querySelector('[data-copier]').addEventListener('click', async () => { try { await navigator.clipboard.writeText(r.lien); toast('Lien copié'); } catch { inp.select(); } });
+      LIENS = null; CMP = null;
+    } catch (err) { if (!err.gere) toast(err.message); b.disabled = false; }
+  });
 }
 async function chargerMes() { try { const r = await call('mes'); MES = new Map(r.avis.map(a => [a.k, a])); } catch {} }
 
@@ -280,7 +393,7 @@ $.addEventListener('click', async e => {
   const t = e.target.closest('[data-t]'); if (t) { onglet = t.dataset.t; store.set('ami-onglet', onglet); dessiner(); return; }
   const v = e.target.closest('.s-btns [data-v]'); if (v) { glisser(v.dataset.v); return; }
   const fl = e.target.closest('[data-f]'); if (fl) { filtre = fl.dataset.f; mes(); return; }
-  if (e.target.closest('[data-nom]')) { accueil(); return; }
+  if (e.target.closest('[data-nom]')) { moiPop(); return; }
   const li = e.target.closest('[data-lier]'); if (li) { lienAgir(li.dataset.lier, 'lier', li); return; }
   const de = e.target.closest('[data-delier]'); if (de) { if (de.hasAttribute('data-defaire') && !confirm('Défaire le lien ? Vous ne verrez plus vos films en commun.')) return; lienAgir(de.dataset.delier, 'delier', de); return; }
   if (e.target.closest('[data-hasard]')) { const l = CMP?.ensemble || []; if (!l.length) return; const f = l[Math.floor(Math.random() * l.length)]; toast(`À voir : ${f.title}${f.year ? ` (${f.year})` : ''}`); fichePop(f); return; }
