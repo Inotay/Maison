@@ -54,8 +54,8 @@ export const elanMot = c => c >= 5 && (c === 5 || c % 5 === 0) ? `×${c}` : '';
 // Les cris du jeu, façon jeu de combat (ou Trombone Champ) : un mot qui claque à chaque avis, selon ce qu'on a dit.
 // Envie, très envie, bof, non, et pour un film vu : selon la note. Jamais deux fois le même mot de suite.
 export const CRIS = {
-  oui: ['Nice!', 'Tasty!', 'Likky!', 'Yummy!', 'Badaboom!', 'Kachow!', 'Banger!', 'Groovy!', 'Bingo!', 'Boom!', 'Yay!', 'Sweet!', 'Wow!', 'Spicy!', 'Jackpot!', 'Okiii!', 'Slurp!', 'Crunch!', 'Yesss!', 'OhYeah!', 'YumYum!', 'ZoomZoom!', 'DingDing!', 'Bam!', 'Zing!', 'WooHoo!', 'Chill!', 'Netflix and chill!', 'Meow!', 'Purr!', 'Popcorn!', 'Juicy!', 'Lekker!', 'Gimme!', 'Yippee!', 'Tchac!', 'Miam!', 'Yummi!', 'Hop!', 'Bim!'],
-  super: ['MEGA!', 'ULTRA!', 'KABOOM!', 'OMG!', 'HYPE!', 'Legend!', 'Purrfect!', 'Superstar!', 'Wahou!', 'Kawaii!', 'Turbo!', 'Banzaï!', 'KaChing!', 'BigLove!', 'MammaMia!', 'Fire!', 'Godlike!', 'Epic!', 'WowWowWow!', 'Goal!', 'Bombe!', 'Ouiiii!', 'Yeehaw!', 'Woaw!'],
+  oui: ['Nice!', 'Tasty!', 'Likky!', 'Yummy!', 'Badaboom!', 'Kachow!', 'Banger!', 'Groovy!', 'Bingo!', 'Boom!', 'Yay!', 'Sweet!', 'Wow!', 'Spicy!', 'Jackpot!', 'Okiii!', 'Slurp!', 'Crunch!', 'Yesss!', 'OhYeah!', 'YumYum!', 'ZoomZoom!', 'DingDing!', 'Bam!', 'Zing!', 'WooHoo!', 'Chill!', 'Netflix and chill!', 'Meow!', 'Purr!', 'Popcorn!', 'Juicy!', 'Lekker!', 'Gimme!', 'Yippee!', 'Tchac!', 'Miam!', 'Yummi!', 'Hop!', 'Bim!', 'Kaching!'],
+  super: ['MEGA!', 'ULTRA!', 'KABOOM!', 'OMG!', 'HYPE!', 'Legend!', 'Purrfect!', 'Superstar!', 'Wahou!', 'Kawaii!', 'Turbo!', 'Banzaï!', 'Kaching!', 'BigLove!', 'MammaMia!', 'Fire!', 'Godlike!', 'Epic!', 'WowWowWow!', 'Goal!', 'Bombe!', 'Ouiiii!', 'Yeehaw!', 'Woaw!'],
   non: ['Nop!', 'UhUh!', 'Ikky!', 'NoNo!', 'Yok!', 'Meh!', 'Nah!', 'Pfff!', 'ByeBye!', 'Next!', 'Nein!', 'Skip!', 'Nope!', 'Niet!', 'Plop!', 'Pouet!', 'KaKa!', 'PooPoo!', 'Oof!', 'Zzz!', 'Ciao!', 'Bof!', 'Mouif!', 'Pschitt!', 'Snooze!', 'Nan!', 'Nopity!', 'Bye!'],
   beurk: ['Yuck!', 'Beurk!', 'Ewww!', 'Pouah!', 'Berk!', 'Nooo!', 'Aaargh!', 'AieAieAie!', 'KaKa!', 'PooPoo!', 'Bleh!', 'Ugh!', 'Gross!', 'Ikky!', 'Never!', 'Burk!', 'Blurp!'],
   vuTop: ['Hehe!', 'KnowDat!', 'Classic!', 'Legend!', 'Respect!', 'Iconic!', 'Gold!', 'Bravo!', 'Culte!', 'Yesss!', 'ChefKiss!', 'Masterclass!', 'Wahou!', 'Goat!', 'Banger!', 'Chapeau!'],
@@ -64,8 +64,21 @@ export const CRIS = {
   vu: ['Hehe!', 'KnowDat!', 'DéjàVu!', 'Check!', 'Done!', 'Yep!', 'Seen!', 'Gotcha!', 'Coché!'],
 };
 const derniers = [];
+// Les bof qui s'enchaînent : de temps en temps (pas toujours), ça part en « NoNo! », « NiNi! », « NaNa! »…
+// une voyelle différente à chaque fois, tant que les bof continuent.
+const VOYELLES = ['o', 'i', 'a', 'u', 'e', 'y'];
+let bofs = 0, nono = false, voyelle = '';
+function nonoSuivant() {
+  const l = VOYELLES.filter(v => v !== voyelle); voyelle = l[Math.floor(Math.random() * l.length)];
+  return `N${voyelle}N${voyelle}!`;
+}
 // le cri d'un avis, et son genre (pour la couleur) : oui, super, non, beurk, vu-top, vu-moyen, vu-bas
 export function cri(vote, note) {
+  const bof = vote === 'non' || vote === 'beurk';
+  bofs = bof ? bofs + 1 : 0;
+  if (!bof) nono = false;
+  else if (!nono && bofs >= 3 && Math.random() < .35) { nono = true; voyelle = 'o'; return { mot: 'NoNo!', genre: vote }; }
+  if (nono) return { mot: nonoSuivant(), genre: vote };
   const g = vote === 'vu' ? (note >= 4 ? 'vuTop' : note >= 2.5 ? 'vuMoyen' : note > 0 ? 'vuBas' : 'vu') : CRIS[vote] ? vote : 'oui';
   const l = CRIS[g].filter(m => !derniers.includes(m));
   const m = l[Math.floor(Math.random() * l.length)] || CRIS[g][0];
