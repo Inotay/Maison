@@ -2485,3 +2485,5 @@ html, body { touch-action: manipulation; }
 /* sans photo : l'ombre d'Azami assise, la même pour tous */
 .av.chat { position: relative; background: linear-gradient(160deg, #F3E7D6, #E0CFB8); }
 .av-ombre { position: absolute; inset: 0; background: #A893A6; -webkit-mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; }
+
+html.cine-seul .crotte { display: none !important; }

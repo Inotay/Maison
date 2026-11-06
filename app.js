@@ -2857,7 +2857,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v308</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v309</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -6532,6 +6532,7 @@ function crotteSvg(v) {
 const POUBELLE_SVG = `<svg viewBox="0 0 90 140" width="90" height="140" aria-hidden="true"><g class="pb-corps" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M16,70 l5,62 c0,3 2,5 5,5 h38 c3,0 5,-2 5,-5 l5,-62 z"/><path d="M30,82 l2,44 M45,82 v44 M60,82 l-2,44" opacity=".5" stroke-width="2.5"/></g><g class="pb-couvercle" fill="#FFFDF8" stroke="#22170F" stroke-width="3" stroke-linejoin="round"><path d="M10,70 c0,-5 4,-8 9,-8 h52 c5,0 9,3 9,8 z"/><path d="M38,62 c0,-4 3,-6 7,-6 c4,0 7,2 7,6" fill="none"/></g></svg>`;
 let crotteDrag = null;
 function crottesPlace() {
+  if (CINE_SEUL) { document.querySelectorAll('.crotte').forEach(e => e.remove()); return; }   // les crottes restent dans Maison, jamais dans l'app ciné
   const hd = document.querySelector('.hd'); if (!hd || !S.me) return;
   const t = tamaEtat();
   if (/azami=crottes/.test(location.search) && !crottesPlace.essai) { crottesPlace.essai = 1; t.crottes = []; for (let i = 0; i < 4; i++) crotteSpawn(t, 1), t.crottes[t.crottes.length - 1].page = S.view; }   // pour essayer : ?azami=crottes
