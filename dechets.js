@@ -11,6 +11,9 @@ export const SORTES = [
   { id: 'papier', label: 'Papier & carton', icon: 'recyclage', every: 14, week: [[O, R], [N, N], [O, O], [O, R], [N, N], [O, O], [O, O]] },
   { id: 'verre', label: 'Verre', icon: 'verre', every: 14, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
   { id: 'compost', label: 'Compost', icon: 'legumes', every: 10, week: [[N, N], [O, O], [O, O], [O, O], [O, R], [R, R], [R, R]] },
+  // pas de conteneur à l'immeuble : on les amène au point de collecte d'un supermarché (Aldi, Coop, Migros) ou
+  // à la déchèterie, quand on veut ; une fois par mois
+  { id: 'alu', label: 'Alu & canettes', icon: 'alu', every: 30, amener: 'Au point de collecte du supermarché', week: Array.from({ length: 7 }, () => [O, O]) },
 ];
 
 const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];

@@ -2868,7 +2868,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v312</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v313</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3133,7 +3133,7 @@ function dechetMeta(c, now = new Date()) {
   const d = descente(s, c, now);
   // Une ligne, pour que les quatre blocs fassent la même hauteur.
   if (st.due && !d.possible) return `Ramassage, plutôt ${d.until}`;
-  if (st.due) return d.state === 'route' ? 'Au bout du chemin' : st.late ? st.label[0].toUpperCase() + st.label.slice(1) : 'À descendre';
+  if (st.due) return d.state === 'route' ? 'Au bout du chemin' : st.late ? st.label[0].toUpperCase() + st.label.slice(1) : s.amener ? 'À amener' : 'À descendre';
   const w = st.label[0].toUpperCase() + st.label.slice(1);
   return c.last_done_by ? `${w}, par ${c.last_done_by === S.me ? 'toi' : nameOf(c.last_done_by)}` : w;
 }
