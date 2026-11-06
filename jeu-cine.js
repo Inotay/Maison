@@ -129,3 +129,45 @@ export function fusion(a, b) {
   r.xp = Math.max(x.xp, y.xp); r.record = Math.max(x.record, y.record); r.matchs = Math.max(x.matchs, y.matchs);
   return r;
 }
+
+// Le coffre de l'objectif du jour : il reste fermé à l'écran, il tremble, et c'est le doigt qui l'ouvre
+// (une demi-seconde de garde pour qu'un glissement de carte ne l'ouvre pas tout seul). Ensuite les gemmes jaillissent,
+// les points montent, et on repart avec « Continuer ». Même dessin dans l'app et sur la page des amis (styles .coffre-pop).
+const COFFRE_SVG = `<svg class="cf-svg" viewBox="0 0 160 140" aria-hidden="true">
+  <g class="cf-rayons"><path d="M80 70 60 0h40zM80 70 140 18l14 26zM80 70 6 44l14-26zM80 70l80 10-4 26zM80 70 0 80l4 26z"/></g>
+  <g class="cf-corps"><rect x="22" y="66" width="116" height="62" rx="10" fill="#C77B30" stroke="#5A3412" stroke-width="5"/>
+  <rect x="22" y="66" width="116" height="16" fill="#A8611F"/><rect x="40" y="66" width="12" height="62" fill="#FFC83D" stroke="#5A3412" stroke-width="3"/>
+  <rect x="108" y="66" width="12" height="62" fill="#FFC83D" stroke="#5A3412" stroke-width="3"/></g>
+  <g class="cf-int"><rect x="30" y="62" width="100" height="10" rx="4" fill="#3B2210"/></g>
+  <g class="cf-couv"><path d="M22 66V48c0-18 18-30 58-30s58 12 58 30v18z" fill="#D98A3A" stroke="#5A3412" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M40 66V26M120 66V26" stroke="#5A3412" stroke-width="15"/><path d="M40 66V27M120 66V27" stroke="#FFC83D" stroke-width="9"/>
+  <rect x="68" y="52" width="24" height="26" rx="5" fill="#FFC83D" stroke="#5A3412" stroke-width="4"/><circle cx="80" cy="62" r="3.5" fill="#5A3412"/></g>
+</svg>`;
+export function ouvrirCoffre({ gain = COFFRE, titre = 'Objectif du jour !', sous = `${OBJECTIF} films triés aujourd’hui`, onTouche = () => {}, onOuvre = () => {} } = {}) {
+  document.querySelector('.coffre-pop')?.remove();
+  const box = document.createElement('div'); box.className = 'coffre-pop'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', titre);
+  box.innerHTML = `<div class="cf-c"><h2></h2><p class="cf-sous"></p><button type="button" class="cf-coffre" aria-label="Ouvrir le coffre">${COFFRE_SVG}</button><p class="cf-aide">Touche le coffre pour l’ouvrir</p><p class="cf-gain"><b>+0</b> points</p><button type="button" class="cf-ok">Continuer</button></div>`;
+  box.querySelector('h2').textContent = titre; box.querySelector('.cf-sous').textContent = sous;
+  document.body.appendChild(box); requestAnimationFrame(() => box.classList.add('on'));
+  const pret = Date.now() + 650; let ouvert = false;
+  const coffre = box.querySelector('.cf-coffre');
+  return new Promise(fin => {
+    coffre.addEventListener('click', e => {
+      e.stopPropagation(); if (ouvert || Date.now() < pret) return;
+      ouvert = true; onTouche(); coffre.classList.add('toc'); box.querySelector('.cf-aide').textContent = '…';
+      setTimeout(() => {
+      box.classList.add('ouvert'); onOuvre(coffre);
+      const r = coffre.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * .45;
+      for (let i = 0; i < 16; i++) {
+        const g = document.createElement('i'); g.className = 'cf-gemme'; const a = -Math.PI / 2 + (Math.random() - .5) * 2.4, d = 90 + Math.random() * 120;
+        g.style.left = `${cx}px`; g.style.top = `${cy}px`; g.style.setProperty('--x', `${Math.cos(a) * d}px`); g.style.setProperty('--y', `${Math.sin(a) * d}px`); g.style.setProperty('--d', `${(Math.random() * .15).toFixed(2)}s`);
+        box.appendChild(g); setTimeout(() => g.remove(), 1400);
+      }
+      const b = box.querySelector('.cf-gain b'), t0 = performance.now();
+      const step = now => { const k = Math.min(1, (now - t0) / 900), v = Math.round(gain * (1 - Math.pow(1 - k, 3))); b.textContent = `+${v}`; if (k < 1) requestAnimationFrame(step); };
+      setTimeout(() => requestAnimationFrame(step), 250);
+      }, 380);
+    });
+    box.querySelector('.cf-ok').addEventListener('click', e => { e.stopPropagation(); box.classList.remove('on'); setTimeout(() => box.remove(), 250); fin(); });
+  });
+}

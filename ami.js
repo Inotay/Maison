@@ -360,7 +360,7 @@ function jeuAvis(f, v, n) {
   chauffer(ch);
   if (r.serie > 1) toast(`${r.serie} jours de suite !`);
   if (r.match) setTimeout(() => fete({ titre: 'C’est un match !', html: `<p>${esc(avec.join(' et '))} et toi voulez voir<br><b>${esc(f.title)}</b></p>`, gain: JEU.MATCH, film: f }), 350);
-  if (r.coffre) setTimeout(() => fete({ titre: 'Objectif du jour !', html: `<p>${JEU.OBJECTIF} films triés : le coffre s’ouvre.</p>`, gain: JEU.COFFRE }), 360);
+  if (r.coffre) setTimeout(() => { haptic('medium'); JEU.ouvrirCoffre({ onTouche: () => haptic('light'), onOuvre: () => { haptic('heavy'); confettis(); } }); }, 360);
   if (r.niveau) setTimeout(() => fete({ titre: `Niveau ${r.niveau}`, html: `<p>Te voilà <b>${esc(JEU.titre(r.niveau))}</b>.</p>` }), 370);
 }
 
