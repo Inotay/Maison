@@ -96,7 +96,8 @@ async function nowPlaying() {
   return npCache.ids;
 }
 // Vos abonnements → les identifiants TMDB des plateformes en Suisse (par le nom, plus solide que des numéros).
-const SUB_RE: Record<string, RegExp> = { netflix: /netflix/i, disney: /disney/i, apple: /apple tv/i, hbo: /hbo|^max$/i, crunchyroll: /crunchyroll/i, prime: /amazon prime|prime video/i, mubi: /mubi/i, play: /play suisse/i, sky: /sky/i, canal: /canal/i };
+// même liste que plateformes.js (identifiants et motifs à garder en phase)
+const SUB_RE: Record<string, RegExp> = { netflix: /netflix/i, prime: /amazon prime|prime video/i, disney: /disney/i, apple: /^apple tv( ?\+| plus)?$/i, hbo: /hbo|^max$/i, sky: /^sky( show)?$/i, paramount: /paramount/i, blue: /^blue (tv|video)$|^blue\+$/i, play: /play suisse/i, mubi: /mubi/i, filmingo: /filmingo/i, cinu: /^cinu$/i, crunchyroll: /crunchyroll/i, canal: /canal/i };
 let provCache: { at: number; list: { id: number; name: string }[] } | null = null;
 async function providerIds(subs: string[]) {
   if (!provCache || Date.now() - provCache.at > 24 * 3600e3) {

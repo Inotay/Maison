@@ -2489,3 +2489,8 @@ html, body { touch-action: manipulation; }
 html.cine-seul .crotte { display: none !important; }
 .coop-aldi { display: block; margin: 14px auto 4px; font-weight: 800; }
 .regl-row > span .regl-aide { display: block; margin-top: 2px; }
+/* Les plateformes de quelqu'un : des pastilles de couleur */
+.abos-l { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 8px; }
+.abo { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; background: rgba(255,255,255,.14); color: inherit; }
+.abo::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--c, #333); box-shadow: 0 0 0 2px rgba(255,255,255,.7); }
+.abo[data-p="netflix"] { --c: #E50914; } .abo[data-p="prime"] { --c: #1399FF; } .abo[data-p="disney"] { --c: #113CCF; } .abo[data-p="apple"] { --c: #1D1D1F; } .abo[data-p="hbo"] { --c: #5822B4; } .abo[data-p="sky"] { --c: #0072C9; } .abo[data-p="paramount"] { --c: #0064FF; } .abo[data-p="blue"] { --c: #0E5FD8; } .abo[data-p="play"] { --c: #E3000F; } .abo[data-p="mubi"] { --c: #111111; } .abo[data-p="filmingo"] { --c: #E4572E; } .abo[data-p="cinu"] { --c: #F15A24; } .abo[data-p="crunchyroll"] { --c: #F47521; } .abo[data-p="canal"] { --c: #000000; }

@@ -5,6 +5,7 @@
 import * as JEU from './jeu-cine.js';
 import { haptic, armer as armerHaptique } from './haptique.js';
 import { CHAT, choisirPhoto } from './photo-profil.js';
+import { PLATEFORMES, plateformeDe, nomPlateforme, abosPropres } from './plateformes.js';
 const URL_FN = (window.MAISON_CONFIG?.supabaseUrl || '') + '/functions/v1/amis';
 const $ = document.getElementById('s');
 const store = { get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -374,7 +375,10 @@ async function remplir() {
 function carte(f, cls) {
   const sub = [f.year, f.media === 'tv' ? 'Série' : dur(f.runtime), f.dir].filter(Boolean).join(' · ');
   const tags = (f.hotes || []).map(h => h.note ? `${esc(h.nom)} : ${h.note >= 4.5 ? 'adoré' : h.note >= 3.5 ? 'aimé' : 'bof'} (${note(h.note)})` : h.envie ? `${esc(h.nom)} en a envie` : '').filter(Boolean);
-  return `<article class="c ${cls}" data-k="${esc(f.k)}">${poster(f, 'c-img')}<div class="c-info">${tags.map(t => `<em class="c-tag">${t}</em>`).join('')}<b>${esc(f.title)}</b><span>${esc(sub)}</span>${f.genres?.length ? `<span class="c-g">${esc(f.genres.join(' · '))}</span>` : ''}<p>${esc(f.overview)}</p></div>
+  // où le voir : sur une de tes plateformes (✓), sinon la première où il est
+  const ou = f.ou || [], miens = ou.filter(n => (P?.abos || []).includes(plateformeDe(n)));
+  const ouTxt = miens.length ? `<span class="c-ou chez">✓ Sur ${esc(miens.slice(0, 2).join(', '))}</span>` : ou.length ? `<span class="c-ou">Sur ${esc(ou.slice(0, 2).join(', '))}</span>` : '';
+  return `<article class="c ${cls}" data-k="${esc(f.k)}">${poster(f, 'c-img')}<div class="c-info">${tags.map(t => `<em class="c-tag">${t}</em>`).join('')}<b>${esc(f.title)}</b><span>${esc(sub)}</span>${ouTxt}${f.genres?.length ? `<span class="c-g">${esc(f.genres.join(' · '))}</span>` : ''}<p>${esc(f.overview)}</p></div>
     <span class="c-st oui">ENVIE</span><span class="c-st non">BOF</span><span class="c-st vu">DÉJÀ VU</span></article>`;
 }
 // La pile se dessine une fois ; ensuite, à chaque avis, la carte de dessous (déjà affichée, affiche déjà décodée)
@@ -497,6 +501,7 @@ async function matchs() {
   const phDe = new Map(gens.map(g => [g.qui, g.photo]));
   const fil = (FILA?.fil || []), max = matchs.plus ? 60 : 12;
   b.innerHTML = `<div class="gens" role="list">${gens.map(p => `<button type="button" role="listitem" class="gen" data-profil="${esc(p.qui)}" aria-label="${esc(p.nom)}">${avatar(p)}<span></span></button>`).join('')}<button type="button" class="gen" data-inviter aria-label="Inviter quelqu’un"><span class="av plus">+</span><span>Inviter</span></button></div>
+    ${(P.abos || []).length ? '' : `<button type="button" class="a-conseil a-abos" data-profil="moi">${icn('film')}<p>Netflix, Mubi, Disney+… Dis-nous tes plateformes : Cinder te montrera où voir chaque film.</p></button>`}
     ${demande ? lienBloc() : ''}${peu ? `<div class="a-conseil">${icn('flamme')}<p>Plus tu donnes d’avis dans Cinder, plus les matchs sont justes. (${C.nAvis} pour l’instant)</p></div>` : ''}
     ${C.ensemble.length ? `<section class="a-bloc a-ens"><h2>${icn('deux')} Une soirée tous ensemble</h2><p class="a-sub">Ce que vous avez tous envie de voir : toi, ${esc(hotes())}.</p>${rangee(C.ensemble, '')}<button class="s-btn a-hasard" data-hasard>${icn('de')} Un film au hasard pour ce soir</button></section>` : ''}
     ${fil.length ? `<section class="fil"><h3 class="fil-t">${icn('groupe')} Le fil</h3><ul class="fil-l">${fil.slice(0, max).map((x, i) => `<li class="fil-i"><button type="button" class="fil-av" data-profil="${esc(x.qui)}">${avatar({ ...x, photo: phDe.get(x.qui) })}</button><div class="fil-c"><p><b></b> ${avisMot2(x)}</p><small>${esc(ago(x.at))}</small></div><button type="button" class="fil-aff" data-film="${esc(x.k)}">${x.poster ? `<img src="${esc(x.poster)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="nop">${icn('film')}</span>`}</button></li>`).join('')}</ul>${fil.length > max ? '<button class="s-btn ghost" data-fil-plus>Voir plus</button>' : ''}</section>` : ''}
@@ -526,6 +531,8 @@ async function profilPop(qui) {
     const [gl, sel] = grilles[F];
     box.querySelector('.a-note-c').innerHTML = `<header class="pf-tete">${avatar({ nom: r.nom, hote: r.hote, qui, photo: moi ? P.photo : r.photo }, 'big')}<div><p class="a-note-t"></p><p class="a-sub pf-sub">${moi ? 'Toi' : r.hote ? 'De la maison' : 'Ami lié'}</p></div></header>
       ${moi ? `<div class="a-note-btns"><button class="s-btn ghost" data-photo>${P.photo ? 'Changer ma photo' : 'Mettre une photo de profil'}</button></div>` : ''}
+      ${moi ? `<h3>Tes plateformes</h3><p class="a-sub">Coche celles que tu as : Cinder te dit quand un film y est.</p><div class="a-filtres pf-abos">${PLATEFORMES.map(([k, l]) => `<button type="button" data-abo="${k}" aria-pressed="${(P.abos || []).includes(k)}">${esc(l)}</button>`).join('')}</div>`
+        : (r.abos || []).length ? `<h3>Ses plateformes</h3><span class="abos-l">${r.abos.map(k => `<span class="abo" data-p="${esc(k)}">${esc(nomPlateforme(k))}</span>`).join('')}</span>` : ''}
       <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? note(moy) : '–'}</b><span>note moy.</span></li>${cmp ? `<li class="${cmp.compat != null ? 'ok' : ''}"><b>${cmp.compat != null ? cmp.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
       ${cmp?.matches?.length ? `<h3>${icn('envie')} Envie tous les deux · ${cmp.nMatches || cmp.matches.length}</h3>${rangee(cmp.matches, '')}` : ''}
       ${cmp?.pourMoi?.length ? `<h3>${icn('tres')} Ses coups de cœur, pas encore vus par toi</h3>${rangee(cmp.pourMoi, '')}` : ''}
@@ -539,9 +546,16 @@ async function profilPop(qui) {
     box.querySelectorAll('.pf-fil .fil-c i').forEach((x, i) => { x.textContent = avis.filter(a => a.at)[i].title; });
   };
   draw();
-  box.addEventListener('click', async e => { if (e.target.closest('[data-photo]')) { if (await photoChanger()) { r.photo = P.photo; draw(); } return; } const f = e.target.closest('[data-pf]'); if (f) { F = f.dataset.pf; haptic('light'); draw(); } const fm = e.target.closest('[data-film]'); if (fm) { const x = matchs.films?.get(fm.dataset.film) || MES.get(fm.dataset.film); if (x) { box.remove(); fichePop(x); } } });
+  box.addEventListener('click', async e => { if (e.target.closest('[data-photo]')) { if (await photoChanger()) { r.photo = P.photo; draw(); } return; } const ab = e.target.closest('[data-abo]'); if (ab) { abosBasculer(ab.dataset.abo); draw(); return; } const f = e.target.closest('[data-pf]'); if (f) { F = f.dataset.pf; haptic('light'); draw(); } const fm = e.target.closest('[data-film]'); if (fm) { const x = matchs.films?.get(fm.dataset.film) || MES.get(fm.dataset.film); if (x) { box.remove(); fichePop(x); } } });
 }
 
+// Tes plateformes : un toucher coche ou décoche, enregistré tout de suite (et remis si ça échoue).
+let abosT = 0;
+function abosBasculer(k) {
+  const avant = P.abos || [];
+  P.abos = abosPropres(avant.includes(k) ? avant.filter(x => x !== k) : [...avant, k]); haptic('light');
+  clearTimeout(abosT); abosT = setTimeout(() => call('profil', { abos: P.abos }).catch(e => { P.abos = avant; toast(e.message || 'Pas enregistré.'); }), 500);
+}
 // Les autres amis : se lier, comme une demande d'ami. Une fois que l'autre accepte, vous voyez vos films en commun.
 const LIEN_MOT = { rien: '', envoye: 'Demande envoyée', recu: 'veut se lier avec toi', lie: 'Liés' };
 function lienBloc() {

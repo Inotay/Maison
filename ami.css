@@ -365,3 +365,13 @@ input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; 
 @keyframes cf-pulse { 50% { opacity: .55; } }
 @keyframes cf-gemme { 0% { opacity: 0; transform: scale(.3); } 15% { opacity: 1; } 70% { opacity: 1; transform: translate(var(--x), var(--y)) scale(1.1) rotate(200deg); } 100% { opacity: 0; transform: translate(var(--x), calc(var(--y) + 60px)) scale(.8) rotate(320deg); } }
 @media (prefers-reduced-motion: reduce) { .cf-coffre, .cf-aide, .ouvert .cf-rayons { animation: none !important; } .cf-gemme { display: none; } }
+
+/* Les plateformes de quelqu'un : des pastilles de couleur (mêmes que dans l'app) */
+.abos-l { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.abo { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; background: rgba(255,255,255,.14); color: inherit; }
+.abo::before { content: ''; width: 9px; height: 9px; border-radius: 50%; background: var(--c, #333); box-shadow: 0 0 0 2px rgba(255,255,255,.7); }
+.c-ou { display: inline-block; margin: 4px 0 0; font-size: 12.5px; font-weight: 800; opacity: .85; }
+.c-ou.chez { color: #3CD38A; opacity: 1; }
+.pf-abos { margin: 6px 0 4px; }
+.abo[data-p="netflix"] { --c: #E50914; } .abo[data-p="prime"] { --c: #1399FF; } .abo[data-p="disney"] { --c: #113CCF; } .abo[data-p="apple"] { --c: #1D1D1F; } .abo[data-p="hbo"] { --c: #5822B4; } .abo[data-p="sky"] { --c: #0072C9; } .abo[data-p="paramount"] { --c: #0064FF; } .abo[data-p="blue"] { --c: #0E5FD8; } .abo[data-p="play"] { --c: #E3000F; } .abo[data-p="mubi"] { --c: #111111; } .abo[data-p="filmingo"] { --c: #E4572E; } .abo[data-p="cinu"] { --c: #F15A24; } .abo[data-p="crunchyroll"] { --c: #F47521; } .abo[data-p="canal"] { --c: #000000; }
+button.a-conseil { all: unset; box-sizing: border-box; display: flex; gap: 10px; align-items: center; width: 100%; padding: 10px 12px; border-radius: 14px; background: rgba(255,201,60,.12); border: 2px solid rgba(255,201,60,.35); margin-bottom: 10px; cursor: pointer; font-weight: 700; }

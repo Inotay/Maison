@@ -10,6 +10,7 @@ import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
 import { aldiOuCoop } from './magasins.js';
+import { PLATEFORMES, abosPropres, nomPlateforme } from './plateformes.js';
 import { MOTS, HIRA, exemple, MOTS_COURS, LECONS, ORAL, LECONS_ORAL, NOMS_JP } from './jp.js';
 // Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
 let VISITES = [], visitesP = null;
@@ -748,6 +749,8 @@ async function loadAll() {
   { const j = (reglages || []).find(r => r.cle === `cine:jeu:${S.me}`)?.valeur; S.jeu = JEU.fusion(S.jeu || JEU.propre(JSON.parse(safeGet('maison-jeu') || 'null')), j); }
   setTimeout(pilSync, 0);
   S.anniv = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:anniv:') && /^\d{2}-\d{2}$/.test(r.valeur?.date || '')).map(r => [r.cle.slice(12), r.valeur.date]));
+  S.abos = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('abos:')).map(r => [r.cle.slice(5), abosPropres(r.valeur)]));
+  S.subsFoyer = S.subs; S.subs = abosFoyer();
   S.photos = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('profil:photo:') && /^data:image\/jpeg;base64,/.test(r.valeur?.photo || '')).map(r => [r.cle.slice(13), r.valeur.photo]));
   S.reglagesAz = Object.fromEntries((reglages || []).filter(r => r.cle.startsWith('azami:portrait:') || r.cle === 'azami:foyer').map(r => [r.cle, r.valeur?.texte || '']));
   if (filmsVoulus()) filmsSync();   // en arrière-plan : l'écran n'attend pas les films
@@ -2868,7 +2871,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v313</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v314</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -4233,8 +4236,15 @@ const fAjoutNous = f => Object.values(f.votes_at || {}).map(String).sort().pop()
 const fPoster = (f, cls = 'fposter') => f.poster ? `<img class="${cls}" src="${esc(posterSrc(f.poster, cls))}" alt="" ${cls === 'fposter' || cls === 'iposter' ? 'loading="lazy"' : ''} decoding="async" referrerpolicy="no-referrer" data-poster>` : `<span class="${cls} noposter" aria-hidden="true">${icn(f.media === 'tv' ? 'tele' : 'film')}</span>`;
 const fProv = f => (f.providers || []).filter(p => p.kind !== 'location').slice(0, 3).map(p => p.name);
 // Vos abonnements et les salles de Lausanne : où on peut le voir, nous, ce soir.
-const SUBS = [['hbo', 'HBO Max', /hbo|^max$/i], ['disney', 'Disney+', /disney/i], ['apple', 'Apple TV+', /apple tv/i], ['crunchyroll', 'Crunchyroll', /crunchyroll/i], ['netflix', 'Netflix', /netflix/i],
-  ['prime', 'Prime Video', /amazon prime|prime video/i], ['play', 'Play Suisse', /play suisse/i], ['mubi', 'Mubi', /mubi/i], ['sky', 'Sky', /sky/i], ['canal', 'Canal+', /canal/i]];
+// Chacun coche ses plateformes (reglages « abos:<e-mail> ») ; « chez vous », c'est ce que l'un de vous deux a.
+// Quand on regarde avec un ami (« À deux » avec lui), ce sont tes plateformes et les siennes.
+const SUBS = PLATEFORMES;
+const abosDe = email => S.abos?.[email] || [];
+const abosFoyer = () => { const l = [...new Set(S.members.flatMap(m => abosDe(m.email)))]; return l.length ? l : (S.subsFoyer || []); };
+function subsActifs() {
+  const a = S.cineAvec && GENS.amis?.find(x => x.id === S.cineAvec);
+  return a ? [...new Set([...abosDe(S.me), ...(a.abos || [])])] : S.subs;
+}
 const subOf = name => SUBS.find(([, , re]) => re.test(name || ''))?.[0];
 const nt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/^(le|la|les|l|the|a|an|un|une) /, '').trim();
 const salleKeys = t => { const s = String(t || '').replace(/\((19|20)\d{2}\)/, ''); return [s, ...s.split(/[()]/)].map(nt).filter(x => x.length > 1); };
@@ -4245,8 +4255,8 @@ function fSalles(f) {
 }
 function fWhere(f) {
   const p = f.providers || [];
-  const chez = [...new Set(p.filter(x => x.kind !== 'location' && S.subs.includes(subOf(x.name))).map(x => x.name))];
-  const ailleurs = [...new Set(p.filter(x => x.kind !== 'location' && !S.subs.includes(subOf(x.name))).map(x => x.name))];
+  const chez = [...new Set(p.filter(x => x.kind !== 'location' && subsActifs().includes(subOf(x.name))).map(x => x.name))];
+  const ailleurs = [...new Set(p.filter(x => x.kind !== 'location' && !subsActifs().includes(subOf(x.name))).map(x => x.name))];
   const loc = [...new Set(p.filter(x => x.kind === 'location').map(x => x.name))];
   return { chez, ailleurs, loc, salles: fSalles(f) };
 }
@@ -4581,7 +4591,7 @@ async function soireePool() {
   try {
     const pm = t.me ? T.prefs(t.me) : {}, po = t.other ? T.prefs(t.other) : {};
     const prefs = { like: [...new Set([...(pm.like || []).slice(0, 2), ...(po.like || []).slice(0, 2)])], dislike: (pm.dislike || []).filter(g => (po.dislike || []).includes(g)), langs: pm.langs };
-    sug = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: '', subs: S.subs, prefs, exclude: S.films.map(fkey) })).results || [];
+    sug = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: '', subs: subsActifs(), prefs, exclude: S.films.map(fkey) })).results || [];
   } catch (e) { console.warn('soirée', e); }
   const known = new Set(S.films.map(fkey));
   sug = sug.filter(f => f.tmdb_id && !known.has(fkey(f)) && !(t.me && T.banned(t.me, f)) && !(t.other && T.banned(t.other, f))).sort((a, b) => sc(b) - sc(a)).slice(0, Math.max(12, 36 - nous.length));
@@ -4887,6 +4897,7 @@ async function profilSheet(id) {
       <header class="pf-tete">${avatarHtml(p, 'big')}<div><p class="pf-nom">${esc(p.nom)}${p.moi ? ' <small>(toi)</small>' : ''}</p>
         <p class="pf-sub">${p.type === 'membre' ? 'De la maison' : [a?.compte ? 'Compte' : 'Par lien', a?.vu_at ? `passé ${esc(ago(a.vu_at))}` : 'pas encore venu', a?.par && !S.members.some(m => m.name === a.par) ? `invité par ${esc(a.par)}` : ''].filter(Boolean).join(' · ')}</p></div></header>
       <ul class="pf-stats"><li><b>${avis.length}</b><span>avis</span></li><li><b>${vus.length}</b><span>vus</span></li><li><b>${envies.length}</b><span>envies</span></li><li><b>${moy ? noteTxt(moy) : '–'}</b><span>note moy.</span></li>${c ? `<li class="${c.compat != null ? 'ok' : ''}"><b>${c.compat != null ? c.compat + ' %' : '–'}</b><span>d’accord</span></li>` : ''}</ul>
+      ${(() => { const l = p.type === 'membre' ? abosDe(p.email) : abosPropres(p.ami?.abos); return l.length || p.moi ? `<p class="chip-label">${p.moi ? 'Tes plateformes' : 'Ses plateformes'}</p>${abosPastilles(l)}${p.moi ? '<p class="hint">À changer dans Plateformes et goûts, en bas de la page Ciné.</p>' : ''}` : ''; })()}
       ${p.moi ? `<div class="pf-acts"><button class="btn ghost" data-action="photo-moi">${S.photos?.[S.me] ? 'Changer ma photo' : 'Mettre une photo de profil'}</button>${S.photos?.[S.me] ? '<button class="btn ghost small" data-action="photo-moi" data-x="1">Retirer</button>' : ''}</div>` : ''}${p.moi ? '' : `<div class="pf-acts">${avec ? `<button class="btn ghost" data-action="gens-avec" data-id="">${icn('deux')} C’est avec ${esc(p.nom)} · revenir à ${esc(nameOf(other()) || 'nous deux')}</button>` : autreDefaut ? '' : `<button class="btn" data-action="gens-avec" data-id="${esc(p.id)}">${icn('deux')} À deux avec ${esc(p.nom)}</button>`}${p.type === 'ami' ? `<button class="btn ghost small" data-action="gens-gerer" data-id="${esc(p.id)}">Son lien…</button>` : ''}</div>`}
       ${c?.matches.length ? `<p class="chip-label">${icn('envie')} Vous voulez tous les deux · ${c.matches.length}</p>${rangee(c.matches.slice(0, 24))}` : ''}
       ${c?.pourMoi.length ? `<p class="chip-label">${icn('tres')} Ses coups de cœur que tu n’as pas vus</p>${rangee(c.pourMoi.slice(0, 16))}` : ''}
@@ -5213,12 +5224,20 @@ function cineCoeurs(only) {
     <div class="cine-ideas">${l.map(f => `<button type="button" class="idea" data-action="cine-open" data-id="${f.id}">${fPoster(f, 'iposter')}<span>${esc(f.title)}</span>${f.status === 'favori' && e !== S.me ? '<b aria-hidden="true">?</b>' : ''}</button>`).join('')}</div>`).join('');
 }
 const GOUT_KIND = { livre: `${icn('livres')} Livres et BD`, jeu: `${icn('manette')} Jeux vidéo`, autre: `${icn('etincelle')} Autres` };
+// Les plateformes : les miennes se cochent ; celles de l'autre s'affichent (chacun règle les siennes).
+const abosPastilles = l => l.length ? `<span class="abos-l">${l.map(k => `<span class="abo" data-p="${k}">${esc(nomPlateforme(k))}</span>`).join('')}</span>` : '<span class="hint">Aucune pour l’instant</span>';
+function abosChoix() {
+  const mien = S.abos?.[S.me] || S.subs;
+  const autres = S.members.filter(m => m.email !== S.me);
+  return `<p class="chip-label">Tes plateformes</p><div class="chips subs">${SUBS.map(([k, l]) => `<button type="button" data-action="sub-toggle" data-k="${k}" aria-pressed="${mien.includes(k)}">${esc(l)}</button>`).join('')}</div>
+    ${autres.map(m => `<p class="chip-label">${esc(nameOf(m.email))}</p>${abosPastilles(abosDe(m.email))}`).join('')}
+    <p class="hint">« Chez vous », c’est ce que l’un de vous deux a : ça passe en premier dans le match, et dans « Dispo chez nous » de la roulette. Avec un ami, ce sont tes plateformes et les siennes.</p>`;
+}
 function cineGouts() {
   const mine = S.gouts.filter(g => g.email === S.me), theirs = S.gouts.filter(g => g.email !== S.me);
   const chips = l => Object.keys(GOUT_KIND).filter(k => l.some(g => g.kind === k)).map(k => `<p class="gout-k">${GOUT_KIND[k]}</p><div class="gout-chips">${l.filter(g => g.kind === k).map(g => `<span class="gout">${esc(g.title)}${g.author ? ` <small>${esc(g.author)}</small>` : ''}${g.email === S.me ? `<button type="button" data-action="gout-del" data-id="${g.id}" aria-label="Retirer ${esc(g.title)}">×</button>` : ''}</span>`).join('')}</div>`).join('');
-  return `<details class="fold gouts" data-fold="gouts"><summary>Vos abonnements et vos goûts</summary>
-    <p class="chip-label">Vos abonnements</p><div class="chips subs">${SUBS.map(([k, l]) => `<button type="button" data-action="sub-toggle" data-k="${k}" aria-pressed="${S.subs.includes(k)}">${esc(l)}</button>`).join('')}</div>
-    <p class="hint">Ce qui est inclus chez vous passe en premier dans le match, et « Dispo chez nous » dans la roulette.</p>
+  return `<details class="fold gouts" data-fold="gouts"><summary>Vos plateformes et vos goûts</summary>
+    ${abosChoix()}
     <p class="chip-label">Vos goûts</p>
     <p class="hint">Ce que vous aimez en dehors des films. Quand un livre ou un jeu a été adapté, Azami s’en sert pour ses idées.</p>
     ${mine.length ? `<p class="chip-label">Toi</p>${chips(mine)}` : ''}${theirs.length ? `<p class="chip-label">${esc(nameOf(other()))}</p>${chips(theirs)}` : ''}
@@ -5409,7 +5428,7 @@ async function deckMore(first = false) {
   const prefs = { like: [...new Set([...(pm.like || []), ...(po.like || []).slice(0, 1)])], dislike: (pm.dislike || []).filter(g => !(po.like || []).includes(g)), langs: pm.langs, people: [...(pm.people || []).slice(0, 3), ...(po.people || []).slice(0, 1)], kws: pm.kws, cos: pm.cos };
   let more = [];
   const shown = shownGet(), recent = Object.keys(shown).sort((a, b) => shown[b] - shown[a]).slice(0, 400);
-  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: S.subs, prefs, exclude: [...myKeys(), ...deck.keys, ...recent] })).results || []; } catch (e) { console.warn('deck', e); }
+  try { more = (await filmsCall({ action: 'deck', seeds: cineSeeds(4), mood: deck.mood, subs: subsActifs(), prefs, exclude: [...myKeys(), ...deck.keys, ...recent] })).results || []; } catch (e) { console.warn('deck', e); }
   more = more.filter(f => !shown[fkey(f)]);
   // si l’autre connaît déjà ce film, on reprend sa fiche complète (traits, plateformes) ; s’il est déjà jugé par toi, on l’écarte
   more = more.filter(f => !deck.keys.has(fkey(f))).map(f => { const x = S.films.find(y => fkey(y) === fkey(f)); if (x && f.saga) x.saga = f.saga; return x || f; }).filter(f => !judged(f));
@@ -5879,7 +5898,7 @@ async function cineOpen(id) {
         const seen = new Set(); const l = ppl.filter(([p]) => !seen.has(p.id) && seen.add(p.id));
         return l.length ? `<p class="chip-label">L’équipe</p><div class="fteam">${l.map(([p, r]) => `<button type="button" data-action="taste-rule" data-k="p:${p.id}" data-l="${esc(p.name)}"><b>${esc(p.name)}</b>${r ? `<small>${r}</small>` : ''}</button>`).join('')}</div>` : ''; })()}
       ${(() => { const ss = fSalles(f); return ss.length ? `<p class="chip-label">Au cinéma à Lausanne</p><div class="fsalles">${ss.map(x => `<a class="fsalle" href="${esc(x.url)}" target="_blank" rel="noopener"><b>${esc(x.where)}</b><span>${esc(x.when || '')}</span><i aria-hidden="true">›</i></a>`).join('')}</div>` : f.cinema ? `<p class="chip-label">Au cinéma en Suisse</p><p><a class="link" href="https://search.ch/cine/Lausanne" target="_blank" rel="noopener">Voir les séances à Lausanne</a></p>` : ''; })()}
-      ${prov.length ? `<p class="chip-label">Où regarder en Suisse</p><div class="fprovs">${[...prov].sort((a, b) => S.subs.includes(subOf(b.name)) - S.subs.includes(subOf(a.name))).map(p => `<span class="fp ${S.subs.includes(subOf(p.name)) && p.kind !== 'location' ? 'chez' : ''}">${p.logo ? `<img src="${esc(p.logo)}" alt="" referrerpolicy="no-referrer">` : ''}${esc(p.name)}${p.kind === 'location' ? ' <small>(location)</small>' : p.kind === 'gratuit' ? ' <small>(gratuit)</small>' : S.subs.includes(subOf(p.name)) ? ' <small>✓ chez vous</small>' : ''}</span>`).join('')}</div>` : f.tmdb_id ? '<p class="hint">Pas trouvé en streaming en Suisse pour l’instant.</p>' : ''}
+      ${prov.length ? `<p class="chip-label">Où regarder en Suisse</p><div class="fprovs">${[...prov].sort((a, b) => subsActifs().includes(subOf(b.name)) - subsActifs().includes(subOf(a.name))).map(p => `<span class="fp ${S.subs.includes(subOf(p.name)) && p.kind !== 'location' ? 'chez' : ''}">${p.logo ? `<img src="${esc(p.logo)}" alt="" referrerpolicy="no-referrer">` : ''}${esc(p.name)}${p.kind === 'location' ? ' <small>(location)</small>' : p.kind === 'gratuit' ? ' <small>(gratuit)</small>' : S.subs.includes(subOf(p.name)) ? ' <small>✓ chez vous</small>' : ''}</span>`).join('')}</div>` : f.tmdb_id ? '<p class="hint">Pas trouvé en streaming en Suisse pour l’instant.</p>' : ''}
       ${f.trailer ? `<p><a class="link" href="${esc(f.trailer)}" target="_blank" rel="noopener">▶ Voir la bande-annonce</a></p>` : ''}
       ${vuParMoi ? `<div class="fnote"><p class="chip-label">${maNote ? 'Ta note' : 'Tu l’as vu : ta note ?'}</p>${jauge(maNote)}</div>` : ''}
       ${rates ? `<ul class="frates-big">${rates}</ul>` : ''}
@@ -6098,7 +6117,7 @@ async function cineIdeas(force = false) {
   if (!seeds.length && !S.films.some(f => f.traits)) return;
   try {
     const t0 = tastes(), pm = t0.me ? T.prefs(t0.me) : {};
-    const r = await filmsCall({ action: 'deck', seeds, subs: S.subs, prefs: pm, exclude: [...myKeys(), ...(S.cineIdeasSeen || [])] });
+    const r = await filmsCall({ action: 'deck', seeds, subs: subsActifs(), prefs: pm, exclude: [...myKeys(), ...(S.cineIdeasSeen || [])] });
     const items = r.results || [], t = tastes(items);
     S.cineIdeas = T.order(items.filter(f => !T.banned(t.me, f)), f => (t.other ? T.scoreBoth(t.me, t.other, f, t.couple) * .5 : 0) + T.score(t.me, f) * .5, 16);
     S.cineIdeasSeen = [...(S.cineIdeasSeen || []), ...S.cineIdeas.map(fkey)].slice(-80);
@@ -7770,7 +7789,16 @@ const actions = {
     const row = { email: S.me, kind: k, title }; S.gouts.push({ ...row, id: 'tmp' + Date.now() }); t.value = ''; haptic(1); let nid = null; run(() => api.insert('gouts', row).then(r => { nid = r?.id; }), 'Ajouté à tes goûts').then(ok => ok && nid && cineUndo(`${title} ajouté`, [], [['gouts', nid]])); },
   'gout-del': el => { const g = S.gouts.find(x => x.id === el.dataset.id); S.gouts = S.gouts.filter(x => x !== g); run(() => api.remove('gouts', { id: el.dataset.id }), 'Retiré').then(ok => ok && g && cineUndo(`${g.title} retiré`, [{ t: 'gouts', gone: true, row: g }])); },
   'cine-ideas-more': () => { haptic(1); S.cineIdeas = []; render(); cineIdeas(true); },
-  'sub-toggle': el => { const k = el.dataset.k; const old = [...S.subs]; cineUndo('abonnement changé', [], [], () => { S.subs = old; api.upsert('reglages', { cle: 'abonnements', valeur: old }).catch(() => {}); render(); }); S.subs = S.subs.includes(k) ? S.subs.filter(x => x !== k) : [...S.subs, k]; haptic(1); render(); api.upsert('reglages', { cle: 'abonnements', valeur: S.subs }).catch(() => toast('Pas enregistré.')); },
+  'sub-toggle': el => {
+    const k = el.dataset.k, avant = [...(S.abos?.[S.me] || S.subs)];
+    const ecrire = l => { S.abos = { ...(S.abos || {}), [S.me]: l }; S.subs = abosFoyer(); render();
+      if (DEMO) return;
+      api.upsert('reglages', { cle: `abos:${S.me}`, valeur: l }).catch(() => toast('Pas enregistré.'));
+      api.upsert('reglages', { cle: 'abonnements', valeur: S.subs }).catch(() => {});   // pour le serveur (alertes « arrive sur… »)
+    };
+    cineUndo('plateforme changée', [], [], () => ecrire(avant));
+    haptic(1); ecrire(abosPropres(avant.includes(k) ? avant.filter(x => x !== k) : [...avant, k]));
+  },
   'salle-add': async el => { const x = S.salles?.[Number(el.dataset.i)]; if (!x) return; el.disabled = true; haptic('medium');
     try { const t = x.title.replace(/\s*\((19|20)\d{2}\)\s*/, ' ').trim(); const r = DEMO ? { results: FILM_DEMO.filter(f => nt(f.title) === nt(t)) } : await filmsCall({ action: 'resolve', items: [{ title: t.split(' (')[0], media: 'movie', year: x.year }] }); const d = r.results?.[0];
       const saved = await filmVote(d?.tmdb_id ? d : { title: t, media: 'movie', year: x.year || null }, 'oui', false); toast(`${saved.title} : dans ta liste`); sfx('tick'); render(); if (fMatch(saved)) filmMatchParty(saved); } catch (e) { console.warn(e); toast('Pas réussi à l’ajouter.'); el.disabled = false; } },

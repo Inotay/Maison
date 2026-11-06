@@ -124,6 +124,11 @@ Deno.serve(async (req) => {
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
   const action = String(body.action ?? "");
 
+  // Les plateformes que chacun a (même liste que plateformes.js) : pour un ami, dans amis.abos ; pour quelqu'un de la
+  // maison, dans reglages « abos:<e-mail> ».
+  const PLATEFORME_IDS = ["netflix", "prime", "disney", "apple", "hbo", "sky", "paramount", "blue", "play", "mubi", "filmingo", "cinu", "crunchyroll", "canal"];
+  const abosPropres = (l: unknown) => PLATEFORME_IDS.filter(k => Array.isArray(l) && (l as unknown[]).includes(k));
+  async function abosMembre(email: string) { const { data } = await db.from("reglages").select("valeur").eq("cle", `abos:${email}`).maybeSingle(); return abosPropres(data?.valeur); }
   // les photos de profil : celles des amis (colonne photo), celles des membres (réglage profil:photo:<email>)
   const RE_PHOTO = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
   const photosMembres = async () => { const { data } = await db.from("reglages").select("cle, valeur").like("cle", "profil:photo:%"); return new Map((data ?? []).filter(r => typeof r.valeur?.photo === "string" && RE_PHOTO.test(r.valeur.photo)).map(r => [r.cle.slice(13), r.valeur.photo as string])); };
@@ -293,13 +298,14 @@ Deno.serve(async (req) => {
       await db.from("amis").update({ vu_at: new Date().toISOString() }).eq("id", ami.id);
       const [ms, { data: autres }, { count }] = await Promise.all([membres(), db.from("amis").select("nom").is("revoked_at", null).neq("id", ami.id).not("nom", "is", null), db.from("ami_avis").select("k", { count: "exact", head: true }).eq("ami_id", ami.id)]);
       const { count: demandes } = await db.from("ami_liens").select("de", { count: "exact", head: true }).eq("a", ami.id).is("ok_at", null);
-      const { data: ph } = await db.from("amis").select("photo").eq("id", ami.id).maybeSingle();
-      return json({ photo: ph?.photo ?? null, nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0, compte: ami.pass_hash ? { pseudo: ami.pseudo, email: ami.email } : null, mail: MAIL_OK, jeu: ami.jeu ?? null });
+      const { data: ph } = await db.from("amis").select("photo, abos").eq("id", ami.id).maybeSingle();
+      return json({ photo: ph?.photo ?? null, abos: abosPropres(ph?.abos), nom: ami.nom ?? "", tuto: !!ami.tuto_at, hotes: ms.map(m => m.name), amis: (autres ?? []).map(a => a.nom), nAvis: count ?? 0, demandes: demandes ?? 0, compte: ami.pass_hash ? { pseudo: ami.pseudo, email: ami.email } : null, mail: MAIL_OK, jeu: ami.jeu ?? null });
     }
     if (action === "profil") {
       const patch: Record<string, unknown> = {};
       if (body.nom !== undefined) { const nom = str(body.nom, 24); if (!nom) return json({ error: "Il faut un prénom." }, 400); patch.nom = nom; }
       if (body.tuto === true) patch.tuto_at = new Date().toISOString();
+      if (body.abos !== undefined) patch.abos = abosPropres(body.abos);
       if (body.photo !== undefined) { if (body.photo === null) patch.photo = null; else { const ph = String(body.photo); if (ph.length > 70000 || !RE_PHOTO.test(ph)) return json({ error: "Cette image ne passe pas : essaie une autre photo." }, 400); patch.photo = ph; } }
       if (Object.keys(patch).length) await db.from("amis").update(patch).eq("id", ami.id);
       return json({ ok: true });
@@ -308,8 +314,13 @@ Deno.serve(async (req) => {
       const { data, error } = await db.rpc("ami_pioche", { p_ami: ami.id, p_n: int(body.n, 1, 40) ?? 25 });
       if (error) { console.error(error); return json({ error: "La pioche ne répond pas." }, 500); }
       const g = await goutsMembres(), cachés = await discrets(), ms = await membres();
+      // où le voir en Suisse (abonnements), d'après la fiche de la maison
+      const ou = new Map<string, string[]>();
+      { const ids = [...new Set((data ?? []).map((f: Record<string, any>) => Number(f.tmdb_id)))];
+        if (ids.length) { const { data: pv } = await db.from("films").select("media, tmdb_id, providers").in("tmdb_id", ids);
+          for (const x of (pv ?? []) as Record<string, any>[]) ou.set(`${x.media}:${x.tmdb_id}`, [...new Set(((x.providers ?? []) as { name: string; kind: string }[]).filter(p => p.kind !== "location").map(p => p.name))].slice(0, 6)); } }
       // sur la carte : qui de la maison en a envie ou l'a adoré (si la personne partage ses goûts)
-      return json({ films: (data ?? []).map((f: Record<string, any>) => ({ k: f.k, title: f.title, year: f.year, poster: f.poster, media: f.media, runtime: f.runtime, genres: (f.genres ?? []).slice(0, 3), dir: f.director, overview: f.overview,
+      return json({ films: (data ?? []).map((f: Record<string, any>) => ({ k: f.k, title: f.title, year: f.year, poster: f.poster, media: f.media, runtime: f.runtime, ou: ou.get(f.k) ?? [], genres: (f.genres ?? []).slice(0, 3), dir: f.director, overview: f.overview,
         hotes: ms.filter(m => !cachés.has(m.email)).map(m => { const a = g.get(m.email)?.get(f.k); return a ? { nom: m.name, envie: envie(a), note: a.note } : null; }).filter(Boolean) })) });
     }
     if (action === "avis") {
@@ -376,11 +387,12 @@ Deno.serve(async (req) => {
       if (action === "profil_de") {
         const qui = str(body.qui, 80);
         const h = hotes.find(m => `hote:${m.email}` === qui);
-        if (h) return json({ nom: h.name, hote: true, photo: (await photosMembres()).get(h.email) ?? null, avis: [...(g.get(h.email) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
+        if (h) return json({ nom: h.name, hote: true, photo: (await photosMembres()).get(h.email) ?? null, abos: await abosMembre(h.email), avis: [...(g.get(h.email) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
         const l = lies.find(a => a.id === qui) ?? (qui === ami.id ? { id: ami.id, nom: ami.nom } : null);
         if (!l) return json({ error: "Vous n’êtes pas liés." }, 403);
         const av = await avisAmis([l.id]);
-        return json({ nom: l.nom, hote: false, photo: (await photosAmis([l.id])).get(l.id) ?? null, avis: [...(av.get(l.id) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
+        const { data: la } = await db.from("amis").select("abos").eq("id", l.id).maybeSingle();
+        return json({ nom: l.nom, hote: false, photo: (await photosAmis([l.id])).get(l.id) ?? null, abos: abosPropres(la?.abos), avis: [...(av.get(l.id) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))) });
       }
       const fil: Record<string, unknown>[] = [];
       for (const h of hotes) for (const a of [...(g.get(h.email) ?? new Map<string, Avis>()).values()].sort((x, y) => String(y.at ?? "").localeCompare(String(x.at ?? ""))).slice(0, 40)) fil.push({ qui: `hote:${h.email}`, nom: h.name, hote: true, ...a });
@@ -454,7 +466,7 @@ Deno.serve(async (req) => {
     return json({ fil: (data ?? []).map(a => ({ id: a.ami_id, nom: noms.get(a.ami_id), k: a.k, title: a.title, year: a.year, poster: a.poster, media: a.media, vote: a.vote, note: a.note, at: a.at })) });
   }
   if (action === "liste") {
-    const [{ data: amis }, g, cachés] = await Promise.all([db.from("amis").select("id, nom, created_at, vu_at, revoked_at, cree_par, invite_par, pass_hash, photo").order("created_at", { ascending: false }), goutsMembres(), discrets()]);
+    const [{ data: amis }, g, cachés] = await Promise.all([db.from("amis").select("id, nom, created_at, vu_at, revoked_at, cree_par, invite_par, pass_hash, photo, abos").order("created_at", { ascending: false }), goutsMembres(), discrets()]);
     const actifs = (amis ?? []).filter(a => !a.revoked_at);
     const av = await avisAmis(actifs.map(a => a.id));
     const moi = g.get(me) ?? new Map<string, Avis>(), autre = ms.find(m => m.email !== me);
@@ -474,7 +486,7 @@ Deno.serve(async (req) => {
       const avecAutre = autre && !cachés.has(autre.email) ? comparer(g.get(autre.email) ?? new Map(), sien) : null;
       const deux = autre ? g.get(autre.email) ?? new Map<string, Avis>() : null;
       const aTrois = deux ? [...sien.values()].filter(x => envie(x) && envie(moi.get(x.k)) && envie(deux.get(x.k))).slice(0, 12).map(fiche) : [];
-      return { id: a.id, nom: a.nom, photo: a.photo ?? null, created_at: a.created_at, vu_at: a.vu_at, par: ms.find(m => m.email === a.cree_par)?.name ?? (amis ?? []).find(x => x.id === a.invite_par)?.nom ?? "", compte: !!a.pass_hash, nAvis: sien.size, avecMoi: c, avecAutre: avecAutre ? { nom: autre!.name, compat: avecAutre.compat, nMatches: avecAutre.nMatches } : null, aTrois };
+      return { id: a.id, nom: a.nom, photo: a.photo ?? null, abos: abosPropres(a.abos), created_at: a.created_at, vu_at: a.vu_at, par: ms.find(m => m.email === a.cree_par)?.name ?? (amis ?? []).find(x => x.id === a.invite_par)?.nom ?? "", compte: !!a.pass_hash, nAvis: sien.size, avecMoi: c, avecAutre: avecAutre ? { nom: autre!.name, compat: avecAutre.compat, nMatches: avecAutre.nMatches } : null, aTrois };
     });
     return json({ amis: liste, partage: !cachés.has(me), peutSupprimer: me === SUPPRIME_PAR });
   }
