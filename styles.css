@@ -2487,3 +2487,4 @@ html, body { touch-action: manipulation; }
 .av-ombre { position: absolute; inset: 0; background: #A893A6; -webkit-mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; mask: url('azami/v44/statiques/azami_v44_calme_statique.svg') center 78% / 96% no-repeat; }
 
 html.cine-seul .crotte { display: none !important; }
+.coop-aldi { display: block; margin: 14px auto 4px; font-weight: 800; }

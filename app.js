@@ -9,6 +9,7 @@ import { SHELF, dueText } from './fraicheur.js';
 import { GLOSS, GEAR } from './cuisine.js';
 import { TOUR, PAGE as GUIDE } from './guide.js';
 import { aisleOf } from './rayons.js';
+import { aldiOuCoop } from './magasins.js';
 import { MOTS, HIRA, exemple, MOTS_COURS, LECONS, ORAL, LECONS_ORAL, NOMS_JP } from './jp.js';
 // Les visites d'Azami (gros fichier) se chargent après le démarrage, en arrière-plan, ou au premier besoin.
 let VISITES = [], visitesP = null;
@@ -148,7 +149,7 @@ const S = {
   view: new URLSearchParams(location.search).get('v') || safeGet('maison-view') || 'maison',
   rq: '', rcuisine: '', rtime: '', rtype: '', timers: (() => { try { return JSON.parse(safeGet('maison-timers') || '[]').filter(t => t.end > Date.now() - 3600000); } catch { return []; } })(), recette: null, cook: null, panier: null, persons: Number(safeGet('maison-persons')) || 2,
   agendaHouse: safeGet('maison-agenda-house') !== '0',
-  shopMode: safeGet('maison-shop-mode') || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
+  shopMode: (v => v === 'super' ? 'aldi' : v)(safeGet('maison-shop-mode')) || null,   // « je suis au supermarché » : la liste se concentre sur ce rayon
   achats: [],                                       // historique des articles achetés (pour les pré-listes, plus tard)
   folds: (() => { try { return JSON.parse(safeGet('maison-folds') || '{}'); } catch { return {}; } })(),
   maisonTab: 'faire', films: [], gouts: [], subs: ['hbo', 'disney', 'apple', 'crunchyroll'], loisirTab: safeGet('maison-loisir') || 'cine', cineTab: 'a_voir', cineQ: '', cineRes: null,
@@ -2857,7 +2858,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v310</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v311</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -3495,7 +3496,8 @@ function viewMenage() {
 
 // Où acheter : rayon deviné d'après le thème de l'article, modifiable à la main.
 const SHOPS = [
-  ['super', 'Supermarché', 'Coop, Migros, Denner, Aldi'],
+  ['aldi', 'Aldi', 'en priorité'],
+  ['coop', 'Coop ou Migros', 'ce qu’Aldi n’a pas'],
   ['asie', 'Épicerie asiatique', 'Uchitomi, Lee Fung'],
   ['maison', 'Maison & brico', 'Jumbo, Ikea, Brico'],
   ['pharma', 'Pharmacie & droguerie', 'Pharmacie, Müller'],
@@ -3505,7 +3507,7 @@ const SHOPS = [
 ];
 // Illustration au-dessus d'un état vide.
 const emptyArt = (id, txt) => `<div class="empty-art"><img src="icons/themes/${id}.webp" alt="" width="120" height="120" decoding="async"><p class="empty">${txt}</p></div>`;
-const SHOP_ICON = { super: 'rayon_super', asie: 'rayon_asie', maison: 'rayon_maison', pharma: 'rayon_pharma', azami: 'rayon_azami', tech: 'rayon_tech', autre: 'rayon_divers' };
+const SHOP_ICON = { aldi: 'rayon_super', coop: 'rayon_super', super: 'rayon_super', asie: 'rayon_asie', maison: 'rayon_maison', pharma: 'rayon_pharma', azami: 'rayon_azami', tech: 'rayon_tech', autre: 'rayon_divers' };
 const shopIc = (k, cls = 'shop-ic') => SHOP_ICON[k] ? `<img class="${cls}" src="icons/themes/${SHOP_ICON[k]}.webp" alt="" width="40" height="40" decoding="async">` : '';
 const SHOP_OF_THEME = {
   asiatique: 'asie', nouilles: 'asie', sushi: 'asie', curry: 'asie', riz_sushi: 'asie,super', panko: 'asie,super', tofu: 'asie,super', tempeh: 'asie', sauce_soja: 'asie,super', miso: 'asie', mirin: 'asie', pate_gyoza: 'asie', feuilles_riz: 'asie', ramen: 'asie,super', udon: 'asie', soba: 'asie', nouilles_riz: 'asie,super', vermicelles: 'asie',
@@ -3521,17 +3523,21 @@ const SHOP_OF_THEME = {
   cables: 'tech', piles: 'tech,super', telephone: 'tech', ordinateur: 'tech', audio: 'tech', tv: 'tech', photo: 'tech', jeux: 'tech', electricite: 'tech,maison', internet_sites: 'tech', telecom: 'tech',
   cadeau: 'autre', anniversaire: 'autre', noel: 'autre', amis: 'autre', famille: 'autre', fete: 'autre', mariage: 'autre',
   litiere: 'azami,super', croquettes: 'azami,super', patee: 'azami,super', friandises: 'azami,super',
-  croquettes: 'azami', patee: 'azami', friandises: 'azami', litiere: 'azami', griffoir: 'azami', arbreachat: 'azami', jouetschat: 'azami', antipuces: 'azami', brossechat: 'azami', herbeachat: 'azami', fontaine: 'azami', gamelle: 'azami', caissetransport: 'azami', collierchat: 'azami', antipoils: 'azami', animalerie: 'azami', chat: 'azami',
+  griffoir: 'azami', arbreachat: 'azami', jouetschat: 'azami', antipuces: 'azami', brossechat: 'azami', herbeachat: 'azami', fontaine: 'azami', gamelle: 'azami', caissetransport: 'azami', collierchat: 'azami', antipoils: 'azami', animalerie: 'azami', chat: 'azami',
 };
-function guessShop(label) { const r = classify(label, S.hints); return (r && (SHOP_OF_THEME[r.id] || SHOP_OF_THEME[PARENT[r.id]])) || 'super'; }
-// Un article peut être dans plusieurs rayons (« super,maison ») : il apparaît dans chaque groupe.
-const shopsOf = s => { const v = String(s.shop || '').split(',').filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
+// « super » (le supermarché) se partage entre Aldi, en priorité, et Coop ou Migros pour ce qu'Aldi n'a pas.
+// Les anciens articles rangés « super » sont répartis de la même façon, à l'affichage.
+const superEn = (v, label, themeId) => { const out = []; for (const k of v) { const x = k === 'super' ? aldiOuCoop(label, themeId, PARENT) : k; if (!out.includes(x)) out.push(x); } return out; };
+function guessShop(label) { const r = classify(label, S.hints); return superEn(((r && (SHOP_OF_THEME[r.id] || SHOP_OF_THEME[PARENT[r.id]])) || 'super').split(','), label, r?.id).join(','); }
+// Un article peut être dans plusieurs rayons (« aldi,maison ») : il apparaît dans chaque groupe.
+const shopsOf = s => { const v = superEn(String(s.shop || '').split(','), s.label, shopTheme(s)).filter(k => SHOPS.some(x => x[0] === k)); return v.length ? v : guessShop(s.label).split(','); };
+const auSuper = shop => shop === 'aldi' || shop === 'coop' || shop === 'super';
 
 // Rayons : la liste suit le tour du magasin (fruits et légumes d'abord, surgelés à la fin…).
 const shopTheme = s => (String(s.icon || '').startsWith('t:') ? s.icon.slice(2) : null) || classify(s.label, S.hintsX || S.hints)?.id || null;
-const aisleFor = (shop, s) => aisleOf(shop, shopTheme(s), PARENT);
+const aisleFor = (shop, s) => aisleOf(auSuper(shop) ? 'super' : shop, shopTheme(s), PARENT);
 // Article inconnu : au supermarché, avec l'épicerie ; un objet connu mais hors rayons alimentaires, à la fin.
-const aisleRank = (shop, s) => { const a = aisleFor(shop, s); return a ? a[0] : shop === 'super' && !shopTheme(s) ? 5.5 : 99; };
+const aisleRank = (shop, s) => { const a = aisleFor(shop, s); return a ? a[0] : auSuper(shop) && !shopTheme(s) ? 5.5 : 99; };
 const byAisle = (shop, list) => [...list].sort((a, b) => aisleRank(shop, a) - aisleRank(shop, b) || a.created_at.localeCompare(b.created_at));
 // Ce qui manque encore pour les recettes au menu (articles pas encore pris).
 function menuMissing() {
@@ -3549,6 +3555,14 @@ function aisleGroups(shop, list, item) {
   return groups.map(g => `<h3 class="aisle">${esc(g.label)}</h3><ul class="list">${g.items.map(item).join('')}</ul>`).join('');
 }
 
+// À la Coop ou à la Migros, la liste Aldi reste à portée : si on ne passe pas chez Aldi, on la déplie et on prend tout ici.
+function coopAussiAldi(mode, todoAll, item) {
+  if (mode !== 'coop') return '';
+  const aldi = todoAll.filter(s => { const l = shopsOf(s); return l.includes('aldi') && !l.includes('coop'); });
+  if (!aldi.length) return '';
+  return `<button type="button" class="link coop-aldi" data-action="coop-aldi" aria-expanded="${!!S.coopAldi}">${S.coopAldi ? 'Cacher la liste Aldi' : `Pas d’Aldi aujourd’hui ? Voir aussi la liste Aldi (${aldi.length})`}</button>
+    ${S.coopAldi ? `<h2 class="list-head shop-head">${shopIc('aldi')}Prévu chez Aldi <span class="hint-inline">à prendre ici si tu n’y passes pas</span></h2>${aisleGroups('aldi', aldi, item)}` : ''}`;
+}
 function viewCourses() {
   const mode = SHOPS.find(x => x[0] === S.shopMode) ? S.shopMode : null;
   const todoAll = S.shopping.filter(s => !s.checked).sort((a, b) => a.created_at.localeCompare(b.created_at));
@@ -3574,7 +3588,7 @@ function viewCourses() {
       ${S.whereOpen ? `<div class="where-menu" role="listbox" aria-label="Je suis à">${SHOPS.map(([k, l, ex]) => `<button type="button" class="where-opt" role="option" data-action="shop-pick" data-shop="${k}" aria-selected="${mode === k}">${shopIc(k, 'chip-ic')}<span><b>${esc(l)}</b>${ex ? `<small>${esc(ex)}</small>` : ''}</span></button>`).join('')}${mode ? '<button type="button" class="where-opt out" role="option" data-action="shop-pick" data-shop="" aria-selected="false"><span><b>Je ne suis pas en magasin</b></span></button>' : ''}</div>` : ''}
     </div>
     <div class="shop">${mode
-      ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2>${aisleGroups(mode, todo, item)}` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`)
+      ? (todo.length ? `<h2 class="list-head shop-head">${shopIc(mode)}${esc(modeLabel)} <span class="hint-inline">${esc(SHOPS.find(x => x[0] === mode)[2])}</span></h2>${aisleGroups(mode, todo, item)}` : `<p class="empty">Rien à acheter ici${todoAll.length ? ', le reste de la liste est ailleurs' : ''}.</p>`) + coopAussiAldi(mode, todoAll, item)
       : (todo.length ? SHOPS.map(([k, l, ex]) => { const list = byAisle(k, todo.filter(s => shopsOf(s).includes(k))); return list.length ? `<h2 class="list-head shop-head">${shopIc(k)}${esc(l)}${ex ? ` <span class="hint-inline">${esc(ex)}</span>` : ''}</h2><ul class="list">${list.map(item).join('')}</ul>` : ''; }).join('') : emptyArt('vide_courses', 'Rien à acheter. Ajoute un article quand il manque quelque chose.'))}
     ${cart.length ? `<h2>${cartOther.length ? 'Dans ton panier' : 'Dans le panier'} <span class="count">${cart.length}</span></h2><ul class="list">${cart.map(item).join('')}</ul>` : ''}
     ${cartOther.length ? `<h2>Dans le panier de ${esc(nameOf(other()))} <span class="count">${cartOther.length}</span></h2><ul class="list other-cart">${cartOther.map(item).join('')}</ul>` : ''}
@@ -6793,7 +6807,8 @@ function jpcMicro(btn) {
     if (score >= .72) { jpcJuge(true, btn); pied.innerHTML = `<p class="jpc-entendu bon" lang="ja">${esc(entendu)}</p>`; }
     else { jpcAz('visite_malice'); jpc.box.querySelector('.jpc-bulle').textContent = 'Pas tout à fait. Écoute encore, et redis-le.'; pied.innerHTML = `<p class="jpc-entendu" lang="ja">J’ai entendu : ${esc(entendu)}</p><div class="jpc-2"><button class="btn ghost" data-j="dire" data-txt="${esc(e.it.k)}">Réécouter</button><button class="btn ghost" data-j="passe">Passer</button></div>`; }
   };
-  try { rec.start(); jpc.rec = rec; btn.classList.add('on'); haptic('medium'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
+  jpc.rec = rec; btn.classList.add('on'); haptic('medium');
+  microPret().then(() => { if (jpc?.rec !== rec) return; try { rec.start(); } catch { jpc.rec = null; btn.classList.remove('on'); toast('Le micro n’a pas voulu démarrer.'); } });
 }
 function jpcClic(ev) {
   const b = ev.target.closest('[data-j]'); if (!b || !jpc) return;
@@ -7571,16 +7586,38 @@ function azamiFermer() {
 // Au démarrage : une bulle de plus de dix minutes n'est pas réaffichée ; une plus récente finit son temps, puis s'efface
 // (sans ça, une bulle retrouvée après un rechargement restait là pour de bon).
 if (AZ.bulle && Date.now() - AZ.at > 10 * 60e3) { AZ.bulle = ''; safeSet('maison-az-bulle', ''); } else if (AZ.bulle) azamiEnvol();
+// Le micro, une fois autorisé, reste ouvert quelques minutes : iOS redemande l'autorisation dès que le micro
+// est resté fermé une minute. On garde donc un flux ouvert (sans rien enregistrer) entre deux phrases, et on le
+// lâche après 5 minutes sans parler, ou dès que l'app passe en arrière-plan. Si ce téléphone n'aime pas partager
+// le micro avec la reconnaissance vocale, on s'en souvient et on ne le garde plus.
+const MICRO = { flux: null, t: 0 };
+const microSeul = () => safeGet('maison-micro-seul') === '1';
+async function microPret() {
+  clearTimeout(MICRO.t);
+  if (!MICRO.flux && !microSeul() && navigator.mediaDevices?.getUserMedia) {
+    try { MICRO.flux = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch {}
+  }
+  MICRO.t = setTimeout(microLache, 5 * 60e3);
+}
+function microLache() { clearTimeout(MICRO.t); try { MICRO.flux?.getTracks().forEach(t => t.stop()); } catch {} MICRO.flux = null; }
+document.addEventListener('visibilitychange', () => { if (document.hidden) microLache(); });
+// une reconnaissance qui ne trouve pas le micro alors qu'on le garde ouvert : on le lâche, on retient, on réessaie
+function microConflit(e, relance) {
+  if (e.error !== 'audio-capture' || !MICRO.flux) return false;
+  microLache(); safeSet('maison-micro-seul', '1'); setTimeout(relance, 120); return true;
+}
 // Le micro : la reconnaissance vocale du téléphone. Ce qu'on dit s'écrit dans la bulle, puis part tout seul.
 function azamiMic() {
-  if (AZ.rec) { AZ.rec.stop(); return; }
+  if (AZ.rec) { const r = AZ.rec; try { r.stop(); } catch {} if (!r.parti) { AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); } return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition; if (!SR) return;
   const rec = new SR(); rec.lang = 'fr-CH'; rec.interimResults = true; rec.continuous = false;
   const champ = () => document.getElementById('az-in'); const avant = champ()?.value || ''; let fin = '';
   rec.onresult = e => { let t = ''; for (const r of e.results) { t += r[0].transcript; if (r.isFinal) fin = t; } const c = champ(); if (c) c.value = (avant ? avant + ' ' : '') + t; };
-  rec.onerror = e => { if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
-  rec.onend = () => { AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); if (fin && !avant) { const c = champ(); if (c) c.value = ''; azamiEnvoyer(fin); } };
-  try { rec.start(); AZ.rec = rec; document.querySelector('.az-mic')?.classList.add('on'); haptic('medium'); sfx('tick'); } catch { toast('Le micro n’a pas voulu démarrer.'); }
+  let relance = false;
+  rec.onerror = e => { if (microConflit(e, () => { AZ.rec = null; azamiMic(); })) { relance = true; return; } if (e.error !== 'aborted' && e.error !== 'no-speech') toast(e.error === 'not-allowed' ? 'Le micro n’est pas autorisé.' : 'Le micro n’a pas compris.'); };
+  rec.onend = () => { if (relance) return; AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); if (fin && !avant) { const c = champ(); if (c) c.value = ''; azamiEnvoyer(fin); } microPret(); };
+  AZ.rec = rec; document.querySelector('.az-mic')?.classList.add('on'); haptic('medium');
+  microPret().then(() => { if (AZ.rec !== rec) return; try { rec.start(); rec.parti = true; sfx('tick'); } catch { AZ.rec = null; document.querySelector('.az-mic')?.classList.remove('on'); toast('Le micro n’a pas voulu démarrer.'); } });
 }
 // ses erreurs, dans sa bulle : à la première personne, jamais de détail technique (le détail part dans la console)
 function azErreur(e) {
@@ -8091,6 +8128,7 @@ const actions = {
   'shop-clear': el => actions['shop-done'](el),   // même chemin que « Courses faites » : historique + ticket de caisse
   'where-open': () => { S.whereOpen = !S.whereOpen; haptic(1); render(); },
   'shop-pick': el => { const k = el.dataset.shop || null; S.whereOpen = false; if (k === S.shopMode) { render(); return; } S.shopMode = k; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); presenceTrack(); render(); },
+  'coop-aldi': () => { S.coopAldi = !S.coopAldi; haptic(1); render(); },
   'shop-mode': el => { S.shopMode = S.shopMode === el.dataset.shop ? null : el.dataset.shop; safeSet('maison-shop-mode', S.shopMode || ''); haptic(1); sfx('tick'); presenceTrack(); render(); },
   // Courses faites : ce qui est dans le panier sort de la liste, chaque article est gardé en mémoire (pour les pré-listes), et c'est une réussite.
   'shop-done': el => {
