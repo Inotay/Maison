@@ -204,7 +204,7 @@ async function minuteurs(db: ReturnType<typeof admin>) {
     await db.from("chores").update({ notified_at: new Date().toISOString() }).eq("id", c.id);
   }
   for (const p of pil) {
-    const payload = JSON.stringify({ title: p.title, body: p.body, tag: `maison-pil-${p.c.id}`, url: "./?v=menage" });
+    const payload = JSON.stringify({ title: p.title, body: p.body, tag: `maison-pil-${p.c.id}-${p.k}`, url: "./?v=menage" });
     for (const s of (subs ?? []).filter((s: { email: string }) => s.email === p.to)) {
       try { await webpush.sendNotification(s.sub, payload, { TTL: 6 * 3600, urgency: "high" }); sent++; }
       catch (e) { const st = (e as { statusCode?: number }).statusCode; if (st === 404 || st === 410) dead.push(s.endpoint); else console.warn("push", (e as Error).message); }

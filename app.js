@@ -556,9 +556,18 @@ async function subscribePush() {
     if (!swReg || !sb || !('pushManager' in swReg)) return;
     const key = await pushKey(); if (!key) return;
     const sub = await swReg.pushManager.getSubscription() || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidKey(key) });
-    await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON(), origin: location.host });
+    const j = await pushJournal(), dernier = j[j.length - 1], vu = [...j].reverse().find(x => x.ok);
+    const appareil = (navigator.userAgent.match(/(iPhone|iPad|Android)[^;)]*/)?.[0] || navigator.platform || '').slice(0, 60) + (navigator.standalone || matchMedia('(display-mode: standalone)').matches ? ' · app' : ' · navigateur') + (CINE_SEUL ? ' · ciné' : '');
+    await api.upsert('push_subscriptions', { endpoint: sub.endpoint, email: S.me, sub: sub.toJSON(), origin: location.host, appareil, ...(dernier ? { recu_at: new Date(dernier.at).toISOString() } : {}), ...(vu ? { affiche_at: new Date(vu.at).toISOString() } : {}) });
   } catch (e) { console.warn('push', e); }
 }
+// Ce que le service worker a noté des notifications reçues sur ce téléphone (30 jours).
+async function pushJournal() {
+  try { const c = await caches.open('maison-inbox'); const r = await c.match('./__journal'); const l = r ? await r.json() : []; S.pushJ = Array.isArray(l) ? l : []; } catch { S.pushJ = []; }
+  return S.pushJ;
+}
+// « Dernière reçue ici » : la preuve que ce téléphone reçoit bien (ou pas) ce que le serveur envoie.
+const pushDerniere = () => { const l = S.pushJ || []; const x = l[l.length - 1]; if (!x) return 'Aucune reçue ici depuis la mise à jour'; const m = Math.round((Date.now() - x.at) / 60e3); return `Dernière reçue ici ${m < 1 ? 'à l’instant' : m < 60 ? `il y a ${m} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`}${x.ok ? '' : ' (pas affichée)'}`; };
 function vapidKey(b64) {
   const pad = '='.repeat((4 - b64.length % 4) % 4);
   const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
@@ -2843,6 +2852,7 @@ function viewMaison() {
       <button data-action="son-mode" data-mode="jeu" aria-pressed="${SON_JEU()}">Sons quand même</button></div>
       <small class="regl-aide">« Sons quand même » coupe la musique en cours, comme un jeu.</small></div>
     ${DEMO ? '' : `<div class="regl-row"><span>Notifications</span>${notifOn() ? '<span class="regl-ok">Activées</span>' : '<button class="btn ghost small" data-action="notif">Activer</button>'}</div>`}
+    ${DEMO || !notifOn() ? '' : `<div class="regl-row"><span>Essayer sur ce téléphone<small class="regl-aide">${esc(pushDerniere())}</small></span><button class="btn ghost small" data-action="notif-test">Envoyer</button></div>`}
     ${DEMO ? '' : `<div class="regl-row"><span>Mot de passe</span><button class="btn ghost small" data-action="change-pass">Changer</button></div>`}
     <div class="regl-row"><span>Guide de l’app</span><button class="btn ghost small" data-action="guide-reset">Revoir</button></div>
     <p class="regl-t">Azami</p>
@@ -2858,7 +2868,7 @@ function viewMaison() {
     <div class="regl-row"><span>Ce qu’elle sait de toi</span><button class="btn ghost small" data-action="azami-memoire">Voir</button></div>
     </div>
     </details>
-    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v311</span></div>`;
+    <div class="foot">${DEMO ? '<button class="link" data-action="demo-reset">Remettre la démo à zéro</button>' : '<button class="link" data-action="logout">Se déconnecter</button>'}<span class="version">v312</span></div>`;
 }
 
 // Tâches datées et prochaine échéance de chaque corvée, à placer dans l'agenda de l'app.
@@ -7689,6 +7699,24 @@ async function azamiMemoire() {
 const actions = {
   'son-mode': el => { safeSet('maison-son-mode', el.dataset.mode); unlockAudio(); render(); toast(el.dataset.mode === 'jeu' ? 'Les sons sortent même en silence (ça coupe la musique en cours)' : 'L’app se mêle à la musique ; l’interrupteur silence la coupe'); },
   'az-mode': el => { safeSet('maison-az-mode', el.dataset.mode); azamiModeSync(); render(); },
+  'notif-test': async el => {
+    el.disabled = true; haptic(1);
+    try {
+      await subscribePush();
+      const avant = (S.pushJ || []).length ? S.pushJ[S.pushJ.length - 1].at : 0;
+      const { data, error } = await sb.functions.invoke('rappels', { body: { action: 'test' } }); if (error) throw error;
+      if (!data?.sent) { toast('Ce téléphone n’est pas inscrit chez le serveur. Ferme l’app et rouvre-la depuis l’icône, puis réessaie.'); return; }
+      toast('Envoyée. Elle arrive dans quelques secondes…');
+      // on regarde si elle est bien arrivée sur ce téléphone
+      for (let i = 0; i < 8; i++) {
+        await new Promise(r => setTimeout(r, 1500));
+        const l = await pushJournal(), x = l[l.length - 1];
+        if (x && x.at > avant) { render(); toast(x.ok ? 'Bien reçue sur ce téléphone. Si tu ne l’as pas vue, regarde Réglages › Notifications › Maison (bannières, et la Concentration).' : 'Reçue, mais le téléphone ne l’a pas affichée. Réglages › Notifications › Maison : Autoriser les notifications.'); return; }
+      }
+      toast('Partie du serveur, mais pas arrivée ici. Supprime l’icône Maison de l’écran d’accueil, rajoute-la depuis Safari, puis réactive les notifications.');
+    } catch (e) { toast(e.message || 'L’essai n’est pas parti.'); }
+    finally { el.disabled = false; }
+  },
   'azami-notif-test': async () => {
     try { const { data, error } = await sb.functions.invoke('rappels', { body: { action: 'azami_test' } }); if (error) throw error; toast(data?.sent ? 'Azami t’envoie un mot. Regarde tes notifications.' : 'Aucun appareil à prévenir. Active les notifications sur ce téléphone.'); }
     catch (e) { toast(e.message || 'Le mot n’est pas parti.'); }

@@ -2488,3 +2488,4 @@ html, body { touch-action: manipulation; }
 
 html.cine-seul .crotte { display: none !important; }
 .coop-aldi { display: block; margin: 14px auto 4px; font-weight: 800; }
+.regl-row > span .regl-aide { display: block; margin-top: 2px; }
