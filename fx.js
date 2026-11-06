@@ -280,8 +280,8 @@ export function countUp(el, to, ms = 700) {
 // bouton reçoit le doigt lui-même ; iOS joue alors sa vibration. Le clic remonte au bouton comme
 // d'habitude. Apple a fermé cette porte à partir d'iOS 26.5 : là, il ne se passe simplement rien.
 export function armHaptics(root = document) {
-  root.querySelectorAll('.tick, .btn, .nav button, .chips button, .icon-btn, .seg button, .cine-spaces button, .gen, .cine-inv, .ami-mini, .fil-aff, .deck-btns button, .deck-f button').forEach(el => {
-    if (el.querySelector(':scope > input.hap')) return;
+  root.querySelectorAll('.tick, .btn, .nav button, .icon-btn, .seg button, .cine-inv, .ami-mini, .fil-aff, .deck-btns button, .deck-f button').forEach(el => {
+    if (el.querySelector(':scope > input.hap') || el.closest('.gens, .chips, .cine-spaces, .a-row')) return;
     const t = document.createElement('input');
     t.type = 'checkbox'; t.setAttribute('switch', ''); t.className = 'hap'; t.tabIndex = -1;
     t.setAttribute('aria-hidden', 'true');
@@ -289,3 +289,13 @@ export function armHaptics(root = document) {
   });
 }
 
+
+// Faire défiler une rangée horizontale (les gens, les filtres) ne doit jamais ouvrir un profil par mégarde :
+// un clic qui suit un glissement de plus de 8 px est annulé.
+(() => {
+  let x0 = 0, y0 = 0, bouge = false;
+  const ZONE = '.gens, .chips, .a-row, .a-filtres, .cine-spaces';
+  addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; bouge = false; }, true);
+  addEventListener('pointermove', e => { if (!bouge && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) bouge = true; }, true);
+  addEventListener('click', e => { if (bouge && e.target.closest?.(ZONE)) { e.stopPropagation(); e.preventDefault(); } bouge = false; }, true);
+})();

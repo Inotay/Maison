@@ -202,7 +202,7 @@ button.a-scene:active .a-bulle { transform: translateY(2px); box-shadow: 0 2px 0
 input.hap { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; clip-path: inset(0 round 999px); touch-action: manipulation; -webkit-tap-highlight-color: transparent; z-index: 1; }
 .s-btn, .s-btns button, .s-tabs button, .a-filtres button, .a-choix button, .a-li, .ami-mini, .a-mini, .a-qui, .a-scene { position: relative; }
 /* les gens, le fil, les profils */
-.gens { display: flex; gap: 6px; overflow-x: auto; padding: 6px 2px 8px; margin: 0 -2px 6px; scrollbar-width: none; }
+.gens { overscroll-behavior-x: contain; touch-action: pan-x pan-y; display: flex; gap: 6px; overflow-x: auto; padding: 6px 2px 8px; margin: 0 -2px 6px; scrollbar-width: none; }
 .gens::-webkit-scrollbar { display: none; }
 .gen { all: unset; position: relative; cursor: pointer; flex: none; width: 66px; display: grid; justify-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: var(--soft); text-align: center; -webkit-tap-highlight-color: transparent; }
 .gen span:last-child { max-width: 66px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
